@@ -3,4 +3,4 @@ wazzzup - Ben
 heyheyyy - Sira 
 oh hey - Jackson
 yo - lucas
-njknjkinjknk
+hi - Gabriella
