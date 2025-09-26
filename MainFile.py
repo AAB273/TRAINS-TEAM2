@@ -1,6 +1,6 @@
 print("Hello World")
 print("Sira")
-<<<<<<< HEAD
+# <<<<<<< HEAD
 print("Jackson")
 print("Ben")
 print("Lucas")

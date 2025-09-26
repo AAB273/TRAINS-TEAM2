@@ -1,0 +1,8 @@
+# download a UI library
+import tkinter as tk
+from tkinter import ttk
+
+# create main window 
+root = tk.Tk() 
+root.title("My First UI")
+root.geometry("300x200")
