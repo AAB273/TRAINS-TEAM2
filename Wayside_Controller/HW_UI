@@ -3,6 +3,16 @@ import tkinter as tk
 from tkinter import ttk
 
 # create main window 
-# root = tk.Tk() 
-# root.title("My First UI")
-# root.geometry("300x200")
+root = tk.Tk() 
+root.title("My First UI")
+root.geometry("300x200")
+
+# adding a widget
+label = ttk.Label(root, text= "Hello Wayside Controller HW!")
+label.pack(pady=10)
+
+button = ttk.Button(root, text="Click me!", command=lambda : print("Button on clicked"))
+button.pack(pady=5)
+
+#start the main loop
+root.mainloop()
