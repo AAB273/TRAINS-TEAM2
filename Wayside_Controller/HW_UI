@@ -1,18 +1,41 @@
 # download a UI library
 import tkinter as tk
 from tkinter import ttk
+from PIL import ImageTk, Image
+import os
 
 # create main window 
 root = tk.Tk() 
-root.title("My First UI")
-root.geometry("300x200")
+root.title("Wayside Controller Hardware UI")
+root.geometry("600x400")
 
-# adding a widget
-label = ttk.Label(root, text= "Hello Wayside Controller HW!")
-label.pack(pady=10)
+# background
+#try:
+image_path = r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\background.jpg"
+#creating label widget
+pilImage = Image.open(image_path)
+background_image = ImageTk.PhotoImage(pilImage)
+    
+    # Create background label
+background_label = tk.Label(root, image=background_image)
+background_label.place(x=0, y=0, relwidth=1, relheight=1)
+background_label.image = background_image  # Keep reference!
+    
+#except Exception as e:
+print(f"Error loading background: ")
+    # Fallback to solid color
+root.configure(bg='lightgray')
 
-button = ttk.Button(root, text="Click me!", command=lambda : print("Button on clicked"))
+# Adding widgets on top of the background
+label = tk.Label(root, text="Welcome to the Main UI", font=("Arial", 20), bg="white")
+label.pack(pady=20)
+
+# Use different variable name for the second label
+label2 = ttk.Label(root, text="Hello Wayside Controller HW!")
+label2.pack(pady=10)
+
+button = ttk.Button(root, text="Click me!", command=lambda: print("Button clicked"))
 button.pack(pady=5)
 
-#start the main loop
+# Start the main loop
 root.mainloop()
