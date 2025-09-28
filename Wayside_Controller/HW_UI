@@ -1,6 +1,6 @@
 # download a UI library
 import tkinter as tk
-from tkinter import ttk
+#from tkinter import ttk
 from PIL import ImageTk, Image # image library inclusion of pictures 
 import os
 
@@ -31,10 +31,10 @@ label = tk.Label(root, text="Welcome to the Main UI", font=("Arial", 20), bg="wh
 label.pack(pady=20)
 
 #adding logo
-# Logoimage = Image.open("blt_logo.png")
-# Logo = ImageTk.PhotoImage(Logoimage)
-# label3 = ttk.Label3(root, Logoimage = Logo)
-# l1.place(x=25, y=25)
+Logoimage = Image.open("blt_logo.png")
+Logo = ImageTk.PhotoImage(Logoimage)
+label3 = ttk.Label3(root, Logoimage = Logo)
+label3.place(x=25, y=25)
 
 # Use different variable name for the second label
 label2 = ttk.Label(root, text="Hello Wayside Controller HW!")
@@ -47,29 +47,15 @@ button.pack(pady=5)
 ########################################################################################
 
 ## NOW MAKING PLC UPLOAD: 
-# PLCupload_frame = tk.Frame(root, bg='white', relief='raised', bd=10)
-# PLCupload_frame.place(relx=25, rely=25, anchor='nw', width=400, height=150)
-# PLCupload_title = tk.Label(PLCupload_frame, text= "PLC PRogram Upload", font=("Arial", 18, "bold"), bg='white')
-# PLCupload_title.pack(pady=10)
-
-# # Function to handle file selection
-# def upload_file():
-#     file_path = filedialog.askopenfilename(
-#         title="Select a file",
-#         filetypes=[("All files", "*.*"), 
-#                   ("Text files", "*.txt"), 
-#                   ("CSV files", "*.csv"),
-#                   ("Image files", "*.jpg *.png *.gif")]
-#     )
-#     if file_path:
-#         # Update the label with the selected file name
-#         file_name = file_path.split("/")[-1]  # Get just the filename
-#         file_label.config(text=f"Selected: {file_name}")
-#         print(f"File selected: {file_path}")
+PLCupload_frame = tk.Frame(root, bg='white', relief='raised', bd=10)
+PLCupload_frame.place(relx=25, rely=25, anchor='nw', width=400, height=150)
+PLCupload_title = tk.Label(PLCupload_frame, text= "PLC PRogram Upload", font=("Arial", 18, "bold"), bg='white')
+PLCupload_title.pack(pady=10)
 
 #upload button process
-# PLCupload_button = ttk.Button(PLCupload_frame, text="Choose File", command=PLCupload_file)
-# PLCupload_button.pack(pady=5)
+PLCupload_button = ttk.Button(PLCupload_frame, text="Choose File", command=PLCupload_file)
+PLCupload_button.pack(pady=5)
+
 
 # Start the main loop
 root.mainloop()
