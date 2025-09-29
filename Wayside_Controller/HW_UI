@@ -1,61 +1,89 @@
 # download a UI library
 import tkinter as tk
-#from tkinter import ttk
+from tkinter import ttk
 from PIL import ImageTk, Image # image library inclusion of pictures 
-import os
+    # import os
+#box color 4d4d60
+# panda excel csv implementations
 
 # create main window 
 root = tk.Tk() 
 root.title("Wayside Controller Hardware UI")
-root.geometry("1250x975") # size of popup screen
+root.geometry("1250x875") # size of popup screen
+
+# def main():
 
 # background
-
-image_path = r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\background2.jpg"
-#creating label widget
-pilImage = Image.open(image_path)
-background_image = ImageTk.PhotoImage(pilImage)
-    
-# Create background label
-background_label = tk.Label(root, image=background_image)
-background_label.place(x=0, y=0, relwidth=1, relheight=1)
-background_label.image = background_image  # Keep reference!
-    
-# condition if doesn't work, make background light gray
-print(f"Error loading background: ")
-    # Fallback to solid color
-root.configure(bg='lightgray')
+root.configure(bg="#1a1a4d")
 
 # Adding widgets on top of the background
-label = tk.Label(root, text="Welcome to the Main UI", font=("Arial", 20), bg="white")
-label.pack(pady=20)
+label = tk.Label(root, text="Testing Interface", font=("Arial", 35), fg='white', bg="#4f4f4f", highlightbackground='white', highlightthickness=2)
+label.pack(pady=10)
+
 
 #adding logo
-# Logoimage = Image.open("blt_logo.png")
-# Logo = ImageTk.PhotoImage(Logoimage)
-# label3 = ttk.Label3(root, Logoimage = Logo)
-# label3.place(x=25, y=25)
+logo = Image.open(r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\TRAINS-TEAM2\Wayside_Controller\background2.jpg")
+logo = ImageTk.PhotoImage(logo)
+logo.image=logo
 
 # Use different variable name for the second label
 # label2 = ttk.Label(root, text="Hello Wayside Controller HW!")
 # label2.pack(pady=10)
 
+########           BUTTONS       ###########
 # button = ttk.Button(root, text="Click me!", command=lambda: print("Button clicked"))
 # button.pack(pady=5)
-#
+
+# text boxxes - helpful for terminal box??
+#test_textbox = tk.Text(root, height=0 ,font=('Arial', 25))
+#test_textbox.pack()
+
+canvas = tk.Canvas(root, width=1075, height=755, bg='white')
+canvas.pack()
+
+toggleON=tk.PhotoImage(file=r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\togglepic_ON.jpg")
+toggleOFF=tk.PhotoImage(file=r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\togglepicOFF.jpg")
+toggle_state = False
+
+#creating led
+test_led=tk.Canvas(root, width=60, height=60, bg="#52ec54", highlightthickness=0)
+test_led.place(relx=0.85, rely=1)
+
+# intial led status
+led=test_led.create_oval(10,10,50, fill='white', outline='white', width=2)
+
+# led label
+test_led_label = tk.Label(root, text="TEST LED", fg='white', font=("Arial", 12))
+test_led_label.place(relx=0.85, rely=0.35)
+
+def toogle_switch():
+    global toggle_state
+
+    if toggle_state:
+        #turn off
+        togglebtn.config(image=toggleOFF)
+    ####
+
+togglebtn=ttk.Button(root, text='clickme', image=toggleON)
+togglebtn.place(relx=850, rely=450)
+
+########################################################################################
 #              DONE WITH BASIC LOGO AND BACKGROUND DESIGN
 ########################################################################################
-
+#
 ## NOW MAKING PLC UPLOAD: 
 # PLCupload_frame = tk.Frame(root, bg='white', relief='raised', bd=10)
 # PLCupload_frame.place(relx=25, rely=25, anchor='nw', width=400, height=150)
 # PLCupload_title = tk.Label(PLCupload_frame, text= "PLC PRogram Upload", font=("Arial", 18, "bold"), bg='white')
 # PLCupload_title.pack(pady=10)
-
+#
 #upload button process
 # PLCupload_button = ttk.Button(PLCupload_frame, text="Choose File", command=PLCupload_file)
 # PLCupload_button.pack(pady=5)
+#
+########################################################################################
+#main()
 
-
-# Start the main loop
+# Start the main loop'
 root.mainloop()
+
