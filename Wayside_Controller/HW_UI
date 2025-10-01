@@ -107,16 +107,7 @@ togglebtn.place(relx=850, rely=450)
 # PLCupload_frame.place(relx=25, rely=25, anchor='nw', width=400, height=150)
 # PLCupload_title = tk.Label(PLCupload_frame, text= "PLC PRogram Upload", font=("Arial", 18, "bold"), bg='white')
 # PLCupload_title.pack(pady=10)
-def confirm_upload():
-        if hasattr(PLCupload_frame, 'file_path'):
-        # Simulate upload process
-            file_status.config(text="Uploading...", fg="blue")
-            root.after(2000, upload_complete)  # 2 second upload
-        else:
-            messagebox.showwarning("No File", "Please select a file first!")
-
-
-def PLCupload_file(): # fixed inputs:
+def PLCupload():
     file_types = [
         ("PLC Files", "*.plc *.txt *.csv"),
         ("Text Files", "*.txt"),
@@ -124,9 +115,9 @@ def PLCupload_file(): # fixed inputs:
         ("All Files", "*.*")
     ]
 
-    file_path = filedialog.askopenfilename(
+    file_path = filedialog.askopenfile(
         title = "Select PLC Program File",
-        filetypes=file_types
+        file_types=file_types
     )
 
     if file_path:
@@ -136,7 +127,7 @@ def PLCupload_file(): # fixed inputs:
         # update status 
         file_status.config(text = f"{file_name}\n({file_size:.1f} KB)", 
         fg = "green",
-        font=("Arial", 10, "bold")
+        font=("arial", 10, "bold")
         )
         # enabling the upload button
         upload_confirm_button.config(state='normal')
@@ -148,9 +139,16 @@ def PLCupload_file(): # fixed inputs:
     else:
         file_status.config(text="No file selected", fg="gray")
     ################
+    def confirm_upload():
+        if hasattr(PLCupload_frame, 'file_path'):
+        # Simulate upload process
+            file_status.config(text="Uploading...", fg="blue")
+            root.after(2000, upload_complete)  # Simulate 2 second upload
+        else:
+            messagebox.showwarning("No File", "Please select a file first!")
 
 def upload_complete():
-    file_status.config(text="Upload Complete!", fg="green")
+    file_status.config(text="✓ Upload Complete!", fg="green")
     upload_confirm_button.config(state='disabled')
     messagebox.showinfo("Success", "PLC program uploaded successfully!")
     
@@ -169,13 +167,13 @@ PLCupload_frame.place(x=50, y=50, width=400, height=250)  # Increased height for
 
 # Title with icon
 PLCupload_title = tk.Label(PLCupload_frame, text="PLC Program Upload", 
-                          font=("Arial", 16, "bold"), bg='white', fg='#1a1a4d')
+                          font=("Arial", 18, "bold"), bg='white', fg='#1a1a4d')
 PLCupload_title.pack(pady=15)
 
 # Instructions
 instructions = tk.Label(PLCupload_frame, 
                        text="Upload your PLC program file (.plc, .txt, .csv)",
-                       font=("Arial", 9), bg='white', fg='gray', wraplength=350)
+                       font=("Arial", 10), bg='white', fg='gray', wraplength=350)
 instructions.pack(pady=5)
 
 # Upload button
@@ -185,7 +183,7 @@ PLCupload_button.pack(pady=10)
 
 # File status display
 file_status = tk.Label(PLCupload_frame, text="No file selected", 
-                      font=("Arial", 9), bg='white', fg='gray',
+                      font=("Arial", 10), bg='white', fg='gray',
                       wraplength=350, justify='center')
 file_status.pack(pady=5)
 
@@ -195,13 +193,17 @@ upload_confirm_button = ttk.Button(PLCupload_frame, text="Upload to Controller",
 upload_confirm_button.pack(pady=10)
 
 # Add some visual separation
-# separator = ttk.Separator(PLCupload_frame, orient='horizontal')
-# separator.pack(fill='x', padx=20, pady=5)
+separator = ttk.Separator(PLCupload_frame, orient='horizontal')
+separator.pack(fill='x', padx=20, pady=5)
 
 # Upload history label
-# history_label = tk.Label(PLCupload_frame, text="Last upload: Never", 
-#                         font=("Arial", 9), bg='white', fg='darkgray')
-# history_label.pack(pady=5)
+history_label = tk.Label(PLCupload_frame, text="Last upload: Never", 
+                        font=("Arial", 9), bg='white', fg='darkgray')
+history_label.pack(pady=5)
+#
+#upload button process
+# PLCupload_button = ttk.Button(PLCupload_frame, text="Choose File", command=PLCupload_file)
+# PLCupload_button.pack(pady=5)
 #
 ########################################################################################
 #main()
