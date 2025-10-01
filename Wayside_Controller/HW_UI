@@ -1,6 +1,6 @@
 # download a UI library
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog, messagebox
  
 import os
 #box color 4d4d60
@@ -15,19 +15,27 @@ root.geometry("1250x875") # size of popup screen
 root.configure(bg="#1a1a4d")
 
 # Adding widgets on top of the background
-label = tk.Label(root, text="Testing Interface", font=("Arial", 35), fg='white', bg="#4f4f4f", highlightbackground='white', highlightthickness=2)
-label.pack(pady=10)
+UIheader = tk.Label(root, text="Testing Interface", font=("Arial", 35), fg='white', bg="#4f4f4f", highlightbackground='white', highlightthickness=2)
+UIheader.pack(pady=10)
 
+logo_frame = tk.Frame(UIheader, bg='white', width=100, height=100, relief='raised', bd=2)
+logo_frame.pack(side='left', padx=20, pady=10)
+logo_frame.pack_propagate(False) # stops it from shrinking
 
-# #adding logo
+# fall back -- using tkinter for logo upload
 try:
-    from PIL import ImageTk, Image # image library inclusion of pictures
-    logoPIL = Image.open(r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\TRAINS-TEAM2\Wayside_Controller\background2.jpg")
-    logo = ImageTk.PhotoImage(logoPIL)
-    logo.image=logoPIL
-except Exception as e:
-    print(f"Error loading logo: {e}")
-    logo = None
+    logo = tk.PhotoImage(file=r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\blt logo.png")
+    logo_canvas = tk.Label(logo_frame, width=80, height=80, bg='white', highlightthickness=0)
+    logo_canvas.place(relx=0.5, rely=0.5, anchor='center')
+    logo_canvas.create_oval(5,5,75,75, fill='white', outline='#1a1a4d', width=2) # cicular background
+
+    # incorportate picture now
+    logo_label = tk.Label(logo_frame, image=logo, bg='white')
+    logo_label.place(relx=0.5, rely=0.5, anchor='center')
+    logo_label.image = logo
+except:
+    logo_canvas = tk.Label(root, text="LOGO", font=("Arial", 16), bg='#1a1a4d', fg='white')
+    logo_canvas.pack(pady=10)
 
 # Use different variable name for the second label
 # label2 = ttk.Label(root, text="Hello Wayside Controller HW!")
@@ -44,28 +52,48 @@ except Exception as e:
 canvas = tk.Canvas(root, width=1075, height=755, bg='white')
 canvas.pack()
 
-toggleON=tk.PhotoImage(file=r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\togglepic_ON.jpg")
-toggleOFF=tk.PhotoImage(file=r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\togglepicOFF.jpg")
 toggle_state = False
+toggleON = None
+toggleOFF = None
+
+try:
+# trying to load toggle images
+    toggleON = tk.PhotoImage(file=r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\togglepic_ON.jpg")
+    toggleOFF = tk.PhotoImage(file=r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\togglepicOFF.jpg")
+except Exception as e:
+    print(f"Error loading toggle images: {e}")
 
 #creating led
 test_led=tk.Canvas(root, width=60, height=60, bg="#52ec54", highlightthickness=0)
-test_led.place(relx=0.85, rely=1)
+test_led.place(relx=0.85, rely=1) #fixed location
 
-# intial led status
-led=test_led.create_oval(10,10,50, fill='white', outline='white', width=2)
+# intial led status (red = off)
+led = test_led.create_oval(10,10,50,50, fill='red', outline='white', width=2)
 
-# led label
-test_led_label = tk.Label(root, text="TEST LED", fg='white', font=("Arial", 12))
+# led label 
+test_led_label = tk.Label(root, text="TEST LED", fg='white', bg='#1a1a4d',font=("Arial", 12))
 test_led_label.place(relx=0.85, rely=0.35)
 
-def toogle_switch():
+def toggle_switch():
     global toggle_state
 
     if toggle_state:
         #turn off
-        togglebtn.config(image=toggleOFF)
+        if toggleOFF:
+            togglebtn.config(image=toggleOFF)
     ####
+        else:
+            togglebtn.config(text="OFF")
+        test_led.itemconfig(led, fill='red')
+        toogle_state = False
+    else:
+# turn on toggle
+        if toggleON:
+            togglebtn.config(image=toggleON)
+        else:
+            togglebtn.config(text="ON")
+    test_led.itemconfig(led, fill='green')
+    toggle_state = True
 
 togglebtn=ttk.Button(root, text='clickme', image=toggleON)
 togglebtn.place(relx=850, rely=450)
@@ -79,7 +107,16 @@ togglebtn.place(relx=850, rely=450)
 # PLCupload_frame.place(relx=25, rely=25, anchor='nw', width=400, height=150)
 # PLCupload_title = tk.Label(PLCupload_frame, text= "PLC PRogram Upload", font=("Arial", 18, "bold"), bg='white')
 # PLCupload_title.pack(pady=10)
-def PLCupload():
+def confirm_upload():
+        if hasattr(PLCupload_frame, 'file_path'):
+        # Simulate upload process
+            file_status.config(text="Uploading...", fg="blue")
+            root.after(2000, upload_complete)  # 2 second upload
+        else:
+            messagebox.showwarning("No File", "Please select a file first!")
+
+
+def PLCupload_file(): # fixed inputs:
     file_types = [
         ("PLC Files", "*.plc *.txt *.csv"),
         ("Text Files", "*.txt"),
@@ -87,9 +124,9 @@ def PLCupload():
         ("All Files", "*.*")
     ]
 
-    file_path = filedialog.askopenfile(
+    file_path = filedialog.askopenfilename(
         title = "Select PLC Program File",
-        file_types=file_types
+        filetypes=file_types
     )
 
     if file_path:
@@ -99,7 +136,7 @@ def PLCupload():
         # update status 
         file_status.config(text = f"{file_name}\n({file_size:.1f} KB)", 
         fg = "green",
-        font=("arial", 10, "bold")
+        font=("Arial", 10, "bold")
         )
         # enabling the upload button
         upload_confirm_button.config(state='normal')
@@ -111,16 +148,9 @@ def PLCupload():
     else:
         file_status.config(text="No file selected", fg="gray")
     ################
-    def confirm_upload():
-        if hasattr(PLCupload_frame, 'file_path'):
-        # Simulate upload process
-            file_status.config(text="Uploading...", fg="blue")
-            root.after(2000, upload_complete)  # Simulate 2 second upload
-        else:
-            messagebox.showwarning("No File", "Please select a file first!")
 
 def upload_complete():
-    file_status.config(text="✓ Upload Complete!", fg="green")
+    file_status.config(text="Upload Complete!", fg="green")
     upload_confirm_button.config(state='disabled')
     messagebox.showinfo("Success", "PLC program uploaded successfully!")
     
@@ -139,13 +169,13 @@ PLCupload_frame.place(x=50, y=50, width=400, height=250)  # Increased height for
 
 # Title with icon
 PLCupload_title = tk.Label(PLCupload_frame, text="PLC Program Upload", 
-                          font=("Arial", 18, "bold"), bg='white', fg='#1a1a4d')
+                          font=("Arial", 16, "bold"), bg='white', fg='#1a1a4d')
 PLCupload_title.pack(pady=15)
 
 # Instructions
 instructions = tk.Label(PLCupload_frame, 
                        text="Upload your PLC program file (.plc, .txt, .csv)",
-                       font=("Arial", 10), bg='white', fg='gray', wraplength=350)
+                       font=("Arial", 9), bg='white', fg='gray', wraplength=350)
 instructions.pack(pady=5)
 
 # Upload button
@@ -155,7 +185,7 @@ PLCupload_button.pack(pady=10)
 
 # File status display
 file_status = tk.Label(PLCupload_frame, text="No file selected", 
-                      font=("Arial", 10), bg='white', fg='gray',
+                      font=("Arial", 9), bg='white', fg='gray',
                       wraplength=350, justify='center')
 file_status.pack(pady=5)
 
@@ -165,17 +195,13 @@ upload_confirm_button = ttk.Button(PLCupload_frame, text="Upload to Controller",
 upload_confirm_button.pack(pady=10)
 
 # Add some visual separation
-separator = ttk.Separator(PLCupload_frame, orient='horizontal')
-separator.pack(fill='x', padx=20, pady=5)
+# separator = ttk.Separator(PLCupload_frame, orient='horizontal')
+# separator.pack(fill='x', padx=20, pady=5)
 
 # Upload history label
-history_label = tk.Label(PLCupload_frame, text="Last upload: Never", 
-                        font=("Arial", 9), bg='white', fg='darkgray')
-history_label.pack(pady=5)
-#
-#upload button process
-# PLCupload_button = ttk.Button(PLCupload_frame, text="Choose File", command=PLCupload_file)
-# PLCupload_button.pack(pady=5)
+# history_label = tk.Label(PLCupload_frame, text="Last upload: Never", 
+#                         font=("Arial", 9), bg='white', fg='darkgray')
+# history_label.pack(pady=5)
 #
 ########################################################################################
 #main()
