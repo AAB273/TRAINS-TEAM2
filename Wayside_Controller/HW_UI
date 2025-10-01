@@ -2,7 +2,7 @@
 import tkinter as tk
 from tkinter import ttk
 from PIL import ImageTk, Image # image library inclusion of pictures 
-    # import os
+import os
 #box color 4d4d60
 # panda excel csv implementations
 
@@ -107,7 +107,7 @@ def PLCupload():
         print(f"PLC file selected: {file_path}")
     else:
         file_status.config(text="No file selected", fg="gray")
-    
+    ################
     def confirm_upload():
         if hasattr(PLCupload_frame, 'file_path'):
         # Simulate upload process
