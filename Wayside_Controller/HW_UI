@@ -1,7 +1,7 @@
 # download a UI library
 import tkinter as tk
 from tkinter import ttk
-from PIL import ImageTk, Image # image library inclusion of pictures 
+ 
 import os
 #box color 4d4d60
 # panda excel csv implementations
@@ -11,8 +11,6 @@ root = tk.Tk()
 root.title("Wayside Controller Hardware UI")
 root.geometry("1250x875") # size of popup screen
 
-# def main():
-
 # background
 root.configure(bg="#1a1a4d")
 
@@ -21,10 +19,15 @@ label = tk.Label(root, text="Testing Interface", font=("Arial", 35), fg='white',
 label.pack(pady=10)
 
 
-#adding logo
-logo = Image.open(r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\TRAINS-TEAM2\Wayside_Controller\background2.jpg")
-logo = ImageTk.PhotoImage(logo)
-logo.image=logo
+# #adding logo
+try:
+    from PIL import ImageTk, Image # image library inclusion of pictures
+    logoPIL = Image.open(r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\TRAINS-TEAM2\Wayside_Controller\background2.jpg")
+    logo = ImageTk.PhotoImage(logoPIL)
+    logo.image=logoPIL
+except Exception as e:
+    print(f"Error loading logo: {e}")
+    logo = None
 
 # Use different variable name for the second label
 # label2 = ttk.Label(root, text="Hello Wayside Controller HW!")
@@ -41,8 +44,8 @@ logo.image=logo
 canvas = tk.Canvas(root, width=1075, height=755, bg='white')
 canvas.pack()
 
-toggleON=tk.PhotoImage(file=r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\TRAINS-TEAM2\Wayside_Controller\togglepic_ON.jpg")
-toggleOFF=tk.PhotoImage(file=r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\TRAINS-TEAM2\Wayside_Controller\togglepicOFF.jpg")
+toggleON=tk.PhotoImage(file=r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\togglepic_ON.jpg")
+toggleOFF=tk.PhotoImage(file=r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\togglepicOFF.jpg")
 toggle_state = False
 
 #creating led
