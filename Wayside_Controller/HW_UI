@@ -1,113 +1,45 @@
 # download a UI library
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
- 
 import os
-#box color 4d4d60
-# panda excel csv implementations
+from datetime import datetime
 
 # create main window 
 root = tk.Tk() 
 root.title("Wayside Controller Hardware UI")
-root.geometry("1250x875") # size of popup screen
+root.geometry("1400x900") # Increased width to accommodate PLC upload in header
 
 # background
 root.configure(bg="#1a1a4d")
 
-# Adding widgets on top of the background
-UIheader = tk.Label(root, text="Testing Interface", font=("Arial", 35), fg='white', bg="#4f4f4f", highlightbackground='white', highlightthickness=2)
-UIheader.pack(pady=10)
+# Header frame to organize top elements
+header_frame = tk.Frame(root, bg='#1a1a4d')
+header_frame.pack(fill='x', pady=10)
 
-logo_frame = tk.Frame(UIheader, bg='white', width=100, height=100, relief='raised', bd=2)
-logo_frame.pack(side='left', padx=20, pady=10)
-logo_frame.pack_propagate(False) # stops it from shrinking
+# BLT LOGO in top left corner
+blt_logo = tk.Label(header_frame, text="BLT LOGO", font=("Arial", 16, "bold"), 
+                   fg='white', bg='#1a1a4d')
+blt_logo.pack(side='left', padx=20)
 
-# fall back -- using tkinter for logo upload
-try:
-    logo = tk.PhotoImage(file=r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\blt logo.png")
-    logo_canvas = tk.Label(logo_frame, width=80, height=80, bg='white', highlightthickness=0)
-    logo_canvas.place(relx=0.5, rely=0.5, anchor='center')
-    logo_canvas.create_oval(5,5,75,75, fill='white', outline='#1a1a4d', width=2) # cicular background
+# PLC Upload in the center of header - ENHANCED VERSION
+PLCupload_frame = tk.Frame(header_frame, bg='#1a1a4d')
+PLCupload_frame.pack(side='left', padx=50, pady=5)
 
-    # incorportate picture now
-    logo_label = tk.Label(logo_frame, image=logo, bg='white')
-    logo_label.place(relx=0.5, rely=0.5, anchor='center')
-    logo_label.image = logo
-except:
-    logo_canvas = tk.Label(root, text="LOGO", font=("Arial", 16), bg='#1a1a4d', fg='white')
-    logo_canvas.pack(pady=10)
+PLCupload_title = tk.Label(PLCupload_frame, text="PLC Program Upload", 
+                          font=("Arial", 14, "bold"), bg='#1a1a4d', fg='white')
+PLCupload_title.pack()
 
-# Use different variable name for the second label
-# label2 = ttk.Label(root, text="Hello Wayside Controller HW!")
-# label2.pack(pady=10)
+# File status display
+file_status = tk.Label(PLCupload_frame, text="No file selected", 
+                      font=("Arial", 10), bg='#1a1a4d', fg='lightgray',
+                      wraplength=350, justify='center')
+file_status.pack(pady=2)
 
-########           BUTTONS       ###########
-# button = ttk.Button(root, text="Click me!", command=lambda: print("Button clicked"))
-# button.pack(pady=5)
+# Upload button frame
+upload_buttons_frame = tk.Frame(PLCupload_frame, bg='#1a1a4d')
+upload_buttons_frame.pack(pady=5)
 
-# text boxxes - helpful for terminal box??
-#test_textbox = tk.Text(root, height=0 ,font=('Arial', 25))
-#test_textbox.pack()
-
-canvas = tk.Canvas(root, width=1075, height=755, bg='white')
-canvas.pack()
-
-toggle_state = False
-toggleON = None
-toggleOFF = None
-
-try:
-# trying to load toggle images
-    toggleON = tk.PhotoImage(file=r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\togglepic_ON.jpg")
-    toggleOFF = tk.PhotoImage(file=r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\togglepicOFF.jpg")
-except Exception as e:
-    print(f"Error loading toggle images: {e}")
-
-#creating led
-test_led=tk.Canvas(root, width=60, height=60, bg="#52ec54", highlightthickness=0)
-test_led.place(relx=0.85, rely=1) #fixed location
-
-# intial led status (red = off)
-led = test_led.create_oval(10,10,50,50, fill='red', outline='white', width=2)
-
-# led label 
-test_led_label = tk.Label(root, text="TEST LED", fg='white', bg='#1a1a4d',font=("Arial", 12))
-test_led_label.place(relx=0.85, rely=0.35)
-
-def toggle_switch():
-    global toggle_state
-
-    if toggle_state:
-        #turn off
-        if toggleOFF:
-            togglebtn.config(image=toggleOFF)
-    ####
-        else:
-            togglebtn.config(text="OFF")
-        test_led.itemconfig(led, fill='red')
-        toogle_state = False
-    else:
-# turn on toggle
-        if toggleON:
-            togglebtn.config(image=toggleON)
-        else:
-            togglebtn.config(text="ON")
-    test_led.itemconfig(led, fill='green')
-    toggle_state = True
-
-togglebtn=ttk.Button(root, text='clickme', image=toggleON)
-togglebtn.place(relx=850, rely=450)
-
-########################################################################################
-#              DONE WITH BASIC LOGO AND BACKGROUND DESIGN
-########################################################################################
-#
-## NOW MAKING PLC UPLOAD: 
-# PLCupload_frame = tk.Frame(root, bg='white', relief='raised', bd=10)
-# PLCupload_frame.place(relx=25, rely=25, anchor='nw', width=400, height=150)
-# PLCupload_title = tk.Label(PLCupload_frame, text= "PLC PRogram Upload", font=("Arial", 18, "bold"), bg='white')
-# PLCupload_title.pack(pady=10)
-def PLCupload():
+def PLCupload_file():
     file_types = [
         ("PLC Files", "*.plc *.txt *.csv"),
         ("Text Files", "*.txt"),
@@ -115,9 +47,9 @@ def PLCupload():
         ("All Files", "*.*")
     ]
 
-    file_path = filedialog.askopenfile(
+    file_path = filedialog.askopenfilename(
         title = "Select PLC Program File",
-        file_types=file_types
+        filetypes=file_types
     )
 
     if file_path:
@@ -138,76 +70,302 @@ def PLCupload():
         print(f"PLC file selected: {file_path}")
     else:
         file_status.config(text="No file selected", fg="gray")
-    ################
-    def confirm_upload():
-        if hasattr(PLCupload_frame, 'file_path'):
+
+def confirm_upload():
+    if hasattr(PLCupload_frame, 'file_path'):
         # Simulate upload process
-            file_status.config(text="Uploading...", fg="blue")
-            root.after(2000, upload_complete)  # Simulate 2 second upload
-        else:
-            messagebox.showwarning("No File", "Please select a file first!")
+        file_status.config(text="Uploading...", fg="blue")
+        root.after(2000, upload_complete)  # Simulate 2 second upload
+    else:
+        messagebox.showwarning("No File", "Please select a file first!")
 
 def upload_complete():
     file_status.config(text="✓ Upload Complete!", fg="green")
     upload_confirm_button.config(state='disabled')
     messagebox.showinfo("Success", "PLC program uploaded successfully!")
     
+    # Add to log
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_text.config(state='normal')
+    log_text.insert('end', f"{current_time} UPDATE: Successfully Uploaded PLC Program\n")
+    log_text.see('end')
+    log_text.config(state='disabled')
+    
     # Reset after 3 seconds
     root.after(3000, reset_upload)
 
 def reset_upload():
-    file_status.config(text="No file selected", fg="gray", font=("Arial", 10))
+    file_status.config(text="No file selected", fg="lightgray", font=("Arial", 10))
     upload_confirm_button.config(state='disabled')
     if hasattr(PLCupload_frame, 'file_path'):
         del PLCupload_frame.file_path
 
-# NOW MAKING PLC UPLOAD: 
-PLCupload_frame = tk.Frame(root, bg='white', relief='raised', bd=3)
-PLCupload_frame.place(x=50, y=50, width=400, height=250)  # Increased height for better layout
-
-# Title with icon
-PLCupload_title = tk.Label(PLCupload_frame, text="PLC Program Upload", 
-                          font=("Arial", 18, "bold"), bg='white', fg='#1a1a4d')
-PLCupload_title.pack(pady=15)
-
-# Instructions
-instructions = tk.Label(PLCupload_frame, 
-                       text="Upload your PLC program file (.plc, .txt, .csv)",
-                       font=("Arial", 10), bg='white', fg='gray', wraplength=350)
-instructions.pack(pady=5)
-
-# Upload button
-PLCupload_button = ttk.Button(PLCupload_frame, text="Choose File", 
-                             command=PLCupload_file, width=20)
-PLCupload_button.pack(pady=10)
-
-# File status display
-file_status = tk.Label(PLCupload_frame, text="No file selected", 
-                      font=("Arial", 10), bg='white', fg='gray',
-                      wraplength=350, justify='center')
-file_status.pack(pady=5)
+# Choose File button
+PLCupload_button = ttk.Button(upload_buttons_frame, text="Choose File", 
+                             command=PLCupload_file, width=12)
+PLCupload_button.pack(side='left', padx=5)
 
 # Confirm upload button (initially disabled)
-upload_confirm_button = ttk.Button(PLCupload_frame, text="Upload to Controller", 
-                                  command=confirm_upload, state='disabled', width=20)
-upload_confirm_button.pack(pady=10)
+upload_confirm_button = ttk.Button(upload_buttons_frame, text="Upload", 
+                                  command=confirm_upload, state='disabled', width=12)
+upload_confirm_button.pack(side='left', padx=5)
 
-# Add some visual separation
-separator = ttk.Separator(PLCupload_frame, orient='horizontal')
-separator.pack(fill='x', padx=20, pady=5)
+# Testing Interface title in center-top
+UIheader = tk.Label(header_frame, text="Testing Interface", font=("Arial", 35), 
+                   fg='white', bg="#4f4f4f", highlightbackground='white', highlightthickness=2)
+UIheader.pack(side='left', padx=50)
 
-# Upload history label
-history_label = tk.Label(PLCupload_frame, text="Last upload: Never", 
-                        font=("Arial", 9), bg='white', fg='darkgray')
-history_label.pack(pady=5)
-#
-#upload button process
-# PLCupload_button = ttk.Button(PLCupload_frame, text="Choose File", command=PLCupload_file)
-# PLCupload_button.pack(pady=5)
-#
-########################################################################################
-#main()
+# Checkbutton variables for top-right corner
+test_ui_state = tk.BooleanVar(value=False)
+mm_mode_state = tk.BooleanVar(value=False)
 
-# Start the main loop'
+def on_test_ui_changed():
+    if test_ui_state.get():
+        print("Test UI: ON")
+    else:
+        print("Test UI: OFF")
+
+def on_mm_mode_changed():
+    if mm_mode_state.get():
+        print("MM Mode: ON")
+    else:
+        print("MM Mode: OFF")
+
+# Create a frame for the top-right checkboxes
+top_right_frame = tk.Frame(header_frame, bg='#1a1a4d')
+top_right_frame.pack(side='right', padx=20)
+
+# Titles next to each other
+titles_frame = tk.Frame(top_right_frame, bg='#1a1a4d')
+titles_frame.pack(pady=(10, 5))
+
+# MM Mode Title (first)
+mm_mode_title = tk.Label(titles_frame, text="MM Mode", 
+                        font=("Arial", 12, "bold"),
+                        fg='white', bg='#1a1a4d')
+mm_mode_title.pack(side='left', padx=(0, 80))
+
+# Test UI Title (second)
+test_ui_title = tk.Label(titles_frame, text="Test UI", 
+                        font=("Arial", 12, "bold"),
+                        fg='white', bg='#1a1a4d')
+test_ui_title.pack(side='left')
+
+# Checkboxes underneath their respective titles
+checkboxes_frame = tk.Frame(top_right_frame, bg='#1a1a4d')
+checkboxes_frame.pack(pady=5)
+
+# MM Mode Checkbox (first)
+mm_mode_check = tk.Checkbutton(
+    checkboxes_frame, 
+    text="", 
+    variable=mm_mode_state,
+    command=on_mm_mode_changed,
+    font=("Arial", 10),
+    fg='white',
+    bg='#1a1a4d',
+    selectcolor='#4d4d60',
+    activebackground='#1a1a4d',
+    activeforeground='white'
+)
+mm_mode_check.pack(side='left', padx=(0, 95))
+
+# Test UI Checkbox (second)
+test_ui_check = tk.Checkbutton(
+    checkboxes_frame, 
+    text="", 
+    variable=test_ui_state,
+    command=on_test_ui_changed,
+    font=("Arial", 10),
+    fg='white',
+    bg='#1a1a4d',
+    selectcolor='#4d4d60',
+    activebackground='#1a1a4d',
+    activeforeground='white'
+)
+test_ui_check.pack(side='left')
+
+# Main content frame
+main_frame = tk.Frame(root, bg='white')
+main_frame.place(x=50, y=150, width=1300, height=700)  # Increased width
+
+# LEFT COLUMN - Speed and Authority
+left_frame = tk.Frame(main_frame, bg='white')
+left_frame.place(x=20, y=20, width=400, height=650)
+
+# Speed Section
+speed_frame = tk.Frame(left_frame, bg='white', relief='raised', bd=2)
+speed_frame.pack(fill='x', pady=10)
+
+tk.Label(speed_frame, text="Track:", font=("Arial", 12), bg='white').pack(anchor='w')
+track_var = tk.StringVar(value="Green")
+track_dropdown = ttk.Combobox(speed_frame, textvariable=track_var, values=["Green", "Red", "Blue"], state="readonly", width=15)
+track_dropdown.pack(anchor='w', pady=5)
+
+tk.Label(speed_frame, text="Block Number:", font=("Arial", 12), bg='white').pack(anchor='w')
+block_var = tk.StringVar(value="15")
+block_entry = tk.Entry(speed_frame, textvariable=block_var, width=15)
+block_entry.pack(anchor='w', pady=5)
+
+tk.Label(speed_frame, text="Suggested Speed:", font=("Arial", 12), bg='white').pack(anchor='w')
+suggested_speed_var = tk.StringVar(value="38 mph")
+suggested_speed_label = tk.Label(speed_frame, textvariable=suggested_speed_var, font=("Arial", 12, "bold"), bg='white')
+suggested_speed_label.pack(anchor='w', pady=5)
+
+fetch_speed_btn = ttk.Button(speed_frame, text="Fetch", width=10)
+fetch_speed_btn.pack(anchor='w', pady=5)
+
+tk.Label(speed_frame, text="Commanded Speed:", font=("Arial", 12), bg='white').pack(anchor='w')
+commanded_speed_var = tk.StringVar(value="38 mph")
+commanded_speed_label = tk.Label(speed_frame, textvariable=commanded_speed_var, font=("Arial", 12, "bold"), bg='white')
+commanded_speed_label.pack(anchor='w', pady=5)
+
+send_speed_btn = ttk.Button(speed_frame, text="Send", width=10)
+send_speed_btn.pack(anchor='w', pady=10)
+
+# Authority Section
+authority_frame = tk.Frame(left_frame, bg='white', relief='raised', bd=2)
+authority_frame.pack(fill='x', pady=10)
+
+tk.Label(authority_frame, text="Suggested Authority:", font=("Arial", 12, "bold"), bg='white').pack(anchor='w')
+suggested_auth_var = tk.StringVar(value="2 blocks")
+suggested_auth_label = tk.Label(authority_frame, textvariable=suggested_auth_var, font=("Arial", 12, "bold"), bg='white')
+suggested_auth_label.pack(anchor='w', pady=5)
+
+fetch_auth_btn = ttk.Button(authority_frame, text="Fetch", width=10)
+fetch_auth_btn.pack(anchor='w', pady=5)
+
+tk.Label(authority_frame, text="Commanded Authority:", font=("Arial", 12, "bold"), bg='white').pack(anchor='w')
+commanded_auth_var = tk.StringVar(value="2 blocks")
+commanded_auth_label = tk.Label(authority_frame, textvariable=commanded_auth_var, font=("Arial", 12, "bold"), bg='white')
+commanded_auth_label.pack(anchor='w', pady=5)
+
+send_auth_btn = ttk.Button(authority_frame, text="Send", width=10)
+send_auth_btn.pack(anchor='w', pady=10)
+
+# MIDDLE COLUMN - Switches and Lights
+middle_frame = tk.Frame(main_frame, bg='white')
+middle_frame.place(x=450, y=20, width=400, height=650)
+
+# Switches Section
+switches_frame = tk.Frame(middle_frame, bg='white', relief='raised', bd=2)
+switches_frame.pack(fill='x', pady=10)
+
+tk.Label(switches_frame, text="Switches", font=("Arial", 14, "bold"), bg='white').pack(anchor='w')
+
+tk.Label(switches_frame, text="Track:", font=("Arial", 12), bg='white').pack(anchor='w')
+switches_track_var = tk.StringVar(value="Green")
+switches_track_dropdown = ttk.Combobox(switches_frame, textvariable=switches_track_var, values=["Green", "Red", "Blue"], state="readonly", width=15)
+switches_track_dropdown.pack(anchor='w', pady=5)
+
+tk.Label(switches_frame, text="Block #:", font=("Arial", 12), bg='white').pack(anchor='w')
+switches_block_var = tk.StringVar(value="20")
+switches_block_entry = tk.Entry(switches_frame, textvariable=switches_block_var, width=15)
+switches_block_entry.pack(anchor='w', pady=5)
+
+# Switch options
+switch_options_frame = tk.Frame(switches_frame, bg='white')
+switch_options_frame.pack(fill='x', pady=10)
+
+tk.Label(switch_options_frame, text="57-58", font=("Arial", 12), bg='white').pack(anchor='w')
+tk.Label(switch_options_frame, text="57-63", font=("Arial", 12), bg='white').pack(anchor='w')
+
+# Separator
+separator = ttk.Separator(switches_frame, orient='horizontal')
+separator.pack(fill='x', pady=10)
+
+# Lights Section
+lights_frame = tk.Frame(middle_frame, bg='white', relief='raised', bd=2)
+lights_frame.pack(fill='x', pady=10)
+
+tk.Label(lights_frame, text="Lights", font=("Arial", 14, "bold"), bg='white').pack(anchor='w')
+
+tk.Label(lights_frame, text="Track:", font=("Arial", 12), bg='white').pack(anchor='w')
+lights_track_var = tk.StringVar(value="Green")
+lights_track_dropdown = ttk.Combobox(lights_frame, textvariable=lights_track_var, values=["Green", "Red", "Blue"], state="readonly", width=15)
+lights_track_dropdown.pack(anchor='w', pady=5)
+
+tk.Label(lights_frame, text="Block #:", font=("Arial", 12), bg='white').pack(anchor='w')
+lights_block_var = tk.StringVar(value="20")
+lights_block_entry = tk.Entry(lights_frame, textvariable=lights_block_var, width=15)
+lights_block_entry.pack(anchor='w', pady=5)
+
+tk.Label(lights_frame, text="Track:", font=("Arial", 12), bg='white').pack(anchor='w')
+lights_track2_var = tk.StringVar(value="Super Green")
+lights_track2_dropdown = ttk.Combobox(lights_frame, textvariable=lights_track2_var, values=["Super Green", "Super Red", "Super Blue"], state="readonly", width=15)
+lights_track2_dropdown.pack(anchor='w', pady=5)
+
+# RIGHT COLUMN - Message Log and Railway Crossing
+right_frame = tk.Frame(main_frame, bg='white')
+right_frame.place(x=880, y=20, width=400, height=650)
+
+# Occupied Status Section
+message_log = tk.Frame(right_frame, bg='white', relief='raised', bd=2)
+message_log.pack(fill='x', pady=10)
+
+tk.Label(message_log, text="Message Log", font=("Arial", 14, "bold"), bg='white').pack(anchor='w')
+
+# Log section
+log_frame = tk.Frame(message_log, bg='lightgray', relief='sunken', bd=1)
+log_frame.pack(fill='x', pady=10, padx=5)
+
+# Log text with scrollbar
+log_text = tk.Text(log_frame, height=10, width=45, bg='black', fg='white', font=("Courier", 10))
+log_scrollbar = ttk.Scrollbar(log_frame, orient="vertical", command=log_text.yview)
+log_text.configure(yscrollcommand=log_scrollbar.set)
+
+log_text.pack(side='left', fill='both', expand=True)
+log_scrollbar.pack(side='right', fill='y')
+
+# Add sample log entries
+log_entries = [
+    "2024-09-17 20:25:32 UPDATE: Uploading PLC Program...",
+    "2024-09-17 20:26:02 UPDATE: Successfully Uploaded PLC Program",
+    "2024-09-17 20:26:03 UPDATE: Commanded Speed Updated (38 mph)",
+    "2024-09-17 20:25:32 UPDATE: Commanded Authority Updated (2 blocks) ..."
+]
+
+for entry in log_entries:
+    log_text.insert('end', entry + '\n')
+log_text.config(state='disabled')
+
+# Search frame
+search_frame = tk.Frame(message_log, bg='white')
+search_frame.pack(fill='x', pady=5)
+
+tk.Label(search_frame, text="Search: ", font=("Arial", 10), bg='white').pack(side='left')
+search_entry = tk.Entry(search_frame, width=20)
+search_entry.pack(side='left', padx=5)
+
+# Railway Crossing Section
+crossing_frame = tk.Frame(right_frame, bg='white', relief='raised', bd=2)
+crossing_frame.pack(fill='x', pady=10)
+
+tk.Label(crossing_frame, text="Railway Crossing", font=("Arial", 14, "bold"), bg='white').pack(anchor='w')
+
+tk.Label(crossing_frame, text="Track:", font=("Arial", 12), bg='white').pack(anchor='w')
+crossing_track_var = tk.StringVar(value="Green")
+crossing_track_dropdown = ttk.Combobox(crossing_frame, textvariable=crossing_track_var, values=["Green", "Red", "Blue"], state="readonly", width=15)
+crossing_track_dropdown.pack(anchor='w', pady=5)
+
+tk.Label(crossing_frame, text="Block #:", font=("Arial", 12), bg='white').pack(anchor='w')
+crossing_block_var = tk.StringVar(value="20")
+crossing_block_entry = tk.Entry(crossing_frame, textvariable=crossing_block_var, width=15)
+crossing_block_entry.pack(anchor='w', pady=5)
+
+# Lights and Crossbar
+lights_crossing_frame = tk.Frame(crossing_frame, bg='white')
+lights_crossing_frame.pack(fill='x', pady=10)
+
+tk.Label(lights_crossing_frame, text="Lights", font=("Arial", 12), bg='white').pack(anchor='w')
+lights_var = tk.StringVar(value="Off")
+lights_dropdown = ttk.Combobox(lights_crossing_frame, textvariable=lights_var, values=["Off", "On"], state="readonly", width=10)
+lights_dropdown.pack(anchor='w', pady=5)
+
+tk.Label(lights_crossing_frame, text="Crossbar:", font=("Arial", 12), bg='white').pack(anchor='w')
+crossbar_var = tk.StringVar(value="Up")
+crossbar_dropdown = ttk.Combobox(lights_crossing_frame, textvariable=crossbar_var, values=["Up", "Down"], state="readonly", width=10)
+crossbar_dropdown.pack(anchor='w', pady=5)
+
+# Start the main loop
 root.mainloop()
-
