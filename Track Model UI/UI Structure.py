@@ -13,6 +13,10 @@ class TrackModelUI(tk.Tk):
 
         self.data = data
 
+        style = ttk.Style(self)
+        style.configure("Large.TCheckbutton", font=("Arial", 11), padding=5)
+
+
         # Layout frames
         top_frame = tk.Frame(self, bg="navy")
         top_frame.pack(side="top", fill="both", expand=True, padx=20, pady=20)
@@ -77,15 +81,43 @@ class TrackModelUI(tk.Tk):
         self.train_info.pack(padx=10, pady=5)
         train_card.pack(fill="x", pady=10)
 
-        # Failure Modes
+        # ---------------- Failure Modes ----------------
         fail_card = self.make_card(parent, "Murphy Failure Modes")
-        self.fail_train = tk.Checkbutton(fail_card, text="Train Circuit", bg="white")
-        self.fail_train.pack(anchor="w", padx=10)
-        self.fail_train = tk.Checkbutton(fail_card, text="Broken Railroads", bg="white")
-        self.fail_train.pack(anchor="w", padx=10)
-        self.fail_power = tk.Checkbutton(fail_card, text="Power", bg="white")
-        self.fail_power.pack(anchor="w", padx=10)
+
+        # Train Circuit Failure
+        self.failure_train_circuit_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            fail_card,
+            text="Train Circuit",
+            variable=self.failure_train_circuit_var,
+            command=self.on_failure_changed,   # callback handler
+            style="Large.TCheckbutton"
+        ).pack(pady=10, padx=5, fill='x', expand=True)
+        tk.Frame(fail_card, bg='black', height=1).pack(fill='x', pady=2)
+
+        # Broken Railroads Failure
+        self.failure_rail_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            fail_card,
+            text="Broken Railroads",
+            variable=self.failure_rail_var,
+            command=self.on_failure_changed,
+            style="Large.TCheckbutton"
+        ).pack(pady=10, padx=5, fill='x', expand=True)
+        tk.Frame(fail_card, bg='black', height=1).pack(fill='x', pady=2)
+
+        # Power Failure
+        self.failure_power_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            fail_card,
+            text="Power",
+            variable=self.failure_power_var,
+            command=self.on_failure_changed,
+            style="Large.TCheckbutton"
+        ).pack(pady=10, padx=5, fill='x', expand=True)
+
         fail_card.pack(fill="x", pady=10)
+
 
         # Filters
         filter_card = self.make_card(parent, "Table View")
@@ -292,6 +324,12 @@ class TrackModelUI(tk.Tk):
         self.history_label.pack(pady=3)
 
         return PLCupload_frame
+
+    def on_failure_changed(self):
+        print("Failure states:")
+        print(" Train Circuit:", self.failure_train_circuit_var.get())
+        print(" Broken Railroads:", self.failure_rail_var.get())
+        print(" Power:", self.failure_power_var.get())
 
 
 
