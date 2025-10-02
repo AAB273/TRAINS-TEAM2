@@ -336,7 +336,7 @@ search_frame.pack(fill='x', pady=5)
 tk.Label(search_frame, text="Search: ", font=("Arial", 10), bg='white').pack(side='left')
 search_entry = tk.Entry(search_frame, width=20)
 search_entry.pack(side='left', padx=5)
-##############################
+
 # Railway Crossing Section
 crossing_frame = tk.Frame(right_frame, bg='white', relief='raised', bd=2)
 crossing_frame.pack(fill='x', pady=10)
