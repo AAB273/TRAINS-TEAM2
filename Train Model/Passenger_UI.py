@@ -39,21 +39,56 @@ selector_frame.pack(side='right', fill='y', padx=3, pady=3)
 selector_frame.pack_propagate(False)
 
 selector_frame.columnconfigure(0, weight=1)  # Train column expands
-selector_frame.columnconfigure(1, weight=0)  # Line column doesn't expand
+selector_frame.columnconfigure(1, weight=0)  # Separator column doesn't expand
 selector_frame.columnconfigure(2, weight=1)  # Status column expands
 
+# Main Title
+title_label = tk.Label(selector_frame, text="Train Selector", bg=main_color, fg='white', font=('Arial', 14, 'bold'))
+title_label.grid(row=0, column=0, columnspan=3, padx=10, pady=(10, 5), sticky='ew')
+
+# Separator under title
+title_separator = ttk.Separator(selector_frame, orient='horizontal')
+title_separator.grid(row=1, column=0, columnspan=3, sticky='ew', pady=(0, 10))
+
+# Headers
 header_train = tk.Label(selector_frame, text="Train #", bg=main_color, fg='white', font=('Arial', 12, 'bold'))
 header_status = tk.Label(selector_frame, text="Deployed?", bg=main_color, fg='white', font=('Arial', 12, 'bold'))
 
-header_train.grid(row=0, column=0, padx=10, pady=(10, 5), sticky='ew')
-header_status.grid(row=0, column=2, padx=10, pady=(10, 5), sticky='ew')
+header_train.grid(row=2, column=0, padx=10, pady=(5, 5), sticky='ew')
+header_status.grid(row=2, column=2, padx=10, pady=(5, 5), sticky='ew')
 
+# Vertical separator between columns
 separator = ttk.Separator(selector_frame, orient='vertical')
-separator.grid(row=0, column=1, rowspan=10, padx=10, pady=5, sticky='ns')
+separator.grid(row=2, column=1, rowspan=32, padx=10, pady=5, sticky='ns')
 
-for i in range(10):
-    separator2 = ttk.Separator(selector_frame,orient='horizontal')
-    separator2.grid(row=i,column = 0, columnspan = 3, sticky='ew',pady=40)
+# First horizontal separator (right under headers)
+first_separator = ttk.Separator(selector_frame, orient='horizontal')
+first_separator.grid(row=3, column=0, columnspan=3, sticky='ew', pady=(0, 5))
+
+# Create 10 rows for trains
+for i in range(14):
+    row_num = 4 + (i * 2)  # Rows 4, 6, 8, 10... for content
+    
+    # Train number label
+    train_label = tk.Label(selector_frame, text=f"Train {i+1}", bg=main_color, fg='white', font=('Arial', 10))
+    train_label.grid(row=row_num, column=0, padx=10, pady=10, sticky='ew')
+    
+    # Canvas for status indicator (rectangle that fits the row)
+    status_canvas = tk.Canvas(selector_frame, width=60, height=25, bg=main_color, highlightthickness=0)
+    status_canvas.grid(row=row_num, column=2, padx=10, pady=10)
+    
+    # Draw rectangle - change fill color based on deployment status
+    is_deployed = i % 2 == 0  # Example: alternating deployed status
+    fill_color = 'green' if is_deployed else 'red'
+    status_canvas.create_rectangle(2, 2, 58, 23, fill=fill_color, outline='white', width=2)
+    
+    # Horizontal separator after each row (except the last one)
+    if i < 14:
+        row_separator = ttk.Separator(selector_frame, orient='horizontal')
+        row_separator.grid(row=row_num+1, column=0, columnspan=3, sticky='ew', pady=5)
+
+
+
 
 # Top Container for time and announcement frames
 top_container = tk.Frame(root, bg=main_color, highlightbackground="black", highlightthickness=4)
