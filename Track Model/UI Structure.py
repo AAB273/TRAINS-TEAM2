@@ -335,6 +335,6 @@ class TrackModelUI(tk.Tk):
 
 # ---------------- Run Application ----------------
 if __name__ == "__main__":
-    data = UI_Test.load_data()
+    data = UI_Variables.load_data()
     app = TrackModelUI(data)
     app.mainloop()
