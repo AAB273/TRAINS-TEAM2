@@ -95,7 +95,7 @@ def PLCupload_file():
         print(f"PLC file selected: {file_path}")
     else:
         file_status.config(text="No file selected", fg="gray")
-
+#####
 def confirm_upload():
     if hasattr(PLCupload_frame, 'file_path'):
         # Simulate upload process
