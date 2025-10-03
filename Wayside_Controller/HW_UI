@@ -1,6 +1,6 @@
 # download a UI library
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, simpledialog
 import os
 from datetime import datetime
 
@@ -11,6 +11,31 @@ root.geometry("1400x900") # Increased width to accommodate PLC upload in header
 
 # background
 root.configure(bg="#1a1a4d")
+
+# Sample data for different tracks
+track_data = {
+    "Green": {
+        "suggested_speed": "45 mph",
+        "suggested_authority": "3 blocks",
+        "commanded_speed": "45 mph",
+        "commanded_authority": "3 blocks",
+        "block_number": "15"
+    },
+    "Red": {
+        "suggested_speed": "35 mph",
+        "suggested_authority": "2 blocks",
+        "commanded_speed": "35 mph",
+        "commanded_authority": "2 blocks",
+        "block_number": "22"
+    },
+    "Blue": {
+        "suggested_speed": "50 mph",
+        "suggested_authority": "4 blocks",
+        "commanded_speed": "50 mph",
+        "commanded_authority": "4 blocks",
+        "block_number": "18"
+    }
+}
 
 # Header frame to organize top elements
 header_frame = tk.Frame(root, bg='#1a1a4d')
@@ -74,7 +99,7 @@ def PLCupload_file():
 def confirm_upload():
     if hasattr(PLCupload_frame, 'file_path'):
         # Simulate upload process
-        file_status.config(text="Uploading...", fg="blue")
+        file_status.config(text="Uploading...", fg="gray")
         root.after(2000, upload_complete)  # Simulate 2 second upload
     else:
         messagebox.showwarning("No File", "Please select a file first!")
@@ -119,17 +144,11 @@ UIheader.pack(side='left', padx=50)
 test_ui_state = tk.BooleanVar(value=False)
 mm_mode_state = tk.BooleanVar(value=False)
 
-def on_test_ui_changed():
-    if test_ui_state.get():
-        print("Test UI: ON")
-    else:
-        print("Test UI: OFF")
-
-def on_mm_mode_changed():
-    if mm_mode_state.get():
-        print("MM Mode: ON")
-    else:
-        print("MM Mode: OFF")
+# def on_test_ui_changed():
+#     if test_ui_state.get():
+#         print("Test UI: ON")
+#     else:
+#         print("Test UI: OFF")
 
 # Create a frame for the top-right checkboxes
 top_right_frame = tk.Frame(header_frame, bg='#1a1a4d')
@@ -139,109 +158,158 @@ top_right_frame.pack(side='right', padx=20)
 titles_frame = tk.Frame(top_right_frame, bg='#1a1a4d')
 titles_frame.pack(pady=(10, 5))
 
-# MM Mode Title (first)
-mm_mode_title = tk.Label(titles_frame, text="MM Mode", 
-                        font=("Arial", 12, "bold"),
-                        fg='white', bg='#1a1a4d')
-mm_mode_title.pack(side='left', padx=(0, 80))
-
-# Test UI Title (second)
-test_ui_title = tk.Label(titles_frame, text="Test UI", 
-                        font=("Arial", 12, "bold"),
-                        fg='white', bg='#1a1a4d')
-test_ui_title.pack(side='left')
+# # Test UI Title (second)
+# test_ui_title = tk.Label(titles_frame, text="Test UI", 
+#                         font=("Arial", 12, "bold"),
+#                         fg='white', bg='#1a1a4d')
+# test_ui_title.pack(side='left')
 
 # Checkboxes underneath their respective titles
 checkboxes_frame = tk.Frame(top_right_frame, bg='#1a1a4d')
 checkboxes_frame.pack(pady=5)
 
-# MM Mode Checkbox (first)
-mm_mode_check = tk.Checkbutton(
-    checkboxes_frame, 
-    text="", 
-    variable=mm_mode_state,
-    command=on_mm_mode_changed,
-    font=("Arial", 10),
-    fg='white',
-    bg='#1a1a4d',
-    selectcolor='#4d4d60',
-    activebackground='#1a1a4d',
-    activeforeground='white'
-)
-mm_mode_check.pack(side='left', padx=(0, 95))
-
-# Test UI Checkbox (second)
-test_ui_check = tk.Checkbutton(
-    checkboxes_frame, 
-    text="", 
-    variable=test_ui_state,
-    command=on_test_ui_changed,
-    font=("Arial", 10),
-    fg='white',
-    bg='#1a1a4d',
-    selectcolor='#4d4d60',
-    activebackground='#1a1a4d',
-    activeforeground='white'
-)
-test_ui_check.pack(side='left')
+# # Test UI Checkbox (second)
+# test_ui_check = tk.Checkbutton(
+#     checkboxes_frame, 
+#     text="", 
+#     variable=test_ui_state,
+#     command=on_test_ui_changed,
+#     font=("Arial", 10),
+#     fg='white',
+#     bg='#1a1a4d',
+#     selectcolor='#4d4d60',
+#     activebackground='#1a1a4d',
+#     activeforeground='white'
+# )
+# test_ui_check.pack(side='left')
 
 # Main content frame
 main_frame = tk.Frame(root, bg='white')
 main_frame.place(x=50, y=150, width=1300, height=700)  # Increased width
 
-# LEFT COLUMN - Speed and Authority
+# LEFT COLUMN - Speed and Authority (REORGANIZED)
 left_frame = tk.Frame(main_frame, bg='white')
 left_frame.place(x=20, y=20, width=400, height=650)
 
-# Speed Section
-speed_frame = tk.Frame(left_frame, bg='white', relief='raised', bd=2)
-speed_frame.pack(fill='x', pady=10)
+# Suggested Values Section
+suggested_frame = tk.Frame(left_frame, bg='white', relief='raised', bd=2)
+suggested_frame.pack(fill='x', pady=10)
 
-tk.Label(speed_frame, text="Track:", font=("Arial", 12), bg='white').pack(anchor='w')
-track_var = tk.StringVar(value="Green")
-track_dropdown = ttk.Combobox(speed_frame, textvariable=track_var, values=["Green", "Red", "Blue"], state="readonly", width=15)
-track_dropdown.pack(anchor='w', pady=5)
+tk.Label(suggested_frame, text="Suggested Values", font=("Arial", 14, "bold"), bg='white').pack(anchor='w', pady=5)
 
-tk.Label(speed_frame, text="Block Number:", font=("Arial", 12), bg='white').pack(anchor='w')
-block_var = tk.StringVar(value="15")
-block_entry = tk.Entry(speed_frame, textvariable=block_var, width=15)
-block_entry.pack(anchor='w', pady=5)
+tk.Label(suggested_frame, text="Track:", font=("Arial", 12), bg='white').pack(anchor='w')
+suggested_track_var = tk.StringVar(value="Green")
+suggested_track_dropdown = ttk.Combobox(suggested_frame, textvariable=suggested_track_var, values=["Green", "Red", "Blue"], state="readonly", width=15)
+suggested_track_dropdown.pack(anchor='w', pady=5)
 
-tk.Label(speed_frame, text="Suggested Speed:", font=("Arial", 12), bg='white').pack(anchor='w')
-suggested_speed_var = tk.StringVar(value="38 mph")
-suggested_speed_label = tk.Label(speed_frame, textvariable=suggested_speed_var, font=("Arial", 12, "bold"), bg='white')
+tk.Label(suggested_frame, text="Block Number:", font=("Arial", 12), bg='white').pack(anchor='w')
+suggested_block_var = tk.StringVar(value="15")
+suggested_block_entry = tk.Entry(suggested_frame, textvariable=suggested_block_var, width=15)
+suggested_block_entry.pack(anchor='w', pady=5)
+
+tk.Label(suggested_frame, text="Speed:", font=("Arial", 12), bg='white').pack(anchor='w')
+suggested_speed_var = tk.StringVar(value="45 mph")
+suggested_speed_label = tk.Label(suggested_frame, textvariable=suggested_speed_var, font=("Arial", 12, "bold"), bg='white')
 suggested_speed_label.pack(anchor='w', pady=5)
 
-fetch_speed_btn = ttk.Button(speed_frame, text="Fetch", width=10)
-fetch_speed_btn.pack(anchor='w', pady=5)
-
-tk.Label(speed_frame, text="Commanded Speed:", font=("Arial", 12), bg='white').pack(anchor='w')
-commanded_speed_var = tk.StringVar(value="38 mph")
-commanded_speed_label = tk.Label(speed_frame, textvariable=commanded_speed_var, font=("Arial", 12, "bold"), bg='white')
-commanded_speed_label.pack(anchor='w', pady=5)
-
-send_speed_btn = ttk.Button(speed_frame, text="Send", width=10)
-send_speed_btn.pack(anchor='w', pady=10)
-
-# Authority Section
-authority_frame = tk.Frame(left_frame, bg='white', relief='raised', bd=2)
-authority_frame.pack(fill='x', pady=10)
-
-tk.Label(authority_frame, text="Suggested Authority:", font=("Arial", 12, "bold"), bg='white').pack(anchor='w')
-suggested_auth_var = tk.StringVar(value="2 blocks")
-suggested_auth_label = tk.Label(authority_frame, textvariable=suggested_auth_var, font=("Arial", 12, "bold"), bg='white')
+tk.Label(suggested_frame, text="Authority:", font=("Arial", 12), bg='white').pack(anchor='w')
+suggested_auth_var = tk.StringVar(value="3 blocks")
+suggested_auth_label = tk.Label(suggested_frame, textvariable=suggested_auth_var, font=("Arial", 12, "bold"), bg='white')
 suggested_auth_label.pack(anchor='w', pady=5)
 
-fetch_auth_btn = ttk.Button(authority_frame, text="Fetch", width=10)
-fetch_auth_btn.pack(anchor='w', pady=5)
+def fetch_all_data():
+    track = suggested_track_var.get()
+    if track in track_data:
+        data = track_data[track]
+        suggested_block_var.set(data["block_number"])
+        suggested_speed_var.set(data["suggested_speed"])
+        suggested_auth_var.set(data["suggested_authority"])
+        
+        # Also update commanded values to match
+        commanded_speed_var.set(data["commanded_speed"])
+        commanded_auth_var.set(data["commanded_authority"])
+        
+        # Add to log
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_text.config(state='normal')
+        log_text.insert('end', f"{current_time} UPDATE: Fetched data for {track} track\n")
+        log_text.see('end')
+        log_text.config(state='disabled')
+        
+        messagebox.showinfo("Data Fetched", f"Fetched all data for {track} track")
 
-tk.Label(authority_frame, text="Commanded Authority:", font=("Arial", 12, "bold"), bg='white').pack(anchor='w')
-commanded_auth_var = tk.StringVar(value="2 blocks")
-commanded_auth_label = tk.Label(authority_frame, textvariable=commanded_auth_var, font=("Arial", 12, "bold"), bg='white')
+fetch_all_btn = ttk.Button(suggested_frame, text="Fetch All", command=fetch_all_data, width=12)
+fetch_all_btn.pack(anchor='w', pady=10)
+
+# Update suggested values when track changes
+def update_suggested_values(event=None):
+    track = suggested_track_var.get()
+    if track in track_data:
+        data = track_data[track]
+        suggested_block_var.set(data["block_number"])
+        suggested_speed_var.set(data["suggested_speed"])
+        suggested_auth_var.set(data["suggested_authority"])
+
+suggested_track_dropdown.bind('<<ComboboxSelected>>', update_suggested_values)
+
+# Commanded Values Section
+commanded_frame = tk.Frame(left_frame, bg='white', relief='raised', bd=2)
+commanded_frame.pack(fill='x', pady=10)
+
+tk.Label(commanded_frame, text="Commanded Values", font=("Arial", 14, "bold"), bg='white').pack(anchor='w', pady=5)
+
+tk.Label(commanded_frame, text="Track:", font=("Arial", 12), bg='white').pack(anchor='w')
+commanded_track_var = tk.StringVar(value="Green")
+commanded_track_dropdown = ttk.Combobox(commanded_frame, textvariable=commanded_track_var, values=["Green", "Red", "Blue"], state="readonly", width=15)
+commanded_track_dropdown.pack(anchor='w', pady=5)
+
+tk.Label(commanded_frame, text="Speed:", font=("Arial", 12), bg='white').pack(anchor='w')
+commanded_speed_var = tk.StringVar(value="45 mph")
+commanded_speed_label = tk.Label(commanded_frame, textvariable=commanded_speed_var, font=("Arial", 12, "bold"), bg='white')
+commanded_speed_label.pack(anchor='w', pady=5)
+
+def set_commanded_speed():
+    new_speed = simpledialog.askfloat("Set Commanded Speed", "Enter new commanded speed (mph):")
+    if new_speed is not None:  # user clicked OK
+        commanded_speed_var.set(f"{new_speed} mph")
+        # Add to log
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_text.config(state='normal')
+        log_text.insert('end', f"{current_time} UPDATE: Commanded Speed Updated ({new_speed} mph)\n")
+        log_text.see('end')
+        log_text.config(state='disabled')
+
+set_speed_btn = tk.Button(commanded_frame, text="Set Speed", command=set_commanded_speed, bg="#4d4d60", fg="white", width=12)
+set_speed_btn.pack(anchor='w', pady=5)
+
+tk.Label(commanded_frame, text="Authority:", font=("Arial", 12), bg='white').pack(anchor='w')
+commanded_auth_var = tk.StringVar(value="3 blocks")
+commanded_auth_label = tk.Label(commanded_frame, textvariable=commanded_auth_var, font=("Arial", 12, "bold"), bg='white')
 commanded_auth_label.pack(anchor='w', pady=5)
 
-send_auth_btn = ttk.Button(authority_frame, text="Send", width=10)
-send_auth_btn.pack(anchor='w', pady=10)
+def set_commanded_authority():
+    new_auth = simpledialog.askinteger("Set Commanded Authority", "Enter new commanded authority (blocks):")
+    if new_auth is not None:  # user clicked OK
+        commanded_auth_var.set(f"{new_auth} blocks")
+        # Add to log
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_text.config(state='normal')
+        log_text.insert('end', f"{current_time} UPDATE: Commanded Authority Updated ({new_auth} blocks)\n")
+        log_text.see('end')
+        log_text.config(state='disabled')
+
+set_auth_btn = tk.Button(commanded_frame, text="Set Authority", command=set_commanded_authority, bg="#4d4d60", fg="white", width=12)
+set_auth_btn.pack(anchor='w', pady=5)
+
+# Update commanded values when track changes
+def update_commanded_values(event=None):
+    track = commanded_track_var.get()
+    if track in track_data:
+        data = track_data[track]
+        commanded_speed_var.set(data["commanded_speed"])
+        commanded_auth_var.set(data["commanded_authority"])
+
+commanded_track_dropdown.bind('<<ComboboxSelected>>', update_commanded_values)
 
 # MIDDLE COLUMN - Switches and Lights
 middle_frame = tk.Frame(main_frame, bg='white')
@@ -267,8 +335,21 @@ switches_block_entry.pack(anchor='w', pady=5)
 switch_options_frame = tk.Frame(switches_frame, bg='white')
 switch_options_frame.pack(fill='x', pady=10)
 
-tk.Label(switch_options_frame, text="57-58", font=("Arial", 12), bg='white').pack(anchor='w')
-tk.Label(switch_options_frame, text="57-63", font=("Arial", 12), bg='white').pack(anchor='w')
+switch_var = tk.StringVar(value="57-58")
+tk.Radiobutton(switch_options_frame, text="57-58", variable=switch_var, value="57-58", bg='white').pack(anchor='w')
+tk.Radiobutton(switch_options_frame, text="57-63", variable=switch_var, value="57-63", bg='white').pack(anchor='w')
+
+def set_switches():
+    selected_switch = switch_var.get()
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_text.config(state='normal')
+    log_text.insert('end', f"{current_time} UPDATE: Switches set to {selected_switch}\n")
+    log_text.see('end')
+    log_text.config(state='disabled')
+    messagebox.showinfo("Switches Set", f"Switches configured to {selected_switch}")
+
+set_switches_btn = tk.Button(switches_frame, text="Set Switches", command=set_switches, bg="#4d4d60", fg="white", width=12)
+set_switches_btn.pack(anchor='w', pady=10)
 
 # Separator
 separator = ttk.Separator(switches_frame, orient='horizontal')
@@ -292,21 +373,61 @@ lights_block_entry.pack(anchor='w', pady=5)
 
 tk.Label(lights_frame, text="Track:", font=("Arial", 12), bg='white').pack(anchor='w')
 lights_track2_var = tk.StringVar(value="Super Green")
-lights_track2_dropdown = ttk.Combobox(lights_frame, textvariable=lights_track2_var, values=["Super Green", "Super Red", "Super Blue"], state="readonly", width=15)
+lights_track2_dropdown = ttk.Combobox(lights_frame, textvariable=lights_track2_var, values=["Red", "Yellow", "Green", "Super Green"], state="readonly", width=15)
 lights_track2_dropdown.pack(anchor='w', pady=5)
 
-# RIGHT COLUMN - Message Log and Railway Crossing
+# Create a canvas for the color-changing circle
+lights_canvas = tk.Canvas(lights_frame, width=60, height=60, bg='white', highlightthickness=1, highlightbackground="black")
+lights_canvas.pack(anchor='w', pady=10)
+
+# Draw initial circle (gray)
+light_circle = lights_canvas.create_oval(10, 10, 50, 50, fill="gray", outline="black")
+
+# Function to update circle color based on selected track color
+def update_light_color():
+    selected_color = lights_track2_var.get()
+    color_map = {
+        "Red": "red",
+        "Yellow": "yellow", 
+        "Green": "green",
+        "Super Green": "#00FF00"  # Brighter green for super green
+    }
+    new_color = color_map.get(selected_color, "gray")
+    lights_canvas.itemconfig(light_circle, fill=new_color)
+
+def set_lights():
+    track1 = lights_track_var.get()
+    track2 = lights_track2_var.get()
+    block = lights_block_var.get()
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_text.config(state='normal')
+    log_text.insert('end', f"{current_time} UPDATE: Lights set for Track {track1} and {track2}, Block {block}\n")
+    log_text.see('end')
+    log_text.config(state='disabled')
+    
+    # Update the circle color when setting lights
+    update_light_color()
+    
+    messagebox.showinfo("Lights Set", f"Lights configured for:\nTrack: {track1}\nTrack: {track2}\nBlock: {block}")
+
+set_lights_btn = tk.Button(lights_frame, text="Set Lights", command=set_lights, bg="#4d4d60", fg="white", width=12)
+set_lights_btn.pack(anchor='w', pady=10)
+
+# Update circle color when track color selection changes
+lights_track2_dropdown.bind('<<ComboboxSelected>>', lambda e: update_light_color())
+
+# RIGHT COLUMN - Occupied Status and Railway Crossing
 right_frame = tk.Frame(main_frame, bg='white')
 right_frame.place(x=880, y=20, width=400, height=650)
 
 # Occupied Status Section
-message_log = tk.Frame(right_frame, bg='white', relief='raised', bd=2)
-message_log.pack(fill='x', pady=10)
+occupied_frame = tk.Frame(right_frame, bg='white', relief='raised', bd=2)
+occupied_frame.pack(fill='x', pady=10)
 
-tk.Label(message_log, text="Message Log", font=("Arial", 14, "bold"), bg='white').pack(anchor='w')
+tk.Label(occupied_frame, text="Occupied Status", font=("Arial", 14, "bold"), bg='white').pack(anchor='w')
 
 # Log section
-log_frame = tk.Frame(message_log, bg='lightgray', relief='sunken', bd=1)
+log_frame = tk.Frame(occupied_frame, bg='lightgray', relief='sunken', bd=1)
 log_frame.pack(fill='x', pady=10, padx=5)
 
 # Log text with scrollbar
@@ -321,22 +442,64 @@ log_scrollbar.pack(side='right', fill='y')
 log_entries = [
     "2024-09-17 20:25:32 UPDATE: Uploading PLC Program...",
     "2024-09-17 20:26:02 UPDATE: Successfully Uploaded PLC Program",
-    "2024-09-17 20:26:03 UPDATE: Commanded Speed Updated (38 mph)",
-    "2024-09-17 20:25:32 UPDATE: Commanded Authority Updated (2 blocks) ..."
+    "2024-09-17 20:26:03 UPDATE: Commanded Speed Updated (45 mph)",
+    "2024-09-17 20:25:32 UPDATE: Commanded Authority Updated (3 blocks) ..."
 ]
 
 for entry in log_entries:
     log_text.insert('end', entry + '\n')
 log_text.config(state='disabled')
 
-# Search frame
-search_frame = tk.Frame(message_log, bg='white')
+# Search function
+def search_log():
+    search_term = search_entry.get().strip().lower()
+    if not search_term:
+        messagebox.showinfo("Search", "Please enter a search term")
+        return
+    
+    log_text.config(state='normal')
+    
+    # Remove previous highlights
+    log_text.tag_remove("highlight", "1.0", "end")
+    
+    # Search through the log
+    found_count = 0
+    start_pos = "1.0"
+    
+    while True:
+        start_pos = log_text.search(search_term, start_pos, stopindex="end", nocase=True)
+        if not start_pos:
+            break
+            
+        end_pos = f"{start_pos}+{len(search_term)}c"
+        log_text.tag_add("highlight", start_pos, end_pos)
+        found_count += 1
+        start_pos = end_pos
+    
+    # Configure highlight style
+    log_text.tag_config("highlight", background="yellow", foreground="black")
+    
+    log_text.config(state='disabled')
+    
+    if found_count > 0:
+        # Scroll to first occurrence
+        log_text.see("1.0")
+        log_text.see(start_pos)
+        messagebox.showinfo("Search Results", f"Found {found_count} occurrence(s) of '{search_term}'")
+    else:
+        messagebox.showinfo("Search Results", f"No results found for '{search_term}'")
+
+# Search frame with submit button
+search_frame = tk.Frame(occupied_frame, bg='white')
 search_frame.pack(fill='x', pady=5)
 
-tk.Label(search_frame, text="Search: ", font=("Arial", 10), bg='white').pack(side='left')
+tk.Label(search_frame, text="Search:", font=("Arial", 10), bg='white').pack(side='left')
 search_entry = tk.Entry(search_frame, width=20)
 search_entry.pack(side='left', padx=5)
-###
+
+search_button = tk.Button(search_frame, text="Submit", command=search_log, bg="#4d4d60", fg="white", width=8)
+search_button.pack(side='left', padx=5)
+
 # Railway Crossing Section
 crossing_frame = tk.Frame(right_frame, bg='white', relief='raised', bd=2)
 crossing_frame.pack(fill='x', pady=10)
@@ -366,6 +529,21 @@ tk.Label(lights_crossing_frame, text="Crossbar:", font=("Arial", 12), bg='white'
 crossbar_var = tk.StringVar(value="Up")
 crossbar_dropdown = ttk.Combobox(lights_crossing_frame, textvariable=crossbar_var, values=["Up", "Down"], state="readonly", width=10)
 crossbar_dropdown.pack(anchor='w', pady=5)
+
+def set_crossing():
+    lights_status = lights_var.get()
+    crossbar_status = crossbar_var.get()
+    track = crossing_track_var.get()
+    block = crossing_block_var.get()
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_text.config(state='normal')
+    log_text.insert('end', f"{current_time} UPDATE: Railway Crossing set - Lights: {lights_status}, Crossbar: {crossbar_status}\n")
+    log_text.see('end')
+    log_text.config(state='disabled')
+    messagebox.showinfo("Crossing Set", f"Railway Crossing configured:\nLights: {lights_status}\nCrossbar: {crossbar_status}\nTrack: {track}, Block: {block}")
+
+set_crossing_btn = tk.Button(crossing_frame, text="Set Crossing", command=set_crossing, bg="#4d4d60", fg="white", width=12)
+set_crossing_btn.pack(anchor='w', pady=10)
 
 # Start the main loop
 root.mainloop()
