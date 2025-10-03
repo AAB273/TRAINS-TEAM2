@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
-import UI_Test   # <-- backend file with data & Block class
+import UI_Variables   # <-- backend file with data & Block class
 import tkinter.simpledialog as simpledialog
 
 class TrackModelUI(tk.Tk):

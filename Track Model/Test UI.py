@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from UI_Test import load_data  # your backend loader
+from UI_Variables import load_data  # your backend loader
 
 
 class EditableTree(ttk.Treeview):
