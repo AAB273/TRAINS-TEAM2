@@ -15,6 +15,7 @@ root.configure(bg=main_color)
 root.geometry("1250x910")
 ######################################
 
+########################################
 #Train Selector
 selector_frame = tk.Frame(root, bg=main_color, highlightbackground="black", highlightthickness=4, width=200)
 selector_frame.pack(side='right', fill='y', padx=3, pady=3)
@@ -99,8 +100,9 @@ tk.Label(
     text="Time",
     bg=off_color,
     fg='white',
-    font=('Arial',10,'bold')
-).pack(padx=5, pady=5)
+    font=('Arial',15,'bold')
+).pack(padx=5, pady=5,side='top')
+tk.Entry(time_frame, text="Time", bg="white", fg='black', font=('Arial', 15, 'bold')).pack(pady=5,padx=5,side='top')
 
 # Announcement Frame (right side of middle container)
 Announcement_frame = tk.Frame(top_container, bg=off_color, width=800, height=80, highlightbackground="black", highlightthickness=4)
@@ -108,17 +110,84 @@ Announcement_frame.pack(side='left', padx=3, pady=3)
 Announcement_frame.pack_propagate(False)
 tk.Label(
     Announcement_frame,
-    text="Arriving to Dormount in 5 seconds",
+    text="Station Announcement",
     bg=off_color,
     fg='white',
-    font=('Arial',10,'bold')
-).pack(padx=5, pady=5)
+    font=('Arial',15,'bold')
+).pack(padx=5, pady=5,side='top')
+tk.Entry(Announcement_frame, text="Station Announcment", bg="white", fg='black', font=('Arial', 15, 'bold'),width=700).pack(pady=5,padx=5,side='top')
 ########################################################
 left_frame = tk.Frame(root, bg=main_color)
 left_frame.pack(side='left',fill='both')
 
 right_frame = tk.Frame(root, bg=main_color)
 right_frame.pack(side='right',fill='both',expand=True)
+
+#Light and Door Controls
+lights_and_doors = tk.Frame(right_frame,bg=off_color,height=400, highlightbackground="black", highlightthickness=4)
+lights_and_doors.pack(side='top',fill='both')
+
+# State tracking dictionary
+door_light_states = {
+    'right_door': 'closed',
+    'left_door': 'closed',
+    'headlights': 'off',
+    'interior_lights': 'off'
+}
+
+def create_toggle_buttons(parent_frame, state_key, option1, option2):
+    """Create a pair of toggle buttons that update state and appearance"""
+    # Create buttons and get the default background color
+    btn1 = tk.Button(parent_frame, text=option1, width=10, relief='raised')
+    btn2 = tk.Button(parent_frame, text=option2, width=10, relief='raised')
+    
+    # Store the default button color
+    default_bg = btn1.cget('bg')
+    
+    # Set initial state (option2 is default/pressed)
+    btn2.config(relief='sunken', bg="green")
+    
+    def toggle_to_option1():
+        door_light_states[state_key] = option1.lower()
+        btn1.config(relief='sunken', bg="green")
+        btn2.config(relief='raised', bg=default_bg)
+    
+    def toggle_to_option2():
+        door_light_states[state_key] = option2.lower()
+        btn1.config(relief='raised', bg=default_bg)
+        btn2.config(relief='sunken', bg="green")
+    
+    btn1.config(command=toggle_to_option1)
+    btn2.config(command=toggle_to_option2)
+    
+    btn1.pack(side='left', padx=(25,0), pady=(0,20))
+    btn2.pack(side='right', padx=(0,25), pady=(0,20))
+    
+    return btn1, btn2
+# Right Cabin Door Function
+tk.Label(lights_and_doors, text="Right Cabin Door", bg=off_color, fg='white', font=('Arial', 15, 'bold')).pack(side='top', padx=10, pady=10)
+R_Door = tk.Frame(lights_and_doors, bg=off_color)
+R_Door.pack(side='top', fill='both')
+create_toggle_buttons(R_Door, 'right_door', 'Open', 'Close')
+
+# Left Cabin Door Function
+tk.Label(lights_and_doors, text="Left Cabin Door", bg=off_color, fg='white', font=('Arial', 15, 'bold')).pack(side='top', padx=10, pady=10)
+L_Door = tk.Frame(lights_and_doors, bg=off_color)
+L_Door.pack(side='top', fill='both')
+create_toggle_buttons(L_Door, 'left_door', 'Open', 'Close')
+
+# Headlights
+tk.Label(lights_and_doors, text="Headlights", bg=off_color, fg='white', font=('Arial', 15, 'bold')).pack(side='top', padx=10, pady=10)
+H_Lights = tk.Frame(lights_and_doors, bg=off_color)
+H_Lights.pack(side='top', fill='both')
+create_toggle_buttons(H_Lights, 'headlights', 'On', 'Off')
+
+# Interior Lights
+tk.Label(lights_and_doors, text="Interior Lights", bg=off_color, fg='white', font=('Arial', 15, 'bold')).pack(side='top', padx=10, pady=10)
+I_Lights = tk.Frame(lights_and_doors, bg=off_color)
+I_Lights.pack(side='top', fill='both')
+create_toggle_buttons(I_Lights, 'interior_lights', 'On', 'Off')
+
 
 #Left Test Inputs including Speed, Acceleration, Passenger and Crew Count, Power Command, Train Height & Width & Length
 test_inputs_left = tk.Frame(left_frame, bg=off_color, highlightbackground="black", highlightthickness=4)
@@ -190,23 +259,7 @@ tk.Entry(test_inputs_left).grid(row=14, column=1, padx=(35, 10), pady=10, sticky
 
 
 ##################################w
-#Emergency Brake
-emergency_brake = tk.Frame(left_frame,width=580,height=100, highlightbackground="black",highlightthickness=2,bg=off_color)
-emergency_brake.pack(side='top',padx=3,pady=3)
-emergency_brake.pack_propagate(False)
-emergency_brake_button = tk.Button(
-    emergency_brake,
-    text="Emergency Brake", 
-    bg="red", 
-    fg='black', 
-    font=('Arial', 10),  
-    relief='raised', 
-    bd=1, 
-    padx=15, 
-    pady=3, 
-    height=50
-)
-emergency_brake_button.pack(fill='both')
+
 
 
 
