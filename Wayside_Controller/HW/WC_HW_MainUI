@@ -1,34 +1,28 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
-import os
 from datetime import datetime
 
 ########################################################################################################################
-
-#INPUTS/OUTPUTS
+# Backend Data Structures (same as before)
 
 commanded_speed = []
 commanded_authority = []
-switch_positions = [] # 0 if Switch is facing left; 1 if Switch is facing right
-light_states = [] # 00 if light is red, 01 if light is yellow, 10 is green, 11 is super green
-block_occupancy = [] # 0 if Block is not occupied; 1 if Block is occupied
+switch_positions = []
+light_states = []
+block_occupancy = []
 
 blocks = []
-#track_config (sent as file?)
-#use block class for: grade, elevation, length, speed limit, track heater, beacon
-track_direction = [] # 0 if track is facing left or up; 1 if track is facing right or down
-railway_crossing = [] # 0 if crossing is inactive; 1 if crossing is active
-heaters_work = [] # 0 of heater does not work; 1 if heater does work
+track_direction = []
+railway_crossing = []
+heaters_work = []
 
-# locations of Infastructure given by which track block they are located in
 switch_locations = []
-light_location = [] #figure out where to get location of lights
+light_location = []
 railway_location = []
 station_location = []
 
 environmental_temp: float
-
-failure_modes = [] # 0 if no failure occurs; 1 if failure occurs
+failure_modes = []
 track_circuit_fail: bool
 railway_crossing_fail: bool
 power_fail: bool
@@ -38,13 +32,121 @@ passengers_boarding = []
 passengers_disembarking = []
 train_occupancy = []
 active_trains = []
-##########################################################################################################################
+########################################################################################################################
 
-root = tk.Tk() 
+# Root window setup
+root = tk.Tk()
 root.title("Wayside Controller Hardware UI")
-root.geometry("1400x900") # Increased width to accommodate PLC upload in header
+root.geometry("1400x900")
+root.configure(bg="#0b1443")
 
-# background
-root.configure(bg="#1a1a4d")
+# ========== HEADER ========== #
+header_frame = tk.Frame(root, bg="#0b1443")
+header_frame.pack(fill="x", pady=10)
+
+# City logo placeholder (left)
+logo = tk.Label(header_frame, text="🚉", bg="#0b1443", fg="white", font=("Arial", 20))
+logo.pack(side="left", padx=15)
+
+# Fault LED indicator
+fault_led = tk.Label(header_frame, text="Fault LED", bg="red", fg="white", width=10, font=("Arial", 10, "bold"))
+fault_led.pack(side="left", padx=10)
+
+# PLC upload and run buttons
+plc_upload_btn = tk.Button(header_frame, text="Select PLC File", font=("Arial", 11, "bold"), width=16, height=2)
+plc_upload_btn.pack(side="left", padx=20)
+
+run_plc_btn = tk.Button(header_frame, text="Run PLC", font=("Arial", 11, "bold"), width=16, height=2)
+run_plc_btn.pack(side="left", padx=10)
+
+# Screen toggle checkboxes
+toggle_frame = tk.Frame(header_frame, bg="#0b1443")
+toggle_frame.pack(side="right", padx=30)
+
+view_var_main = tk.BooleanVar(value=True)
+view_var_maint = tk.BooleanVar(value=False)
+
+def update_screen_view():
+    if view_var_main.get():
+        main_frame.tkraise()
+    elif view_var_maint.get():
+        maintenance_frame.tkraise()
+
+main_check = tk.Checkbutton(toggle_frame, text="Main Screen", variable=view_var_main,
+                            command=lambda: [view_var_maint.set(False), update_screen_view()],
+                            bg="#0b1443", fg="white", selectcolor="#333", font=("Arial", 10))
+main_check.grid(row=0, column=0, padx=10)
+
+maint_check = tk.Checkbutton(toggle_frame, text="Maintenance", variable=view_var_maint,
+                             command=lambda: [view_var_main.set(False), update_screen_view()],
+                             bg="#0b1443", fg="white", selectcolor="#333", font=("Arial", 10))
+maint_check.grid(row=0, column=1, padx=10)
+
+# ========== BODY ========== #
+body_frame = tk.Frame(root, bg="#0b1443")
+body_frame.pack(fill="both", expand=True, padx=15, pady=10)
+
+# Two main pages (stacked)
+main_frame = tk.Frame(body_frame, bg="#0b1443")
+maintenance_frame = tk.Frame(body_frame, bg="#0b1443")
+
+for frame in (main_frame, maintenance_frame):
+    frame.place(relwidth=1, relheight=1)
+
+# ---------- LEFT PANEL ---------- #
+left_panel = tk.Frame(main_frame, bg="#e0e4f7", width=260)
+left_panel.pack(side="left", fill="y", padx=5, pady=5)
+
+tk.Label(left_panel, text="Railway Crossing Detail", font=("Arial", 12, "bold"), bg="#e0e4f7").pack(pady=10)
+tk.Label(left_panel, text="Railway 107", bg="#e0e4f7").pack()
+
+tk.Label(left_panel, text="Condition: Normal", bg="#e0e4f7").pack(pady=5)
+tk.Label(left_panel, text="Lights: Red", bg="#e0e4f7").pack(pady=5)
+tk.Label(left_panel, text="Bar: Closed", bg="#e0e4f7").pack(pady=5)
+
+tk.Label(left_panel, text="Switch Details", font=("Arial", 12, "bold"), bg="#e0e4f7").pack(pady=10)
+tk.Label(left_panel, text="Switch 28", bg="#e0e4f7").pack()
+tk.Label(left_panel, text="Condition: Normal", bg="#e0e4f7").pack()
+tk.Label(left_panel, text="Direction: 57-58", bg="#e0e4f7").pack()
+
+tk.Label(left_panel, text="Light Detail", font=("Arial", 12, "bold"), bg="#e0e4f7").pack(pady=10)
+tk.Label(left_panel, text="Light 3", bg="#e0e4f7").pack()
+tk.Label(left_panel, text="Condition: Fault", bg="#e0e4f7").pack()
+tk.Label(left_panel, text="Signal: Red", bg="#e0e4f7").pack()
+
+# ---------- CENTER MAP AREA ---------- #
+center_frame = tk.Frame(main_frame, bg="white", width=800, height=500, relief="ridge", borderwidth=3)
+center_frame.pack(side="left", padx=5, pady=0)
+tk.Label(center_frame, text="MAP DISPLAY", bg="white", fg="black", font=("Arial", 14, "bold")).place(relx=0.4, rely=0.45)
+
+# ---------- RIGHT PANEL ---------- #
+right_panel = tk.Frame(main_frame, bg="#e0e4f7", width=260)
+right_panel.pack(side="right", fill="y", padx=5, pady=5)
+
+tk.Label(right_panel, text="Suggested:", font=("Arial", 12, "bold"), bg="#e0e4f7").pack(pady=10)
+tk.Label(right_panel, text="Authority: 2 blocks", bg="#e0e4f7").pack()
+tk.Label(right_panel, text="Speed: 38 mph", bg="#e0e4f7").pack()
+
+tk.Label(right_panel, text="Commanded:", font=("Arial", 12, "bold"), bg="#e0e4f7").pack(pady=10)
+tk.Label(right_panel, text="Authority: 2 blocks", bg="#e0e4f7").pack()
+tk.Label(right_panel, text="Speed: 38 mph", bg="#e0e4f7").pack()
+
+# ---------- BOTTOM MESSAGE LOG ---------- #
+message_frame = tk.Frame(main_frame, bg="#0b1443")
+message_frame.pack(side="top", fill="x", pady=5)
+
+tk.Label(message_frame, text="Messages", bg="#0b1443", fg="white", font=("Arial", 12, "bold")).pack(anchor="w", padx=5)
+
+log_text = tk.Text(message_frame, height=6, bg="#111b52", fg="white", font=("Courier", 10))
+log_text.pack(fill="x", pady=10)
+log_text.insert("end", f"{datetime.now():%Y-%m-%d %H:%M:%S} INFO: UI initialized.\n")
+log_text.config(state="disabled")
+
+# ---------- MAINTENANCE SCREEN (simple placeholder) ---------- #
+maint_label = tk.Label(maintenance_frame, text="Maintenance Mode Active", bg="#0b1443", fg="white", font=("Arial", 24))
+maint_label.place(relx=0.3, rely=0.4)
+
+# Raise main screen by default
+main_frame.tkraise()
 
 root.mainloop()

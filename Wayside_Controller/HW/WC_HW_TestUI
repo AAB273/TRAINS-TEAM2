@@ -273,29 +273,29 @@ suggested_auth_var = tk.StringVar(value="3 blocks")
 suggested_auth_label = tk.Label(suggested_frame, textvariable=suggested_auth_var, font=("Arial", 12, "bold"), bg='white')
 suggested_auth_label.pack(anchor='w', pady=5)
 
-def fetch_all_data():
-    track = suggested_track_var.get()
-    if track in track_data:
-        data = track_data[track]
-        suggested_block_var.set(data["block_number"])
-        suggested_speed_var.set(data["suggested_speed"])
-        suggested_auth_var.set(data["suggested_authority"])
+# def fetch_all_data():
+#     track = suggested_track_var.get()
+#     if track in track_data:
+#         data = track_data[track]
+#         suggested_block_var.set(data["block_number"])
+#         suggested_speed_var.set(data["suggested_speed"])
+#         suggested_auth_var.set(data["suggested_authority"])
         
-        # Also update commanded values to match
-        commanded_speed_var.set(data["commanded_speed"])
-        commanded_auth_var.set(data["commanded_authority"])
+#         # Also update commanded values to match
+#         commanded_speed_var.set(data["commanded_speed"])
+#         commanded_auth_var.set(data["commanded_authority"])
         
-        # Add to log
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        log_text.config(state='normal')
-        log_text.insert('end', f"{current_time} UPDATE: Fetched data for {track} track\n")
-        log_text.see('end')
-        log_text.config(state='disabled')
+#         # Add to log
+#         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+#         log_text.config(state='normal')
+#         log_text.insert('end', f"{current_time} UPDATE: Fetched data for {track} track\n")
+#         log_text.see('end')
+#         log_text.config(state='disabled')
         
-        messagebox.showinfo("Data Fetched", f"Fetched all data for {track} track")
+#         messagebox.showinfo("Data Fetched", f"Fetched all data for {track} track")
 
-fetch_all_btn = ttk.Button(suggested_frame, text="Fetch All", command=fetch_all_data, width=12)
-fetch_all_btn.pack(anchor='w', pady=10)
+# fetch_all_btn = ttk.Button(suggested_frame, text="Fetch All", command=fetch_all_data, width=12)
+# fetch_all_btn.pack(anchor='w', pady=10)
 
 # Update suggested values when track changes
 def update_suggested_values(event=None):
