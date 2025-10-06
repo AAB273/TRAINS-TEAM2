@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox, simpledialog
 import UI_Variables
 
 class TrackModelTestUI(tk.Toplevel):
@@ -127,24 +127,82 @@ class TrackModelTestUI(tk.Toplevel):
             self.tree_trains.heading(col, text=col)
             self.tree_trains.column(col, width=120, anchor="center")
         self.tree_trains.pack(fill="x", padx=10, pady=5)
+
+        # Buttons frame
+        btn_frame = tk.Frame(frame, bg="white")
+        btn_frame.pack(fill="x", pady=5)
+
+        self.btn_add_train = tk.Button(btn_frame, text="Add Train", command=self.add_train)
+        self.btn_add_train.pack(side="left", padx=5)
+
+        self.btn_remove_train = tk.Button(btn_frame, text="Remove Selected Train", command=self.remove_train, state="disabled")
+        self.btn_remove_train.pack(side="left", padx=5)
+
+        self.btn_edit_train = tk.Button(btn_frame, text="Edit Selected Train", command=self.edit_selected_train)
+        self.btn_edit_train.pack(side="left", padx=5)
+
+        # Bind selection to enable/disable remove button
+        self.tree_trains.bind("<<TreeviewSelect>>", self.on_train_select)
+
+        # Populate table **after** buttons exist
         self.refresh_train_table()
 
-        tk.Button(frame, text="Edit Selected Train", command=self.edit_selected_train).pack(pady=5)
+
+    def on_train_select(self, event):
+        selected = self.tree_trains.selection()
+        if selected:
+            self.btn_remove_train.config(state="normal")
+        else:
+            self.btn_remove_train.config(state="disabled")
+
 
     def refresh_train_table(self):
         for row in self.tree_trains.get_children():
             self.tree_trains.delete(row)
         for idx, name in enumerate(self.manager.active_trains):
             self.tree_trains.insert("", "end", values=(name,
-                                                       self.manager.train_occupancy[idx],
-                                                       self.manager.commanded_speed[idx],
-                                                       self.manager.commanded_authority[idx]))
+                                                    self.manager.train_occupancy[idx],
+                                                    self.manager.commanded_speed[idx],
+                                                    self.manager.commanded_authority[idx]))
+
+
+    def add_train(self):
+        if len(self.manager.active_trains) >= 16:
+            messagebox.showwarning("Limit Reached", "Maximum of 16 trains allowed.")
+            return
+        name = simpledialog.askstring("Add Train", "Enter train name/ID:")
+        if name:
+            self.manager.active_trains.append(name)
+            self.manager.train_occupancy.append(0)
+            self.manager.commanded_speed.append(0)
+            self.manager.commanded_authority.append(0)
+            self.refresh_train_table()
+
+            # Notify main UI if available
+            if hasattr(self.master, "train_combo"):
+                self.master.train_combo['values'] = self.manager.active_trains
+                self.master.train_combo.set('')  # Optional: clear selection
+
+    def remove_train(self):
+        selected = self.tree_trains.selection()
+        if not selected:
+            return
+        idx = self.tree_trains.index(selected[0])
+        self.manager.active_trains.pop(idx)
+        self.manager.train_occupancy.pop(idx)
+        self.manager.commanded_speed.pop(idx)
+        self.manager.commanded_authority.pop(idx)
+        self.refresh_train_table()
+
+        # Notify main UI if available
+        if hasattr(self.master, "train_combo"):
+            self.master.train_combo['values'] = self.manager.active_trains
+            self.master.train_combo.set('')  # Optional: clear selection
 
     def edit_selected_train(self):
         selected = self.tree_trains.selection()
         if not selected:
             return
-        item = self.tree_trains.item(selected[0])
         idx = self.tree_trains.index(selected[0])
 
         popup = tk.Toplevel(self)
@@ -174,7 +232,6 @@ class TrackModelTestUI(tk.Toplevel):
         frame = self.diagram_tab
         tk.Label(frame, text="Diagram Elements", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=5)
 
-        # Simple list of switches, crossings, signals
         self.diagram_tree = ttk.Treeview(frame, columns=("Block", "Switch", "Crossing", "Signal", "Occupancy"), show="headings")
         for col in ("Block", "Switch", "Crossing", "Signal", "Occupancy"):
             self.diagram_tree.heading(col, text=col)
@@ -199,7 +256,6 @@ class TrackModelTestUI(tk.Toplevel):
         selected = self.diagram_tree.selection()
         if not selected:
             return
-        item = self.diagram_tree.item(selected[0])
         idx = self.diagram_tree.index(selected[0])
         block = self.manager.blocks[idx]
 

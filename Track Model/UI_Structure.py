@@ -5,6 +5,7 @@ import UI_Variables
 import tkinter.simpledialog as simpledialog
 from Test_UI import TrackModelTestUI  # Test/debug UI
 
+
 class TrackModelUI(tk.Tk):
     def __init__(self, manager: UI_Variables.TrackDataManager):
         super().__init__()
@@ -30,6 +31,9 @@ class TrackModelUI(tk.Tk):
 
         bottom_frame = tk.Frame(self, bg="navy")
         bottom_frame.pack(side="bottom", fill="both", expand=True, padx=20, pady=20)
+
+        # Initialize filter variables
+        self.filter_vars = {}
 
         # Build UI
         self.create_left_panel(left_frame)
@@ -66,7 +70,11 @@ class TrackModelUI(tk.Tk):
                 self.temp_label.config(text=f"Temperature: {new_temp}°C")
 
         tk.Button(temp_card, text="Set Environmental Temp", command=set_environment_temp).pack(padx=10, pady=10)
-        self.temp_label = tk.Label(temp_card, text=f"Temperature: {getattr(self.data_manager, 'environmental_temp', '--')}°C", bg="white")
+        self.temp_label = tk.Label(
+            temp_card,
+            text=f"Temperature: {getattr(self.data_manager, 'environmental_temp', '--')}°C",
+            bg="white"
+        )
         self.temp_label.pack(padx=10, pady=5)
         temp_card.pack(fill="x", pady=10)
 
@@ -76,8 +84,12 @@ class TrackModelUI(tk.Tk):
         self.train_combo.bind("<<ComboboxSelected>>", self.update_train_info)
         self.train_combo.pack(padx=10, pady=5)
 
-        self.train_info = tk.Label(train_card, text="Occupancy: --\nCommanded Speed: --\nCommanded Authority: --",
-                                   bg="white", justify="left")
+        self.train_info = tk.Label(
+            train_card,
+            text="Occupancy: --\nCommanded Speed: --\nCommanded Authority: --",
+            bg="white",
+            justify="left"
+        )
         self.train_info.pack(padx=10, pady=5)
         train_card.pack(fill="x", pady=10)
 
@@ -87,12 +99,18 @@ class TrackModelUI(tk.Tk):
         self.failure_rail_var = tk.BooleanVar(value=False)
         self.failure_power_var = tk.BooleanVar(value=False)
 
-        ttk.Checkbutton(fail_card, text="Train Circuit", variable=self.failure_train_circuit_var,
-                        command=self.on_failure_changed, style="Large.TCheckbutton").pack(pady=10, padx=5, fill='x', expand=True)
-        ttk.Checkbutton(fail_card, text="Broken Railroads", variable=self.failure_rail_var,
-                        command=self.on_failure_changed, style="Large.TCheckbutton").pack(pady=10, padx=5, fill='x', expand=True)
-        ttk.Checkbutton(fail_card, text="Power", variable=self.failure_power_var,
-                        command=self.on_failure_changed, style="Large.TCheckbutton").pack(pady=10, padx=5, fill='x', expand=True)
+        ttk.Checkbutton(
+            fail_card, text="Train Circuit", variable=self.failure_train_circuit_var,
+            command=self.on_failure_changed, style="Large.TCheckbutton"
+        ).pack(pady=10, padx=5, fill='x', expand=True)
+        ttk.Checkbutton(
+            fail_card, text="Broken Railroads", variable=self.failure_rail_var,
+            command=self.on_failure_changed, style="Large.TCheckbutton"
+        ).pack(pady=10, padx=5, fill='x', expand=True)
+        ttk.Checkbutton(
+            fail_card, text="Power", variable=self.failure_power_var,
+            command=self.on_failure_changed, style="Large.TCheckbutton"
+        ).pack(pady=10, padx=5, fill='x', expand=True)
         fail_card.pack(fill="x", pady=10)
 
         # Filters
@@ -108,16 +126,30 @@ class TrackModelUI(tk.Tk):
         self.view_tabs.add(self.station_tab, text="Station View")
         self.view_tabs.pack(fill="x", padx=5, pady=5)
         self.view_tabs.bind("<<NotebookTabChanged>>", self.on_view_tab_change)
-        self.filter_checkbuttons = {}
-        self.update_filters_for_view()
+
+        self.init_filter_checkbuttons()
         filter_card.pack(fill="x", pady=10)
+
+    def init_filter_checkbuttons(self):
+        """Initialize filter checkbuttons and keep persistent BooleanVars."""
+        options = ["All Blocks", "Switch Blocks", "Crossing Blocks", "Station Blocks",
+                   "Bidirectional Blocks", "Signal Blocks"] if self.view_mode.get() == "track" else \
+                  ["All Stations", "Boarding Stations", "Waiting Stations"]
+
+        for opt in options:
+            if opt not in self.filter_vars:
+                self.filter_vars[opt] = tk.BooleanVar(value=True)
+            cb = tk.Checkbutton(self.filter_card, text=opt, bg="white", variable=self.filter_vars[opt])
+            cb.pack(anchor="w", padx=10)
 
     def update_train_info(self, event):
         idx = self.train_combo.current()
         occ = self.data_manager.train_occupancy[idx]
         spd = self.data_manager.commanded_speed[idx]
         auth = self.data_manager.commanded_authority[idx]
-        self.train_info.config(text=f"Occupancy: {occ} People\nCommanded Speed: {spd} m/s\nCommanded Authority: {auth} blocks")
+        self.train_info.config(
+            text=f"Occupancy: {occ} People\nCommanded Speed: {spd} m/s\nCommanded Authority: {auth} blocks"
+        )
 
     # ---------------- Center Panel ----------------
     def create_center_panel(self, parent):
@@ -129,7 +161,7 @@ class TrackModelUI(tk.Tk):
         frame1 = tk.Frame(notebook, bg="white")
         notebook.add(frame1, text="Track Switches and Signals")
         try:
-            img = Image.open("Track Diagram.png").resize((450, 550))
+            img = Image.open("Blue Line.png").resize((600, 450))
             self.track_img = ImageTk.PhotoImage(img)
             tk.Label(frame1, image=self.track_img, bg="white").pack(fill="both", expand=True)
         except:
@@ -148,6 +180,13 @@ class TrackModelUI(tk.Tk):
         card.pack(fill="both", expand=True)
         self.table_frame = tk.Frame(card, bg="white")
         self.table_frame.pack(fill="both", expand=True)
+
+        # Initialize Treeview once
+        self.columns_track = ("Block", "Grade", "Elevation", "Length", "Speed Limit", "Heaters", "Beacons")
+        self.columns_station = ("Block", "Station", "Ticket Sales", "Passengers Boarding", "Passengers Disembarking")
+        self.tree = ttk.Treeview(self.table_frame, show="headings")
+        self.tree.pack(fill="both", expand=True, padx=10, pady=10)
+
         self.update_bottom_table()
 
     def update_bottom_table(self):
@@ -155,46 +194,33 @@ class TrackModelUI(tk.Tk):
             self.show_track_view()
         else:
             self.show_station_view()
-        self.update_filters_for_view()
-
-    def update_filters_for_view(self):
-        for cb in self.filter_checkbuttons.values():
-            cb.destroy()
-        self.filter_checkbuttons.clear()
-        options = ["All Blocks", "Switch Blocks", "Crossing Blocks", "Station Blocks",
-                   "Bidirectional Blocks", "Signal Blocks"] if self.view_mode.get() == "track" else \
-                  ["All Stations", "Boarding Stations", "Waiting Stations"]
-        for opt in options:
-            var = tk.BooleanVar()
-            cb = tk.Checkbutton(self.filter_card, text=opt, bg="white", variable=var)
-            cb.pack(anchor="w", padx=10)
-            self.filter_checkbuttons[opt] = cb
-
-    def clear_table(self):
-        for widget in self.table_frame.winfo_children():
-            widget.destroy()
+        # Filters remain intact; no destroying checkbuttons
+        self.init_filter_checkbuttons()
 
     def show_track_view(self):
-        self.clear_table()
-        columns = ("Block", "Grade", "Elevation", "Length", "Speed Limit", "Heaters", "Beacons")
-        self.tree = ttk.Treeview(self.table_frame, columns=columns, show="headings")
-        for col in columns:
+        # Update Treeview in place
+        self.tree.config(columns=self.columns_track)
+        for col in self.columns_track:
             self.tree.heading(col, text=col.capitalize())
             self.tree.column(col, width=120, anchor="center")
-        self.tree.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Clear existing rows
+        self.tree.delete(*self.tree.get_children())
+
+        # Insert new rows
         for b in self.data_manager.blocks:
             self.tree.insert("", "end", values=(b.block_number, f"{b.grade}%", f"{b.elevation}m",
                                                 f"{b.length}m", f"{b.speed_limit} km/h",
                                                 f"{b.track_heater}", f"{b.beacon}"))
 
     def show_station_view(self):
-        self.clear_table()
-        columns = ("Block", "Station", "Ticket Sales", "Passengers Boarding", "Passengers Disembarking")
-        self.tree = ttk.Treeview(self.table_frame, columns=columns, show="headings")
-        for col in columns:
+        self.tree.config(columns=self.columns_station)
+        for col in self.columns_station:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=150, anchor="center")
-        self.tree.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.tree.delete(*self.tree.get_children())
+
         for block_num, station_name in self.data_manager.station_location:
             idx = block_num - 1
             self.tree.insert("", "end", values=(block_num, station_name,
@@ -238,9 +264,12 @@ class TrackModelUI(tk.Tk):
 
     # Refresh UI periodically
     def refresh_ui(self):
+        # Update environmental temp
         self.temp_label.config(text=f"Temperature: {getattr(self.data_manager, 'environmental_temp', '--')}°C")
+        # Update bottom table in-place (inputs preserved)
         self.update_bottom_table()
         self.after(1000, self.refresh_ui)
+
 
 # ---------------- Run Application ----------------
 if __name__ == "__main__":
