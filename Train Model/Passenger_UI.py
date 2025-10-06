@@ -1,5 +1,4 @@
 import tkinter as tk
-from datetime import datetime
 from PIL import Image, ImageTk
 from tkinter import font
 from tkinter import ttk
@@ -101,6 +100,7 @@ class TrainSocketServer:
                 state = value.get('state')
                 if failure_type == 'engine':
                     current_train.set_engine_failure(state)
+                    current_train.set_power_command(0)
                 elif failure_type == 'signal_pickup':
                     current_train.set_signal_pickup_failure(state)
                 elif failure_type == 'brake':
@@ -311,7 +311,7 @@ def refresh_train_selector():
     
     # Rebuild headers
     header_train = tk.Label(selector_frame, text="Train #", bg=main_color, fg='white', font=('Arial', 12, 'bold'))
-    header_status = tk.Label(selector_frame, text="Deployed?", bg=main_color, fg='white', font=('Arial', 12, 'bold'))
+    header_status = tk.Label(selector_frame, text="Line", bg=main_color, fg='white', font=('Arial', 12, 'bold'))
     
     header_train.grid(row=2, column=0, padx=10, pady=(5, 5), sticky='ew')
     header_status.grid(row=2, column=2, padx=10, pady=(5, 5), sticky='ew')
@@ -358,7 +358,12 @@ def refresh_train_selector():
         status_canvas.grid(row=row_num, column=2, padx=10, pady=10)
         
         train = train_manager.get_train(train_id)
-        fill_color = 'green' if train.deployed else 'red'
+        if train.line == 'blue':
+            fill_color = 'blue'
+        elif train.line == 'red':
+            fill_color = 'red'
+        elif train.line == 'green':
+            fill_color = 'green'
         status_canvas.create_rectangle(2, 2, 58, 23, fill=fill_color, outline='white', width=2)
         
         # Add separator between items (except after the last one)
@@ -395,7 +400,10 @@ title_label = tk.Label(selector_frame, text="Train Selector", bg=main_color, fg=
 title_label.grid(row=0, column=0, columnspan=3, padx=10, pady=(10, 5), sticky='ew')
 
 header_train = tk.Label(selector_frame, text="Train #", bg=main_color, fg='white', font=('Arial', 12, 'bold'))
+header_status = tk.Label(selector_frame, text="Line", bg=main_color, fg='white', font=('Arial', 12, 'bold'))
 
+header_train.grid(row=2, column=0, padx=10, pady=(5, 5), sticky='ew')
+header_status.grid(row=2, column=2, padx=10, pady=(5, 5), sticky='ew')
 
 train_buttons = {}
 

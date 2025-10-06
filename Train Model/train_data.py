@@ -8,7 +8,7 @@ class Train:
     def __init__(self, train_id):
         self.train_id = train_id
         
-        # Metrics
+        # Metrics            All Values come from blue line for testing
         self.speed = 0.0
         self.acceleration = 0.0
         self.passenger_count = 0
@@ -43,6 +43,9 @@ class Train:
         # Deployment status
         self.deployed = False
         
+        #Line assignment
+        self.line = "Blue"  #blue for testing
+
         # Observers (callbacks for UI updates)
         self._observers = []
     
