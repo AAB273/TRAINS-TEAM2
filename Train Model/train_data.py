@@ -5,7 +5,6 @@ Handles all train data and state for both Test UI and Passenger UI
 
 class Train:
     """Represents a single train with all its properties"""
-    
     def __init__(self, train_id):
         self.train_id = train_id
         
@@ -13,14 +12,17 @@ class Train:
         self.speed = 0.0
         self.acceleration = 0.0
         self.passenger_count = 0
-        self.crew_count = 0
+        self.crew_count = 3
         self.power_command = 0.0
-        self.cabin_temp = 0.0
+        self.cabin_temp = 72.0
+        self.grade = 0
+        self.elevation = 0
+        self.speed_limit = 31.1
         
         # Dimensions
-        self.height = 0.0
-        self.length = 0.0
-        self.width = 0.0
+        self.height = 11.2
+        self.length = 150.642
+        self.width = 8.7
         
         # Door states (boolean: True=Open, False=Closed)
         self.right_door_open = False
@@ -61,6 +63,7 @@ class Train:
     # Metric setters with validation
     def set_speed(self, value):
         try:
+            value = value * 0.621371
             self.speed = float(value)
             self._notify_observers()
         except ValueError:
@@ -121,7 +124,19 @@ class Train:
             self._notify_observers()
         except ValueError:
             pass
-    
+
+
+    #def calculate_force_velocity_acceleration_
+    """
+    def calculate_temp_change_time(self, temp):
+        t = (m * c_p * ΔT) / Q_AC
+
+        ΔT = temp - self.cabin_temp
+        t = ((11.2*150.642*8.7) * .24 * ΔT) / 6824
+
+        return t, temp
+
+        """ 
     # Door controls
     def set_right_door(self, is_open):
         """Set right door state (True=Open, False=Closed)"""
@@ -216,7 +231,7 @@ class TrainManager:
         """Get dictionary of all trains"""
         return self.trains
 
-
+    
 # Global singleton instance
 _train_manager = None
 
