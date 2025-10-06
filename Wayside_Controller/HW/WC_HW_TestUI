@@ -4,6 +4,62 @@ from tkinter import ttk, filedialog, messagebox, simpledialog
 import os
 from datetime import datetime
 
+##############################################################################################
+# Backend state (for all tracks)
+tracks = ["Green", "Red", "Blue"]
+
+# Core track variables (dictionary form for clarity)
+track_state = {
+    t: {
+        "commanded_speed": None,
+        "commanded_authority": None,
+        "switch_position": None,
+        "light_state": None,
+        "block_occupancy": None,
+        "track_direction": None,
+        "railway_crossing": None,
+        "heater_work": None,
+        "failure_modes": None,
+    }
+    for t in tracks
+}
+
+#INPUTS/OUTPUTS
+
+commanded_speed = []
+commanded_authority = []
+switch_positions = [] # 0 if Switch is facing left; 1 if Switch is facing right
+light_states = [] # 00 if light is red, 01 if light is yellow, 10 is green, 11 is super green
+block_occupancy = [] # 0 if Block is not occupied; 1 if Block is occupied
+
+blocks = []
+#track_config (sent as file?)
+#use block class for: grade, elevation, length, speed limit, track heater, beacon
+track_direction = [] # 0 if track is facing left or up; 1 if track is facing right or down
+railway_crossing = [] # 0 if crossing is inactive; 1 if crossing is active
+heaters_work = [] # 0 of heater does not work; 1 if heater does work
+
+# locations of Infastructure given by which track block they are located in
+switch_locations = []
+light_location = [] #figure out where to get location of lights
+railway_location = []
+station_location = []
+
+environmental_temp: float
+
+failure_modes = [] # 0 if no failure occurs; 1 if failure occurs
+track_circuit_fail: bool
+railway_crossing_fail: bool
+power_fail: bool
+
+ticket_sales = []
+passengers_boarding = []
+passengers_disembarking = []
+train_occupancy = []
+active_trains = []
+
+###############################################################################################
+
 # create main window 
 root = tk.Tk() 
 root.title("Wayside Controller Hardware UI")
@@ -217,29 +273,29 @@ suggested_auth_var = tk.StringVar(value="3 blocks")
 suggested_auth_label = tk.Label(suggested_frame, textvariable=suggested_auth_var, font=("Arial", 12, "bold"), bg='white')
 suggested_auth_label.pack(anchor='w', pady=5)
 
-def fetch_all_data():
-    track = suggested_track_var.get()
-    if track in track_data:
-        data = track_data[track]
-        suggested_block_var.set(data["block_number"])
-        suggested_speed_var.set(data["suggested_speed"])
-        suggested_auth_var.set(data["suggested_authority"])
+# def fetch_all_data():
+#     track = suggested_track_var.get()
+#     if track in track_data:
+#         data = track_data[track]
+#         suggested_block_var.set(data["block_number"])
+#         suggested_speed_var.set(data["suggested_speed"])
+#         suggested_auth_var.set(data["suggested_authority"])
         
-        # Also update commanded values to match
-        commanded_speed_var.set(data["commanded_speed"])
-        commanded_auth_var.set(data["commanded_authority"])
+#         # Also update commanded values to match
+#         commanded_speed_var.set(data["commanded_speed"])
+#         commanded_auth_var.set(data["commanded_authority"])
         
-        # Add to log
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        log_text.config(state='normal')
-        log_text.insert('end', f"{current_time} UPDATE: Fetched data for {track} track\n")
-        log_text.see('end')
-        log_text.config(state='disabled')
+#         # Add to log
+#         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+#         log_text.config(state='normal')
+#         log_text.insert('end', f"{current_time} UPDATE: Fetched data for {track} track\n")
+#         log_text.see('end')
+#         log_text.config(state='disabled')
         
-        messagebox.showinfo("Data Fetched", f"Fetched all data for {track} track")
+#         messagebox.showinfo("Data Fetched", f"Fetched all data for {track} track")
 
-fetch_all_btn = ttk.Button(suggested_frame, text="Fetch All", command=fetch_all_data, width=12)
-fetch_all_btn.pack(anchor='w', pady=10)
+# fetch_all_btn = ttk.Button(suggested_frame, text="Fetch All", command=fetch_all_data, width=12)
+# fetch_all_btn.pack(anchor='w', pady=10)
 
 # Update suggested values when track changes
 def update_suggested_values(event=None):
@@ -270,14 +326,18 @@ commanded_speed_label.pack(anchor='w', pady=5)
 
 def set_commanded_speed():
     new_speed = simpledialog.askfloat("Set Commanded Speed", "Enter new commanded speed (mph):")
-    if new_speed is not None:  # user clicked OK
+    if new_speed is not None:
         commanded_speed_var.set(f"{new_speed} mph")
-        # Add to log
+        # Update backend
+        track = commanded_track_var.get()
+        track_state[track]["commanded_speed"] = new_speed
+        # Log
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_text.config(state='normal')
-        log_text.insert('end', f"{current_time} UPDATE: Commanded Speed Updated ({new_speed} mph)\n")
+        log_text.insert('end', f"{current_time} UPDATE: {track} commanded speed set to {new_speed} mph\n")
         log_text.see('end')
         log_text.config(state='disabled')
+
 
 set_speed_btn = tk.Button(commanded_frame, text="Set Speed", command=set_commanded_speed, bg="#4d4d60", fg="white", width=12)
 set_speed_btn.pack(anchor='w', pady=5)
@@ -291,12 +351,18 @@ def set_commanded_authority():
     new_auth = simpledialog.askinteger("Set Commanded Authority", "Enter new commanded authority (blocks):")
     if new_auth is not None:  # user clicked OK
         commanded_auth_var.set(f"{new_auth} blocks")
+
+        # Update backend
+        track = commanded_track_var.get()
+        track_state[track]["commanded_authority"] = new_auth
+
         # Add to log
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_text.config(state='normal')
-        log_text.insert('end', f"{current_time} UPDATE: Commanded Authority Updated ({new_auth} blocks)\n")
+        log_text.insert('end', f"{current_time} UPDATE: {track} commanded authority set to {new_auth} blocks\n")
         log_text.see('end')
         log_text.config(state='disabled')
+
 
 set_auth_btn = tk.Button(commanded_frame, text="Set Authority", command=set_commanded_authority, bg="#4d4d60", fg="white", width=12)
 set_auth_btn.pack(anchor='w', pady=5)
@@ -341,12 +407,21 @@ tk.Radiobutton(switch_options_frame, text="57-63", variable=switch_var, value="5
 
 def set_switches():
     selected_switch = switch_var.get()
+    track = switches_track_var.get()
+    
+    # Convert to numeric 0/1 if you want backend logic
+    switch_code = 0 if selected_switch == "57-58" else 1
+    track_state[track]["switch_position"] = switch_code
+    
+    # Logging
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_text.config(state='normal')
-    log_text.insert('end', f"{current_time} UPDATE: Switches set to {selected_switch}\n")
+    log_text.insert('end', f"{current_time} UPDATE: {track} switch set to {selected_switch}\n")
     log_text.see('end')
     log_text.config(state='disabled')
-    messagebox.showinfo("Switches Set", f"Switches configured to {selected_switch}")
+    
+    messagebox.showinfo("Switches Set", f"Switches configured for {track} track: {selected_switch}")
+
 
 set_switches_btn = tk.Button(switches_frame, text="Set Switches", command=set_switches, bg="#4d4d60", fg="white", width=12)
 set_switches_btn.pack(anchor='w', pady=10)
@@ -399,16 +474,23 @@ def set_lights():
     track1 = lights_track_var.get()
     track2 = lights_track2_var.get()
     block = lights_block_var.get()
+
+    # Update backend (you can adapt how light state is stored)
+    track_state[track1]["light_state"] = f"Block {block}"
+    track_state[track2]["light_state"] = f"Block {block}"
+
+    # Log event
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_text.config(state='normal')
-    log_text.insert('end', f"{current_time} UPDATE: Lights set for Track {track1} and {track2}, Block {block}\n")
+    log_text.insert('end', f"{current_time} UPDATE: Lights set for Tracks {track1} and {track2}, Block {block}\n")
     log_text.see('end')
     log_text.config(state='disabled')
-    
-    # Update the circle color when setting lights
+
+    # Update UI light indicator
     update_light_color()
-    
+
     messagebox.showinfo("Lights Set", f"Lights configured for:\nTrack: {track1}\nTrack: {track2}\nBlock: {block}")
+
 
 set_lights_btn = tk.Button(lights_frame, text="Set Lights", command=set_lights, bg="#4d4d60", fg="white", width=12)
 set_lights_btn.pack(anchor='w', pady=10)
@@ -535,12 +617,29 @@ def set_crossing():
     crossbar_status = crossbar_var.get()
     track = crossing_track_var.get()
     block = crossing_block_var.get()
+
+    # Update backend
+    track_state[track]["railway_crossing"] = {
+        "block": block,
+        "lights": lights_status,
+        "crossbar": crossbar_status
+    }
+
+    # Log
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_text.config(state='normal')
-    log_text.insert('end', f"{current_time} UPDATE: Railway Crossing set - Lights: {lights_status}, Crossbar: {crossbar_status}\n")
+    log_text.insert(
+        'end',
+        f"{current_time} UPDATE: {track} crossing set - Lights: {lights_status}, Crossbar: {crossbar_status}, Block: {block}\n"
+    )
     log_text.see('end')
     log_text.config(state='disabled')
-    messagebox.showinfo("Crossing Set", f"Railway Crossing configured:\nLights: {lights_status}\nCrossbar: {crossbar_status}\nTrack: {track}, Block: {block}")
+
+    messagebox.showinfo(
+        "Crossing Set",
+        f"Railway Crossing configured:\nTrack: {track}\nBlock: {block}\nLights: {lights_status}\nCrossbar: {crossbar_status}"
+    )
+
 
 set_crossing_btn = tk.Button(crossing_frame, text="Set Crossing", command=set_crossing, bg="#4d4d60", fg="white", width=12)
 set_crossing_btn.pack(anchor='w', pady=10)
