@@ -133,9 +133,7 @@ class ScheduleScreen:
     def update_to_main(self, event):
         if (event.widget.tab(event.widget.select(), "text") == "System Information"):
             self.root.after_cancel(self.clock_timer)  #cancel the interrupt timer
-            self.main_screen.create_main_screen()  #bring up the system information screen
-        else:
-            self.update_time()  #allows Schedule tab to receive time updates
+            self.notebook.select(0)
 
 
     #display the reference map to the user

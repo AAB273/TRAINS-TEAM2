@@ -12,6 +12,7 @@ import CTC_Test_UI
 def main():
     #declaring the variable to represent the window and configuring the window
     root = tk.Tk()
+    win = tk.Toplevel(root)
     root.title("CTC Office")  #title of the window
     root.geometry('1200x925+0+0')  #size of the window
     root.maxsize(1200, 925)  #set the maximum size of the window
@@ -32,11 +33,18 @@ def main():
     schedule_screen = CTC_Schedule_Screen.ScheduleScreen(root, main_screen, schedule_frame, main_notebook)
     main_screen.schedule_screen = schedule_screen
 
-    test_ui = CTC_Test_UI.TestUI()
+    test_ui = CTC_Test_UI.TestUI(win)
 
     main_screen.create_main_screen()
+    
+    programLoop(root, test_ui)
         
     root.mainloop()  #checks for keystrokes
+
+
+def programLoop(root, t):
+    t.write_value()
+    root.after(2000, programLoop, root, t)
 
 
 main()  #main function call
