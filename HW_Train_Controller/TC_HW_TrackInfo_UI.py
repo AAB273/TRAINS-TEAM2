@@ -33,21 +33,21 @@ class TrackInformationPanel:
 		self.trackMap = None
 		
 		self.blockData = {
-			1: {'slope': 0.0, 'speed': 40, 'switch': None, 'station': 'Station B or Station C'},
-			2: {'slope': 0.0, 'speed': 40, 'switch': None, 'station': 'Station B or Station C'},
-			3: {'slope': 0.0, 'speed': 40, 'switch': None, 'station': 'Station B or Station C'},
-			4: {'slope': 0.0, 'speed': 40, 'switch': None, 'station': 'Station B or Station C'},
-			5: {'slope': 0.0, 'speed': 40, 'switch': 6, 'station': 'Station B or Station C'},
-			6: {'slope': 0.0, 'speed': 35, 'switch': None, 'station': 'Station B'},
-			7: {'slope': 0.0, 'speed': 35, 'switch': None, 'station': 'Station B'},
-			8: {'slope': 0.0, 'speed': 35, 'switch': None, 'station': 'Station B'},
-			9: {'slope': 0.0, 'speed': 40, 'switch': None, 'station': 'Station B'},
-			10: {'slope': 0.0, 'speed': 40, 'switch': None, 'station': 'Station B'},
-			11: {'slope': 0.0, 'speed': 40, 'switch': None, 'station': 'Station C'},
-			12: {'slope': 0.0, 'speed': 35, 'switch': None, 'station': 'Station C'},
-			13: {'slope': 0.0, 'speed': 35, 'switch': None, 'station': 'Station C'},
-			14: {'slope': 0.0, 'speed': 35, 'switch': None, 'station': 'Station C'},
-			15: {'slope': 0.0, 'speed': 40, 'switch': None, 'station': 'Station C'}
+			1: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B or Station C'},
+			2: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B or Station C'},
+			3: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B or Station C'},
+			4: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B or Station C'},
+			5: {'slope': 0.0, 'speed': 31.06, 'switch': 6, 'station': 'Station B or Station C'},
+			6: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B'},
+			7: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B'},
+			8: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B'},
+			9: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B'},
+			10: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B'},
+			11: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station C'},
+			12: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station C'},
+			13: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station C'},
+			14: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station C'},
+			15: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station C'}
 		}
 		# Track data for each block including slope, speed, switch, and station.
 		
