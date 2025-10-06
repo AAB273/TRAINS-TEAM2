@@ -9,3 +9,5 @@ root.geometry("1400x900") # Increased width to accommodate PLC upload in header
 
 # background
 root.configure(bg="#1a1a4d")
+
+root.mainloop()
