@@ -1,0 +1,11 @@
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox, simpledialog
+import os
+from datetime import datetime
+
+root = tk.Tk() 
+root.title("Wayside Controller Hardware UI")
+root.geometry("1400x900") # Increased width to accommodate PLC upload in header
+
+# background
+root.configure(bg="#1a1a4d")
