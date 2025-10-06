@@ -3,6 +3,43 @@ from tkinter import ttk, filedialog, messagebox, simpledialog
 import os
 from datetime import datetime
 
+########################################################################################################################
+
+#INPUTS/OUTPUTS
+
+commanded_speed = []
+commanded_authority = []
+switch_positions = [] # 0 if Switch is facing left; 1 if Switch is facing right
+light_states = [] # 00 if light is red, 01 if light is yellow, 10 is green, 11 is super green
+block_occupancy = [] # 0 if Block is not occupied; 1 if Block is occupied
+
+blocks = []
+#track_config (sent as file?)
+#use block class for: grade, elevation, length, speed limit, track heater, beacon
+track_direction = [] # 0 if track is facing left or up; 1 if track is facing right or down
+railway_crossing = [] # 0 if crossing is inactive; 1 if crossing is active
+heaters_work = [] # 0 of heater does not work; 1 if heater does work
+
+# locations of Infastructure given by which track block they are located in
+switch_locations = []
+light_location = [] #figure out where to get location of lights
+railway_location = []
+station_location = []
+
+environmental_temp: float
+
+failure_modes = [] # 0 if no failure occurs; 1 if failure occurs
+track_circuit_fail: bool
+railway_crossing_fail: bool
+power_fail: bool
+
+ticket_sales = []
+passengers_boarding = []
+passengers_disembarking = []
+train_occupancy = []
+active_trains = []
+##########################################################################################################################
+
 root = tk.Tk() 
 root.title("Wayside Controller Hardware UI")
 root.geometry("1400x900") # Increased width to accommodate PLC upload in header
