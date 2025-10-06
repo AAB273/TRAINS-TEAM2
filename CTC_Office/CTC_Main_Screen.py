@@ -4,8 +4,6 @@ from PIL import Image, ImageTk
 from time import strftime
 import CTC_Schedule_Screen as Sch
 
-#global variable to continuously check for data in data.txt
-loop = True
 
 class MainScreen:
     def __init__(self, root, schedule, frame, notebook):
@@ -15,17 +13,15 @@ class MainScreen:
         self.frame_height = 885  #height of white canvas
         self.schedule_screen = schedule  #variable to hold the data of the schedule screen
         self.notebook = notebook  #variable to hold data about the tab buttons
-
         #self.clock_text: a variable to allow the time to be updated
         #self.clock_timer: a variable to hold the time for an interrupt to update the clock
-    
+
         self.create_top_row()
         self.create_titles()  #print the titles of each section to the window
 
 
     def create_main_screen(self):
         pass
-        
 
         
     def create_top_row(self):
@@ -188,7 +184,7 @@ class MainScreen:
     def update_to_schedule(self, event):
         if (event.widget.tab(event.widget.select(), "text") == "Schedule"):  #prevents errors on boot
             self.root.after_cancel(self.clock_timer)  #cancel the interrupt timer
-            self.schedule_screen.create_schedule_screen()  #bring up the schedule tab screen
+            self.notebook.select(1)
         
 
     #display the reference map to the user
@@ -196,5 +192,4 @@ class MainScreen:
         ref_map = tk.Tk()
         ref_map.title("Reference Map")
         ref_map.geometry("500x925+1201+0")
-
         ref_map.mainloop()
