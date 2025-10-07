@@ -161,18 +161,18 @@ class TrackModelUI(tk.Tk):
         frame1 = tk.Frame(notebook, bg="white")
         notebook.add(frame1, text="Track Switches and Signals")
         try:
-            img = Image.open("Blue Line.png").resize((600, 450))
+            img = Image.open("Blue Line.png").resize((900, 450))
             self.track_img = ImageTk.PhotoImage(img)
             tk.Label(frame1, image=self.track_img, bg="white").pack(fill="both", expand=True)
         except:
             tk.Label(frame1, text="Track diagram not found", bg="white").pack(fill="both", expand=True)
 
-        self.create_PLCupload_panel(frame1).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
+#        self.create_PLCupload_panel(frame1).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 
         frame2 = tk.Frame(notebook, bg="white")
         notebook.add(frame2, text="Block and Station Occupancy")
         tk.Label(frame2, text="(Occupancy view goes here)", bg="white").pack(fill="both", expand=True)
-        self.create_PLCupload_panel(frame2).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
+#        self.create_PLCupload_panel(frame2).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 
     # ---------------- Bottom Table ----------------
     def create_bottom_table(self, parent):
@@ -248,16 +248,16 @@ class TrackModelUI(tk.Tk):
         self.file_status.config(text="Upload successful!")
         self.upload_confirm_button.config(state='disabled')
 
-    def create_PLCupload_panel(self, parent):
-        frame = tk.Frame(parent, bg="white")
-        tk.Label(frame, text="Upload your PLC program file (.plc, .txt, .csv)",
-                 font=("Arial", 9), bg='white', fg='gray', wraplength=200, justify="center").pack(pady=3)
-        ttk.Button(frame, text="Choose File", command=self.PLCupload_file, width=18).pack(pady=5)
-        self.file_status = tk.Label(frame, text="No file selected", font=("Arial", 9), bg='white', fg='gray')
-        self.file_status.pack(pady=3)
-        self.history_label = tk.Label(frame, text="Last upload: Never", font=("Arial", 8), bg='white', fg='darkgray')
-        self.history_label.pack(pady=3)
-        return frame
+#    def create_PLCupload_panel(self, parent):
+#        frame = tk.Frame(parent, bg="white")
+#        tk.Label(frame, text="Upload your PLC program file (.plc, .txt, .csv)",
+#                 font=("Arial", 9), bg='white', fg='gray', wraplength=200, justify="center").pack(pady=3)
+#        ttk.Button(frame, text="Choose File", command=self.PLCupload_file, width=18).pack(pady=5)
+#        self.file_status = tk.Label(frame, text="No file selected", font=("Arial", 9), bg='white', fg='gray')
+#        self.file_status.pack(pady=3)
+#        self.history_label = tk.Label(frame, text="Last upload: Never", font=("Arial", 8), bg='white', fg='darkgray')
+#        self.history_label.pack(pady=3)
+#        return frame
 
     def on_failure_changed(self):
         print("Failure states updated")

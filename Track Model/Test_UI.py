@@ -245,12 +245,30 @@ class TrackModelTestUI(tk.Toplevel):
     def refresh_diagram_table(self):
         for row in self.diagram_tree.get_children():
             self.diagram_tree.delete(row)
+
+        # Define which blocks contain these features
+        switch_blocks = {5, 6, 11}
+        crossing_blocks = {4}
+        signal_blocks = {6, 11}
+
         for b in self.manager.blocks:
-            self.diagram_tree.insert("", "end", values=(b.block_number,
-                                                        b.switch_state,
-                                                        b.crossing,
-                                                        b.signal,
-                                                        b.occupancy))
+            # Determine display values for each column
+            switch_display = bool(b.switch_state) if b.block_number in switch_blocks else "-"
+            crossing_display = bool(b.crossing) if b.block_number in crossing_blocks else "-"
+            signal_display = bool(b.signal) if b.block_number in signal_blocks else "-"
+            occupancy_display = bool(b.occupancy)  # Always show as True/False
+
+            self.diagram_tree.insert(
+                "",
+                "end",
+                values=(
+                    b.block_number,
+                    switch_display,
+                    crossing_display,
+                    signal_display,
+                    occupancy_display
+                )
+            )
 
     def edit_selected_diagram(self):
         selected = self.diagram_tree.selection()
@@ -263,23 +281,41 @@ class TrackModelTestUI(tk.Toplevel):
         popup.title(f"Edit Diagram Block {block.block_number}")
         popup.geometry("300x250")
 
+        # Define which blocks allow editing for certain attributes
+        switch_blocks = {5, 6, 11}
+        crossing_blocks = {4}
+        signal_blocks = {6, 11}
+
         entries = {}
         for attr in ["switch_state", "crossing", "signal", "occupancy"]:
             tk.Label(popup, text=attr.capitalize()).pack()
             val = getattr(block, attr)
             e = tk.Entry(popup)
             e.insert(0, str(val))
+
+            # Disable editing of fields not relevant for this block
+            if attr == "switch_state" and block.block_number not in switch_blocks:
+                e.config(state="disabled")
+            elif attr == "crossing" and block.block_number not in crossing_blocks:
+                e.config(state="disabled")
+            elif attr == "signal" and block.block_number not in signal_blocks:
+                e.config(state="disabled")
+
             e.pack()
             entries[attr] = e
 
         def save_changes():
             for attr, entry in entries.items():
+                if entry['state'] == 'disabled':
+                    continue  # Skip disabled fields
+
                 val = entry.get()
                 if attr in ["switch_state", "crossing", "signal"]:
                     val = val.lower() in ["true", "1", "yes"]
                 elif attr == "occupancy":
                     val = int(val)
                 setattr(block, attr, val)
+
             self.refresh_diagram_table()
             popup.destroy()
 
