@@ -20,7 +20,7 @@ class ScheduleScreen:
         self.create_titles()
 
 
-    def create_schedule_screen(self):
+    def update_schedule_screen(self):
         pass
         
         

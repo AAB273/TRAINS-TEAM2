@@ -4,6 +4,7 @@ from PIL import Image, ImageTk
 import CTC_Main_Screen
 import CTC_Schedule_Screen
 import CTC_Test_UI
+import os
 
 #full background color = #1a1a4d
 #box color = #4d4d6d
@@ -34,17 +35,17 @@ def main():
     main_screen.schedule_screen = schedule_screen
 
     test_ui = CTC_Test_UI.TestUI(win)
-
-    main_screen.create_main_screen()
     
-    programLoop(root, test_ui)
+    programLoop(root, main_screen)
         
     root.mainloop()  #checks for keystrokes
 
 
-def programLoop(root, t):
-    t.write_value()
-    root.after(2000, programLoop, root, t)
+def programLoop(root, main_screen):
+    if (os.stat("CTC_Office/CTC_data.txt").st_size != 0):
+        main_screen.update_main_screen()
+
+    root.after(500, programLoop, root, main_screen)
 
 
 main()  #main function call

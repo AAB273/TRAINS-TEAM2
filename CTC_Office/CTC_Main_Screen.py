@@ -16,13 +16,44 @@ class MainScreen:
         #self.clock_text: a variable to allow the time to be updated
         #self.clock_timer: a variable to hold the time for an interrupt to update the clock
 
+        #self.tpArea: contains the treeview for the throughput data
+        self.totalPassengers = 0  #number of passengers on a line
+        self.numberOfTrains = 1  #number of trains on a line
+
+
+
         self.create_top_row()
         self.create_titles()  #print the titles of each section to the window
 
 
-    def create_main_screen(self):
-        pass
+    def update_main_screen(self):
+        infile = open("CTC_Office/CTC_data.txt", "r")
+        data = infile.readline()
 
+        if (data.strip() == "TP"):  #throughput data
+            #grab data and update total passengers on line
+            tickets = int(infile.readline().strip())
+            disemb = int(infile.readline().strip())
+            line = infile.readline().strip()
+            self.totalPassengers += (tickets - disemb)  #add new passengers to total
+
+            children = self.tp_area.get_children("")
+            if (not children):
+                self.tp_area.insert("", "end", text = line.title(), values = {self.totalPassengers/self.numberOfTrains})
+            else:
+                for child in children:
+                    text = self.tp_area.item(child, "text")
+                    if (text == line.title()):
+                        self.tp_area.item(child, values = {self.totalPassengers/self.numberOfTrains})
+                        break
+                    else:
+                        self.tp_area.insert("", "end", text = line.title(), values = {self.totalPassengers/self.numberOfTrains})
+                        break
+        
+        infile.close()
+        reset = open("CTC_Office/CTC_data.txt", "w")
+        reset.close()
+        
         
     def create_top_row(self):
         #sub-frame used to center the top row of widgets
@@ -129,12 +160,12 @@ class MainScreen:
         tp_text.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")        
         tp_text.pack(side = "top")
         #create and format the area for the throughput information to be displayed
-        tp_area = ttk.Treeview(tp_frame, columns = ("Throughput"), height = 2)  #only 2 lines max, so no need to show extra
-        tp_area.heading("#0", text = "Line")
-        tp_area.heading("Throughput", text = "Throughput")
-        tp_area.column("#0", width = 200)
-        tp_area.column("Throughput", width = 200)
-        tp_area.pack(side = "top")
+        self.tp_area = ttk.Treeview(tp_frame, columns = ("Throughput"), height = 2)  #only 2 lines max, so no need to show extra
+        self.tp_area.heading("#0", text = "Line")
+        self.tp_area.heading("Throughput", text = "Throughput")
+        self.tp_area.column("#0", width = 200)
+        self.tp_area.column("Throughput", width = 200)
+        self.tp_area.pack(side = "top")
 
         #light states area
         ls_frame = ttk.Frame(right_frame, style = "white.TFrame")  #sub-frame to store the maintenance mode area
