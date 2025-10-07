@@ -37,17 +37,20 @@ def main():
 
     test_ui = CTC_Test_UI.TestUI(win)
     
-    programLoop(root, main_screen)  #run the loop the continuously checks the data file
+    programLoop(root, main_screen, test_ui)  #run the loop the continuously checks the data file
         
     root.mainloop()  #checks for keystrokes
 
 
-def programLoop(root, main_screen):
+def programLoop(root, main_screen, test_ui):
     #check to see if data file has text in it
     if (os.stat("CTC_Office/CTC_data.txt").st_size != 0):
         main_screen.update_main_screen()
 
-    root.after(500, programLoop, root, main_screen)  #recall the function every 0.5 seconds
+    if (os.stat("CTC_Office/to_test_ui.txt").st_size != 0):
+        test_ui.update_test_ui()
+
+    root.after(500, programLoop, root, main_screen, test_ui)  #recall the function every 0.5 seconds
 
 
 main()  #main function call

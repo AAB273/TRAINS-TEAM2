@@ -7,7 +7,7 @@ class TestUI:
         #create the test UI layout
         self.win = win
         self.win.title("Test UI")  #title of the window
-        self.win.geometry("250x750+1300+0")
+        self.win.geometry("450x750+1210+0")
 
         #two sub-frames to split in half
         self.leftFrame = ttk.Frame(self.win)
@@ -21,7 +21,74 @@ class TestUI:
         out_text = ttk.Label(self.rightFrame, text = "Outputs")
         out_text.pack(side = "top")
 
+        #create the areas to hold output data
+        #for maintenance mode output data
+        mmFrame = ttk.Frame(self.rightFrame)
+        mmFrame.pack(pady = 15, side = "top")
+        mmText = ttk.Label(mmFrame, text = "Maintenance Mode")
+        mmText.pack(side = "top") 
+
+        mmLocFrame = ttk.Frame(mmFrame)
+        mmLocFrame.pack(side = "top")
+        mmLocText = ttk.Label(mmLocFrame, text = "Location:")
+        mmLocText.pack(side = "left", padx = 5, expand = True)
+        self.mmLocOutput = ttk.Label(mmLocFrame, text = "(None)")
+        self.mmLocOutput.pack(side = "left", expand = True)
+
+        mmSentFrame = ttk.Frame(mmFrame)
+        mmSentFrame.pack(side = "top")
+        mmSentText = ttk.Label(mmSentFrame, text = "Signal sent: ")
+        mmSentText.pack(side = "left", padx = 5, expand = True)
+        self.mmSentOutput = ttk.Label(mmSentFrame, text = "(None)")
+        self.mmSentOutput.pack(side = "left", expand = True)
+
+
+        #for train state output data
+        tsFrame = ttk.Frame(self.rightFrame)
+        tsFrame.pack(pady = 15, side = "top")
+        tsText = ttk.Label(tsFrame, text = "Track State")
+        tsText.pack(side = "top")
+
+        tsLocFrame = ttk.Frame(tsFrame)
+        tsLocFrame.pack(side = "top")
+        tsLocText = ttk.Label(tsLocFrame, text = "Location:")
+        tsLocText.pack(side = "left", padx = 5, expand = True)
+        self.tsLocOutput = ttk.Label(tsLocFrame, text = "(None)")
+        self.tsLocOutput.pack(side = "left", expand = True)
+        
+        tsSentFrame = ttk.Frame(tsFrame)
+        tsSentFrame.pack(side = "top")
+        tsSentText = ttk.Label(tsSentFrame, text = "Signal sent: ")
+        tsSentText.pack(side = "left", padx = 5, expand = True)
+        self.tsSentOutput = ttk.Label(tsSentFrame, text = "(None)")
+        self.tsSentOutput.pack(side = "left", expand = True)
+
         self.create_inputs()
+
+
+    def update_test_ui(self):
+        infile = open("CTC_Office/to_test_ui.txt", "r")  #read in the data file text
+        data = infile.readline()  #grab the first line to see what data needs to be updated
+
+        if (data.strip() == "MM"):
+            location = infile.readline().strip()
+            direction = infile.readline().strip()
+            line = infile.readline().strip()
+
+            self.mmLocOutput.config(text = "Block " + location + ", " + line + " line")
+            self.mmSentOutput.config(text = "Yes, pointed at block " + direction)
+
+        elif (data.strip() == "TS"):
+            location = infile.readline().strip()
+            line = infile.readline().strip()
+
+            self.tsLocOutput.config(text = "Block " + location + ", " + line + " line")
+            self.tsSentOutput.config(text = "Yes")
+
+        
+        infile.close()
+        reset = open("CTC_Office/to_test_ui.txt", "w")
+        reset.close()
 
     
     #create the UI appearance, as well as bind buttons and data to functions

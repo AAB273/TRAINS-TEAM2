@@ -26,7 +26,7 @@ class MainScreen:
 
 
         self.create_top_row()  #print the logo, reference map button, time
-        self.create_titles()  #print the titles of each section to the window
+        self.create_areas()  #print the titles of each section to the window
 
 
     #update any data according to the data file
@@ -189,7 +189,7 @@ class MainScreen:
 
 
     #create the titles of each section on the "System Information" tab
-    def create_titles(self):
+    def create_areas(self):
         #create a sub-frame for each side of the screen to center all widgets
         left_frame = ttk.Frame(self.frame, style = "white.TFrame")
         left_frame.pack(side = "left", expand = True, fill = "y")
@@ -219,6 +219,7 @@ class MainScreen:
         tl_area.configure(yscrollcommand = tl_scrollbar.set)
         tl_scrollbar.pack(side = "right", fill = "y")
 
+
         #track state area
         ts_frame = ttk.Frame(left_frame, style = "white.TFrame")  #sub-frame to store the track state area
         ts_frame.pack(pady = 5, side = "top", expand = True)  #pack into the left sub-frame
@@ -246,17 +247,23 @@ class MainScreen:
         mm_text.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")        
         mm_text.pack(side = "top")
         #create and format the area for the maintenance mode information to be displayed
-        mm_area = ttk.Treeview(mm_frame, columns = ("Direction", "Switch"))
-        mm_area.heading("#0", text = "Location")
-        mm_area.heading("Direction", text = "Block pointed towards")
-        mm_area.heading("Switch", text = "Switch?")
-        mm_area.column("#0", width = 150)
-        mm_area.column("Direction", width = 150)
-        mm_area.column("Switch", width = 100)
-        mm_area.pack(side = "left")
+        self.mm_area = ttk.Treeview(mm_frame, columns = ("Direction", "Switch"))
+        self.mm_area.heading("#0", text = "Location")
+        self.mm_area.heading("Direction", text = "Block pointed towards")
+        self.mm_area.heading("Switch", text = "Switch?")
+        self.mm_area.column("#0", width = 150)
+        self.mm_area.column("Direction", width = 150)
+        self.mm_area.column("Switch", width = 100)
 
-        mm_scrollbar = ttk.Scrollbar(mm_frame, orient = "vertical", command = mm_area.yview)
-        mm_area.configure(yscrollcommand = mm_scrollbar.set)
+        #switches for blue line only
+        blueLineLevel = self.mm_area.insert("", "end", text = "Blue")
+        self.mm_area.insert(blueLineLevel, "end", text = "Block 5", values = ["Block 6", "Switch"])
+
+        self.mm_area.bind("<Button-1>", self.switch_track)
+        self.mm_area.pack(side = "left")
+
+        mm_scrollbar = ttk.Scrollbar(mm_frame, orient = "vertical", command = self.mm_area.yview)
+        self.mm_area.configure(yscrollcommand = mm_scrollbar.set)
         mm_scrollbar.pack(side = "right", fill = "y")
 
         #thoughput area
@@ -340,3 +347,48 @@ class MainScreen:
                 answer = askyesno(title = "Confirmation", message = "Would you like to send maintenance?")
                 if (answer):
                     self.ts_area.set(row_id, column = col_id, value = "In maintenance...")
+
+                    toTest = open("CTC_Office/to_test_ui.txt", "w")
+                    toTest.write("TS\n")
+
+                    temp = self.ts_area.item(row_id, "text")
+                    location = ""
+                    for char in temp:
+                        if (char.isdigit()):
+                            location += char
+                    
+                    toTest.write(location + "\n")
+                    toTest.write(self.ts_area.item(self.ts_area.parent(row_id), "text").lower())
+                    toTest.close()
+
+    
+    def switch_track(self, event):
+        row_id = self.mm_area.identify_row(event.y)
+        col_id = self.mm_area.identify_column(event.x)
+        if (row_id):
+            if (col_id == "#2" and (self.mm_area.item(row_id, "values")[1] == "Switch")):
+                answer = askyesno(title = "Confirmation", message = "Would you like to switch the track?")
+                if (answer):
+                    if (self.mm_area.item(row_id, "values")[0] == "Block 6"):
+                        self.mm_area.set(row_id, column = "Direction", value = "Block 11")
+                    else:
+                        self.mm_area.set(row_id, column = "Direction", value = "Block 6")
+
+                    toTest = open("CTC_Office/to_test_ui.txt", "w")
+                    toTest.write("MM\n")
+
+                    temp = self.mm_area.item(row_id, "text")
+                    location = ""
+                    for char in temp:
+                        if (char.isdigit()):
+                            location += char
+                    toTest.write(location + "\n")
+
+                    temp = self.mm_area.item(row_id, "values")[0]
+                    location = ""
+                    for char in temp:
+                        if (char.isdigit()):
+                            location += char
+                    toTest.write(location + "\n")
+                    toTest.write(self.mm_area.item(self.mm_area.parent(row_id), "text").lower())
+                    toTest.close()
