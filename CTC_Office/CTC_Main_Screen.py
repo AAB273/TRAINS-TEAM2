@@ -4,8 +4,6 @@ from PIL import Image, ImageTk
 from time import strftime
 import CTC_Schedule_Screen as Sch
 
-#global variable to continuously check for data in data.txt
-loop = True
 
 class MainScreen:
     def __init__(self, root, schedule, frame, notebook):
@@ -15,17 +13,84 @@ class MainScreen:
         self.frame_height = 885  #height of white canvas
         self.schedule_screen = schedule  #variable to hold the data of the schedule screen
         self.notebook = notebook  #variable to hold data about the tab buttons
-
         #self.clock_text: a variable to allow the time to be updated
         #self.clock_timer: a variable to hold the time for an interrupt to update the clock
-    
-        self.create_top_row()
+
+        #self.tpArea: contains the treeview for the throughput data
+        self.totalPassengers = 0  #number of passengers on a line
+        self.numberOfTrains = 1  #number of trains on a line
+
+        #self.lsArea: contains the treeview for the light state data
+
+
+
+        self.create_top_row()  #print the logo, reference map button, time
         self.create_titles()  #print the titles of each section to the window
 
 
-    def create_main_screen(self):
-        pass
+    #update any data according to the data file
+    def update_main_screen(self):
+        infile = open("CTC_Office/CTC_data.txt", "r")  #read in the data file text
+        data = infile.readline()  #grab the first line to see what data needs to be updated
+
+        if (data.strip() == "LS"):  #case for light switch data
+            #grab location, light state, and line info
+            location = infile.readline().strip()
+            state = infile.readline().strip()
+            line = infile.readline().strip()
+            
+            #get actual light states from the binary code
+            if (state == "00"):
+                state = "red"
+            elif (state == "01"):
+                state = "yellow"
+            elif (state == "10"):
+                state = "green"
+            else:
+                state = "supergreen"
+
+            #update or create line
+            children = self.ls_area.get_children("")
+            if (not children):  #if there is nothing added yet, add the first parent/child
+                level = self.ls_area.insert('', "end", text = line.title())
+                self.ls_area.insert(level, "end", text = "Block " + location, values = {state})
+            else:
+                added = False  #flag for adding a new light state
+                for child in children:  #iterate for each parent in the treeview
+                    for item in self.ls_area.get_children(child):  #iterate for each child of every parent in the treeview
+                        loc = self.ls_area.item(item, "text")  #grab the location text
+                        if ((loc == ("Block " + location))):  #check if the location already exists
+                            self.ls_area.item(item, values = {state})  #update the light state
+                            added = True  #change flag
+                            break
+                if (not added):  #if value is not already in the treeview, add a new parent/child set
+                    level = self.ls_area.insert('', "end", text = line.title())
+                    self.ls_area.insert(level, "end", text = "Block " + location, values = {state})
+
+        elif (data.strip() == "TP"):  #throughput data
+            #grab data and update total passengers on line
+            tickets = int(infile.readline().strip())
+            disemb = int(infile.readline().strip())
+            line = infile.readline().strip()
+            self.totalPassengers += (tickets - disemb)  #add new passengers to total
+
+            children = self.tp_area.get_children("")
+            if (not children):  #if there is no data yet, add first child
+                self.tp_area.insert("", "end", text = line.title(), values = {self.totalPassengers/self.numberOfTrains})
+            else:
+                for child in children:  #iterate for each child in the treeview
+                    text = self.tp_area.item(child, "text")  #grab the line text of the child
+                    if (text == line.title()):  #update if already exists
+                        self.tp_area.item(child, values = {self.totalPassengers/self.numberOfTrains})
+                        break
+                    else:  #add new if it does not exist yet
+                        self.tp_area.insert("", "end", text = line.title(), values = {self.totalPassengers/self.numberOfTrains})
+                        break
         
+        #close read-in file, then blank the data file
+        infile.close()
+        reset = open("CTC_Office/CTC_data.txt", "w")
+        reset.close()
 
         
     def create_top_row(self):
@@ -133,12 +198,12 @@ class MainScreen:
         tp_text.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")        
         tp_text.pack(side = "top")
         #create and format the area for the throughput information to be displayed
-        tp_area = ttk.Treeview(tp_frame, columns = ("Throughput"), height = 2)  #only 2 lines max, so no need to show extra
-        tp_area.heading("#0", text = "Line")
-        tp_area.heading("Throughput", text = "Throughput")
-        tp_area.column("#0", width = 200)
-        tp_area.column("Throughput", width = 200)
-        tp_area.pack(side = "top")
+        self.tp_area = ttk.Treeview(tp_frame, columns = ("Throughput"), height = 2)  #only 2 lines max, so no need to show extra
+        self.tp_area.heading("#0", text = "Line")
+        self.tp_area.heading("Throughput", text = "Throughput")
+        self.tp_area.column("#0", width = 200)
+        self.tp_area.column("Throughput", width = 200)
+        self.tp_area.pack(side = "top")
 
         #light states area
         ls_frame = ttk.Frame(right_frame, style = "white.TFrame")  #sub-frame to store the maintenance mode area
@@ -147,15 +212,15 @@ class MainScreen:
         ls_text.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")        
         ls_text.pack(side = "top")
         #create and format the area for the light state information to be displayed
-        ls_area = ttk.Treeview(ls_frame, columns = ("State"))
-        ls_area.heading("#0", text = "Location")
-        ls_area.heading("State", text = "State")
-        ls_area.column("#0", width = 200)
-        ls_area.column("State", width = 200)
-        ls_area.pack(side = "left")
+        self.ls_area = ttk.Treeview(ls_frame, columns = ("State"))
+        self.ls_area.heading("#0", text = "Location")
+        self.ls_area.heading("State", text = "State")
+        self.ls_area.column("#0", width = 200)
+        self.ls_area.column("State", width = 200)
+        self.ls_area.pack(side = "left")
 
-        ls_scrollbar = ttk.Scrollbar(ls_frame, orient = "vertical", command = ls_area.yview)
-        ls_area.configure(yscrollcommand = ls_scrollbar.set)
+        ls_scrollbar = ttk.Scrollbar(ls_frame, orient = "vertical", command = self.ls_area.yview)
+        self.ls_area.configure(yscrollcommand = ls_scrollbar.set)
         ls_scrollbar.pack(side = "right", fill = "y")
         
         #railway crossings area
@@ -188,7 +253,7 @@ class MainScreen:
     def update_to_schedule(self, event):
         if (event.widget.tab(event.widget.select(), "text") == "Schedule"):  #prevents errors on boot
             self.root.after_cancel(self.clock_timer)  #cancel the interrupt timer
-            self.schedule_screen.create_schedule_screen()  #bring up the schedule tab screen
+            self.notebook.select(1)
         
 
     #display the reference map to the user
@@ -196,5 +261,4 @@ class MainScreen:
         ref_map = tk.Tk()
         ref_map.title("Reference Map")
         ref_map.geometry("500x925+1201+0")
-
         ref_map.mainloop()
