@@ -20,6 +20,8 @@ class MainScreen:
         self.totalPassengers = 0  #number of passengers on a line
         self.numberOfTrains = 1  #number of trains on a line
 
+        #self.lsArea: contains the treeview for the light state data
+
 
 
         self.create_top_row()
@@ -30,7 +32,44 @@ class MainScreen:
         infile = open("CTC_Office/CTC_data.txt", "r")
         data = infile.readline()
 
-        if (data.strip() == "TP"):  #throughput data
+        if (data.strip() == "LS"):
+            #grab data and update light states
+            location = infile.readline().strip()
+            state = infile.readline().strip()
+            line = infile.readline().strip()
+            
+            #get actual light states from the binary code
+            if (state == "00"):
+                state = "red"
+            elif (state == "01"):
+                state = "yellow"
+            elif (state == "10"):
+                state = "green"
+            else:
+                state = "supergreen"
+
+            #update or create line
+            children = self.ls_area.get_children("")
+            if (not children):
+                level = self.ls_area.insert('', "end", text = line.title())
+                self.ls_area.insert(level, "end", text = "Block " + location, values = {state})
+            else:
+                added = False
+
+                for child in children:
+                    for item in self.ls_area.get_children(child):
+                        loc = self.ls_area.item(item, "text")
+                        if ((loc == ("Block " + location))):
+                            self.ls_area.item(item, values = {state})
+                            added = True
+                            break
+                if (not added):
+                    level = self.ls_area.insert('', "end", text = line.title())
+                    self.ls_area.insert(level, "end", text = "Block " + location, values = {state})
+
+                        
+
+        elif (data.strip() == "TP"):  #throughput data
             #grab data and update total passengers on line
             tickets = int(infile.readline().strip())
             disemb = int(infile.readline().strip())
@@ -53,7 +92,7 @@ class MainScreen:
         infile.close()
         reset = open("CTC_Office/CTC_data.txt", "w")
         reset.close()
-        
+
         
     def create_top_row(self):
         #sub-frame used to center the top row of widgets
@@ -174,15 +213,15 @@ class MainScreen:
         ls_text.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")        
         ls_text.pack(side = "top")
         #create and format the area for the light state information to be displayed
-        ls_area = ttk.Treeview(ls_frame, columns = ("State"))
-        ls_area.heading("#0", text = "Location")
-        ls_area.heading("State", text = "State")
-        ls_area.column("#0", width = 200)
-        ls_area.column("State", width = 200)
-        ls_area.pack(side = "left")
+        self.ls_area = ttk.Treeview(ls_frame, columns = ("State"))
+        self.ls_area.heading("#0", text = "Location")
+        self.ls_area.heading("State", text = "State")
+        self.ls_area.column("#0", width = 200)
+        self.ls_area.column("State", width = 200)
+        self.ls_area.pack(side = "left")
 
-        ls_scrollbar = ttk.Scrollbar(ls_frame, orient = "vertical", command = ls_area.yview)
-        ls_area.configure(yscrollcommand = ls_scrollbar.set)
+        ls_scrollbar = ttk.Scrollbar(ls_frame, orient = "vertical", command = self.ls_area.yview)
+        self.ls_area.configure(yscrollcommand = ls_scrollbar.set)
         ls_scrollbar.pack(side = "right", fill = "y")
         
         #railway crossings area
