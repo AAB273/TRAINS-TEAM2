@@ -24,16 +24,17 @@ class MainScreen:
 
 
 
-        self.create_top_row()
+        self.create_top_row()  #print the logo, reference map button, time
         self.create_titles()  #print the titles of each section to the window
 
 
+    #update any data according to the data file
     def update_main_screen(self):
-        infile = open("CTC_Office/CTC_data.txt", "r")
-        data = infile.readline()
+        infile = open("CTC_Office/CTC_data.txt", "r")  #read in the data file text
+        data = infile.readline()  #grab the first line to see what data needs to be updated
 
-        if (data.strip() == "LS"):
-            #grab data and update light states
+        if (data.strip() == "LS"):  #case for light switch data
+            #grab location, light state, and line info
             location = infile.readline().strip()
             state = infile.readline().strip()
             line = infile.readline().strip()
@@ -50,24 +51,21 @@ class MainScreen:
 
             #update or create line
             children = self.ls_area.get_children("")
-            if (not children):
+            if (not children):  #if there is nothing added yet, add the first parent/child
                 level = self.ls_area.insert('', "end", text = line.title())
                 self.ls_area.insert(level, "end", text = "Block " + location, values = {state})
             else:
-                added = False
-
-                for child in children:
-                    for item in self.ls_area.get_children(child):
-                        loc = self.ls_area.item(item, "text")
-                        if ((loc == ("Block " + location))):
-                            self.ls_area.item(item, values = {state})
-                            added = True
+                added = False  #flag for adding a new light state
+                for child in children:  #iterate for each parent in the treeview
+                    for item in self.ls_area.get_children(child):  #iterate for each child of every parent in the treeview
+                        loc = self.ls_area.item(item, "text")  #grab the location text
+                        if ((loc == ("Block " + location))):  #check if the location already exists
+                            self.ls_area.item(item, values = {state})  #update the light state
+                            added = True  #change flag
                             break
-                if (not added):
+                if (not added):  #if value is not already in the treeview, add a new parent/child set
                     level = self.ls_area.insert('', "end", text = line.title())
                     self.ls_area.insert(level, "end", text = "Block " + location, values = {state})
-
-                        
 
         elif (data.strip() == "TP"):  #throughput data
             #grab data and update total passengers on line
@@ -77,18 +75,19 @@ class MainScreen:
             self.totalPassengers += (tickets - disemb)  #add new passengers to total
 
             children = self.tp_area.get_children("")
-            if (not children):
+            if (not children):  #if there is no data yet, add first child
                 self.tp_area.insert("", "end", text = line.title(), values = {self.totalPassengers/self.numberOfTrains})
             else:
-                for child in children:
-                    text = self.tp_area.item(child, "text")
-                    if (text == line.title()):
+                for child in children:  #iterate for each child in the treeview
+                    text = self.tp_area.item(child, "text")  #grab the line text of the child
+                    if (text == line.title()):  #update if already exists
                         self.tp_area.item(child, values = {self.totalPassengers/self.numberOfTrains})
                         break
-                    else:
+                    else:  #add new if it does not exist yet
                         self.tp_area.insert("", "end", text = line.title(), values = {self.totalPassengers/self.numberOfTrains})
                         break
         
+        #close read-in file, then blank the data file
         infile.close()
         reset = open("CTC_Office/CTC_data.txt", "w")
         reset.close()

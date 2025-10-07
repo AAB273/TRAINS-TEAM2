@@ -17,7 +17,7 @@ def main():
     root.title("CTC Office")  #title of the window
     root.geometry('1200x925+0+0')  #size of the window
     root.maxsize(1200, 925)  #set the maximum size of the window
-    root.configure(background = "#1a1a4d")
+    root.configure(background = "#1a1a4d")  #set background color of window
     
     main_notebook = ttk.Notebook(root)  #create the tab buttons at the top of the screen
     main_notebook.pack(padx = 20, pady = 20, fill = "both")  #place the notebook on the window
@@ -30,22 +30,24 @@ def main():
     main_notebook.add(system_frame, text = "System Information")  
     main_notebook.add(schedule_frame, text = "Schedule")
 
+    #create the UI objects
     main_screen = CTC_Main_Screen.MainScreen(root, 0, system_frame, main_notebook)
     schedule_screen = CTC_Schedule_Screen.ScheduleScreen(root, main_screen, schedule_frame, main_notebook)
     main_screen.schedule_screen = schedule_screen
 
     test_ui = CTC_Test_UI.TestUI(win)
     
-    programLoop(root, main_screen)
+    programLoop(root, main_screen)  #run the loop the continuously checks the data file
         
     root.mainloop()  #checks for keystrokes
 
 
 def programLoop(root, main_screen):
+    #check to see if data file has text in it
     if (os.stat("CTC_Office/CTC_data.txt").st_size != 0):
         main_screen.update_main_screen()
 
-    root.after(500, programLoop, root, main_screen)
+    root.after(500, programLoop, root, main_screen)  #recall the function every 0.5 seconds
 
 
 main()  #main function call
