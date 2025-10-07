@@ -141,10 +141,11 @@ class TrackModelUI(tk.Tk):
                 ["All Stations", "Boarding Stations", "Waiting Stations"]
 
         for opt in options:
-            var = self.filter_vars.get(opt, tk.BooleanVar(value=True))
-            self.filter_vars[opt] = var
-            cb = tk.Checkbutton(self.filter_card, text=opt, bg="white", variable=var)
+            if opt not in self.filter_vars:
+                self.filter_vars[opt] = tk.BooleanVar(value=True)
+            cb = tk.Checkbutton(self.filter_card, text=opt, bg="white", variable=self.filter_vars[opt])
             cb.pack(anchor="w", padx=10)
+
 
     def update_train_info(self, event):
         idx = self.train_combo.current()
