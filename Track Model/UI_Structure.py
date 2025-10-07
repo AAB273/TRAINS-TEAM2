@@ -131,15 +131,19 @@ class TrackModelUI(tk.Tk):
         filter_card.pack(fill="x", pady=10)
 
     def init_filter_checkbuttons(self):
-        """Initialize filter checkbuttons and keep persistent BooleanVars."""
+        # Destroy previous checkbuttons first
+        for widget in self.filter_card.winfo_children():
+            if isinstance(widget, tk.Checkbutton):
+                widget.destroy()
+
         options = ["All Blocks", "Switch Blocks", "Crossing Blocks", "Station Blocks",
-                   "Bidirectional Blocks", "Signal Blocks"] if self.view_mode.get() == "track" else \
-                  ["All Stations", "Boarding Stations", "Waiting Stations"]
+                "Bidirectional Blocks", "Signal Blocks"] if self.view_mode.get() == "track" else \
+                ["All Stations", "Boarding Stations", "Waiting Stations"]
 
         for opt in options:
-            if opt not in self.filter_vars:
-                self.filter_vars[opt] = tk.BooleanVar(value=True)
-            cb = tk.Checkbutton(self.filter_card, text=opt, bg="white", variable=self.filter_vars[opt])
+            var = self.filter_vars.get(opt, tk.BooleanVar(value=True))
+            self.filter_vars[opt] = var
+            cb = tk.Checkbutton(self.filter_card, text=opt, bg="white", variable=var)
             cb.pack(anchor="w", padx=10)
 
     def update_train_info(self, event):
