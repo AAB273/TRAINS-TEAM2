@@ -3,24 +3,31 @@ from Track_Blocks import Block
 
 class TrackDataManager:
     def __init__(self):
-        # Default blank/base values
+        # ---------------- Core Data ----------------
         self.blocks = []
-        self.environmental_temp = None
         self.active_trains = []
         self.train_occupancy = []
         self.commanded_speed = []
         self.commanded_authority = []
-        self.station_location = []
-        self.ticket_sales = []
-        self.passengers_boarding = []
-        self.passengers_disembarking = []
+        self.environmental_temp = None
 
-        # Create default blocks (15 blank blocks)
+        # ---------------- Default Track Setup ----------------
         self._create_default_blocks()
 
-    # ---------------- Default Data ----------------
-        self.blocks = [Block(i + 1, length=50, grade=0, elevation=0, speed_limit=50) for i in range(15)]
+        # ---------------- Station Data ----------------
+        num_blocks = len(self.blocks)
+        self.station_location = []          # list of tuples: (block_number, station_name)
+        self.ticket_sales = [0] * num_blocks
+        self.passengers_boarding = [0] * num_blocks
+        self.passengers_disembarking = [0] * num_blocks
 
+        # ---------------- Default Stations ----------------
+        default_stations = [(10, "Station B"), (15, "Station C")]
+        for block_num, name in default_stations:
+            if (block_num, name) not in self.station_location:
+                self.station_location.append((block_num, name))
+
+        print("Initialized station_location:", self.station_location)
 
     # ---------------- Excel Data Loading ----------------
     def load_excel_data(self, track_path=None, train_path=None):
@@ -62,24 +69,6 @@ class TrackDataManager:
             print(f"❌ Error loading Excel data: {e}")
             self._create_default_blocks()
             return False
-        
-    def __init__(self):
-        # Initialize all backend data
-        self.blocks = []
-        self.active_trains = []
-        self.train_occupancy = []
-        self.commanded_speed = []
-        self.commanded_authority = []
-        self.environmental_temp = None
-
-        # Initialize station-related data
-        self.station_location = []          # list of tuples: (block_number, station_name)
-        self.ticket_sales = []
-        self.passengers_boarding = []
-        self.passengers_disembarking = []
-
-        # Initialize default blocks
-        self._create_default_blocks()
 
     def _create_default_blocks(self):
         """Create 15 default track blocks."""

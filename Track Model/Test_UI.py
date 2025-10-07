@@ -35,6 +35,8 @@ class TrackModelTestUI(tk.Toplevel):
     # ---------------- Track/Station Data ----------------
     def build_track_station_tab(self):
         frame = self.track_tab
+
+        # ---- Block Table ----
         tk.Label(frame, text="Blocks", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=5)
 
         columns = ("Block", "Length", "Grade", "Elevation", "Speed Limit", "Heater", "Beacon")
@@ -44,16 +46,15 @@ class TrackModelTestUI(tk.Toplevel):
             self.tree_blocks.column(col, width=80, anchor="center")
         self.tree_blocks.pack(fill="x", padx=10, pady=5)
 
-        # Populate with current data
+        # Block editing buttons
+        edit_block_frame = tk.Frame(frame, bg="white")
+        edit_block_frame.pack(fill="x", padx=10, pady=5)
+        tk.Button(edit_block_frame, text="Edit Selected Block", command=self.edit_selected_block).pack(side="left", padx=5)
+        tk.Button(edit_block_frame, text="Refresh Table", command=self.refresh_block_table).pack(side="left", padx=5)
+
         self.refresh_block_table()
 
-        # Editing buttons
-        edit_frame = tk.Frame(frame, bg="white")
-        edit_frame.pack(fill="x", padx=10, pady=5)
-        tk.Button(edit_frame, text="Edit Selected Block", command=self.edit_selected_block).pack(side="left", padx=5)
-        tk.Button(edit_frame, text="Refresh Table", command=self.refresh_block_table).pack(side="left", padx=5)
-
-        # Station data below blocks
+        # ---- Station Table ----
         tk.Label(frame, text="Stations", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=5)
         station_columns = ("Block", "Station", "Ticket Sales", "Boarding", "Disembarking")
         self.tree_stations = ttk.Treeview(frame, columns=station_columns, show="headings", height=5)
@@ -61,23 +62,21 @@ class TrackModelTestUI(tk.Toplevel):
             self.tree_stations.heading(col, text=col)
             self.tree_stations.column(col, width=100, anchor="center")
         self.tree_stations.pack(fill="x", padx=10, pady=5)
+
+        # Station editing buttons
+        edit_station_frame = tk.Frame(frame, bg="white")
+        edit_station_frame.pack(fill="x", padx=10, pady=5)
+        tk.Button(edit_station_frame, text="Edit Selected Station", command=self.edit_selected_station).pack(side="left", padx=5)
+        tk.Button(edit_station_frame, text="Refresh Table", command=self.refresh_station_table).pack(side="left", padx=5)
+
         self.refresh_station_table()
 
+    # ---------------- Block Table Methods ----------------
     def refresh_block_table(self):
-        for row in self.tree_blocks.get_children():
-            self.tree_blocks.delete(row)
+        self.tree_blocks.delete(*self.tree_blocks.get_children())
         for b in self.manager.blocks:
             self.tree_blocks.insert("", "end", values=(b.block_number, b.length, b.grade,
                                                        b.elevation, b.speed_limit, b.track_heater, b.beacon))
-
-    def refresh_station_table(self):
-        for row in self.tree_stations.get_children():
-            self.tree_stations.delete(row)
-        for idx, (block_num, station_name) in enumerate(self.manager.station_location):
-            self.tree_stations.insert("", "end", values=(block_num, station_name,
-                                                         self.manager.ticket_sales[idx],
-                                                         self.manager.passengers_boarding[idx],
-                                                         self.manager.passengers_disembarking[idx]))
 
     def edit_selected_block(self):
         selected = self.tree_blocks.selection()
@@ -88,13 +87,12 @@ class TrackModelTestUI(tk.Toplevel):
         block_idx = int(values[0]) - 1
         block = self.manager.blocks[block_idx]
 
-        # Popup to edit values
         popup = tk.Toplevel(self)
         popup.title(f"Edit Block {block.block_number}")
         popup.geometry("300x350")
 
         entries = {}
-        for idx, attr in enumerate(["length", "grade", "elevation", "speed_limit", "track_heater", "beacon"]):
+        for attr in ["length", "grade", "elevation", "speed_limit", "track_heater", "beacon"]:
             tk.Label(popup, text=attr.capitalize()).pack()
             val = getattr(block, attr)
             e = tk.Entry(popup)
@@ -105,13 +103,52 @@ class TrackModelTestUI(tk.Toplevel):
         def save_changes():
             for attr, entry in entries.items():
                 val = entry.get()
-                # Convert to correct type
                 if attr in ["length", "speed_limit", "elevation", "grade"]:
                     val = float(val)
                 elif attr in ["track_heater", "beacon"]:
                     val = val.lower() in ["true", "1", "yes"]
                 setattr(block, attr, val)
             self.refresh_block_table()
+            popup.destroy()
+
+        tk.Button(popup, text="Save", command=save_changes).pack(pady=10)
+
+    # ---------------- Station Table Methods ----------------
+    def refresh_station_table(self):
+        self.tree_stations.delete(*self.tree_stations.get_children())
+        for idx, (block_num, station_name) in enumerate(self.manager.station_location):
+            self.tree_stations.insert("", "end", values=(block_num, station_name,
+                                                         self.manager.ticket_sales[idx],
+                                                         self.manager.passengers_boarding[idx],
+                                                         self.manager.passengers_disembarking[idx]))
+
+    def edit_selected_station(self):
+        selected = self.tree_stations.selection()
+        if not selected:
+            return
+        idx = self.tree_stations.index(selected[0])
+
+        popup = tk.Toplevel(self)
+        popup.title(f"Edit Station {self.manager.station_location[idx][1]}")
+        popup.geometry("300x250")
+
+        entries = {}
+        for attr, label in zip(
+            ["ticket_sales", "passengers_boarding", "passengers_disembarking"],
+            ["Ticket Sales", "Boarding", "Disembarking"]
+        ):
+            tk.Label(popup, text=label).pack()
+            val = getattr(self.manager, attr)[idx]
+            e = tk.Entry(popup)
+            e.insert(0, str(val))
+            e.pack()
+            entries[attr] = e
+
+        def save_changes():
+            for attr, entry in entries.items():
+                val = int(entry.get())
+                getattr(self.manager, attr).__setitem__(idx, val)
+            self.refresh_station_table()
             popup.destroy()
 
         tk.Button(popup, text="Save", command=save_changes).pack(pady=10)
@@ -128,7 +165,6 @@ class TrackModelTestUI(tk.Toplevel):
             self.tree_trains.column(col, width=120, anchor="center")
         self.tree_trains.pack(fill="x", padx=10, pady=5)
 
-        # Buttons frame
         btn_frame = tk.Frame(frame, bg="white")
         btn_frame.pack(fill="x", pady=5)
 
@@ -141,30 +177,20 @@ class TrackModelTestUI(tk.Toplevel):
         self.btn_edit_train = tk.Button(btn_frame, text="Edit Selected Train", command=self.edit_selected_train)
         self.btn_edit_train.pack(side="left", padx=5)
 
-        # Bind selection to enable/disable remove button
         self.tree_trains.bind("<<TreeviewSelect>>", self.on_train_select)
-
-        # Populate table **after** buttons exist
         self.refresh_train_table()
-
 
     def on_train_select(self, event):
         selected = self.tree_trains.selection()
-        if selected:
-            self.btn_remove_train.config(state="normal")
-        else:
-            self.btn_remove_train.config(state="disabled")
-
+        self.btn_remove_train.config(state="normal" if selected else "disabled")
 
     def refresh_train_table(self):
-        for row in self.tree_trains.get_children():
-            self.tree_trains.delete(row)
+        self.tree_trains.delete(*self.tree_trains.get_children())
         for idx, name in enumerate(self.manager.active_trains):
             self.tree_trains.insert("", "end", values=(name,
-                                                    self.manager.train_occupancy[idx],
-                                                    self.manager.commanded_speed[idx],
-                                                    self.manager.commanded_authority[idx]))
-
+                                                       self.manager.train_occupancy[idx],
+                                                       self.manager.commanded_speed[idx],
+                                                       self.manager.commanded_authority[idx]))
 
     def add_train(self):
         if len(self.manager.active_trains) >= 16:
@@ -177,27 +203,21 @@ class TrackModelTestUI(tk.Toplevel):
             self.manager.commanded_speed.append(0)
             self.manager.commanded_authority.append(0)
             self.refresh_train_table()
-
-            # Notify main UI if available
             if hasattr(self.master, "train_combo"):
                 self.master.train_combo['values'] = self.manager.active_trains
-                self.master.train_combo.set('')  # Optional: clear selection
+                self.master.train_combo.set('')
 
     def remove_train(self):
         selected = self.tree_trains.selection()
         if not selected:
             return
         idx = self.tree_trains.index(selected[0])
-        self.manager.active_trains.pop(idx)
-        self.manager.train_occupancy.pop(idx)
-        self.manager.commanded_speed.pop(idx)
-        self.manager.commanded_authority.pop(idx)
+        for attr in ["active_trains", "train_occupancy", "commanded_speed", "commanded_authority"]:
+            getattr(self.manager, attr).pop(idx)
         self.refresh_train_table()
-
-        # Notify main UI if available
         if hasattr(self.master, "train_combo"):
             self.master.train_combo['values'] = self.manager.active_trains
-            self.master.train_combo.set('')  # Optional: clear selection
+            self.master.train_combo.set('')
 
     def edit_selected_train(self):
         selected = self.tree_trains.selection()
@@ -239,18 +259,23 @@ class TrackModelTestUI(tk.Toplevel):
         self.diagram_tree.pack(fill="x", padx=10, pady=5)
 
         self.refresh_diagram_table()
-
         tk.Button(frame, text="Edit Selected Element", command=self.edit_selected_diagram).pack(pady=5)
 
     def refresh_diagram_table(self):
-        for row in self.diagram_tree.get_children():
-            self.diagram_tree.delete(row)
+        self.diagram_tree.delete(*self.diagram_tree.get_children())
+
+        switch_blocks = {5, 6, 11}
+        crossing_blocks = {4}
+        signal_blocks = {6, 11}
+
         for b in self.manager.blocks:
-            self.diagram_tree.insert("", "end", values=(b.block_number,
-                                                        b.switch_state,
-                                                        b.crossing,
-                                                        b.signal,
-                                                        b.occupancy))
+            switch_display = bool(b.switch_state) if b.block_number in switch_blocks else "-"
+            crossing_display = bool(b.crossing) if b.block_number in crossing_blocks else "-"
+            signal_display = bool(b.signal) if b.block_number in signal_blocks else "-"
+            occupancy_display = bool(b.occupancy)
+
+            self.diagram_tree.insert("", "end", values=(b.block_number, switch_display,
+                                                        crossing_display, signal_display, occupancy_display))
 
     def edit_selected_diagram(self):
         selected = self.diagram_tree.selection()
@@ -263,17 +288,31 @@ class TrackModelTestUI(tk.Toplevel):
         popup.title(f"Edit Diagram Block {block.block_number}")
         popup.geometry("300x250")
 
+        switch_blocks = {5, 6, 11}
+        crossing_blocks = {4}
+        signal_blocks = {6, 11}
+
         entries = {}
         for attr in ["switch_state", "crossing", "signal", "occupancy"]:
             tk.Label(popup, text=attr.capitalize()).pack()
             val = getattr(block, attr)
             e = tk.Entry(popup)
             e.insert(0, str(val))
+
+            if attr == "switch_state" and block.block_number not in switch_blocks:
+                e.config(state="disabled")
+            elif attr == "crossing" and block.block_number not in crossing_blocks:
+                e.config(state="disabled")
+            elif attr == "signal" and block.block_number not in signal_blocks:
+                e.config(state="disabled")
+
             e.pack()
             entries[attr] = e
 
         def save_changes():
             for attr, entry in entries.items():
+                if entry['state'] == 'disabled':
+                    continue
                 val = entry.get()
                 if attr in ["switch_state", "crossing", "signal"]:
                     val = val.lower() in ["true", "1", "yes"]
