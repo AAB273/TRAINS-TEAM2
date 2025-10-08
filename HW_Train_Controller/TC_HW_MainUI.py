@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Train Control System for Raspberry Pi
+Train Control System for Raspberry Pi 5
 Hardware Setup:
 - Left Door Button: GPIO 17 (with pull-up resistor)
 - Left Door LED: GPIO 27
@@ -12,7 +12,7 @@ Hardware Setup:
 - Signal Failure LED: GPIO 6 (output only - controlled by external signal)
 """
 
-import RPi.GPIO as GPIO
+import lgpio
 import time
 
 # GPIO Pin Configuration
@@ -33,43 +33,72 @@ brake_failure = False
 engine_failure = False
 signal_failure = False
 
+# GPIO chip handle
+h = None
+
 def setup():
     """Initialize GPIO pins"""
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setwarnings(False)
+    global h
     
-    # Setup buttons with internal pull-up resistors
-    GPIO.setup(LEFT_DOOR_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.setup(RIGHT_DOOR_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    # Open GPIO chip
+    h = lgpio.gpiochip_open(4)  # Pi 5 uses gpiochip4
+    
+    # Setup buttons as inputs with pull-up resistors
+    lgpio.gpio_claim_input(h, LEFT_DOOR_BUTTON, lgpio.SET_PULL_UP)
+    lgpio.gpio_claim_input(h, RIGHT_DOOR_BUTTON, lgpio.SET_PULL_UP)
     
     # Setup LEDs as outputs
-    GPIO.setup(LEFT_DOOR_LED, GPIO.OUT)
-    GPIO.setup(RIGHT_DOOR_LED, GPIO.OUT)
-    GPIO.setup(PASSENGER_EMERGENCY_LED, GPIO.OUT)
+    lgpio.gpio_claim_output(h, LEFT_DOOR_LED)
+    lgpio.gpio_claim_output(h, RIGHT_DOOR_LED)
+    lgpio.gpio_claim_output(h, PASSENGER_EMERGENCY_LED)
+    lgpio.gpio_claim_output(h, BRAKE_FAILURE_LED)
+    lgpio.gpio_claim_output(h, ENGINE_FAILURE_LED)
+    lgpio.gpio_claim_output(h, SIGNAL_FAILURE_LED)
     
     # Initialize LEDs to OFF
-    GPIO.output(LEFT_DOOR_LED, GPIO.LOW)
-    GPIO.output(RIGHT_DOOR_LED, GPIO.LOW)
-    GPIO.output(PASSENGER_EMERGENCY_LED, GPIO.LOW)
+    lgpio.gpio_write(h, LEFT_DOOR_LED, 0)
+    lgpio.gpio_write(h, RIGHT_DOOR_LED, 0)
+    lgpio.gpio_write(h, PASSENGER_EMERGENCY_LED, 0)
+    lgpio.gpio_write(h, BRAKE_FAILURE_LED, 0)
+    lgpio.gpio_write(h, ENGINE_FAILURE_LED, 0)
+    lgpio.gpio_write(h, SIGNAL_FAILURE_LED, 0)
     
     print("Train Control System Initialized")
     print("=" * 50)
 
-def toggle_left_door(channel):
-    """Toggle left door state"""
-    global left_door_open
-    left_door_open = not left_door_open
-    GPIO.output(LEFT_DOOR_LED, GPIO.HIGH if left_door_open else GPIO.LOW)
-    status = "OPEN" if left_door_open else "CLOSED"
-    print(f"Left Door: {status}")
-
-def toggle_right_door(channel):
-    """Toggle right door state"""
-    global right_door_open
-    right_door_open = not right_door_open
-    GPIO.output(RIGHT_DOOR_LED, GPIO.HIGH if right_door_open else GPIO.LOW)
-    status = "OPEN" if right_door_open else "CLOSED"
-    print(f"Right Door: {status}")
+def check_buttons():
+    """Check button states and handle door toggling"""
+    global left_door_open, right_door_open
+    
+    # Track previous button states for edge detection
+    prev_left = 1
+    prev_right = 1
+    
+    while True:
+        # Read button states (0 = pressed, 1 = not pressed due to pull-up)
+        left_state = lgpio.gpio_read(h, LEFT_DOOR_BUTTON)
+        right_state = lgpio.gpio_read(h, RIGHT_DOOR_BUTTON)
+        
+        # Left button pressed (falling edge)
+        if prev_left == 1 and left_state == 0:
+            left_door_open = not left_door_open
+            lgpio.gpio_write(h, LEFT_DOOR_LED, 1 if left_door_open else 0)
+            status = "OPEN" if left_door_open else "CLOSED"
+            print(f"Left Door: {status}")
+            time.sleep(0.3)  # Debounce
+        
+        # Right button pressed (falling edge)
+        if prev_right == 1 and right_state == 0:
+            right_door_open = not right_door_open
+            lgpio.gpio_write(h, RIGHT_DOOR_LED, 1 if right_door_open else 0)
+            status = "OPEN" if right_door_open else "CLOSED"
+            print(f"Right Door: {status}")
+            time.sleep(0.3)  # Debounce
+        
+        prev_left = left_state
+        prev_right = right_state
+        
+        time.sleep(0.01)  # Small delay to prevent CPU spinning
 
 def set_passenger_emergency(state):
     """
@@ -82,29 +111,60 @@ def set_passenger_emergency(state):
     """
     global passenger_emergency_signal
     passenger_emergency_signal = state
-    GPIO.output(PASSENGER_EMERGENCY_LED, GPIO.HIGH if state else GPIO.LOW)
+    lgpio.gpio_write(h, PASSENGER_EMERGENCY_LED, 1 if state else 0)
     status = "ACTIVE ⚠️" if state else "CLEARED"
     print(f"Passenger Emergency Signal: {status}")
+
+def set_brake_failure(state):
+    """
+    Set brake failure indicator state.
+    
+    Args:
+        state (bool): True to indicate brake failure, False to clear
+    """
+    global brake_failure
+    brake_failure = state
+    lgpio.gpio_write(h, BRAKE_FAILURE_LED, 1 if state else 0)
+    status = "FAILURE ⚠️" if state else "OK"
+    print(f"Brake System: {status}")
+
+def set_engine_failure(state):
+    """
+    Set engine failure indicator state.
+    
+    Args:
+        state (bool): True to indicate engine failure, False to clear
+    """
+    global engine_failure
+    engine_failure = state
+    lgpio.gpio_write(h, ENGINE_FAILURE_LED, 1 if state else 0)
+    status = "FAILURE ⚠️" if state else "OK"
+    print(f"Engine System: {status}")
+
+def set_signal_failure(state):
+    """
+    Set signal failure indicator state.
+    
+    Args:
+        state (bool): True to indicate signal failure, False to clear
+    """
+    global signal_failure
+    signal_failure = state
+    lgpio.gpio_write(h, SIGNAL_FAILURE_LED, 1 if state else 0)
+    status = "FAILURE ⚠️" if state else "OK"
+    print(f"Signal System: {status}")
 
 def main():
     """Main program loop"""
     setup()
-    
-    # Add event detection for button presses (falling edge, since we use pull-up)
-    # Debounce time of 300ms to prevent multiple triggers
-    GPIO.add_event_detect(LEFT_DOOR_BUTTON, GPIO.FALLING, 
-                         callback=toggle_left_door, bouncetime=300)
-    GPIO.add_event_detect(RIGHT_DOOR_BUTTON, GPIO.FALLING, 
-                         callback=toggle_right_door, bouncetime=300)
     
     print("Door controls active. Press buttons to toggle doors.")
     print("Press Ctrl+C to exit")
     print("=" * 50)
     
     try:
-        # Keep program running
-        while True:
-            time.sleep(0.1)
+        # Keep checking buttons
+        check_buttons()
             
     except KeyboardInterrupt:
         print("\n\nShutting down...")
@@ -112,10 +172,13 @@ def main():
 
 def cleanup():
     """Clean up GPIO on exit"""
-    GPIO.output(LEFT_DOOR_LED, GPIO.LOW)
-    GPIO.output(RIGHT_DOOR_LED, GPIO.LOW)
-    GPIO.output(PASSENGER_EMERGENCY_LED, GPIO.LOW)
-    GPIO.cleanup()
+    lgpio.gpio_write(h, LEFT_DOOR_LED, 0)
+    lgpio.gpio_write(h, RIGHT_DOOR_LED, 0)
+    lgpio.gpio_write(h, PASSENGER_EMERGENCY_LED, 0)
+    lgpio.gpio_write(h, BRAKE_FAILURE_LED, 0)
+    lgpio.gpio_write(h, ENGINE_FAILURE_LED, 0)
+    lgpio.gpio_write(h, SIGNAL_FAILURE_LED, 0)
+    lgpio.gpiochip_close(h)
     print("GPIO cleaned up. Goodbye!")
 
 if __name__ == "__main__":
