@@ -13,7 +13,7 @@ class TrackModelUI(tk.Tk):
         self.geometry("1300x850")
         self.configure(bg="navy")
 
-        self.switch_blocks = {5, 6, 11}
+        self.switch_blocks = {5}
         self.crossing_blocks = {4}
         self.signal_blocks = {6, 11}
         self.station_blocks = {10, 15}  # pulled from TrackDataManager default stations
@@ -167,8 +167,8 @@ class TrackModelUI(tk.Tk):
         # Create card for notebook with fixed height
         card = self.make_card(parent)
         card.pack(fill="both", expand=True)
-        card.config(height=500)  # <-- fixed height to prevent shrinking
-        card.pack_propagate(False)  # Ensure card doesn't resize to contents
+        card.config(height=500)  # fixed height to prevent shrinking
+        card.pack_propagate(False)
 
         # Create notebook inside the card
         notebook = ttk.Notebook(card)
@@ -179,12 +179,11 @@ class TrackModelUI(tk.Tk):
         frame1.pack(fill="both", expand=True)
         notebook.add(frame1, text="Track Switches and Signals")
 
-        try:
-            img = Image.open("Blue Line.png").resize((900, 450))
-            self.track_img = ImageTk.PhotoImage(img)
-            tk.Label(frame1, image=self.track_img, bg="white").pack(fill="both", expand=True)
-        except:
-            tk.Label(frame1, text="Track diagram not found", bg="white").pack(fill="both", expand=True)
+        # Save reference so build_track_diagram can use it
+        self.diagram_frame = frame1
+
+        # Build canvas and icons
+        self.build_track_diagram()
 
         # ---------------- Tab 2: Block/Station Table ----------------
         frame2 = tk.Frame(notebook, bg="white")
@@ -305,6 +304,89 @@ class TrackModelUI(tk.Tk):
                 var.set(all_on)
         self.refresh_block_table()
 
+    # ---------------- Create canvas, load images, initial draw (replace your build_track_diagram) ----------------
+    def build_track_diagram(self):
+        # Create canvas on the diagram_frame so icons can be drawn on top of the background
+        self.track_canvas = tk.Canvas(self.diagram_frame, bg="white", height=450)
+        self.track_canvas.pack(fill="both", expand=True)
+
+        # Load (and persist) background image onto canvas if available
+        try:
+            bg_img = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
+            self.track_bg = ImageTk.PhotoImage(bg_img)
+            # Draw background at top-left (0,0), anchor NW so coordinates align
+            self.track_canvas.create_image(0, 0, image=self.track_bg, anchor="nw")
+            # make canvas size match image
+            self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
+        except Exception as e:
+            print("⚠️ Could not load background Blue Line.png:", e)
+
+        # Load icon images once and store persistently to prevent garbage collection
+        def load_icon(path, size=(64, 64)):
+            try:
+                img = Image.open(path).resize(size, Image.LANCZOS)
+                return ImageTk.PhotoImage(img)
+            except Exception as e:
+                print(f"⚠️ Could not load {path}: {e}")
+                return None
+
+        self.icon_images = {
+            "crossing_on": load_icon("Crossing_On.png"),
+            "crossing_off": load_icon("Crossing_Off.png"),
+            "lever_left": load_icon("Lever_Left.png"),
+            "lever_right": load_icon("Lever_Right.png"),
+        }
+
+        # where we will keep canvas item ids for icons (so we can update/delete them)
+        self.icon_item_ids = {"crossing": {}, "switch": {}}
+
+        # Define block -> (x, y) coordinates (adjust to your diagram)
+        self.block_positions = {
+            4: (340, 200),   # Crossing (example coordinates)
+            5: (400, 240),   # Switch
+        }
+
+        # Draw initial icons
+        self.draw_track_icons()
+
+    def draw_track_icons(self):
+        """Draw switch and crossing icons on the diagram based on current states."""
+        # Clear previous icons
+        for icons in self.icon_item_ids.values():
+            for item in icons.values():
+                self.track_canvas.delete(item)
+        self.icon_item_ids = {"switch": {}, "crossing": {}}
+
+        def load_resized_image(path, size=(20, 20)):
+            """Helper to load and resize an image once."""
+            if path not in self.icon_images:
+                try:
+                    img = Image.open(path).resize(size, Image.LANCZOS)
+                    self.icon_images[path] = ImageTk.PhotoImage(img)
+                except Exception as e:
+                    print(f"⚠️ Failed to load {path}: {e}")
+                    return None
+            return self.icon_images[path]
+
+        # ------------- Draw Crossing (Block 4) -------------
+        block_cross = self.data_manager.blocks[3]  # index 3 → block 4
+        x, y = self.block_positions.get(4, (0, 0))
+        img_path = "Crossing_On.png" if block_cross.crossing else "Crossing_Off.png"
+        img_obj = load_resized_image(img_path, size=(24, 24))
+        if img_obj:
+            self.icon_item_ids["crossing"][4] = self.track_canvas.create_image(
+                x, y + 40, image=img_obj, anchor="center"
+            )
+
+        # ------------- Draw Single Switch (Block 5) -------------
+        block_switch = self.data_manager.blocks[4]  # index 4 → block 5
+        x, y = self.block_positions.get(5, (0, 0))
+        img_path = "Lever_Right.png" if block_switch.switch_state else "Lever_Left.png"
+        img_obj = load_resized_image(img_path, size=(20, 20))
+        if img_obj:
+            self.icon_item_ids["switch"][5] = self.track_canvas.create_image(
+                x, y, image=img_obj, anchor="center"
+            )
 
     def PLCupload_file(self):
         from tkinter import filedialog

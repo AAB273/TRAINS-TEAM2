@@ -385,6 +385,25 @@ class TrackModelTestUI(tk.Toplevel):
                     self.diagram_tree.focus(item_id)
                     break
 
+    def toggle_switch(self, block_num):
+        block = self.data_manager.blocks[block_num - 1]
+        block.switch_state = not block.switch_state
+        print(f"Switch at Block {block_num} is now {'Right' if block.switch_state else 'Left'}")
+
+        if hasattr(self.master, "draw_track_icons"):
+            self.master.draw_track_icons()
+
+    def toggle_crossing(self, block_num):
+        block = self.data_manager.blocks[block_num - 1]
+        block.crossing = not block.crossing
+        print(f"Crossing at Block {block_num} is now {'ON' if block.crossing else 'OFF'}")
+
+        # 👇 ADD THIS RIGHT HERE
+        if hasattr(self.master, "draw_track_icons"):
+            self.master.draw_track_icons()
+
+
+
     def edit_selected_diagram(self):
         selected = self.diagram_tree.selection()
         if not selected:
