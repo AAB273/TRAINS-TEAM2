@@ -73,10 +73,37 @@ class TrackModelTestUI(tk.Toplevel):
 
     # ---------------- Block Table Methods ----------------
     def refresh_block_table(self):
+        # Remember which block (if any) is currently selected
+        selected = self.tree_blocks.selection()
+        selected_block_num = None
+        if selected:
+            item = self.tree_blocks.item(selected[0])
+            if item["values"]:
+                selected_block_num = item["values"][0]
+
+        # Clear and repopulate the table
         self.tree_blocks.delete(*self.tree_blocks.get_children())
         for b in self.manager.blocks:
-            self.tree_blocks.insert("", "end", values=(b.block_number, b.length, b.grade,
-                                                       b.elevation, b.speed_limit, b.track_heater, b.beacon))
+            self.tree_blocks.insert(
+                "", "end",
+                values=(
+                    b.block_number,
+                    b.length,
+                    b.grade,
+                    b.elevation,
+                    b.speed_limit,
+                    b.track_heater,
+                    b.beacon
+                )
+            )
+
+        # Reselect the previously selected block if it still exists
+        if selected_block_num is not None:
+            for item_id in self.tree_blocks.get_children():
+                if self.tree_blocks.item(item_id)["values"][0] == selected_block_num:
+                    self.tree_blocks.selection_set(item_id)
+                    self.tree_blocks.focus(item_id)
+                    break
 
     def edit_selected_block(self):
         selected = self.tree_blocks.selection()
@@ -115,12 +142,35 @@ class TrackModelTestUI(tk.Toplevel):
 
     # ---------------- Station Table Methods ----------------
     def refresh_station_table(self):
+        # Remember which station (if any) is selected
+        selected = self.tree_stations.selection()
+        selected_block_num = None
+        if selected:
+            item = self.tree_stations.item(selected[0])
+            if item["values"]:
+                selected_block_num = item["values"][0]
+
+        # Clear and repopulate
         self.tree_stations.delete(*self.tree_stations.get_children())
         for idx, (block_num, station_name) in enumerate(self.manager.station_location):
-            self.tree_stations.insert("", "end", values=(block_num, station_name,
-                                                         self.manager.ticket_sales[idx],
-                                                         self.manager.passengers_boarding[idx],
-                                                         self.manager.passengers_disembarking[idx]))
+            self.tree_stations.insert(
+                "", "end",
+                values=(
+                    block_num,
+                    station_name,
+                    self.manager.ticket_sales[idx],
+                    self.manager.passengers_boarding[idx],
+                    self.manager.passengers_disembarking[idx],
+                )
+            )
+
+        # Reselect previously selected row
+        if selected_block_num is not None:
+            for item_id in self.tree_stations.get_children():
+                if self.tree_stations.item(item_id)["values"][0] == selected_block_num:
+                    self.tree_stations.selection_set(item_id)
+                    self.tree_stations.focus(item_id)
+                    break
 
     def edit_selected_station(self):
         selected = self.tree_stations.selection()
@@ -185,12 +235,34 @@ class TrackModelTestUI(tk.Toplevel):
         self.btn_remove_train.config(state="normal" if selected else "disabled")
 
     def refresh_train_table(self):
+        # Remember which train is selected
+        selected = self.tree_trains.selection()
+        selected_train_name = None
+        if selected:
+            item = self.tree_trains.item(selected[0])
+            if item["values"]:
+                selected_train_name = item["values"][0]
+
+        # Clear and repopulate
         self.tree_trains.delete(*self.tree_trains.get_children())
         for idx, name in enumerate(self.manager.active_trains):
-            self.tree_trains.insert("", "end", values=(name,
-                                                       self.manager.train_occupancy[idx],
-                                                       self.manager.commanded_speed[idx],
-                                                       self.manager.commanded_authority[idx]))
+            self.tree_trains.insert(
+                "", "end",
+                values=(
+                    name,
+                    self.manager.train_occupancy[idx],
+                    self.manager.commanded_speed[idx],
+                    self.manager.commanded_authority[idx],
+                )
+            )
+
+        # Reselect previously selected train
+        if selected_train_name is not None:
+            for item_id in self.tree_trains.get_children():
+                if self.tree_trains.item(item_id)["values"][0] == selected_train_name:
+                    self.tree_trains.selection_set(item_id)
+                    self.tree_trains.focus(item_id)
+                    break
 
     def add_train(self):
         if len(self.manager.active_trains) >= 16:
@@ -262,6 +334,15 @@ class TrackModelTestUI(tk.Toplevel):
         tk.Button(frame, text="Edit Selected Element", command=self.edit_selected_diagram).pack(pady=5)
 
     def refresh_diagram_table(self):
+        # Remember selected block number
+        selected = self.diagram_tree.selection()
+        selected_block_num = None
+        if selected:
+            item = self.diagram_tree.item(selected[0])
+            if item["values"]:
+                selected_block_num = item["values"][0]
+
+        # Clear and repopulate
         self.diagram_tree.delete(*self.diagram_tree.get_children())
 
         switch_blocks = {5, 6, 11}
@@ -274,8 +355,24 @@ class TrackModelTestUI(tk.Toplevel):
             signal_display = bool(b.signal) if b.block_number in signal_blocks else "-"
             occupancy_display = bool(b.occupancy)
 
-            self.diagram_tree.insert("", "end", values=(b.block_number, switch_display,
-                                                        crossing_display, signal_display, occupancy_display))
+            self.diagram_tree.insert(
+                "", "end",
+                values=(
+                    b.block_number,
+                    switch_display,
+                    crossing_display,
+                    signal_display,
+                    occupancy_display,
+                )
+            )
+
+        # Reselect previously selected block
+        if selected_block_num is not None:
+            for item_id in self.diagram_tree.get_children():
+                if self.diagram_tree.item(item_id)["values"][0] == selected_block_num:
+                    self.diagram_tree.selection_set(item_id)
+                    self.diagram_tree.focus(item_id)
+                    break
 
     def edit_selected_diagram(self):
         selected = self.diagram_tree.selection()

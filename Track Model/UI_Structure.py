@@ -13,6 +13,12 @@ class TrackModelUI(tk.Tk):
         self.geometry("1300x850")
         self.configure(bg="navy")
 
+        self.switch_blocks = {5, 6, 11}
+        self.crossing_blocks = {4}
+        self.signal_blocks = {6, 11}
+        self.station_blocks = {10, 15}  # pulled from TrackDataManager default stations
+
+
         # Use the shared TrackDataManager
         self.data_manager = manager
 
@@ -203,20 +209,63 @@ class TrackModelUI(tk.Tk):
         self.init_filter_checkbuttons()
 
     def show_track_view(self):
-        # Update Treeview in place
+        """Display the track table view with active filters applied."""
+
+        # --- Define filter sets (use your actual block locations) ---
+        switch_blocks = {5, 6, 11}
+        crossing_blocks = {4}
+        signal_blocks = {6, 11}
+        station_blocks = {10, 15}
+
+        # --- Configure columns ---
         self.tree.config(columns=self.columns_track)
         for col in self.columns_track:
             self.tree.heading(col, text=col.capitalize())
             self.tree.column(col, width=120, anchor="center")
 
-        # Clear existing rows
+        # --- Clear existing rows ---
         self.tree.delete(*self.tree.get_children())
 
-        # Insert new rows
+        # --- Get filter states ---
+        show_all = self.filter_vars["All Blocks"].get()
+        show_switch = self.filter_vars["Switch Blocks"].get()
+        show_crossing = self.filter_vars["Crossing Blocks"].get()
+        show_station = self.filter_vars["Station Blocks"].get()
+        show_signal = self.filter_vars["Signal Blocks"].get()
+
+        # --- Insert filtered rows ---
         for b in self.data_manager.blocks:
-            self.tree.insert("", "end", values=(b.block_number, f"{b.grade}%", f"{b.elevation}m",
-                                                f"{b.length}m", f"{b.speed_limit} km/h",
-                                                f"{b.track_heater}", f"{b.beacon}"))
+            num = b.block_number
+
+            # Determine if block should be shown
+            if show_all:
+                show = True
+            else:
+                show = False
+                if show_switch and num in switch_blocks:
+                    show = True
+                elif show_crossing and num in crossing_blocks:
+                    show = True
+                elif show_station and num in station_blocks:
+                    show = True
+                elif show_signal and num in signal_blocks:
+                    show = True
+
+            # Insert visible blocks
+            if show:
+                self.tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        b.block_number,
+                        f"{b.grade}%",
+                        f"{b.elevation}m",
+                        f"{b.length}m",
+                        f"{b.speed_limit} km/h",
+                        f"{b.track_heater}",
+                        f"{b.beacon}",
+                    ),
+                )
 
     def show_station_view(self):
         self.tree.config(columns=self.columns_station)
@@ -237,6 +286,15 @@ class TrackModelUI(tk.Tk):
         tab = self.view_tabs.tab(self.view_tabs.select(), "text")
         self.view_mode.set("track" if tab == "Track View" else "station")
         self.update_bottom_table()
+
+    def on_all_blocks_toggle(self):
+        """Toggles all other checkbuttons when All Blocks is clicked."""
+        all_on = self.filter_vars["All Blocks"].get()
+        for key, var in self.filter_vars.items():
+            if key != "All Blocks":
+                var.set(all_on)
+        self.refresh_block_table()
+
 
     def PLCupload_file(self):
         from tkinter import filedialog
