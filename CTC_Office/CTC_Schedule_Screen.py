@@ -30,9 +30,6 @@ class ScheduleScreen:
         self.notebook = notebook  #variable to hold data about the tab buttons
         self.trainNum = 0;  #number of trains that have been sent to the system
 
-        #self.clockText: a variable to allow the time to be updated continuously
-        #self.clockTimer: a variable to hold the time for an interrupt to update the clock
-
         self.createTopRow()
         #print to top row of the UI to the window
         self.createAreas()
@@ -221,7 +218,7 @@ class ScheduleScreen:
 
         self.trainNum += 1
         #increase of trains on the line
-        self.mainScreen.update_train_locations(location, destination, time, line, self.trainNum)
+        self.mainScreen.updateTrainLocations(location, destination, time, line, self.trainNum)
 
 ###############################################################################################################################################################
 
@@ -274,12 +271,12 @@ class ScheduleScreen:
     def manualEdit(self, event):
     #handle user clicks in the maintenance mode Treeview
 
-        row_id = self.meArea.identify_row(event.y)
+        rowID = self.meArea.identify_row(event.y)
         #grab row user clicked in 
-        col_id = self.meArea.identify_column(event.x)
+        colID = self.meArea.identify_column(event.x)
         #grab column user clicked in
-        if (row_id):
-            if (col_id == "#2"):
+        if (rowID):
+            if (colID == "#2"):
             #check that user clicked in destination column
                 newDestination = simpledialog.askstring("Manual Edit", "Enter a new destination:")
                 #entry box to enter a new destination
@@ -287,8 +284,8 @@ class ScheduleScreen:
                     answer = askyesno(title = "Confirmation", message = "Would you like to change the destination?")
                     #confirmation pop-up, returns True is user clicks "Yes"
                     if (answer):
-                        self.meArea.set(row_id, col_id, value = newDestination)
-                        self.mainScreen.tlArea.set(row_id, col_id, value = newDestination)
+                        self.meArea.set(rowID, colID, value = newDestination)
+                        self.mainScreen.tlArea.set(rowID, colID, value = newDestination)
                         #update main ui train location data
                         
                         '''
@@ -298,7 +295,7 @@ class ScheduleScreen:
                         outfile = open("CTC_Office/to_test_ui.txt", "w")
                         outfile.write("TL\n")
 
-                        temp = self.meArea.item(row_id, "text")
+                        temp = self.meArea.item(rowID, "text")
                         train = ""
                         for char in temp:
                             if (char.isdigit()):
@@ -306,10 +303,10 @@ class ScheduleScreen:
                         outfile.write(train + "\n")
                         outfile.write("60\n")
                         outfile.write("7\n")
-                        outfile.write(self.meArea.item(self.meArea.parent(row_id), "text") + "\n")
+                        outfile.write(self.meArea.item(self.meArea.parent(rowID), "text") + "\n")
                         outfile.close()
 
-            elif (col_id == "#3"):
+            elif (colID == "#3"):
             #check that user clicked in arrival time column
                 newTime = simpledialog.askstring("Manual Edit", "Enter a new arrival:")
                 #entry box to enter a new time
@@ -317,8 +314,8 @@ class ScheduleScreen:
                     answer = askyesno(title = "Confirmation", message = "Would you like to change the arrival time?")
                     #confirmation pop-up, returns True if the user clicks "Yes"
                     if (answer):
-                        self.meArea.set(row_id, col_id, value = newTime)
-                        self.mainScreen.tlArea.set(row_id, col_id, value = newTime)
+                        self.meArea.set(rowID, colID, value = newTime)
+                        self.mainScreen.tlArea.set(rowID, colID, value = newTime)
                         #update main ui train location data
 
                         '''
@@ -328,7 +325,7 @@ class ScheduleScreen:
                         outfile = open("CTC_Office/to_test_ui.txt", "w")
                         outfile.write("TL\n")
 
-                        temp = self.meArea.item(row_id, "text")
+                        temp = self.meArea.item(rowID, "text")
                         train = ""
                         for char in temp:
                             if (char.isdigit()):
@@ -337,7 +334,7 @@ class ScheduleScreen:
                         outfile.write(train + "\n")
                         outfile.write("80\n")
                         outfile.write("9\n")
-                        outfile.write(self.meArea.item(self.meArea.parent(row_id), "text") + "\n")
+                        outfile.write(self.meArea.item(self.meArea.parent(rowID), "text") + "\n")
                         outfile.close()
 
             #add outputs to test ui
