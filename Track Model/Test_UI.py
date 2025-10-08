@@ -356,7 +356,7 @@ class TrackModelTestUI(tk.Toplevel):
         # Clear and repopulate
         self.diagram_tree.delete(*self.diagram_tree.get_children())
 
-        switch_blocks = {5, 6, 11}
+        switch_blocks = {5}
         crossing_blocks = {4}
         signal_blocks = {6, 11}
 
@@ -419,7 +419,7 @@ class TrackModelTestUI(tk.Toplevel):
         popup.title(f"Edit Diagram Block {block.block_number}")
         popup.geometry("300x250")
 
-        switch_blocks = {5, 6, 11}
+        switch_blocks = {5}
         crossing_blocks = {4}
         signal_blocks = {6, 11}
 

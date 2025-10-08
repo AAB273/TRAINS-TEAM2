@@ -449,6 +449,15 @@ class TrackModelUI(tk.Tk):
 
         self.icon_item_ids["traffic"][block_num] = items
 
+    def draw_signal(self, block_num, state):
+        # state is 0-3 representing 00, 01, 10, 11
+        colors = ["gray", "yellow", "green", "lime"]  # map 0-3
+        color = colors[state]
+        x, y = self.block_positions.get(block_num, (0,0))
+        size = 10
+        self.track_canvas.create_oval(x-size, y-size, x+size, y+size, fill=color)
+
+
     def PLCupload_file(self):
         from tkinter import filedialog
         filetypes = [("PLC files", "*.plc"), ("Text files", "*.txt"), ("CSV files", "*.csv"), ("All files", "*.*")]
@@ -482,10 +491,15 @@ class TrackModelUI(tk.Tk):
     def refresh_ui(self):
         # Update environmental temp
         self.temp_label.config(text=f"Temperature: {getattr(self.data_manager, 'environmental_temp', '--')}°C")
-        # Update bottom table in-place (inputs preserved)
-        self.update_bottom_table()
-        self.after(1000, self.refresh_ui)
 
+        # Update bottom table in-place
+        self.update_bottom_table()
+
+        # Redraw track icons with latest states
+        self.draw_track_icons()
+
+        # Refresh again in 1 second
+        self.after(1000, self.refresh_ui)
 
 # ---------------- Run Application ----------------
 if __name__ == "__main__":
