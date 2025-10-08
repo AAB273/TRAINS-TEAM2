@@ -402,7 +402,11 @@ class TrackModelTestUI(tk.Toplevel):
         if hasattr(self.master, "draw_track_icons"):
             self.master.draw_track_icons()
 
-
+    def toggle_traffic_light(self, block_num):
+        block = self.manager.blocks[block_num - 1]
+        block.traffic_light_state = (getattr(block, "traffic_light_state", 0) + 1) % 4
+        if hasattr(self.master, "draw_track_icons"):
+            self.master.draw_track_icons()
 
     def edit_selected_diagram(self):
         selected = self.diagram_tree.selection()

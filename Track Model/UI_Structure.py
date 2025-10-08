@@ -18,9 +18,12 @@ class TrackModelUI(tk.Tk):
         self.signal_blocks = {6, 11}
         self.station_blocks = {10, 15}  # pulled from TrackDataManager default stations
 
-
         # Use the shared TrackDataManager
         self.data_manager = manager
+
+        for b in self.data_manager.blocks:
+            if not hasattr(b, "traffic_light_state"):
+                b.traffic_light_state = 0
 
         style = ttk.Style(self)
         style.configure("Large.TCheckbutton", font=("Arial", 11), padding=5)
@@ -344,6 +347,8 @@ class TrackModelUI(tk.Tk):
         self.block_positions = {
             4: (340, 200),   # Crossing (example coordinates)
             5: (400, 240),   # Switch
+            6: (500, 240),   # Traffic Light
+            11: (700, 240),   # Traffic Light
         }
 
         # Draw initial icons
@@ -387,6 +392,59 @@ class TrackModelUI(tk.Tk):
             self.icon_item_ids["switch"][5] = self.track_canvas.create_image(
                 x, y, image=img_obj, anchor="center"
             )
+
+        # ------------- Draw Traffic Light 1 (Block 6) -------------
+        block_traffic1 = self.data_manager.blocks[5]  # index 5 → block 6
+        self.draw_traffic_light(6, getattr(block_traffic1, "traffic_light_state", 0))
+
+        # ------------- Draw Traffic Light 2 (Block 11) -------------
+        block_traffic2 = self.data_manager.blocks[10]  # index 10 → block 11
+        self.draw_traffic_light(11, getattr(block_traffic2, "traffic_light_state", 0))
+
+    def draw_traffic_light(self, block_num, state):
+        """Draw a traffic light with 4 positions. Only the active state lights up."""
+        x, y = self.block_positions.get(block_num, (0,0))
+        light_size = 20
+        spacing = 5
+        num_lights = 4
+        padding = 5
+
+        # Clear previous if exists
+        if "traffic" not in self.icon_item_ids:
+            self.icon_item_ids["traffic"] = {}
+        if block_num in self.icon_item_ids["traffic"]:
+            for item in self.icon_item_ids["traffic"][block_num]:
+                self.track_canvas.delete(item)
+
+        items = []
+
+        # Rectangle height covers all lights + spacing + padding
+        rect_height = num_lights * light_size + (num_lights - 1) * spacing + 2*padding
+        rect_width = light_size + 2*padding
+        rect_top = y - rect_height//2
+        rect_bottom = y + rect_height//2
+        rect_left = x - rect_width//2
+        rect_right = x + rect_width//2
+
+        # Draw black background
+        rect = self.track_canvas.create_rectangle(
+            rect_left, rect_top, rect_right, rect_bottom,
+            fill="black", outline="black"
+        )
+        items.append(rect)
+
+        # Draw lights
+        lights = ["red", "yellow", "green", "lime"]  # top → bottom
+        for i, color in enumerate(lights):
+            fill_color = color if state == i else "gray"
+            cx1 = x - light_size//2
+            cy1 = rect_top + padding + i*(light_size + spacing)
+            cx2 = x + light_size//2
+            cy2 = cy1 + light_size
+            circle = self.track_canvas.create_oval(cx1, cy1, cx2, cy2, fill=fill_color, outline="white")
+            items.append(circle)
+
+        self.icon_item_ids["traffic"][block_num] = items
 
     def PLCupload_file(self):
         from tkinter import filedialog
