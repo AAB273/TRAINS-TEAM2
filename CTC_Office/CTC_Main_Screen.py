@@ -7,13 +7,14 @@ import CTC_Schedule_Screen as Sch
 
 
 class MainScreen:
-    def __init__(self, root, schedule, frame, notebook):
+    def __init__(self, root, schedule, frame, notebook, ref_map):
         self.root = root  #main variable for the window
         self.frame = frame
         self.frame_width = 1160  #width of white canvas
         self.frame_height = 885  #height of white canvas
         self.schedule_screen = schedule  #variable to hold the data of the schedule screen
         self.notebook = notebook  #variable to hold data about the tab buttons
+        self.ref_map = ref_map  #reference map
         #self.clock_text: a variable to allow the time to be updated
         #self.clock_timer: a variable to hold the time for an interrupt to update the clock
 
@@ -335,10 +336,14 @@ class MainScreen:
 
     #display the reference map to the user
     def disp_ref_map(self):
-        ref_map = tk.Tk()
-        ref_map.title("Reference Map")
-        ref_map.geometry("500x925+1201+0")
-        ref_map.mainloop()
+        self.ref_map.title("Reference Map")
+        self.ref_map.geometry("1000x500+1201+0")
+
+        map_original_image = Image.open("CTC_Office/blue_line.png")  #create a image variable of the logo
+        map_image = ImageTk.PhotoImage(map_original_image.resize((1000, 500)))  #create a TKinter image variable from the origninal image
+        map_image_label = ttk.Label(self.ref_map, image = map_image, background = "white")  #create an image widget
+        map_image_label.image = map_image  #keep a reference to the image so that it appears on the window
+        map_image_label.pack()  #pack the label to the top left corner of the top_row sub-frame
 
 
     def send_maintenance(self, event):
@@ -417,5 +422,3 @@ class MainScreen:
             if (not added):  #if value is not already in the treeview, add a new parent/child set
                 level = self.tl_area.insert('', "end", text = line.title())
                 self.tl_area.insert(level, "end", text = "Train " + str(tNum), values = [("Block " + location), destination, time])
-
-        #send signals with suggested speed/authority

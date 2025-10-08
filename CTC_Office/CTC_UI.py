@@ -9,48 +9,65 @@ import os
 #full background color = #1a1a4d
 #box color = #4d4d6d
 
+#to fix:
+#properly find suggested speed
+#error checking for clicking parents in treeviews
+#error checking for inputing time on schedule
+#auto schedule with csv files
+#turn station input into combobox on schedule train
+
 
 def main():
-    #declaring the variable to represent the window and configuring the window
+    #main function to create ui screens and create the interactions between them
+
     root = tk.Tk()
     win = tk.Toplevel(root)
-    root.title("CTC Office")  #title of the window
-    root.geometry('1200x925+0+0')  #size of the window
-    root.maxsize(1200, 925)  #set the maximum size of the window
-    root.configure(background = "#1a1a4d")  #set background color of window
+    refMap = tk.Toplevel(root)
+    #declaring main window, as well as test ui and reference map windows as subwindows of the main
+    root.title("CTC Office")
+    root.geometry('1200x925+0+0')
+    root.maxsize(1200, 925)
+    #edit the title, size, and maximum size of the main window
+    root.configure(background = "#1a1a4d")
+    #set background color of window
     
-    main_notebook = ttk.Notebook(root)  #create the tab buttons at the top of the screen
-    main_notebook.pack(padx = 20, pady = 20, fill = "both")  #place the notebook on the window
-    backgound_style = ttk.Style()  #configure the color of the tabs
-    backgound_style.configure("white.TFrame", background = "white")  #set the color of the style object
-    system_frame = ttk.Frame(root, style = "white.TFrame", width = 1160, height = 885)  #create the System Information tab
-    schedule_frame = ttk.Frame(root, style = "white.TFrame", width = 1160, height = 885)  #create the Schedule tab
+    mainNotebook = ttk.Notebook(root)
+    mainNotebook.pack(padx = 20, pady = 20, fill = "both")
+    #create and pack Notebook object with ui tabs to the main window
+    backgound_style = ttk.Style()
+    backgound_style.configure("white.TFrame", background = "white")
+    #style for Frame objects to follow
+    systemFrame = ttk.Frame(root, style = "white.TFrame", width = 1160, height = 885)
+    scheduleFrame = ttk.Frame(root, style = "white.TFrame", width = 1160, height = 885)
+    mainNotebook.add(systemFrame, text = "System Information")  
+    mainNotebook.add(scheduleFrame, text = "Schedule")
+    #create the main tabs for the ui and add them to the Notebook
 
-    #add both tabs to the notebook
-    main_notebook.add(system_frame, text = "System Information")  
-    main_notebook.add(schedule_frame, text = "Schedule")
-
-    #create the UI objects
-    main_screen = CTC_Main_Screen.MainScreen(root, 0, system_frame, main_notebook)
-    schedule_screen = CTC_Schedule_Screen.ScheduleScreen(root, main_screen, schedule_frame, main_notebook)
-    main_screen.schedule_screen = schedule_screen
-
-    test_ui = CTC_Test_UI.TestUI(win)
     
-    programLoop(root, main_screen, test_ui)  #run the loop the continuously checks the data file
+    mainScreen = CTC_Main_Screen.MainScreen(root, 0, systemFrame, mainNotebook, refMap)
+    scheduleScreen = CTC_Schedule_Screen.ScheduleScreen(root, mainScreen, scheduleFrame, mainNotebook)
+    mainScreen.schedule_screen = scheduleScreen
+    testUI = CTC_Test_UI.TestUI(win)
+    #create the ui objects
+    
+    programLoop(root, mainScreen, testUI) 
+    #run the loop the continuously checks the data file
         
-    root.mainloop()  #checks for keystrokes
+    root.mainloop()
 
 
-def programLoop(root, main_screen, test_ui):
-    #check to see if data file has text in it
+def programLoop(root: tk.Tk, mainScreen: CTC_Main_Screen, testUI: CTC_Test_UI):
+    #continuously poll the data files to check for data changes
+
     if (os.stat("CTC_Office/CTC_data.txt").st_size != 0):
-        main_screen.update_main_screen()
-
+        mainScreen.update_mainScreen()
     if (os.stat("CTC_Office/to_test_ui.txt").st_size != 0):
-        test_ui.update_test_ui()
+        testUI.update_test_ui()
+    #check if files have data, then run appropriate methods to update the ui appearance
 
-    root.after(500, programLoop, root, main_screen, test_ui)  #recall the function every 0.5 seconds
+    root.after(500, programLoop, root, mainScreen, testUI)
+    #call function every 0.5 seconds
 
 
-main()  #main function call
+main()
+#main function call

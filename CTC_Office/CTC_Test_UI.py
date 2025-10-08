@@ -22,6 +22,34 @@ class TestUI:
         out_text.pack(side = "top")
 
         #create the areas to hold output data
+        #for deployed trains
+        dtFrame = ttk.Frame(self.rightFrame)
+        dtFrame.pack(pady = 15, side = "top")
+        dtText = ttk.Label(dtFrame, text = "Suggested Speed/Authority")
+        dtText.pack(side = "top")
+
+        dtTrainFrame = ttk.Frame(dtFrame)
+        dtTrainFrame.pack(side = "top")
+        dtTrainText = ttk.Label(dtTrainFrame, text = "Train:")
+        dtTrainText.pack(side = "left", padx = 5, expand = True)
+        self.dtTrainOutput = ttk.Label(dtTrainFrame, text = "(None)")
+        self.dtTrainOutput.pack(side = "left", expand = True)
+
+        dtSpeedFrame = ttk.Frame(dtFrame)
+        dtSpeedFrame.pack(side = "top")
+        dtSpeedText = ttk.Label(dtSpeedFrame, text = "Suggested Speed:")
+        dtSpeedText.pack(side = "left", padx = 5, expand = True)
+        self.dtSpeedOutput = ttk.Label(dtSpeedFrame, text = "(None)")
+        self.dtSpeedOutput.pack(side = "left", expand = True)
+
+        dtAuthFrame = ttk.Frame(dtFrame)
+        dtAuthFrame.pack(side = "top")
+        dtAuthText = ttk.Label(dtAuthFrame, text = "Suggested Authority:")
+        dtAuthText.pack(side = "left", padx = 5, expand = True)
+        self.dtAuthOutput = ttk.Label(dtAuthFrame, text = "(None)")
+        self.dtAuthOutput.pack(side = "left", expand = True)
+
+
         #for maintenance mode output data
         mmFrame = ttk.Frame(self.rightFrame)
         mmFrame.pack(pady = 15, side = "top")
@@ -70,7 +98,19 @@ class TestUI:
         infile = open("CTC_Office/to_test_ui.txt", "r")  #read in the data file text
         data = infile.readline()  #grab the first line to see what data needs to be updated
 
-        if (data.strip() == "MM"):
+        if (data.strip() == "TL"):
+            train = infile.readline().strip()
+            speed = float(infile.readline().strip())
+            auth = infile.readline().strip()
+            line = infile.readline().strip()
+
+            speed *= 2.237            
+
+            self.dtTrainOutput.config(text = "Train " + train + ", " + line + " line")
+            self.dtSpeedOutput.config(text = f"{speed:.2f} mph")
+            self.dtAuthOutput.config(text = auth + " blocks")
+
+        elif (data.strip() == "MM"):
             location = infile.readline().strip()
             direction = infile.readline().strip()
             line = infile.readline().strip()
