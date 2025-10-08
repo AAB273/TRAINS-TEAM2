@@ -13,14 +13,17 @@ class TrackModelUI(tk.Tk):
         self.geometry("1300x850")
         self.configure(bg="navy")
 
-        self.switch_blocks = {5, 6, 11}
+        self.switch_blocks = {5}
         self.crossing_blocks = {4}
         self.signal_blocks = {6, 11}
         self.station_blocks = {10, 15}  # pulled from TrackDataManager default stations
 
-
         # Use the shared TrackDataManager
         self.data_manager = manager
+
+        for b in self.data_manager.blocks:
+            if not hasattr(b, "traffic_light_state"):
+                b.traffic_light_state = 0
 
         style = ttk.Style(self)
         style.configure("Large.TCheckbutton", font=("Arial", 11), padding=5)
@@ -164,25 +167,34 @@ class TrackModelUI(tk.Tk):
 
     # ---------------- Center Panel ----------------
     def create_center_panel(self, parent):
+        # Create card for notebook with fixed height
         card = self.make_card(parent)
         card.pack(fill="both", expand=True)
+        card.config(height=500)  # fixed height to prevent shrinking
+        card.pack_propagate(False)
+
+        # Create notebook inside the card
         notebook = ttk.Notebook(card)
         notebook.pack(fill="both", expand=True, padx=10, pady=10)
 
+        # ---------------- Tab 1: Track Diagram ----------------
         frame1 = tk.Frame(notebook, bg="white")
+        frame1.pack(fill="both", expand=True)
         notebook.add(frame1, text="Track Switches and Signals")
-        try:
-            img = Image.open("Blue Line.png").resize((900, 450))
-            self.track_img = ImageTk.PhotoImage(img)
-            tk.Label(frame1, image=self.track_img, bg="white").pack(fill="both", expand=True)
-        except:
-            tk.Label(frame1, text="Track diagram not found", bg="white").pack(fill="both", expand=True)
 
-#        self.create_PLCupload_panel(frame1).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
+        # Save reference so build_track_diagram can use it
+        self.diagram_frame = frame1
 
+        # Build canvas and icons
+        self.build_track_diagram()
+
+        # ---------------- Tab 2: Block/Station Table ----------------
         frame2 = tk.Frame(notebook, bg="white")
+        frame2.pack(fill="both", expand=True)
         notebook.add(frame2, text="Block and Station Occupancy")
         tk.Label(frame2, text="(Occupancy view goes here)", bg="white").pack(fill="both", expand=True)
+
+#        self.create_PLCupload_panel(frame1).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 #        self.create_PLCupload_panel(frame2).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 
     # ---------------- Bottom Table ----------------
@@ -295,6 +307,156 @@ class TrackModelUI(tk.Tk):
                 var.set(all_on)
         self.refresh_block_table()
 
+    # ---------------- Create canvas, load images, initial draw (replace your build_track_diagram) ----------------
+    def build_track_diagram(self):
+        # Create canvas on the diagram_frame so icons can be drawn on top of the background
+        self.track_canvas = tk.Canvas(self.diagram_frame, bg="white", height=450)
+        self.track_canvas.pack(fill="both", expand=True)
+
+        # Load (and persist) background image onto canvas if available
+        try:
+            bg_img = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
+            self.track_bg = ImageTk.PhotoImage(bg_img)
+            # Draw background at top-left (0,0), anchor NW so coordinates align
+            self.track_canvas.create_image(0, 0, image=self.track_bg, anchor="nw")
+            # make canvas size match image
+            self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
+        except Exception as e:
+            print("⚠️ Could not load background Blue Line.png:", e)
+
+        # Load icon images once and store persistently to prevent garbage collection
+        def load_icon(path, size=(32, 32)):
+            key = (path, size)
+            if key not in self.icon_images:
+                img = Image.open(path).resize(size, Image.LANCZOS)
+                self.icon_images[key] = ImageTk.PhotoImage(img)
+            return self.icon_images[key]
+
+        self.icon_images = {}
+        self.icons = {
+            "crossing_on": load_icon("Crossing_On.png", (64, 64)),
+            "crossing_off": load_icon("Crossing_Off.png", (64, 64)),
+            "lever_left": load_icon("Lever_Left.png", (32,32)),
+            "lever_right": load_icon("Lever_Right.png", (32, 32)),
+        }
+
+        # where we will keep canvas item ids for icons (so we can update/delete them)
+        self.icon_item_ids = {"crossing": {}, "switch": {}}
+
+        # Define block -> (x, y) coordinates (adjust to your diagram)
+        self.block_positions = {
+            4: (340, 200),   # Crossing (example coordinates)
+            5: (400, 240),   # Switch
+            6: (500, 240),   # Traffic Light
+            11: (700, 240),   # Traffic Light
+        }
+
+        # Draw initial icons
+        self.draw_track_icons()
+
+    def draw_track_icons(self):
+        """Draw switch, crossing, and traffic light icons on the diagram based on current states."""
+        # Clear previous icons
+        for icons in self.icon_item_ids.values():
+            for item in icons.values():
+                if isinstance(item, list):
+                    for subitem in item:
+                        self.track_canvas.delete(subitem)
+                else:
+                    self.track_canvas.delete(item)
+        self.icon_item_ids = {"switch": {}, "crossing": {}, "traffic": {}}
+
+        def load_resized_image(path, size=(32, 32)):
+            """Helper to load and resize an image once."""
+            key = (path, size)
+            if key not in self.icon_images:
+                try:
+                    img = Image.open(path).resize(size, Image.LANCZOS)
+                    self.icon_images[key] = ImageTk.PhotoImage(img)
+                except Exception as e:
+                    print(f"⚠️ Failed to load {path}: {e}")
+                    return None
+            return self.icon_images.get(key)
+
+        # --- Draw Crossing (Block 4) ---
+        block_cross = self.data_manager.blocks[3]  # index 3 → block 4
+        x, y = self.block_positions.get(4, (0, 0))
+        img_path = "Crossing_On.png" if block_cross.crossing else "Crossing_Off.png"
+        img_obj = load_resized_image(img_path, size=(96, 96))  # slightly smaller
+        if img_obj:
+            self.icon_item_ids["crossing"][4] = self.track_canvas.create_image(
+                x, y + 40, image=img_obj, anchor="center"
+            )
+
+        # --- Draw Switch (Block 5) ---
+        block_switch = self.data_manager.blocks[4]  # index 4 → block 5
+        x, y = self.block_positions.get(5, (0, 0))
+        img_path = "Lever_Right.png" if block_switch.switch_state else "Lever_Left.png"
+        img_obj = load_resized_image(img_path, size=(64, 64))  # keep doubled size
+        if img_obj:
+            self.icon_item_ids["switch"][5] = self.track_canvas.create_image(
+                x, y, image=img_obj, anchor="center"
+            )
+
+        # --- Draw Traffic Light 1 (Block 6) ---
+        block_traffic1 = self.data_manager.blocks[5]  # index 5 → block 6
+        self.draw_traffic_light(6, getattr(block_traffic1, "traffic_light_state", 0), light_size=16)
+
+        # --- Draw Traffic Light 2 (Block 11) ---
+        block_traffic2 = self.data_manager.blocks[10]  # index 10 → block 11
+        self.draw_traffic_light(11, getattr(block_traffic2, "traffic_light_state", 0), light_size=16)
+
+
+    def draw_traffic_light(self, block_num, state, light_size=16):
+        """Draw a traffic light with 4 positions. Only the active state lights up."""
+        x, y = self.block_positions.get(block_num, (0,0))
+        spacing = 4
+        num_lights = 4
+        padding = 4
+
+        # Clear previous if exists
+        if "traffic" not in self.icon_item_ids:
+            self.icon_item_ids["traffic"] = {}
+        if block_num in self.icon_item_ids["traffic"]:
+            for item in self.icon_item_ids["traffic"][block_num]:
+                self.track_canvas.delete(item)
+
+        items = []
+
+        # Rectangle height covers all lights + spacing + padding
+        rect_height = num_lights * light_size + (num_lights - 1) * spacing + 2*padding
+        rect_width = light_size + 2*padding
+        rect_top = y - rect_height//2
+        rect_bottom = y + rect_height//2
+        rect_left = x - rect_width//2
+        rect_right = x + rect_width//2
+
+        # Draw black background
+        rect = self.track_canvas.create_rectangle(rect_left, rect_top, rect_right, rect_bottom,
+                                                fill="black", outline="black")
+        items.append(rect)
+
+        # Draw lights
+        lights = ["red", "yellow", "green", "lime"]  # top → bottom
+        for i, color in enumerate(lights):
+            fill_color = color if state == i else "gray"
+            cx1 = x - light_size//2
+            cy1 = rect_top + padding + i*(light_size + spacing)
+            cx2 = x + light_size//2
+            cy2 = cy1 + light_size
+            circle = self.track_canvas.create_oval(cx1, cy1, cx2, cy2, fill=fill_color, outline="white")
+            items.append(circle)
+
+        self.icon_item_ids["traffic"][block_num] = items
+
+    def draw_signal(self, block_num, state):
+        # state is 0-3 representing 00, 01, 10, 11
+        colors = ["gray", "yellow", "green", "lime"]  # map 0-3
+        color = colors[state]
+        x, y = self.block_positions.get(block_num, (0,0))
+        size = 10
+        self.track_canvas.create_oval(x-size, y-size, x+size, y+size, fill=color)
+
 
     def PLCupload_file(self):
         from tkinter import filedialog
@@ -329,10 +491,15 @@ class TrackModelUI(tk.Tk):
     def refresh_ui(self):
         # Update environmental temp
         self.temp_label.config(text=f"Temperature: {getattr(self.data_manager, 'environmental_temp', '--')}°C")
-        # Update bottom table in-place (inputs preserved)
-        self.update_bottom_table()
-        self.after(1000, self.refresh_ui)
 
+        # Update bottom table in-place
+        self.update_bottom_table()
+
+        # Redraw track icons with latest states
+        self.draw_track_icons()
+
+        # Refresh again in 1 second
+        self.after(1000, self.refresh_ui)
 
 # ---------------- Run Application ----------------
 if __name__ == "__main__":

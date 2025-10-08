@@ -13,21 +13,29 @@ class TrackDataManager:
 
         # ---------------- Default Track Setup ----------------
         self._create_default_blocks()
+        num_blocks = len(self.blocks)
 
         # ---------------- Station Data ----------------
-        num_blocks = len(self.blocks)
-        self.station_location = []          # list of tuples: (block_number, station_name)
+        # station_location stays as a short list of stations
+        self.station_location = [(10, "Station B"), (15, "Station C")]
+
+        # Make full-length lists for all blocks
         self.ticket_sales = [0] * num_blocks
         self.passengers_boarding = [0] * num_blocks
         self.passengers_disembarking = [0] * num_blocks
 
-        # ---------------- Default Stations ----------------
-        default_stations = [(10, "Station B"), (15, "Station C")]
-        for block_num, name in default_stations:
-            if (block_num, name) not in self.station_location:
-                self.station_location.append((block_num, name))
+        # Pre-fill default station data into full-length lists
+        for block_num, _ in self.station_location:
+            idx = block_num - 1  # zero-based index
+            self.ticket_sales[idx] = 0
+            self.passengers_boarding[idx] = 0
+            self.passengers_disembarking[idx] = 0
 
         print("Initialized station_location:", self.station_location)
+        print("Initialized ticket_sales:", self.ticket_sales)
+        print("Initialized passengers_boarding:", self.passengers_boarding)
+        print("Initialized passengers_disembarking:", self.passengers_disembarking)
+
 
     # ---------------- Excel Data Loading ----------------
     def load_excel_data(self, track_path=None, train_path=None):
