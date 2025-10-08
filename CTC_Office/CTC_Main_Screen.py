@@ -3,6 +3,7 @@ from tkinter import ttk
 from tkinter.messagebox import askyesno
 from PIL import Image, ImageTk
 from time import strftime
+import CTC_Schedule_Screen
 
 
 class MainScreen:
@@ -11,6 +12,7 @@ class MainScreen:
 
     '''
     Attributes:
+    
     self.root: main Tk() variable for the ui window
     self.frame: main ttk.Frame() that all ui widgets are placed onto
     self.scheduleScreen: holds the ScheduleScreen object that displays the "Schedule" tab
@@ -28,20 +30,16 @@ class MainScreen:
     self.lsArea: a ttk.Treeview() object that holds information about light states
     '''
 
-    def __init__(self, root, schedule, frame, notebook, refMap):
+    def __init__(self, root: tk.Tk, schedule: CTC_Schedule_Screen.ScheduleScreen, frame: ttk.Frame, notebook: ttk.Notebook, refMap: tk.Tk):
+    #initialize class variables and create backdrop for main screen
+
         self.root = root 
         self.frame = frame
         self.schedule_screen = schedule  
         self.notebook = notebook 
         self.refMap = refMap
-        #self.clockText: 
-        #self.clockTimer: 
-
-        #self.tpArea: contains the treeview for the throughput data
-        self.totalPassengers = 0  #number of passengers on a line
-        self.numberOfTrains = 1  #number of trains on a line
-
-        #self.lsArea: contains the treeview for the light state data
+        self.totalPassengers = 0 
+        self.numberOfTrains = 1
 
         self.createTopRow()
         #print the logo, reference map button, time
@@ -324,7 +322,7 @@ class MainScreen:
         #create and format the Treeview holding the track state data
 
         self.tsArea.bind("<Button-1>", self.sendMaintenance)
-        #if a user clicks in the tsArea treeview, bind the click to a handler function
+        #if a user clicks in the tsArea Treeview, bind the click to a handler function
 
         tsScrollbar = ttk.Scrollbar(tsFrame, orient = "vertical", command = self.tsArea.yview)
         self.tsArea.configure(yscrollcommand = tsScrollbar.set)

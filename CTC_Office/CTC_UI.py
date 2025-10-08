@@ -44,7 +44,7 @@ def main():
 
     
     mainScreen = CTC_Main_Screen.MainScreen(root, 0, systemFrame, mainNotebook, refMap)
-    scheduleScreen = CTC_Schedule_Screen.ScheduleScreen(root, mainScreen, scheduleFrame, mainNotebook)
+    scheduleScreen = CTC_Schedule_Screen.ScheduleScreen(root, mainScreen, scheduleFrame, mainNotebook, refMap)
     mainScreen.schedule_screen = scheduleScreen
     testUI = CTC_Test_UI.TestUI(win)
     #create the ui objects
