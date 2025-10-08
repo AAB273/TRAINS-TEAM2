@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+from tkinter.messagebox import askyesno
 from PIL import Image, ImageTk
 from time import strftime
 import CTC_Schedule_Screen as Sch
@@ -25,7 +26,7 @@ class MainScreen:
 
 
         self.create_top_row()  #print the logo, reference map button, time
-        self.create_titles()  #print the titles of each section to the window
+        self.create_areas()  #print the titles of each section to the window
 
 
     #update any data according to the data file
@@ -33,7 +34,51 @@ class MainScreen:
         infile = open("CTC_Office/CTC_data.txt", "r")  #read in the data file text
         data = infile.readline()  #grab the first line to see what data needs to be updated
 
-        if (data.strip() == "LS"):  #case for light switch data
+        if (data.strip() == "TS"):
+            location = infile.readline().strip()
+            line = infile.readline().strip()
+
+            children = self.ts_area.get_children("")
+            if (not children):  #if there is no data yet, add first child
+                level = self.ts_area.insert('', "end", text = line.title())
+                self.ts_area.insert(level, "end", text = "Block " + location, values = ["Send Maintenance"])
+            else:
+                added = False
+                for child in children:  #iterate for each parent in the treeview
+                    for item in self.ts_area.get_children(child):  #iterate for each child of every parent in the treeview
+                        loc = self.ts_area.item(item, "text")  #grab the location text
+                        if ((loc == ("Block " + location))):  #check if the location already exists
+                            added = True  #change flag
+                            break
+                    if (not added and self.ts_area.item(child, "text") == line.title()):
+                        self.ts_area.insert(child, "end", text = "Block " + location, values = ["Send Maintenance"])
+                        added = True
+                        break
+                if (not added):  #if value is not already in the treeview, add a new parent/child set
+                    level = self.ts_area.insert('', "end", text = line.title())
+                    self.ts_area.insert(level, "end", text = "Block " + location, values = ["Send Maintenance"])
+
+        elif (data.strip() == "TP"):  #throughput data
+            #grab data and update total passengers on line
+            tickets = int(infile.readline().strip())
+            disemb = int(infile.readline().strip())
+            line = infile.readline().strip()
+            self.totalPassengers += (tickets - disemb)  #add new passengers to total
+
+            children = self.tp_area.get_children("")
+            if (not children):  #if there is no data yet, add first child
+                self.tp_area.insert("", "end", text = line.title(), values = [self.totalPassengers/self.numberOfTrains])
+            else:
+                for child in children:  #iterate for each child in the treeview
+                    text = self.tp_area.item(child, "text")  #grab the line text of the child
+                    if (text == line.title()):  #update if already exists
+                        self.tp_area.item(child, values = [self.totalPassengers/self.numberOfTrains])
+                        break
+                    else:  #add new if it does not exist yet
+                        self.tp_area.insert("", "end", text = line.title(), values = [self.totalPassengers/self.numberOfTrains])
+                        break
+
+        elif (data.strip() == "LS"):  #case for light switch data
             #grab location, light state, and line info
             location = infile.readline().strip()
             state = infile.readline().strip()
@@ -53,39 +98,60 @@ class MainScreen:
             children = self.ls_area.get_children("")
             if (not children):  #if there is nothing added yet, add the first parent/child
                 level = self.ls_area.insert('', "end", text = line.title())
-                self.ls_area.insert(level, "end", text = "Block " + location, values = {state})
+                self.ls_area.insert(level, "end", text = "Block " + location, values = [state])
             else:
                 added = False  #flag for adding a new light state
+                updated = False  #flag for adding a new light under the same parent
                 for child in children:  #iterate for each parent in the treeview
                     for item in self.ls_area.get_children(child):  #iterate for each child of every parent in the treeview
                         loc = self.ls_area.item(item, "text")  #grab the location text
                         if ((loc == ("Block " + location))):  #check if the location already exists
-                            self.ls_area.item(item, values = {state})  #update the light state
+                            self.ls_area.item(item, values = [state])  #update the light state
+                            updated = True
                             added = True  #change flag
                             break
+                    if ((not updated) and (line.title() == self.ls_area.item(child, "text"))):  #if there is a new block and it is on a line that exists already, add it to that parent
+                        self.ls_area.insert(child, "end", text = "Block " + location, values = [state])
+                        added = True
+                        break
                 if (not added):  #if value is not already in the treeview, add a new parent/child set
                     level = self.ls_area.insert('', "end", text = line.title())
-                    self.ls_area.insert(level, "end", text = "Block " + location, values = {state})
+                    self.ls_area.insert(level, "end", text = "Block " + location, values = [state])
 
-        elif (data.strip() == "TP"):  #throughput data
-            #grab data and update total passengers on line
-            tickets = int(infile.readline().strip())
-            disemb = int(infile.readline().strip())
+        elif (data.strip() == "RC"):
+            #grab location, crossing state, and line info
+            location = infile.readline().strip()
+            state = infile.readline().strip()
             line = infile.readline().strip()
-            self.totalPassengers += (tickets - disemb)  #add new passengers to total
+            #get actual light states from the binary code
+            if (state == "0"):
+                state = "inactive"
+            elif (state == "1"):
+                state = "active"
 
-            children = self.tp_area.get_children("")
-            if (not children):  #if there is no data yet, add first child
-                self.tp_area.insert("", "end", text = line.title(), values = {self.totalPassengers/self.numberOfTrains})
+            #update or create line
+            children = self.rc_area.get_children("")
+            if (not children):  #if there is nothing added yet, add the first parent/child
+                level = self.rc_area.insert('', "end", text = line.title())
+                self.rc_area.insert(level, "end", text = "Block " + location, values = [state])
             else:
-                for child in children:  #iterate for each child in the treeview
-                    text = self.tp_area.item(child, "text")  #grab the line text of the child
-                    if (text == line.title()):  #update if already exists
-                        self.tp_area.item(child, values = {self.totalPassengers/self.numberOfTrains})
+                added = False  #flag for adding a new crossing state
+                updated = False  #flag for adding a new crossing under the same parent
+                for child in children:  #iterate for each parent in the treeview
+                    for item in self.rc_area.get_children(child):  #iterate for each child of every parent in the treeview
+                        loc = self.rc_area.item(item, "text")  #grab the location text
+                        if ((loc == ("Block " + location))):  #check if the location already exists
+                            self.rc_area.item(item, values = [state])  #update the crossing state
+                            updated = True
+                            added = True  #change flag
+                            break
+                    if ((not updated) and (line.title() == self.rc_area.item(child, "text"))):  #if there is a new block and it is on a line that exists already, add it to that parent
+                        self.rc_area.insert(child, "end", text = "Block " + location, values = [state])
+                        added = True
                         break
-                    else:  #add new if it does not exist yet
-                        self.tp_area.insert("", "end", text = line.title(), values = {self.totalPassengers/self.numberOfTrains})
-                        break
+                if (not added):  #if value is not already in the treeview, add a new parent/child set
+                    level = self.rc_area.insert('', "end", text = line.title())
+                    self.rc_area.insert(level, "end", text = "Block " + location, values = [state])
         
         #close read-in file, then blank the data file
         infile.close()
@@ -123,7 +189,7 @@ class MainScreen:
 
 
     #create the titles of each section on the "System Information" tab
-    def create_titles(self):
+    def create_areas(self):
         #create a sub-frame for each side of the screen to center all widgets
         left_frame = ttk.Frame(self.frame, style = "white.TFrame")
         left_frame.pack(side = "left", expand = True, fill = "y")
@@ -140,18 +206,21 @@ class MainScreen:
         tl_text.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")
         tl_text.pack(side = "top")  #add to frame
         #create and format the area for the train location information to be displayed
-        tl_area = ttk.Treeview(tl_frame, columns = ("Destination", "Arrival Time")) 
-        tl_area.heading("#0", text = "Location")
-        tl_area.heading("Destination", text = "Destination")
-        tl_area.heading("Arrival Time", text = "Arrival Time")
-        tl_area.column("#0", width = 150)
-        tl_area.column("Destination", width = 150)
-        tl_area.column("Arrival Time", width = 100)
-        tl_area.pack(side = "left")
+        self.tl_area = ttk.Treeview(tl_frame, columns = ("Location", "Destination", "Arrival Time")) 
+        self.tl_area.heading("#0", text = "Train")
+        self.tl_area.heading("Location", text = "Location")
+        self.tl_area.heading("Destination", text = "Destination")
+        self.tl_area.heading("Arrival Time", text = "Arrival Time")
+        self.tl_area.column("#0", width = 100, anchor = "w", stretch = "no")
+        self.tl_area.column("Location", width = 100)
+        self.tl_area.column("Destination", width = 150)
+        self.tl_area.column("Arrival Time", width = 100)
+        self.tl_area.pack(side = "left")
 
-        tl_scrollbar = ttk.Scrollbar(tl_frame, orient = "vertical", command = tl_area.yview)
-        tl_area.configure(yscrollcommand = tl_scrollbar.set)
+        tl_scrollbar = ttk.Scrollbar(tl_frame, orient = "vertical", command = self.tl_area.yview)
+        self.tl_area.configure(yscrollcommand = tl_scrollbar.set)
         tl_scrollbar.pack(side = "right", fill = "y")
+
 
         #track state area
         ts_frame = ttk.Frame(left_frame, style = "white.TFrame")  #sub-frame to store the track state area
@@ -160,15 +229,17 @@ class MainScreen:
         ts_text.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")        
         ts_text.pack(side = "top")
         #create and format the area for the track state information to be displayed
-        ts_area = ttk.Treeview(ts_frame, columns = ("Maintenance"))
-        ts_area.heading("#0", text = "Location")
-        ts_area.heading("Maintenance", text = "Maintenance")
-        ts_area.column("#0", width = 200)
-        ts_area.column("Maintenance", width = 200)
-        ts_area.pack(side = "left")
+        self.ts_area = ttk.Treeview(ts_frame, columns = ("Maintenance"))
+        self.ts_area.heading("#0", text = "Location")
+        self.ts_area.heading("Maintenance", text = "Maintenance")
+        self.ts_area.column("#0", width = 200)
+        self.ts_area.column("Maintenance", width = 200)
+        self.ts_area.pack(side = "left")
 
-        ts_scrollbar = ttk.Scrollbar(ts_frame, orient = "vertical", command = ts_area.yview)
-        ts_area.configure(yscrollcommand = ts_scrollbar.set)
+        self.ts_area.bind("<Button-1>", self.send_maintenance)
+
+        ts_scrollbar = ttk.Scrollbar(ts_frame, orient = "vertical", command = self.ts_area.yview)
+        self.ts_area.configure(yscrollcommand = ts_scrollbar.set)
         ts_scrollbar.pack(side = "right", fill = "y")
 
         #maintenance mode area
@@ -178,17 +249,23 @@ class MainScreen:
         mm_text.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")        
         mm_text.pack(side = "top")
         #create and format the area for the maintenance mode information to be displayed
-        mm_area = ttk.Treeview(mm_frame, columns = ("Direction", "Switch"))
-        mm_area.heading("#0", text = "Location")
-        mm_area.heading("Direction", text = "Block pointed towards")
-        mm_area.heading("Switch", text = "Switch?")
-        mm_area.column("#0", width = 150)
-        mm_area.column("Direction", width = 150)
-        mm_area.column("Switch", width = 100)
-        mm_area.pack(side = "left")
+        self.mm_area = ttk.Treeview(mm_frame, columns = ("Direction", "Switch"))
+        self.mm_area.heading("#0", text = "Location")
+        self.mm_area.heading("Direction", text = "Block pointed towards")
+        self.mm_area.heading("Switch", text = "Switch?")
+        self.mm_area.column("#0", width = 150)
+        self.mm_area.column("Direction", width = 150)
+        self.mm_area.column("Switch", width = 100)
 
-        mm_scrollbar = ttk.Scrollbar(mm_frame, orient = "vertical", command = mm_area.yview)
-        mm_area.configure(yscrollcommand = mm_scrollbar.set)
+        #switches for blue line only
+        blueLineLevel = self.mm_area.insert("", "end", text = "Blue")
+        self.mm_area.insert(blueLineLevel, "end", text = "Block 5", values = ["Block 6", "Switch"])
+
+        self.mm_area.bind("<Button-1>", self.switch_track)
+        self.mm_area.pack(side = "left")
+
+        mm_scrollbar = ttk.Scrollbar(mm_frame, orient = "vertical", command = self.mm_area.yview)
+        self.mm_area.configure(yscrollcommand = mm_scrollbar.set)
         mm_scrollbar.pack(side = "right", fill = "y")
 
         #thoughput area
@@ -230,15 +307,15 @@ class MainScreen:
         rc_text.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")        
         rc_text.pack(side = "top")
         #create and format the area for the railrway crossing information to be displayed
-        rc_area = ttk.Treeview(rc_frame, columns = ("State"))
-        rc_area.heading("#0", text = "Location")
-        rc_area.heading("State", text = "State")
-        rc_area.column("#0", width = 200)
-        rc_area.column("State", width = 200)
-        rc_area.pack(side = "left")
+        self.rc_area = ttk.Treeview(rc_frame, columns = ("State"))
+        self.rc_area.heading("#0", text = "Location")
+        self.rc_area.heading("State", text = "State")
+        self.rc_area.column("#0", width = 200)
+        self.rc_area.column("State", width = 200)
+        self.rc_area.pack(side = "left")
 
-        rc_scrollbar = ttk.Scrollbar(rc_frame, orient = "vertical", command = rc_area.yview)
-        rc_area.configure(yscrollcommand = rc_scrollbar.set)
+        rc_scrollbar = ttk.Scrollbar(rc_frame, orient = "vertical", command = self.rc_area.yview)
+        self.rc_area.configure(yscrollcommand = rc_scrollbar.set)
         rc_scrollbar.pack(side = "right", fill = "y")
         
 
@@ -262,3 +339,83 @@ class MainScreen:
         ref_map.title("Reference Map")
         ref_map.geometry("500x925+1201+0")
         ref_map.mainloop()
+
+
+    def send_maintenance(self, event):
+        row_id = self.ts_area.identify_row(event.y)
+        col_id = self.ts_area.identify_column(event.x)
+        if (row_id):
+            if (col_id == "#1" and (self.ts_area.item(row_id, "values") != ("In maintenance...",))):
+                answer = askyesno(title = "Confirmation", message = "Would you like to send maintenance?")
+                if (answer):
+                    self.ts_area.set(row_id, column = col_id, value = "In maintenance...")
+
+                    toTest = open("CTC_Office/to_test_ui.txt", "w")
+                    toTest.write("TS\n")
+
+                    temp = self.ts_area.item(row_id, "text")
+                    location = ""
+                    for char in temp:
+                        if (char.isdigit()):
+                            location += char
+                    
+                    toTest.write(location + "\n")
+                    toTest.write(self.ts_area.item(self.ts_area.parent(row_id), "text").lower())
+                    toTest.close()
+
+    
+    def switch_track(self, event):
+        row_id = self.mm_area.identify_row(event.y)
+        col_id = self.mm_area.identify_column(event.x)
+        if (row_id):
+            if (col_id == "#2" and (self.mm_area.item(row_id, "values")[1] == "Switch")):
+                answer = askyesno(title = "Confirmation", message = "Would you like to switch the track?")
+                if (answer):
+                    if (self.mm_area.item(row_id, "values")[0] == "Block 6"):
+                        self.mm_area.set(row_id, column = "Direction", value = "Block 11")
+                    else:
+                        self.mm_area.set(row_id, column = "Direction", value = "Block 6")
+
+                    toTest = open("CTC_Office/to_test_ui.txt", "w")
+                    toTest.write("MM\n")
+
+                    temp = self.mm_area.item(row_id, "text")
+                    location = ""
+                    for char in temp:
+                        if (char.isdigit()):
+                            location += char
+                    toTest.write(location + "\n")
+
+                    temp = self.mm_area.item(row_id, "values")[0]
+                    location = ""
+                    for char in temp:
+                        if (char.isdigit()):
+                            location += char
+                    toTest.write(location + "\n")
+                    toTest.write(self.mm_area.item(self.mm_area.parent(row_id), "text").lower())
+                    toTest.close()
+
+
+    def update_train_locations(self, location, destination, time, line, tNum):
+        children = self.tl_area.get_children("")
+        if (not children):  #if there is no data yet, add first child
+            level = self.tl_area.insert('', "end", text = line.title())
+            self.tl_area.insert(level, "end", text = ("Train " + str(tNum)), values = [("Block " + location), destination, time])
+        else:
+            added = False
+            for child in children:  #iterate for each parent in the treeview
+                for item in self.tl_area.get_children(child):  #iterate for each child of every parent in the treeview
+                    dest = self.tl_area.item(item, "text")
+                    if (dest == "Train " + str(tNum)):
+                        self.mm_area.item(item, values = ["Block " + location, destination, time])
+                        added = True
+                        break
+                if (not added and self.tl_area.item(child, "text") == line.title()):
+                    self.tl_area.insert(child, "end", text = "Train " + str(tNum), values = [("Block " + location), destination, time])
+                    added = True
+                    break
+            if (not added):  #if value is not already in the treeview, add a new parent/child set
+                level = self.tl_area.insert('', "end", text = line.title())
+                self.tl_area.insert(level, "end", text = "Train " + str(tNum), values = [("Block " + location), destination, time])
+
+        #send signals with suggested speed/authority

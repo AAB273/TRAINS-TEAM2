@@ -1,5 +1,6 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, simpledialog
+from tkinter.messagebox import askyesno
 from PIL import Image, ImageTk
 from time import strftime
 import CTC_Main_Screen
@@ -12,12 +13,14 @@ class ScheduleScreen:
         self.frame_height = 885  #height of white canvas
         self.main_screen = main  #variable to hold the data of the schedule screen
         self.notebook = notebook  #variable to hold data about the tab buttons
+        
+        self.trainNum = 0;  #number of trains that have been sent to the system
 
         #self.clock_text: a variable to allow the time to be updated continuously
         #self.clock_timer: a variable to hold the time for an interrupt to update the clock
 
         self.create_top_row()  #print to top row of the UI to the window
-        self.create_titles()
+        self.create_areas()
 
 
     def update_schedule_screen(self):
@@ -56,7 +59,7 @@ class ScheduleScreen:
 
 
     #create the titles of each section on the "System Information" tab
-    def create_titles(self):
+    def create_areas(self):
         pass
         #create a sub-frame for each side of the screen to center all widgets
         left_frame = ttk.Frame(self.frame, style = "white.TFrame")
@@ -79,7 +82,11 @@ class ScheduleScreen:
         loc_text.pack(padx = 5, pady = 5, fill = "x")
 
         selected_location = tk.StringVar()
+        arrivalTime = tk.StringVar()
+
         loc_select = ttk.Combobox(loc_frame, textvariable = selected_location)
+        loc_select["values"] = ["Station B", "Station C"]  #for BLUE LINE ONLY
+        loc_select["state"] = "readonly"
         loc_select.pack(padx = 5, pady = 5, fill = "x")
 
         #enter time
@@ -88,14 +95,14 @@ class ScheduleScreen:
         time_text = ttk.Label(time_frame, text = "Enter a time:")
         time_text.pack(padx = 5, pady = 5, fill = "x")
 
-        time_entry = ttk.Entry(time_frame)
+        time_entry = ttk.Entry(time_frame, textvariable = arrivalTime)
         time_entry.pack(padx = 5, pady = 5, fill = "x")
 
         #deploy button and auto button
         button_frame = ttk.Frame(left_frame, style = "white.TFrame")
         button_frame.pack(pady = 40, side = "top", expand = True)
-        dep_button = ttk.Button(button_frame, text = "Deploy Train", style = "TButton")
-        dep_button.pack(pady = 5, side = "top", fill = "x")
+        getDeploy = ttk.Button(button_frame, text = "Deploy Train", style = "TButton", command = lambda: (self.send_deploy_data("1", selected_location.get(), arrivalTime.get(), "blue"), self.update_manual_edit("1", selected_location.get(), arrivalTime.get(), "blue")))
+        getDeploy.pack(pady = 5, side = "top", fill = "x")
         auto_button = ttk.Button(button_frame, text = "Automatic Mode", style = "TButton")
         auto_button.pack(side = "top")
 
@@ -108,17 +115,21 @@ class ScheduleScreen:
         me_text.pack()
 
         #create and format the area for the train location information to be displayed
-        me_area = ttk.Treeview(me_frame, columns = ("Destination", "Arrival Time")) 
-        me_area.heading("#0", text = "Location")
-        me_area.heading("Destination", text = "Destination")
-        me_area.heading("Arrival Time", text = "Arrival Time")
-        me_area.column("#0", width = 150)
-        me_area.column("Destination", width = 150)
-        me_area.column("Arrival Time", width = 100)
-        me_area.pack(side = "left")
+        self.me_area = ttk.Treeview(me_frame, columns = ("Location", "Destination", "Arrival Time")) 
+        self.me_area.heading("#0", text = "Train")
+        self.me_area.heading("Location", text = "Location")
+        self.me_area.heading("Destination", text = "Destination")
+        self.me_area.heading("Arrival Time", text = "Arrival Time")
+        self.me_area.column("#0", width = 100)
+        self.me_area.column("Location", width = 100)
+        self.me_area.column("Destination", width = 150)
+        self.me_area.column("Arrival Time", width = 100)
+        self.me_area.pack(side = "left")
 
-        me_scrollbar = ttk.Scrollbar(me_frame, orient = "vertical", command = me_area.yview)
-        me_area.configure(yscrollcommand = me_scrollbar.set)
+        self.me_area.bind("<Button-1>", self.manual_edit)
+
+        me_scrollbar = ttk.Scrollbar(me_frame, orient = "vertical", command = self.me_area.yview)
+        self.me_area.configure(yscrollcommand = me_scrollbar.set)
         me_scrollbar.pack(side = "right", fill = "y")
 
 
@@ -139,3 +150,54 @@ class ScheduleScreen:
     #display the reference map to the user
     def disp_ref_map(self):
         self.main_screen.disp_ref_map()
+
+    
+    def send_deploy_data(self, location, destination, time, line):
+        self.trainNum += 1
+        self.main_screen.update_train_locations(location, destination, time, line, self.trainNum)
+
+
+    def update_manual_edit(self, location, destination, time, line):
+        children = self.me_area.get_children("")
+        if (not children):  #if there is no data yet, add first child
+            level = self.me_area.insert('', "end", text = line.title())
+            self.me_area.insert(level, "end", text = ("Train " + str(self.trainNum)), values = [("Block " + location), destination, time])
+        else:
+            added = False
+            for child in children:  #iterate for each parent in the treeview
+                for item in self.me_area.get_children(child):  #iterate for each child of every parent in the treeview
+                    dest = self.me_area.item(item, "text")
+                    if (dest == "Train " + str(self.trainNum)):
+                        self.mm_area.item(item, values = ["Block " + location, destination, time])
+                        added = True
+                        break
+                if (not added and self.me_area.item(child, "text") == line.title()):
+                    self.me_area.insert(child, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination, time])
+                    added = True
+                    break
+            if (not added):  #if value is not already in the treeview, add a new parent/child set
+                level = self.me_area.insert('', "end", text = line.title())
+                self.me_area.insert(level, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination, time])
+
+
+    def manual_edit(self, event):
+        row_id = self.me_area.identify_row(event.y)
+        col_id = self.me_area.identify_column(event.x)
+        if (row_id):
+            if (col_id == "#2"):
+                newDestination = simpledialog.askstring("Manual Edit", "Enter a new destination:")
+                if (newDestination is not None):
+                    answer = askyesno(title = "Confirmation", message = "Would you like to change the destination?")
+                    if (answer):
+                        self.me_area.set(row_id, col_id, value = newDestination)
+                        self.main_screen.tl_area.set(row_id, col_id, value = newDestination)
+
+            elif (col_id == "#3"):
+                newTime = simpledialog.askstring("Manual Edit", "Enter a new arrival:")
+                if (newTime is not None):
+                    answer = askyesno(title = "Confirmation", message = "Would you like to change the arrival time?")
+                    if (answer):
+                        self.me_area.set(row_id, col_id, value = newTime)
+                        self.main_screen.tl_area.set(row_id, col_id, value = newTime)
+
+            #add outputs to test ui
