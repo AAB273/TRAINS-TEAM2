@@ -345,10 +345,10 @@ class TrackModelUI(tk.Tk):
 
         # Define block -> (x, y) coordinates (adjust to your diagram)
         self.block_positions = {
-            4: (340, 200),   # Crossing (example coordinates)
-            5: (400, 240),   # Switch
-            6: (500, 240),   # Traffic Light
-            11: (700, 240),   # Traffic Light
+            4: (335, 240),   # Crossing (example coordinates)
+            5: (400, 270),   # Switch
+            6: (480, 110),   # Traffic Light
+            11: (480, 320),   # Traffic Light
         }
 
         # Draw initial icons
