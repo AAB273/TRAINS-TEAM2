@@ -322,19 +322,19 @@ class TrackModelUI(tk.Tk):
             print("⚠️ Could not load background Blue Line.png:", e)
 
         # Load icon images once and store persistently to prevent garbage collection
-        def load_icon(path, size=(64, 64)):
-            try:
+        def load_icon(path, size=(32, 32)):
+            key = (path, size)
+            if key not in self.icon_images:
                 img = Image.open(path).resize(size, Image.LANCZOS)
-                return ImageTk.PhotoImage(img)
-            except Exception as e:
-                print(f"⚠️ Could not load {path}: {e}")
-                return None
+                self.icon_images[key] = ImageTk.PhotoImage(img)
+            return self.icon_images[key]
 
-        self.icon_images = {
-            "crossing_on": load_icon("Crossing_On.png"),
-            "crossing_off": load_icon("Crossing_Off.png"),
-            "lever_left": load_icon("Lever_Left.png"),
-            "lever_right": load_icon("Lever_Right.png"),
+        self.icon_images = {}
+        self.icons = {
+            "crossing_on": load_icon("Crossing_On.png", (64, 64)),
+            "crossing_off": load_icon("Crossing_Off.png", (64, 64)),
+            "lever_left": load_icon("Lever_Left.png", (32,32)),
+            "lever_right": load_icon("Lever_Right.png", (32, 32)),
         }
 
         # where we will keep canvas item ids for icons (so we can update/delete them)
