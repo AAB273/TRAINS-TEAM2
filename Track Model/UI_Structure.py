@@ -164,13 +164,21 @@ class TrackModelUI(tk.Tk):
 
     # ---------------- Center Panel ----------------
     def create_center_panel(self, parent):
+        # Create card for notebook with fixed height
         card = self.make_card(parent)
         card.pack(fill="both", expand=True)
+        card.config(height=500)  # <-- fixed height to prevent shrinking
+        card.pack_propagate(False)  # Ensure card doesn't resize to contents
+
+        # Create notebook inside the card
         notebook = ttk.Notebook(card)
         notebook.pack(fill="both", expand=True, padx=10, pady=10)
 
+        # ---------------- Tab 1: Track Diagram ----------------
         frame1 = tk.Frame(notebook, bg="white")
+        frame1.pack(fill="both", expand=True)
         notebook.add(frame1, text="Track Switches and Signals")
+
         try:
             img = Image.open("Blue Line.png").resize((900, 450))
             self.track_img = ImageTk.PhotoImage(img)
@@ -178,11 +186,13 @@ class TrackModelUI(tk.Tk):
         except:
             tk.Label(frame1, text="Track diagram not found", bg="white").pack(fill="both", expand=True)
 
-#        self.create_PLCupload_panel(frame1).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
-
+        # ---------------- Tab 2: Block/Station Table ----------------
         frame2 = tk.Frame(notebook, bg="white")
+        frame2.pack(fill="both", expand=True)
         notebook.add(frame2, text="Block and Station Occupancy")
         tk.Label(frame2, text="(Occupancy view goes here)", bg="white").pack(fill="both", expand=True)
+
+#        self.create_PLCupload_panel(frame1).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 #        self.create_PLCupload_panel(frame2).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 
     # ---------------- Bottom Table ----------------
