@@ -355,59 +355,64 @@ class TrackModelUI(tk.Tk):
         self.draw_track_icons()
 
     def draw_track_icons(self):
-        """Draw switch and crossing icons on the diagram based on current states."""
+        """Draw switch, crossing, and traffic light icons on the diagram based on current states."""
         # Clear previous icons
         for icons in self.icon_item_ids.values():
             for item in icons.values():
-                self.track_canvas.delete(item)
-        self.icon_item_ids = {"switch": {}, "crossing": {}}
+                if isinstance(item, list):
+                    for subitem in item:
+                        self.track_canvas.delete(subitem)
+                else:
+                    self.track_canvas.delete(item)
+        self.icon_item_ids = {"switch": {}, "crossing": {}, "traffic": {}}
 
-        def load_resized_image(path, size=(20, 20)):
+        def load_resized_image(path, size=(32, 32)):
             """Helper to load and resize an image once."""
-            if path not in self.icon_images:
+            key = (path, size)
+            if key not in self.icon_images:
                 try:
                     img = Image.open(path).resize(size, Image.LANCZOS)
-                    self.icon_images[path] = ImageTk.PhotoImage(img)
+                    self.icon_images[key] = ImageTk.PhotoImage(img)
                 except Exception as e:
                     print(f"⚠️ Failed to load {path}: {e}")
                     return None
-            return self.icon_images[path]
+            return self.icon_images.get(key)
 
-        # ------------- Draw Crossing (Block 4) -------------
+        # --- Draw Crossing (Block 4) ---
         block_cross = self.data_manager.blocks[3]  # index 3 → block 4
         x, y = self.block_positions.get(4, (0, 0))
         img_path = "Crossing_On.png" if block_cross.crossing else "Crossing_Off.png"
-        img_obj = load_resized_image(img_path, size=(24, 24))
+        img_obj = load_resized_image(img_path, size=(96, 96))  # slightly smaller
         if img_obj:
             self.icon_item_ids["crossing"][4] = self.track_canvas.create_image(
                 x, y + 40, image=img_obj, anchor="center"
             )
 
-        # ------------- Draw Single Switch (Block 5) -------------
+        # --- Draw Switch (Block 5) ---
         block_switch = self.data_manager.blocks[4]  # index 4 → block 5
         x, y = self.block_positions.get(5, (0, 0))
         img_path = "Lever_Right.png" if block_switch.switch_state else "Lever_Left.png"
-        img_obj = load_resized_image(img_path, size=(20, 20))
+        img_obj = load_resized_image(img_path, size=(64, 64))  # keep doubled size
         if img_obj:
             self.icon_item_ids["switch"][5] = self.track_canvas.create_image(
                 x, y, image=img_obj, anchor="center"
             )
 
-        # ------------- Draw Traffic Light 1 (Block 6) -------------
+        # --- Draw Traffic Light 1 (Block 6) ---
         block_traffic1 = self.data_manager.blocks[5]  # index 5 → block 6
-        self.draw_traffic_light(6, getattr(block_traffic1, "traffic_light_state", 0))
+        self.draw_traffic_light(6, getattr(block_traffic1, "traffic_light_state", 0), light_size=16)
 
-        # ------------- Draw Traffic Light 2 (Block 11) -------------
+        # --- Draw Traffic Light 2 (Block 11) ---
         block_traffic2 = self.data_manager.blocks[10]  # index 10 → block 11
-        self.draw_traffic_light(11, getattr(block_traffic2, "traffic_light_state", 0))
+        self.draw_traffic_light(11, getattr(block_traffic2, "traffic_light_state", 0), light_size=16)
 
-    def draw_traffic_light(self, block_num, state):
+
+    def draw_traffic_light(self, block_num, state, light_size=16):
         """Draw a traffic light with 4 positions. Only the active state lights up."""
         x, y = self.block_positions.get(block_num, (0,0))
-        light_size = 20
-        spacing = 5
+        spacing = 4
         num_lights = 4
-        padding = 5
+        padding = 4
 
         # Clear previous if exists
         if "traffic" not in self.icon_item_ids:
@@ -427,10 +432,8 @@ class TrackModelUI(tk.Tk):
         rect_right = x + rect_width//2
 
         # Draw black background
-        rect = self.track_canvas.create_rectangle(
-            rect_left, rect_top, rect_right, rect_bottom,
-            fill="black", outline="black"
-        )
+        rect = self.track_canvas.create_rectangle(rect_left, rect_top, rect_right, rect_bottom,
+                                                fill="black", outline="black")
         items.append(rect)
 
         # Draw lights
