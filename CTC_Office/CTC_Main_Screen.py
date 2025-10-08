@@ -206,17 +206,19 @@ class MainScreen:
         tl_text.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")
         tl_text.pack(side = "top")  #add to frame
         #create and format the area for the train location information to be displayed
-        tl_area = ttk.Treeview(tl_frame, columns = ("Destination", "Arrival Time")) 
-        tl_area.heading("#0", text = "Location")
-        tl_area.heading("Destination", text = "Destination")
-        tl_area.heading("Arrival Time", text = "Arrival Time")
-        tl_area.column("#0", width = 150)
-        tl_area.column("Destination", width = 150)
-        tl_area.column("Arrival Time", width = 100)
-        tl_area.pack(side = "left")
+        self.tl_area = ttk.Treeview(tl_frame, columns = ("Location", "Destination", "Arrival Time")) 
+        self.tl_area.heading("#0", text = "Train")
+        self.tl_area.heading("Location", text = "Location")
+        self.tl_area.heading("Destination", text = "Destination")
+        self.tl_area.heading("Arrival Time", text = "Arrival Time")
+        self.tl_area.column("#0", width = 100, anchor = "w", stretch = "no")
+        self.tl_area.column("Location", width = 100)
+        self.tl_area.column("Destination", width = 150)
+        self.tl_area.column("Arrival Time", width = 100)
+        self.tl_area.pack(side = "left")
 
-        tl_scrollbar = ttk.Scrollbar(tl_frame, orient = "vertical", command = tl_area.yview)
-        tl_area.configure(yscrollcommand = tl_scrollbar.set)
+        tl_scrollbar = ttk.Scrollbar(tl_frame, orient = "vertical", command = self.tl_area.yview)
+        self.tl_area.configure(yscrollcommand = tl_scrollbar.set)
         tl_scrollbar.pack(side = "right", fill = "y")
 
 
@@ -392,3 +394,28 @@ class MainScreen:
                     toTest.write(location + "\n")
                     toTest.write(self.mm_area.item(self.mm_area.parent(row_id), "text").lower())
                     toTest.close()
+
+
+    def update_train_locations(self, location, destination, time, line, tNum):
+        children = self.tl_area.get_children("")
+        if (not children):  #if there is no data yet, add first child
+            level = self.tl_area.insert('', "end", text = line.title())
+            self.tl_area.insert(level, "end", text = ("Train " + str(tNum)), values = [("Block " + location), destination, time])
+        else:
+            added = False
+            for child in children:  #iterate for each parent in the treeview
+                for item in self.tl_area.get_children(child):  #iterate for each child of every parent in the treeview
+                    dest = self.tl_area.item(item, "text")
+                    if (dest == "Train " + str(tNum)):
+                        self.mm_area.item(item, values = ["Block " + location, destination, time])
+                        added = True
+                        break
+                if (not added and self.tl_area.item(child, "text") == line.title()):
+                    self.tl_area.insert(child, "end", text = "Train " + str(tNum), values = [("Block " + location), destination, time])
+                    added = True
+                    break
+            if (not added):  #if value is not already in the treeview, add a new parent/child set
+                level = self.tl_area.insert('', "end", text = line.title())
+                self.tl_area.insert(level, "end", text = "Train " + str(tNum), values = [("Block " + location), destination, time])
+
+        #send signals with suggested speed/authority
