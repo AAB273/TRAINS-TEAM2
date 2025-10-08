@@ -168,7 +168,7 @@ class ScheduleScreen:
                 for item in self.me_area.get_children(child):  #iterate for each child of every parent in the treeview
                     dest = self.me_area.item(item, "text")
                     if (dest == "Train " + str(self.trainNum)):
-                        self.mm_area.item(item, values = ["Block " + location, destination, time])
+                        self.me_area.item(item, values = ["Block " + location, destination, time])
                         added = True
                         break
                 if (not added and self.me_area.item(child, "text") == line.title()):
@@ -178,6 +178,14 @@ class ScheduleScreen:
             if (not added):  #if value is not already in the treeview, add a new parent/child set
                 level = self.me_area.insert('', "end", text = line.title())
                 self.me_area.insert(level, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination, time])
+
+        outfile = open("CTC_Office/to_test_ui.txt", "w")
+        outfile.write("TL\n")
+        outfile.write(str(self.trainNum) + "\n")
+        outfile.write("70\n")
+        outfile.write("8\n")
+        outfile.write(line + "\n")
+        outfile.close()
 
 
     def manual_edit(self, event):
@@ -192,6 +200,20 @@ class ScheduleScreen:
                         self.me_area.set(row_id, col_id, value = newDestination)
                         self.main_screen.tl_area.set(row_id, col_id, value = newDestination)
 
+                        outfile = open("CTC_Office/to_test_ui.txt", "w")
+                        outfile.write("TL\n")
+
+                        temp = self.me_area.item(row_id, "text")
+                        train = ""
+                        for char in temp:
+                            if (char.isdigit()):
+                                train += char
+                        outfile.write(train + "\n")
+                        outfile.write("60\n")
+                        outfile.write("7\n")
+                        outfile.write(self.me_area.item(self.me_area.parent(row_id), "text") + "\n")
+                        outfile.close()
+
             elif (col_id == "#3"):
                 newTime = simpledialog.askstring("Manual Edit", "Enter a new arrival:")
                 if (newTime is not None):
@@ -199,5 +221,19 @@ class ScheduleScreen:
                     if (answer):
                         self.me_area.set(row_id, col_id, value = newTime)
                         self.main_screen.tl_area.set(row_id, col_id, value = newTime)
+
+                        outfile = open("CTC_Office/to_test_ui.txt", "w")
+                        outfile.write("TL\n")
+
+                        temp = self.me_area.item(row_id, "text")
+                        train = ""
+                        for char in temp:
+                            if (char.isdigit()):
+                                train += char
+                        outfile.write(train + "\n")
+                        outfile.write("80\n")
+                        outfile.write("9\n")
+                        outfile.write(self.me_area.item(self.me_area.parent(row_id), "text") + "\n")
+                        outfile.close()
 
             #add outputs to test ui

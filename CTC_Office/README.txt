@@ -13,5 +13,6 @@ RC \n <value> \n <bool> \n <line> - railway crossing data, location, crossing op
 
 OP Code for sending data into to_test_ui.txt:
 
+TL \n <value> \n <value> \n <value> \ <line> - train location data, train, suggested speed, suggested authority, line
 TS \n <value> \n <line> - track state data (send maintenance), location, line
 MM \n <value> \n <value> \n <line> - maintenance mode data, location, block pointed towards, line

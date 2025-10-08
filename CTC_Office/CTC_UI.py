@@ -14,6 +14,7 @@ def main():
     #declaring the variable to represent the window and configuring the window
     root = tk.Tk()
     win = tk.Toplevel(root)
+    ref_map = tk.Toplevel(root)
     root.title("CTC Office")  #title of the window
     root.geometry('1200x925+0+0')  #size of the window
     root.maxsize(1200, 925)  #set the maximum size of the window
@@ -31,7 +32,7 @@ def main():
     main_notebook.add(schedule_frame, text = "Schedule")
 
     #create the UI objects
-    main_screen = CTC_Main_Screen.MainScreen(root, 0, system_frame, main_notebook)
+    main_screen = CTC_Main_Screen.MainScreen(root, 0, system_frame, main_notebook, ref_map)
     schedule_screen = CTC_Schedule_Screen.ScheduleScreen(root, main_screen, schedule_frame, main_notebook)
     main_screen.schedule_screen = schedule_screen
 
