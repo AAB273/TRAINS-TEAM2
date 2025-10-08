@@ -94,7 +94,7 @@ class TestUI:
         self.create_inputs()
 
 
-    def update_test_ui(self):
+    def updateTestUI(self):
         infile = open("CTC_Office/to_test_ui.txt", "r")  #read in the data file text
         data = infile.readline()  #grab the first line to see what data needs to be updated
 

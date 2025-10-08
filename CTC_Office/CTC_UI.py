@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk
-from PIL import Image, ImageTk
 import CTC_Main_Screen
 import CTC_Schedule_Screen
 import CTC_Test_UI
@@ -34,8 +33,8 @@ def main():
     mainNotebook = ttk.Notebook(root)
     mainNotebook.pack(padx = 20, pady = 20, fill = "both")
     #create and pack Notebook object with ui tabs to the main window
-    backgound_style = ttk.Style()
-    backgound_style.configure("white.TFrame", background = "white")
+    backgoundStyle = ttk.Style()
+    backgoundStyle.configure("white.TFrame", background = "white")
     #style for Frame objects to follow
     systemFrame = ttk.Frame(root, style = "white.TFrame", width = 1160, height = 885)
     scheduleFrame = ttk.Frame(root, style = "white.TFrame", width = 1160, height = 885)
@@ -60,9 +59,9 @@ def programLoop(root: tk.Tk, mainScreen: CTC_Main_Screen, testUI: CTC_Test_UI):
     #continuously poll the data files to check for data changes
 
     if (os.stat("CTC_Office/CTC_data.txt").st_size != 0):
-        mainScreen.update_mainScreen()
+        mainScreen.updateMainScreen()
     if (os.stat("CTC_Office/to_test_ui.txt").st_size != 0):
-        testUI.update_test_ui()
+        testUI.updateTestUI()
     #check if files have data, then run appropriate methods to update the ui appearance
 
     root.after(500, programLoop, root, mainScreen, testUI)

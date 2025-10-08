@@ -47,7 +47,7 @@ class ScheduleScreen:
         center_frame.pack(side="left", anchor = "n", expand=True)  #pck the button in the center of the top row
         button_style = ttk.Style()
         button_style.configure("TButton", font = ("Arial", 15))  #change text style
-        map_button = ttk.Button(center_frame, text = "Reference Map", style = "TButton", command = lambda: self.disp_ref_map())
+        map_button = ttk.Button(center_frame, text = "Reference Map", style = "TButton", command = lambda: self.dispRefMap())
         map_button.pack(pady = 5, anchor = "n")  #pack in the top-center of the center_frame sub-frame
 
         #create a label for the time
@@ -148,8 +148,8 @@ class ScheduleScreen:
 
 
     #display the reference map to the user
-    def disp_ref_map(self):
-        self.main_screen.disp_ref_map()
+    def dispRefMap(self):
+        self.main_screen.dispRefMap()
 
     
     def send_deploy_data(self, location, destination, time, line):
