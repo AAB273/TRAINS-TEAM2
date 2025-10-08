@@ -142,7 +142,6 @@ class TrackModelTestUI(tk.Toplevel):
 
     # ---------------- Station Table Methods ----------------
     def refresh_station_table(self):
-        # Remember which station (if any) is selected
         selected = self.tree_stations.selection()
         selected_block_num = None
         if selected:
@@ -150,9 +149,11 @@ class TrackModelTestUI(tk.Toplevel):
             if item["values"]:
                 selected_block_num = item["values"][0]
 
-        # Clear and repopulate
         self.tree_stations.delete(*self.tree_stations.get_children())
-        for idx, (block_num, station_name) in enumerate(self.manager.station_location):
+        # Sort stations by block number
+        stations_sorted = sorted(self.manager.station_location, key=lambda x: x[0])
+        for block_num, station_name in stations_sorted:
+            idx = block_num - 1  # map to full-length data lists
             self.tree_stations.insert(
                 "", "end",
                 values=(
@@ -164,7 +165,7 @@ class TrackModelTestUI(tk.Toplevel):
                 )
             )
 
-        # Reselect previously selected row
+        # Reselect previous selection
         if selected_block_num is not None:
             for item_id in self.tree_stations.get_children():
                 if self.tree_stations.item(item_id)["values"][0] == selected_block_num:
@@ -176,29 +177,39 @@ class TrackModelTestUI(tk.Toplevel):
         selected = self.tree_stations.selection()
         if not selected:
             return
-        idx = self.tree_stations.index(selected[0])
+
+        tree_idx = self.tree_stations.index(selected[0])
+        block_num, station_name = sorted(self.manager.station_location, key=lambda x: x[0])[tree_idx]
+        data_idx = block_num - 1  # map to full-length lists
 
         popup = tk.Toplevel(self)
-        popup.title(f"Edit Station {self.manager.station_location[idx][1]}")
+        popup.title(f"Edit Station {station_name} (Block {block_num})")
         popup.geometry("300x250")
 
         entries = {}
-        for attr, label in zip(
-            ["ticket_sales", "passengers_boarding", "passengers_disembarking"],
-            ["Ticket Sales", "Boarding", "Disembarking"]
-        ):
+        for label, attr in [
+            ("Ticket Sales", "ticket_sales"),
+            ("Passengers Boarding", "passengers_boarding"),
+            ("Passengers Disembarking", "passengers_disembarking")
+        ]:
             tk.Label(popup, text=label).pack()
-            val = getattr(self.manager, attr)[idx]
             e = tk.Entry(popup)
-            e.insert(0, str(val))
+            e.insert(0, str(getattr(self.manager, attr)[data_idx]))
             e.pack()
             entries[attr] = e
 
         def save_changes():
-            for attr, entry in entries.items():
-                val = int(entry.get())
-                getattr(self.manager, attr).__setitem__(idx, val)
+            try:
+                self.manager.ticket_sales[data_idx] = int(entries["ticket_sales"].get())
+                self.manager.passengers_boarding[data_idx] = int(entries["passengers_boarding"].get())
+                self.manager.passengers_disembarking[data_idx] = int(entries["passengers_disembarking"].get())
+            except ValueError:
+                pass
+
             self.refresh_station_table()
+            if hasattr(self.master, "update_bottom_table"):
+                self.master.update_bottom_table()
+
             popup.destroy()
 
         tk.Button(popup, text="Save", command=save_changes).pack(pady=10)
