@@ -20,21 +20,21 @@ class TrackModelUI(tk.Tk):
 
         # Same as diagram coordinates
         self.block_positions_occupancy = {
-            1: (335, 240), 
-            2: (400, 270), 
-            3: (480, 110), 
-            4: (335, 240), 
-            5: (400, 270),  
+            1: (125, 240), 
+            2: (190, 240), 
+            3: (250, 240), 
+            4: (330, 240), 
+            5: (410, 240),  
             6: (480, 110), 
-            7: (480, 320), 
-            8: (480, 110),  
-            9: (480, 320),  
-            10: (300, 400),  
-            11: (480, 320), 
-            12: (300, 400), 
-            13: (300, 400), 
-            14: (300, 400),  
-            15: (600, 400),  
+            7: (540, 90), 
+            8: (600, 70),  
+            9: (660, 110),  
+            10: (720, 105),  
+            11: (480, 300), 
+            12: (550, 330), 
+            13: (640, 360), 
+            14: (720, 400),  
+            15: (820, 340),  
 }
         self.terminals = []
 
@@ -709,13 +709,9 @@ class TrackModelUI(tk.Tk):
         self.bidir_tree.column("Direction", width=80, anchor="center")
         
         self.bidir_tree.pack(fill="x", padx=5, pady=(0, 5))
-
-        # Initialize bidirectional block directions (store as instance variable)
-        self.bidirectional_directions = {
-            "Blocks 1-5": 0,  # 0 = left, 1 = right
-            "Blocks 6-10": 0,
-            "Blocks 11-15": 0
-        }
+        
+        # ADD THIS LINE: Make the table interactive
+        self.bidir_tree.bind("<ButtonRelease-1>", self.on_bidir_table_click)
         
         # Populate the table
         self.update_bidirectional_table()
@@ -835,11 +831,11 @@ class TrackModelUI(tk.Tk):
 #        terminal.insert("end", "\n")
 
         terminal.insert("end", "=== BIDIRECTIONAL BLOCK DIRECTIONS ===\n")
-        for group, direction in self.bidirectional_directions.items():
+        for group, direction in self.data_manager.bidirectional_directions.items():
             direction_text = "← Left" if direction == 0 else "Right →"
             terminal.insert("end", f"{group}: {direction_text}\n")
         terminal.insert("end", "\n")
-        
+            
         terminal.see("end")
         terminal.config(state="disabled")
         print("✅ Terminal update complete")
@@ -907,41 +903,46 @@ class TrackModelUI(tk.Tk):
             return True
         return False
     
-    def update_bidirectional_table(self):
-        """Update the bidirectional block table with current directions"""
+    def refresh_bidirectional_display(self):
+        """Force refresh the bidirectional table display"""
         if hasattr(self, 'bidir_tree'):
             # Clear existing rows
             self.bidir_tree.delete(*self.bidir_tree.get_children())
             
-            # Populate with current directions
-            for group, direction in self.bidirectional_directions.items():
+            # Populate with current directions from shared manager
+            for group, direction in self.data_manager.bidirectional_directions.items():
                 direction_text = "← Left" if direction == 0 else "Right →"
                 self.bidir_tree.insert("", "end", values=(group, direction_text))
+            print(f"🔄 Main UI bidirectional TABLE refreshed: {self.data_manager.bidirectional_directions}")
+    
+    def update_bidirectional_table(self):
+        """Update the bidirectional block table with current directions from shared data"""
+        self.refresh_bidirectional_display()  # ✅ Call the refresh method
 
     def toggle_bidirectional_direction(self, group_name):
-        """Toggle the direction for a block group (0=left, 1=right)"""
-        if group_name in self.bidirectional_directions:
-            current_direction = self.bidirectional_directions[group_name]
+        """Toggle the direction for a block group using shared data"""
+        if group_name in self.data_manager.bidirectional_directions:
+            current_direction = self.data_manager.bidirectional_directions[group_name]
             new_direction = 1 if current_direction == 0 else 0
-            self.bidirectional_directions[group_name] = new_direction
-            self.update_bidirectional_table()
+            self.data_manager.bidirectional_directions[group_name] = new_direction
+            self.update_bidirectional_table()  # This will now call refresh_bidirectional_display
             print(f"🔄 {group_name} direction changed to: {'Right →' if new_direction == 1 else '← Left'}")
 
     def get_block_group_direction(self, block_number):
         """Get the direction for a specific block based on its group"""
         if 1 <= block_number <= 5:
-            return self.bidirectional_directions["Blocks 1-5"]
+            return self.data_manager.bidirectional_directions["Blocks 1-5"]  # ✅ FIXED
         elif 6 <= block_number <= 10:
-            return self.bidirectional_directions["Blocks 6-10"]
+            return self.data_manager.bidirectional_directions["Blocks 6-10"]  # ✅ FIXED
         elif 11 <= block_number <= 15:
-            return self.bidirectional_directions["Blocks 11-15"]
+            return self.data_manager.bidirectional_directions["Blocks 11-15"]  # ✅ FIXED
         else:
-            return 0  # Default to left for unknown blocks
+            return 0
 
     def set_bidirectional_direction(self, group_name, direction):
         """Set a specific direction for a block group"""
-        if group_name in self.bidirectional_directions and direction in [0, 1]:
-            self.bidirectional_directions[group_name] = direction
+        if group_name in self.data_manager.bidirectional_directions and direction in [0, 1]:  # ✅ FIXED
+            self.data_manager.bidirectional_directions[group_name] = direction  # ✅ FIXED
             self.update_bidirectional_table()
             return True
         return False
@@ -1020,6 +1021,9 @@ class TrackModelUI(tk.Tk):
         # Redraw track icons (switches, crossings, lights)
         self.draw_track_icons()
 
+        # Refresh bidirectional table ✅ ADD THIS
+        self.update_bidirectional_table()
+
         # Draw trains on BOTH occupancy canvases:
         # 1. Bottom panel station view (if it exists)
         if hasattr(self, "block_canvas") and hasattr(self, "train_items_block_canvas"):
@@ -1081,14 +1085,16 @@ class TrackModelUI(tk.Tk):
 
 # ---------------- Run Application ----------------
 if __name__ == "__main__":
-    # Shared TrackDataManager
     manager = UI_Variables.TrackDataManager()
-
-    # Main UI
     app = TrackModelUI(manager)
-
-    # Test/debug UI (Toplevel)
     tester = TrackModelTestUI(app, manager)
-    tester.lift()
-
+    
+    # Verify integration
+    print("=== SYSTEM INTEGRATION CHECK ===")
+    print(f"Main UI manager: {app.data_manager}")
+    print(f"Test UI manager: {tester.manager}") 
+    print(f"Same instance: {app.data_manager is tester.manager}")
+    print(f"Bidirectional data shared: {hasattr(manager, 'bidirectional_directions')}")
+    
+    tester.lift()  # Keep this line to bring test window to front
     app.mainloop()

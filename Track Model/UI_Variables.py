@@ -11,6 +11,13 @@ class TrackDataManager:
         self.commanded_authority = []
         self.environmental_temp = None
 
+        # ADD THIS: Bidirectional block directions
+        self.bidirectional_directions = {
+            "Blocks 1-5": 0,  # 0 = left, 1 = right
+            "Blocks 6-10": 0,
+            "Blocks 11-15": 0
+        }
+
         # ---------------- Default Track Setup ----------------
         self._create_default_blocks()
         num_blocks = len(self.blocks)
@@ -103,27 +110,30 @@ class TrackDataManager:
             "passengers_disembarking": self.passengers_disembarking,
         }
     
+    # In UI_Variables.py, replace the method:
     def collect_outputs_to_send(self):
+        """Collect all block data for output transmission."""
         outputs_to_send = [
-            "ticket_sales",
-            "passengers_disembarking",
-            "occupancy",
-            "commanded_speed",
-            "commanded_authority",
-            "beacon",
-            "failure_mode",
-            "passengers_boarding"
+            "ticket_sales", "passengers_disembarking", "occupancy",
+            "commanded_speed", "commanded_authority", "beacon",
+            "failure_mode", "passengers_boarding"
         ]
-
+        
         data_to_send = []
-
-        # For each block
-        for b in self.manager.blocks:
+        for b in self.blocks:  # Fixed: self.blocks instead of self.manager.blocks
             block_data = {}
             for attr in outputs_to_send:
-                block_data[attr] = getattr(b, attr, None)
+                # Handle attributes stored in manager vs block
+                if attr in ["ticket_sales", "passengers_boarding", "passengers_disembarking"]:
+                    block_idx = b.block_number - 1
+                    if 0 <= block_idx < len(getattr(self, attr, [])):
+                        block_data[attr] = getattr(self, attr)[block_idx]
+                    else:
+                        block_data[attr] = 0
+                else:
+                    block_data[attr] = getattr(b, attr, None)
             data_to_send.append(block_data)
-
+        
         return data_to_send
 
     # ---------------- Helper Accessors ----------------
