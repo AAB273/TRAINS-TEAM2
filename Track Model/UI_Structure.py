@@ -18,6 +18,26 @@ class TrackModelUI(tk.Tk):
         self.signal_blocks = {6, 11}
         self.station_blocks = {10, 15}  # pulled from TrackDataManager default stations
 
+        # Same as diagram coordinates
+        self.block_positions_occupancy = {
+            1: (335, 240), 
+            2: (400, 270), 
+            3: (480, 110), 
+            4: (335, 240), 
+            5: (400, 270),  
+            6: (480, 110), 
+            7: (480, 320), 
+            8: (480, 110),  
+            9: (480, 320),  
+            10: (300, 400),  
+            11: (480, 320), 
+            12: (300, 400), 
+            13: (300, 400), 
+            14: (300, 400),  
+            15: (600, 400),  
+}
+
+
         # Use the shared TrackDataManager
         self.data_manager = manager
 
@@ -167,32 +187,61 @@ class TrackModelUI(tk.Tk):
 
     # ---------------- Center Panel ----------------
     def create_center_panel(self, parent):
-        # Create card for notebook with fixed height
+        # Create card for notebook with fixed height (same as before)
         card = self.make_card(parent)
         card.pack(fill="both", expand=True)
         card.config(height=500)  # fixed height to prevent shrinking
         card.pack_propagate(False)
 
-        # Create notebook inside the card
-        notebook = ttk.Notebook(card)
+        # Container with two columns: left = notebook, right = persistent PLC/terminal
+        container = tk.Frame(card, bg="white")
+        container.pack(fill="both", expand=True, padx=10, pady=10)
+        container.grid_rowconfigure(0, weight=1)
+        container.grid_columnconfigure(0, weight=1)   # notebook column stretches
+        container.grid_columnconfigure(1, weight=0)   # right panel fixed
+
+        # ---------------- Left: Notebook ----------------
+        left_col = tk.Frame(container, bg="white")
+        left_col.grid(row=0, column=0, sticky="nsew")
+
+        notebook = ttk.Notebook(left_col)
         notebook.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # ---------------- Tab 1: Track Diagram ----------------
+        # Tab 1: Track Diagram (canvas etc. will live here)
         frame1 = tk.Frame(notebook, bg="white")
-        frame1.pack(fill="both", expand=True)
         notebook.add(frame1, text="Track Switches and Signals")
-
-        # Save reference so build_track_diagram can use it
         self.diagram_frame = frame1
-
-        # Build canvas and icons
+        # build canvas + icons (note: build_track_diagram must NOT create a separate PLC panel)
         self.build_track_diagram()
 
-        # ---------------- Tab 2: Block/Station Table ----------------
+        # Tab 2: Block/Station Occupancy (same Blue Line image + occupancy UI)
         frame2 = tk.Frame(notebook, bg="white")
-        frame2.pack(fill="both", expand=True)
         notebook.add(frame2, text="Block and Station Occupancy")
-        tk.Label(frame2, text="(Occupancy view goes here)", bg="white").pack(fill="both", expand=True)
+
+        # --- Add the same Blue Line image to tab 2 (same size & placement) ---
+        try:
+            bg_img2 = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
+            self.block_view_bg = ImageTk.PhotoImage(bg_img2)
+            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=900, highlightthickness=0)
+            self.block_canvas.pack(fill="x", padx=10, pady=10)
+            self.block_canvas.create_image(0, 0, image=self.block_view_bg, anchor="nw")
+            self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
+        except Exception as e:
+            print("⚠️ Could not load Blue Line.png for Block/Station tab:", e)
+
+        # ---------------- Right: Persistent PLC + Terminal ----------------
+        right_col = tk.Frame(container, bg="white", width=260)
+        right_col.grid(row=0, column=1, sticky="ns", padx=(10,0), pady=10)
+        # ensure right_col doesn't expand horizontally:
+        right_col.grid_propagate(False)
+
+        # Create the PLC upload panel (only once) and pack at the top of right column
+        self.plc_panel = self.create_PLCupload_panel(right_col)
+        # pack the returned outer frame so PLC is top-aligned
+        self.plc_panel.pack(side="top", fill="x", padx=5, pady=(5,8), anchor="n")
+
+        # If you want the terminal to expand vertically to fill right_col, make sure create_PLCupload_panel
+        # returns a frame whose terminal uses fill="both" and expand=True (the version we used earlier does).
 
 #        self.create_PLCupload_panel(frame1).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 #        self.create_PLCupload_panel(frame2).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
@@ -280,19 +329,98 @@ class TrackModelUI(tk.Tk):
                 )
 
     def show_station_view(self):
-        self.tree.config(columns=self.columns_station)
-        for col in self.columns_station:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, width=150, anchor="center")
+        """Display station data with Blue Line image and dynamic train positions."""
+        # Only create the canvas and table once
+        if not hasattr(self, "block_canvas"):
+            # --- Frame for occupancy tab ---
+            self.block_frame = tk.Frame(self.station_tab, bg="white")
+            self.block_frame.pack(fill="both", expand=True)
 
-        self.tree.delete(*self.tree.get_children())
+            # --- Blue Line Image ---
+            try:
+                blue_line_img = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
+                self.block_bg_img = ImageTk.PhotoImage(blue_line_img)
+                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=900, highlightthickness=0)
+                self.block_canvas.pack(fill="x", padx=10, pady=10)
+                self.block_canvas.create_image(0, 0, image=self.block_bg_img, anchor="nw")
+                self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
+            except Exception as e:
+                print("⚠️ Could not load Blue Line.png for occupancy view:", e)
+                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=900)
+                self.block_canvas.pack(fill="x", padx=10, pady=10)
 
+            # --- PLC Upload & Terminal ---
+            self.plc_terminal_panel = self.create_PLCupload_panel(self.block_frame)
+            self.plc_terminal_panel.pack(side="right", padx=20, pady=20, anchor="n")
+
+            # --- Load Train Image ---
+            if not hasattr(self, "train_icon"):
+                try:
+                    train_img = Image.open("Train_Right.png").resize((40, 40), Image.LANCZOS)
+                    self.train_icon = ImageTk.PhotoImage(train_img)
+                except Exception as e:
+                    print("⚠️ Could not load Train_Right.png:", e)
+                    self.train_icon = None
+
+            # --- Define block positions for occupancy diagram ---
+            self.block_positions_occupancy = {
+                4: (335, 240),
+                5: (400, 270),
+                6: (480, 110),
+                10: (550, 300),
+                11: (480, 320),
+                15: (600, 200)
+            }
+
+            # --- Station Table ---
+            self.station_table = ttk.Treeview(self.block_frame, columns=self.columns_station, show="headings")
+            self.station_table.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+            for col in self.columns_station:
+                self.station_table.heading(col, text=col)
+                self.station_table.column(col, width=150, anchor="center")
+
+            # --- Initialize train items for this canvas ---
+            self.train_items_block_canvas = []
+
+        # --- Clear and populate station table ---
+        self.station_table.delete(*self.station_table.get_children())
         for block_num, station_name in self.data_manager.station_location:
             idx = block_num - 1
-            self.tree.insert("", "end", values=(block_num, station_name,
-                                                f"{int(self.data_manager.ticket_sales[idx])} Tickets",
-                                                f"{int(self.data_manager.passengers_boarding[idx])} Boarding",
-                                                f"{int(self.data_manager.passengers_disembarking[idx])} Leaving"))
+            self.station_table.insert(
+                "",
+                "end",
+                values=(
+                    block_num,
+                    station_name,
+                    f"{int(self.data_manager.ticket_sales[idx])} Tickets",
+                    f"{int(self.data_manager.passengers_boarding[idx])} Boarding",
+                    f"{int(self.data_manager.passengers_disembarking[idx])} Leaving",
+                ),
+            )
+
+        # --- Draw trains on occupancy canvas only ---
+        self.draw_trains(canvas=self.block_canvas, items_list=self.train_items_block_canvas)
+
+    def draw_trains(self, canvas, items_list):
+        """Draw trains on the given canvas using train locations and block coordinates."""
+        if not self.train_icon or canvas is None or items_list is None:
+            return
+
+        # Remove previous train images
+        for item in items_list:
+            canvas.delete(item)
+        items_list.clear()
+
+        # Draw trains at updated positions
+        for idx, train_name in enumerate(self.data_manager.active_trains):
+            if idx >= len(self.data_manager.train_locations):
+                continue  # avoid index errors
+            train_block = self.data_manager.train_locations[idx]  # block number
+            coords = self.block_positions_occupancy.get(train_block)
+            if coords:
+                x, y = coords
+                item = canvas.create_image(x, y, image=self.train_icon, anchor="center")
+                items_list.append(item)
 
     def on_view_tab_change(self, event):
         tab = self.view_tabs.tab(self.view_tabs.select(), "text")
@@ -309,17 +437,28 @@ class TrackModelUI(tk.Tk):
 
     # ---------------- Create canvas, load images, initial draw (replace your build_track_diagram) ----------------
     def build_track_diagram(self):
-        # Create canvas on the diagram_frame so icons can be drawn on top of the background
-        self.track_canvas = tk.Canvas(self.diagram_frame, bg="white", height=450)
-        self.track_canvas.pack(fill="both", expand=True)
+        # Container for the diagram and PLC upload
+        diagram_container = tk.Frame(self.diagram_frame, bg="white")
+        diagram_container.pack(fill="both", expand=True)
 
-        # Load (and persist) background image onto canvas if available
+        # Canvas inside left side of container
+        self.track_canvas = tk.Canvas(diagram_container, bg="white", height=450)
+        self.track_canvas.pack(side="left", fill="both", expand=True)
+
+        # Load train icon once
+        self.train_icon = None
+        try:
+            img = Image.open("Train_Right.png").resize((40, 40), Image.LANCZOS)
+            self.train_icon = ImageTk.PhotoImage(img)
+        except Exception as e:
+            print(f"[WARN] Could not load Train_Right.png: {e}")
+
+
+        # Background image
         try:
             bg_img = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
             self.track_bg = ImageTk.PhotoImage(bg_img)
-            # Draw background at top-left (0,0), anchor NW so coordinates align
             self.track_canvas.create_image(0, 0, image=self.track_bg, anchor="nw")
-            # make canvas size match image
             self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
         except Exception as e:
             print("⚠️ Could not load background Blue Line.png:", e)
@@ -345,10 +484,10 @@ class TrackModelUI(tk.Tk):
 
         # Define block -> (x, y) coordinates (adjust to your diagram)
         self.block_positions = {
-            4: (340, 200),   # Crossing (example coordinates)
-            5: (400, 240),   # Switch
-            6: (500, 240),   # Traffic Light
-            11: (700, 240),   # Traffic Light
+            4: (335, 240),   # Crossing (example coordinates)
+            5: (400, 270),   # Switch
+            6: (480, 110),   # Traffic Light
+            11: (480, 320),   # Traffic Light
         }
 
         # Draw initial icons
@@ -457,6 +596,124 @@ class TrackModelUI(tk.Tk):
         size = 10
         self.track_canvas.create_oval(x-size, y-size, x+size, y+size, fill=color)
 
+    def create_PLCupload_panel(self, parent):
+        """Creates separate PLC upload and terminal panels to the right of the track diagram."""
+        outer_frame = tk.Frame(parent, bg="white")
+
+        # --- PLC UPLOAD SECTION ---
+        plc_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
+        plc_frame.pack(fill="x", padx=5, pady=(0, 8))
+
+        tk.Label(
+            plc_frame,
+            text="Upload your PLC program file (.plc, .txt, .csv)",
+            font=("Arial", 9),
+            bg='white',
+            fg='gray',
+            wraplength=200,
+            justify="center"
+        ).pack(pady=3)
+
+        ttk.Button(
+            plc_frame,
+            text="Choose File",
+            command=self.PLCupload_file,
+            width=18
+        ).pack(pady=5)
+
+        self.file_status = tk.Label(
+            plc_frame,
+            text="No file selected",
+            font=("Arial", 9),
+            bg='white',
+            fg='gray'
+        )
+        self.file_status.pack(pady=3)
+
+        self.history_label = tk.Label(
+            plc_frame,
+            text="Last upload: Never",
+            font=("Arial", 8),
+            bg='white',
+            fg='darkgray'
+        )
+        self.history_label.pack(pady=3)
+
+        # --- TERMINAL / EVENT LOG SECTION ---
+        terminal_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
+        terminal_frame.pack(fill="both", expand=True, padx=5, pady=(0, 5))
+
+        tk.Label(
+            terminal_frame,
+            text="Event Log / Terminal",
+            font=("Arial", 9, "bold"),
+            bg="white",
+            fg="black"
+        ).pack(anchor="w", padx=5, pady=(3, 3))
+
+        term_inner = tk.Frame(terminal_frame, bg="white")
+        term_inner.pack(fill="both", expand=True, padx=5, pady=(0, 5))
+
+        self.terminal = tk.Text(
+            term_inner,
+            height=8,
+            width=30,  # ↓ Narrower terminal width
+            bg="#f5f5f5",
+            fg="black",
+            font=("Consolas", 9),
+            state="disabled",
+            wrap="word"
+        )
+        self.terminal.pack(side="left", fill="both", expand=True)
+
+        scrollbar = ttk.Scrollbar(term_inner, command=self.terminal.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.terminal.config(yscrollcommand=scrollbar.set)
+
+        # --- SEND OUTPUTS BUTTON ---
+        send_button = ttk.Button(outer_frame, text="Send Outputs", command=self.send_outputs)
+        send_button.pack(pady=(5, 10), padx=5, anchor="s")
+
+        return outer_frame
+    
+    def send_outputs(self):
+        """Print key system variables to the terminal."""
+        dm = self.data_manager
+
+        # Ticket Sales and Boarding/Disembarking
+        for idx, station in enumerate(dm.station_location):
+            block_num, station_name = station
+            self.log_message(f"Station {station_name} (Block {block_num}):")
+            self.log_message(f"  Tickets Sold: {int(dm.ticket_sales[idx])}")
+            self.log_message(f"  Passengers Boarding: {int(dm.passengers_boarding[idx])}")
+            self.log_message(f"  Passengers Disembarking: {int(dm.passengers_disembarking[idx])}")
+
+        # Track Circuit Signals / Occupancy
+        for block in dm.blocks:
+            self.log_message(f"Block {block.block_number}: Occupancy: {getattr(block, 'occupancy', '--')}")
+
+        # Commanded Speed and Authority
+        for idx, train_name in enumerate(dm.active_trains):
+            speed = dm.commanded_speed[idx]
+            auth = dm.commanded_authority[idx]
+            self.log_message(f"Train {train_name}: Commanded Speed = {speed} m/s, Authority = {auth} blocks")
+
+        # Beacons
+        for block in dm.blocks:
+            self.log_message(f"Block {block.block_number}: Beacon = {getattr(block, 'beacon', '--')}")
+
+        # Failure Modes
+        self.log_message("Failure Modes:")
+        self.log_message(f"  Train Circuit: {self.failure_train_circuit_var.get()}")
+        self.log_message(f"  Broken Railroads: {self.failure_rail_var.get()}")
+        self.log_message(f"  Power: {self.failure_power_var.get()}")
+    
+    def log_message(self, msg):
+        """Append a message to the terminal log."""
+        self.terminal.config(state="normal")
+        self.terminal.insert("end", f"{msg}\n")
+        self.terminal.see("end")
+        self.terminal.config(state="disabled")
 
     def PLCupload_file(self):
         from tkinter import filedialog
@@ -465,27 +722,30 @@ class TrackModelUI(tk.Tk):
         if filename:
             self.file_status.config(text=f"File selected: {filename.split('/')[-1]}")
             self.history_label.config(text="Last upload: Just now")
+            self.log_message(f"[INFO] Loaded PLC file: {filename}")
         else:
             self.file_status.config(text="No file selected")
-
-    def confirm_upload(self):
-        self.history_label.config(text="Last upload: Just now")
-        self.file_status.config(text="Upload successful!")
-        self.upload_confirm_button.config(state='disabled')
-
-#    def create_PLCupload_panel(self, parent):
-#        frame = tk.Frame(parent, bg="white")
-#        tk.Label(frame, text="Upload your PLC program file (.plc, .txt, .csv)",
-#                 font=("Arial", 9), bg='white', fg='gray', wraplength=200, justify="center").pack(pady=3)
-#        ttk.Button(frame, text="Choose File", command=self.PLCupload_file, width=18).pack(pady=5)
-#        self.file_status = tk.Label(frame, text="No file selected", font=("Arial", 9), bg='white', fg='gray')
-#        self.file_status.pack(pady=3)
-#        self.history_label = tk.Label(frame, text="Last upload: Never", font=("Arial", 8), bg='white', fg='darkgray')
-#        self.history_label.pack(pady=3)
-#        return frame
+            self.log_message("[WARN] File selection canceled.")
 
     def on_failure_changed(self):
         print("Failure states updated")
+
+    def refresh_trains(self):
+        # Remove old train icons first
+        if hasattr(self, "train_items"):
+            for item in self.train_items:
+                self.track_canvas.delete(item)
+        self.train_items = []
+
+        # Draw new train positions
+        if self.train_icon:
+            for idx, train_name in enumerate(self.data_manager.active_trains):
+                train_block = self.data_manager.train_locations[idx]
+                coords = self.block_positions_occupancy.get(train_block)
+                if coords:
+                    x, y = coords
+                    item = self.track_canvas.create_image(x, y, image=self.train_icon, anchor="center")
+                    self.train_items.append(item)
 
     # Refresh UI periodically
     def refresh_ui(self):
@@ -495,8 +755,14 @@ class TrackModelUI(tk.Tk):
         # Update bottom table in-place
         self.update_bottom_table()
 
-        # Redraw track icons with latest states
+        # Redraw track icons (switches, crossings, lights)
         self.draw_track_icons()
+
+        # Redraw trains on the correct canvas
+        if hasattr(self, "block_canvas") and hasattr(self, "train_items_block_canvas"):
+            self.draw_trains(canvas=self.block_canvas, items_list=self.train_items_block_canvas)
+        elif hasattr(self, "track_canvas") and hasattr(self, "train_items"):
+            self.draw_trains(canvas=self.track_canvas, items_list=self.train_items)
 
         # Refresh again in 1 second
         self.after(1000, self.refresh_ui)
