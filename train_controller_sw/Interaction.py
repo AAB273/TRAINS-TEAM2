@@ -833,69 +833,6 @@ class Main_Window:
         else:
             self.track_info_window.lift()
 
-
-
-
-'''------------------------------------------------------------------------------------------------------------------------------'''
-class NumberDisplay(tk.Frame):
-    """Displays a label + dynamic number value (with optional unit)."""
-    def __init__(self, parent, label_text="Value:", initial_value=0, unit="", **kwargs):
-        super().__init__(parent, **kwargs)
-        self.value = initial_value
-        self.unit = unit
-        tk.Label(self, text=label_text, font=("Arial", 12, "bold")).pack(side="left", padx=5)
-        self.display = tk.Label(self, text=f"{self.value} {self.unit}", font=("Arial", 12))
-        self.display.pack(side="left", padx=5)
-    def update_value(self, new_value):
-        self.value = new_value
-        self.display.config(text=f"{self.value} {self.unit}")
-
-class EmergencyLight(tk.Canvas):
-    """Triangle warning light that glows red when activated."""
-    def __init__(self, parent, size=80, **kwargs):
-        super().__init__(parent, width=size, height=size, highlightthickness=0, **kwargs)
-        self.size = size
-        self.glow = False
-        h = size
-        w = size
-        self.triangle = self.create_polygon(
-            w/2, 5,
-            w-5, h-5,
-            5, h-5,
-            fill="gray", outline="black", width=2
-        )
-        self.text = self.create_text(w/2, h*0.65, text="!", font=("Arial", int(size/2), "bold"), fill="white")
-
-    def activate(self):
-        self.glow = True
-        self._pulse_light()
-
-    def deactivate(self):
-        self.glow = False
-        self.itemconfig(self.triangle, fill="gray")
-
-    def toggle_failure(self, failure_type, state):
-        """Send failure signal input to main UI"""
-        if failure_type == 'engine':
-            self.main_window.set_engine_failure(state)
-        elif failure_type == 'signal':
-            self.main_window.set_signal_failure(state)
-        elif failure_type == 'brake':
-            self.main_window.set_brake_failure(state)
-
-        action = "activated" if state else "cleared"
-        self.log_action(f"⚠️ {failure_type.title()} failure {action}")
-
-
-    def _pulse_light(self):
-        if not self.glow:
-            return
-        # Alternate between two shades of red
-        current_color = self.itemcget(self.triangle, "fill")
-        new_color = "red2" if current_color == "darkred" else "darkred"
-        self.itemconfig(self.triangle, fill=new_color)
-        self.after(500, self._pulse_light)
-
 '''---------------------------------------------------------------------------------------------------------------------------------'''
 if __name__ == "__main__":
     root = tk.Tk()
