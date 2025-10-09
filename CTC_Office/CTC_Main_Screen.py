@@ -303,12 +303,12 @@ class MainScreen:
         #add a scrollbar to the train location Treeview
 
         '''
-        track state area
+        block error area
         '''
         tsFrame = ttk.Frame(leftFrame, style = "white.TFrame")
         tsFrame.pack(pady = 5, side = "top", expand = True)
         #sub-frame to store the track state widgets
-        tsText = ttk.Label(tsFrame, text = " Track State ", style = "White.TLabel")
+        tsText = ttk.Label(tsFrame, text = " Block Errors ", style = "White.TLabel")
         tsText.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")        
         tsText.pack(side = "top")
         #"Track State" title Label
