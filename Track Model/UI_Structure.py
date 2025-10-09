@@ -20,21 +20,21 @@ class TrackModelUI(tk.Tk):
 
         # Same as diagram coordinates
         self.block_positions_occupancy = {
-            1: (335, 240), 
-            2: (400, 270), 
-            3: (480, 110), 
-            4: (335, 240), 
-            5: (400, 270),  
+            1: (125, 240), 
+            2: (190, 240), 
+            3: (250, 240), 
+            4: (330, 240), 
+            5: (410, 240),  
             6: (480, 110), 
-            7: (480, 320), 
-            8: (480, 110),  
-            9: (480, 320),  
-            10: (300, 400),  
-            11: (480, 320), 
-            12: (300, 400), 
-            13: (300, 400), 
-            14: (300, 400),  
-            15: (600, 400),  
+            7: (540, 90), 
+            8: (600, 70),  
+            9: (660, 110),  
+            10: (720, 105),  
+            11: (480, 300), 
+            12: (550, 330), 
+            13: (640, 360), 
+            14: (720, 400),  
+            15: (820, 340),  
 }
         self.terminals = []
 
@@ -303,9 +303,12 @@ class TrackModelUI(tk.Tk):
 
             # Insert visible blocks
             if show:
-
                 heater_display = f"{'On' if self.is_heater_on(b) else 'Off'}/{'Working' if self.is_heater_working(b) else 'Broken'}"
-
+            
+                # Beacon display - show first 8 bits as sample
+                beacon_bits = self.get_beacon_bits(b, 0, 8)
+                beacon_display = f"[{''.join(str(bit) for bit in beacon_bits)}...]" if self.is_beacon_active(b) else "Inactive"
+            
                 self.tree.insert(
                     "",
                     "end",
@@ -315,8 +318,8 @@ class TrackModelUI(tk.Tk):
                         f"{b.elevation}m",
                         f"{b.length}m",
                         f"{b.speed_limit} km/h",
-                        heater_display,  # Updated display
-                        f"{b.beacon}",
+                        heater_display,
+                        beacon_display,  # Updated beacon display
                     ),
                 )
 
@@ -665,7 +668,7 @@ class TrackModelUI(tk.Tk):
             width=18
         ).pack(pady=5)
 
-        file_status = tk.Label(  # Changed from self.file_status to local variable
+        file_status = tk.Label(
             plc_frame,
             text="No file selected",
             font=("Arial", 9),
@@ -674,7 +677,7 @@ class TrackModelUI(tk.Tk):
         )
         file_status.pack(pady=3)
 
-        history_label = tk.Label(  # Changed from self.history_label to local variable
+        history_label = tk.Label(
             plc_frame,
             text="Last upload: Never",
             font=("Arial", 8),
@@ -682,6 +685,36 @@ class TrackModelUI(tk.Tk):
             fg='darkgray'
         )
         history_label.pack(pady=3)
+
+        # --- BIDIRECTIONAL BLOCK TABLE ---
+        bidir_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
+        bidir_frame.pack(fill="x", padx=5, pady=(0, 8))
+
+        tk.Label(
+            bidir_frame,
+            text="Bidirectional Block Directions",
+            font=("Arial", 9, "bold"),
+            bg="white",
+            fg="black"
+        ).pack(pady=(5, 3))
+
+        # Create the bidirectional block table
+        bidir_columns = ("Block Group", "Direction")
+        self.bidir_tree = ttk.Treeview(bidir_frame, columns=bidir_columns, show="headings", height=3)
+        
+        # Configure columns
+        self.bidir_tree.heading("Block Group", text="Block Group")
+        self.bidir_tree.heading("Direction", text="Direction")
+        self.bidir_tree.column("Block Group", width=100, anchor="center")
+        self.bidir_tree.column("Direction", width=80, anchor="center")
+        
+        self.bidir_tree.pack(fill="x", padx=5, pady=(0, 5))
+        
+        # ADD THIS LINE: Make the table interactive
+        self.bidir_tree.bind("<ButtonRelease-1>", self.on_bidir_table_click)
+        
+        # Populate the table
+        self.update_bidirectional_table()
 
         # --- TERMINAL / EVENT LOG SECTION ---
         terminal_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
@@ -723,11 +756,17 @@ class TrackModelUI(tk.Tk):
         send_button.pack(pady=(5, 10), padx=5, anchor="s")
 
         return outer_frame
+    
+    def on_bidir_table_click(self, event):
+        """Handle clicks on the bidirectional table to toggle directions"""
+        item = self.bidir_tree.identify_row(event.y)
+        if item:
+            values = self.bidir_tree.item(item, "values")
+            if values and len(values) > 0:
+                group_name = values[0]
+                self.toggle_bidirectional_direction(group_name)
 
     def send_outputs(self):
-        """Print key system variables to all terminal widgets."""
-        print(f"📡 Sending outputs to {len(self.terminals)} terminal(s)")
-        
         for terminal in self.terminals:
             self._send_outputs_to_terminal(terminal)
 
@@ -767,36 +806,146 @@ class TrackModelUI(tk.Tk):
             terminal.insert("end", f"  Commanded Speed: {speed} m/s\n")
             terminal.insert("end", f"  Commanded Authority: {auth} blocks\n\n")
 
-        # Beacons
+        # Beacons - updated for 128-bit
         terminal.insert("end", "=== BEACON STATUS ===\n")
-        beacon_blocks = [block for block in dm.blocks if getattr(block, 'beacon', False)]
-        if beacon_blocks:
-            for block in beacon_blocks:
-                terminal.insert("end", f"Block {block.block_number}: Beacon ACTIVE\n")
+        active_beacons = [block for block in dm.blocks if self.is_beacon_active(block)]
+        if active_beacons:
+            for block in active_beacons:
+                hex_string = self.beacon_to_hex(block)
+                # Show first 16 bits as sample and full hex
+                sample_bits = self.get_beacon_bits(block, 0, 16)
+                terminal.insert("end", f"Block {block.block_number}: [{''.join(str(bit) for bit in sample_bits)}...]\n")
+                terminal.insert("end", f"           Hex: {hex_string}\n")
         else:
             terminal.insert("end", "No active beacons\n")
         terminal.insert("end", "\n")
 
-        # Failure Modes
-        terminal.insert("end", "=== FAILURE MODES ===\n")
-        terminal.insert("end", f"Train Circuit: {'ACTIVE' if self.failure_train_circuit_var.get() else 'Inactive'}\n")
-        terminal.insert("end", f"Broken Railroads: {'ACTIVE' if self.failure_rail_var.get() else 'Inactive'}\n")
-        terminal.insert("end", f"Power Failure: {'ACTIVE' if self.failure_power_var.get() else 'Inactive'}\n")
-        terminal.insert("end", "\n")
-
         # Heater Status
-        terminal.insert("end", "=== HEATER STATUS ===\n")
-        for block in dm.blocks:
-            if hasattr(block, 'track_heater') and isinstance(block.track_heater, list):
-                if block.track_heater[0] == 1 or block.track_heater[1] == 0:  # On or broken
-                    status = "ON" if block.track_heater[0] == 1 else "OFF"
-                    working = "WORKING" if block.track_heater[1] == 1 else "BROKEN"
-                    terminal.insert("end", f"Block {block.block_number}: {status} / {working}\n")
+#        terminal.insert("end", "=== HEATER STATUS ===\n")
+#        for block in dm.blocks:
+#            if hasattr(block, 'track_heater') and isinstance(block.track_heater, list):
+#                if block.track_heater[0] == 1 or block.track_heater[1] == 0:  # On or broken
+#                    status = "ON" if block.track_heater[0] == 1 else "OFF"
+#                    working = "WORKING" if block.track_heater[1] == 1 else "BROKEN"
+#                    terminal.insert("end", f"Block {block.block_number}: {status} / {working}\n")
+#        terminal.insert("end", "\n")
+
+        terminal.insert("end", "=== BIDIRECTIONAL BLOCK DIRECTIONS ===\n")
+        for group, direction in self.data_manager.bidirectional_directions.items():
+            direction_text = "← Left" if direction == 0 else "Right →"
+            terminal.insert("end", f"{group}: {direction_text}\n")
         terminal.insert("end", "\n")
-        
+            
         terminal.see("end")
         terminal.config(state="disabled")
         print("✅ Terminal update complete")
+
+#        
+#        terminal.see("end")
+#        terminal.config(state="disabled")
+#        print("✅ Terminal update complete")
+
+    def is_beacon_active(self, block):
+        """Check if beacon has any bits set (not all zeros)"""
+        if hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 128:
+            return any(bit != 0 for bit in block.beacon)
+        return False
+
+    def get_beacon_bits(self, block, start_bit=0, num_bits=8):
+        """Get a slice of beacon bits for display"""
+        if hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 128:
+            end_bit = min(start_bit + num_bits, 128)
+            return block.beacon[start_bit:end_bit]
+        return [0] * num_bits
+
+    def set_beacon_bit(self, block, bit_position, value):
+        """Set a specific beacon bit"""
+        if (hasattr(block, 'beacon') and isinstance(block.beacon, list) and 
+            len(block.beacon) == 128 and 0 <= bit_position < 128):
+            block.beacon[bit_position] = 1 if value else 0
+            return True
+        return False
+
+    def set_beacon_bits(self, block, start_bit, bit_values):
+        """Set multiple beacon bits starting from start_bit"""
+        if (hasattr(block, 'beacon') and isinstance(block.beacon, list) and 
+            len(block.beacon) == 128 and 0 <= start_bit < 128):
+            for i, value in enumerate(bit_values):
+                if start_bit + i < 128:
+                    block.beacon[start_bit + i] = 1 if value else 0
+            return True
+        return False
+
+    def beacon_to_hex(self, block):
+        """Convert 128-bit beacon to 32-character hex string"""
+        if hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 128:
+            # Convert bits to bytes, then to hex
+            hex_string = ""
+            for i in range(0, 128, 8):
+                byte = 0
+                for j in range(8):
+                    if i + j < 128 and block.beacon[i + j]:
+                        byte |= (1 << (7 - j))
+                hex_string += f"{byte:02x}"
+            return hex_string
+        return "0" * 32
+
+    def beacon_from_hex(self, block, hex_string):
+        """Set beacon from 32-character hex string"""
+        if (hasattr(block, 'beacon') and isinstance(block.beacon, list) and 
+            len(block.beacon) == 128 and len(hex_string) == 32):
+            for i in range(0, 32, 2):
+                byte_val = int(hex_string[i:i+2], 16)
+                for j in range(8):
+                    bit_pos = (i // 2) * 8 + j
+                    if bit_pos < 128:
+                        block.beacon[bit_pos] = 1 if (byte_val & (1 << (7 - j))) else 0
+            return True
+        return False
+    
+    def refresh_bidirectional_display(self):
+        """Force refresh the bidirectional table display"""
+        if hasattr(self, 'bidir_tree'):
+            # Clear existing rows
+            self.bidir_tree.delete(*self.bidir_tree.get_children())
+            
+            # Populate with current directions from shared manager
+            for group, direction in self.data_manager.bidirectional_directions.items():
+                direction_text = "← Left" if direction == 0 else "Right →"
+                self.bidir_tree.insert("", "end", values=(group, direction_text))
+            print(f"🔄 Main UI bidirectional TABLE refreshed: {self.data_manager.bidirectional_directions}")
+    
+    def update_bidirectional_table(self):
+        """Update the bidirectional block table with current directions from shared data"""
+        self.refresh_bidirectional_display()  # ✅ Call the refresh method
+
+    def toggle_bidirectional_direction(self, group_name):
+        """Toggle the direction for a block group using shared data"""
+        if group_name in self.data_manager.bidirectional_directions:
+            current_direction = self.data_manager.bidirectional_directions[group_name]
+            new_direction = 1 if current_direction == 0 else 0
+            self.data_manager.bidirectional_directions[group_name] = new_direction
+            self.update_bidirectional_table()  # This will now call refresh_bidirectional_display
+            print(f"🔄 {group_name} direction changed to: {'Right →' if new_direction == 1 else '← Left'}")
+
+    def get_block_group_direction(self, block_number):
+        """Get the direction for a specific block based on its group"""
+        if 1 <= block_number <= 5:
+            return self.data_manager.bidirectional_directions["Blocks 1-5"]  # ✅ FIXED
+        elif 6 <= block_number <= 10:
+            return self.data_manager.bidirectional_directions["Blocks 6-10"]  # ✅ FIXED
+        elif 11 <= block_number <= 15:
+            return self.data_manager.bidirectional_directions["Blocks 11-15"]  # ✅ FIXED
+        else:
+            return 0
+
+    def set_bidirectional_direction(self, group_name, direction):
+        """Set a specific direction for a block group"""
+        if group_name in self.data_manager.bidirectional_directions and direction in [0, 1]:  # ✅ FIXED
+            self.data_manager.bidirectional_directions[group_name] = direction  # ✅ FIXED
+            self.update_bidirectional_table()
+            return True
+        return False
 
     def _log_to_terminal(self, terminal, msg):
         """Append a message to a specific terminal."""
@@ -872,6 +1021,9 @@ class TrackModelUI(tk.Tk):
         # Redraw track icons (switches, crossings, lights)
         self.draw_track_icons()
 
+        # Refresh bidirectional table ✅ ADD THIS
+        self.update_bidirectional_table()
+
         # Draw trains on BOTH occupancy canvases:
         # 1. Bottom panel station view (if it exists)
         if hasattr(self, "block_canvas") and hasattr(self, "train_items_block_canvas"):
@@ -933,14 +1085,16 @@ class TrackModelUI(tk.Tk):
 
 # ---------------- Run Application ----------------
 if __name__ == "__main__":
-    # Shared TrackDataManager
     manager = UI_Variables.TrackDataManager()
-
-    # Main UI
     app = TrackModelUI(manager)
-
-    # Test/debug UI (Toplevel)
     tester = TrackModelTestUI(app, manager)
-    tester.lift()
-
+    
+    # Verify integration
+    print("=== SYSTEM INTEGRATION CHECK ===")
+    print(f"Main UI manager: {app.data_manager}")
+    print(f"Test UI manager: {tester.manager}") 
+    print(f"Same instance: {app.data_manager is tester.manager}")
+    print(f"Bidirectional data shared: {hasattr(manager, 'bidirectional_directions')}")
+    
+    tester.lift()  # Keep this line to bring test window to front
     app.mainloop()

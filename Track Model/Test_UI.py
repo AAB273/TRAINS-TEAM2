@@ -10,6 +10,7 @@ class TrackModelTestUI(tk.Toplevel):
         self.configure(bg="lightgray")
 
         self.manager = manager
+        print(f"🔗 Test UI and Main UI sharing same manager: {self.manager is parent.data_manager}")
 
         # ---------------- Train visualization setup ----------------
         from PIL import Image, ImageTk
@@ -162,6 +163,26 @@ class TrackModelTestUI(tk.Toplevel):
         e_heater_working.insert(0, str(block.track_heater[1] if isinstance(block.track_heater, list) else 1))
         e_heater_working.pack()
         entries["heater_working"] = e_heater_working
+
+        # Add beacon editing
+        tk.Label(popup, text="Beacon (128-bit hex)").pack()
+        e_beacon = tk.Entry(popup)
+        beacon_hex = self.master.beacon_to_hex(block) if hasattr(self.master, 'beacon_to_hex') else "0"*32
+        e_beacon.insert(0, beacon_hex)
+        e_beacon.pack()
+        entries["beacon"] = e_beacon
+
+        def save_changes():
+            # ... existing attribute saving ...
+            
+            # Beacon - handle 128-bit hex
+            if "beacon" in entries:
+                hex_string = entries["beacon"].get().strip().lower()
+                if len(hex_string) == 32 and all(c in '0123456789abcdef' for c in hex_string):
+                    if hasattr(self.master, 'beacon_from_hex'):
+                        self.master.beacon_from_hex(block, hex_string)
+                else:
+                    messagebox.showwarning("Invalid Beacon", "Beacon must be 32-character hex string")
 
         def save_changes():
             for attr, entry in entries.items():
@@ -411,6 +432,38 @@ class TrackModelTestUI(tk.Toplevel):
         self.refresh_diagram_table()
         tk.Button(frame, text="Edit Selected Element", command=self.edit_selected_diagram).pack(pady=5)
 
+        # --- NEW: BIDIRECTIONAL BLOCK CONTROLS ---
+        tk.Label(frame, text="Bidirectional Block Controls", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=(20, 5))
+
+        # Create bidirectional control table
+        bidir_columns = ("Block Group", "Current Direction", "Toggle")
+        self.bidir_control_tree = ttk.Treeview(frame, columns=bidir_columns, show="headings", height=3)
+        
+        # Configure columns
+        self.bidir_control_tree.heading("Block Group", text="Block Group")
+        self.bidir_control_tree.heading("Current Direction", text="Current Direction")
+        self.bidir_control_tree.heading("Toggle", text="Toggle")
+        
+        self.bidir_control_tree.column("Block Group", width=100, anchor="center")
+        self.bidir_control_tree.column("Current Direction", width=120, anchor="center")
+        self.bidir_control_tree.column("Toggle", width=80, anchor="center")
+        
+        self.bidir_control_tree.pack(fill="x", padx=10, pady=5)
+
+        # REMOVE THIS: Don't initialize here, use the shared one from TrackDataManager
+        # if not hasattr(self.manager, 'bidirectional_directions'):
+        #     self.manager.bidirectional_directions = {
+        #         "Blocks 1-5": 0,
+        #         "Blocks 6-10": 0,
+        #         "Blocks 11-15": 0
+        #     }
+
+        # Populate the table
+        self.refresh_bidirectional_table()
+
+        # Make the table interactive
+        self.bidir_control_tree.bind("<ButtonRelease-1>", self.on_bidir_control_click)
+
     def signal_color(self, bits):
         mapping = {
             (0, 0): "Red",
@@ -466,6 +519,56 @@ class TrackModelTestUI(tk.Toplevel):
                     self.diagram_tree.focus(item_id)
                     break
 
+    def refresh_bidirectional_table(self):
+        """Update the bidirectional control table with current directions"""
+        if hasattr(self, 'bidir_control_tree'):
+            # Clear existing rows
+            self.bidir_control_tree.delete(*self.bidir_control_tree.get_children())
+            
+            # Use shared data from TrackDataManager
+            if hasattr(self.manager, 'bidirectional_directions'):
+                print(f"🔄 Refreshing Test UI table with data: {self.manager.bidirectional_directions}")  # DEBUG
+                # Populate with current directions
+                for group, direction in self.manager.bidirectional_directions.items():
+                    direction_text = "← Left" if direction == 0 else "Right →"
+                    toggle_text = "Click to Toggle"
+                    self.bidir_control_tree.insert("", "end", values=(group, direction_text, toggle_text))
+                    print(f"   Added row: {group} = {direction_text}")  # DEBUG
+            else:
+                print("❌ No bidirectional_directions found in manager")
+
+    def debug_bidirectional_data(self):
+        """Debug method to check bidirectional data state"""
+        print("=== BIDIRECTIONAL DATA DEBUG ===")
+        print(f"Test UI manager has bidirectional_directions: {hasattr(self.manager, 'bidirectional_directions')}")
+        if hasattr(self.manager, 'bidirectional_directions'):
+            print(f"Test UI data: {self.manager.bidirectional_directions}")
+        
+        if hasattr(self.master, 'data_manager'):
+            print(f"Main UI data_manager has bidirectional_directions: {hasattr(self.master.data_manager, 'bidirectional_directions')}")
+            if hasattr(self.master.data_manager, 'bidirectional_directions'):
+                print(f"Main UI data: {self.master.data_manager.bidirectional_directions}")
+        
+        # Check if they're the same object
+        if (hasattr(self.manager, 'bidirectional_directions') and 
+            hasattr(self.master, 'data_manager') and 
+            hasattr(self.master.data_manager, 'bidirectional_directions')):
+            same_object = self.manager.bidirectional_directions is self.master.data_manager.bidirectional_directions
+            print(f"Same object: {same_object}")
+        print("=================================")
+
+    def on_bidir_control_click(self, event):
+        """Handle clicks on the bidirectional control table to toggle directions"""
+        item = self.bidir_control_tree.identify_row(event.y)
+        if item:
+            column = self.bidir_control_tree.identify_column(event.x)
+            # Only respond to clicks in the "Toggle" column (column #3)
+            if column == "#3":  # Toggle column
+                values = self.bidir_control_tree.item(item, "values")
+                if values and len(values) > 0:
+                    group_name = values[0]
+                    self.toggle_bidirectional_direction(group_name)
+
     def toggle_switch(self, block_num):
         block = self.data_manager.blocks[block_num - 1]
         block.switch_state = not block.switch_state
@@ -501,6 +604,27 @@ class TrackModelTestUI(tk.Toplevel):
         
         if hasattr(self.master, "draw_track_icons"):
             self.master.draw_track_icons()
+
+    # In Test_UI.py, enhance the toggle method:
+    def toggle_bidirectional_direction(self, group_name):
+        """Toggle direction with proper synchronization"""
+        # Use the main UI's data manager to ensure consistency
+        main_manager = self.master.data_manager
+        
+        if hasattr(main_manager, 'bidirectional_directions') and group_name in main_manager.bidirectional_directions:
+            current_direction = main_manager.bidirectional_directions[group_name]
+            new_direction = 1 if current_direction == 0 else 0
+            
+            # Update both managers to stay in sync
+            main_manager.bidirectional_directions[group_name] = new_direction
+            self.manager.bidirectional_directions[group_name] = new_direction  # Keep test UI in sync
+            
+            # Refresh both UIs
+            self.refresh_bidirectional_table()
+            if hasattr(self.master, 'update_bidirectional_table'):
+                self.master.update_bidirectional_table()
+            
+            print(f"✅ {group_name} direction synchronized: {'Right →' if new_direction == 1 else '← Left'}")
 
 # ---------------- Edit Diagram Popup ----------------
     def edit_selected_diagram(self):
@@ -608,6 +732,15 @@ class TrackModelTestUI(tk.Toplevel):
 
         tk.Button(popup, text="Save", command=save_changes).pack(pady=10)
 
+    def test_bidirectional_table(self):
+        """Test method to manually verify the table works"""
+        print("🧪 Testing bidirectional table...")
+        if hasattr(self.manager, 'bidirectional_directions'):
+            # Toggle a direction manually
+            self.manager.bidirectional_directions["Blocks 1-5"] = 1
+            self.refresh_bidirectional_table()
+            print("✅ Manual test completed")
+
     def draw_trains(self, canvas, items_list):
         """Draw trains on the given canvas using block occupancy data."""
         if not self.train_icon or canvas is None or items_list is None:
@@ -638,8 +771,33 @@ class TrackModelTestUI(tk.Toplevel):
 
     # ---------------- Periodic refresh ----------------
     def refresh_ui(self):
+        self.sync_with_main_ui()  # Add this line
+        self.refresh_block_table()
         self.refresh_block_table()
         self.refresh_station_table()
         self.refresh_train_table()
         self.refresh_diagram_table()
+        self.refresh_bidirectional_table() 
+        
+        # Add periodic sync with Main UI
+        if hasattr(self.master, 'data_manager') and hasattr(self.master.data_manager, 'bidirectional_directions'):
+            # Ensure Test UI has the same data as Main UI
+            if not hasattr(self.manager, 'bidirectional_directions'):
+                self.manager.bidirectional_directions = self.master.data_manager.bidirectional_directions.copy()
+        
         self.after(1000, self.refresh_ui)
+
+    # In Test_UI.py, add a sync method:
+    def sync_with_main_ui(self):
+        """Ensure Test UI data is synchronized with Main UI"""
+        if hasattr(self.master, 'data_manager'):
+            main_manager = self.master.data_manager
+            
+            # Sync bidirectional directions
+            if hasattr(main_manager, 'bidirectional_directions'):
+                if not hasattr(self.manager, 'bidirectional_directions'):
+                    self.manager.bidirectional_directions = {}
+                self.manager.bidirectional_directions.update(main_manager.bidirectional_directions)
+            
+            # Sync other critical data as needed
+            print("🔄 Test UI synchronized with Main UI")
