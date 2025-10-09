@@ -38,17 +38,17 @@ class TrackDataManager:
             self.passengers_boarding[idx] = 0
             self.passengers_disembarking[idx] = 0
 
-        print("Initialized station_location:", self.station_location)
-        print("Initialized ticket_sales:", self.ticket_sales)
-        print("Initialized passengers_boarding:", self.passengers_boarding)
-        print("Initialized passengers_disembarking:", self.passengers_disembarking)
+        # print("Initialized station_location:", self.station_location)
+        # print("Initialized ticket_sales:", self.ticket_sales)
+        # print("Initialized passengers_boarding:", self.passengers_boarding)
+        # print("Initialized passengers_disembarking:", self.passengers_disembarking)
 
 
     # ---------------- Excel Data Loading ----------------
     def load_excel_data(self, track_path=None, train_path=None):
         """Load data from Excel files; fallback to defaults if missing."""
         if not track_path or not train_path:
-            print("No Excel files provided. Using default blank data.")
+            # print("No Excel files provided. Using default blank data.")
             self._create_default_blocks()
             return True
 
@@ -77,11 +77,11 @@ class TrackDataManager:
             self.commanded_speed = train_df["Commanded Speed"].tolist() if "Commanded Speed" in train_df else []
             self.commanded_authority = train_df["Commanded Authority"].tolist() if "Commanded Authority" in train_df else []
 
-            print("Excel data loaded successfully.")
+            # print("Excel data loaded successfully.")
             return True
 
         except Exception as e:
-            print(f"❌ Error loading Excel data: {e}")
+            # print(f"❌ Error loading Excel data: {e}")
             self._create_default_blocks()
             return False
 
