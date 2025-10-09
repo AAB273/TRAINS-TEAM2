@@ -313,9 +313,9 @@ class TrackModelUI(tk.Tk):
             if show:
                 heater_display = f"{'On' if self.is_heater_on(b) else 'Off'}/{'Working' if self.is_heater_working(b) else 'Broken'}"
             
-                # Beacon display - show first 8 bits as sample
-                beacon_bits = self.get_beacon_bits(b, 0, 8)
-                beacon_display = f"[{''.join(str(bit) for bit in beacon_bits)}...]" if self.is_beacon_active(b) else "Inactive"
+                # Simple beacon display - only show Active/Inactive
+                beacon_active = self.is_beacon_active(b)
+                beacon_display = "Active" if beacon_active else "Inactive"
             
                 self.tree.insert(
                     "",
@@ -527,10 +527,10 @@ class TrackModelUI(tk.Tk):
 
         # Define block -> (x, y) coordinates (adjust to your diagram)
         self.block_positions = {
-            4: (335, 240),   # Crossing (example coordinates)
+            4: (333, 240),   # Crossing (example coordinates)
             5: (410, 270),   # Switch
-            6: (480, 110),   # Traffic Light
-            11: (480, 320),   # Traffic Light
+            6: (480, 108),   # Traffic Light
+            11: (480, 315),   # Traffic Light
         }
 
         # Draw initial icons
@@ -856,13 +856,20 @@ class TrackModelUI(tk.Tk):
 
     def is_beacon_active(self, block):
         """Check if beacon has any bits set (not all zeros)"""
-        if hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 128:
+        if hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 256:
+            return any(bit != 0 for bit in block.beacon)
+        # Handle legacy 128-bit beacons
+        elif hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 128:
             return any(bit != 0 for bit in block.beacon)
         return False
 
     def get_beacon_bits(self, block, start_bit=0, num_bits=8):
         """Get a slice of beacon bits for display"""
-        if hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 128:
+        if hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 256:
+            end_bit = min(start_bit + num_bits, 256)
+            return block.beacon[start_bit:end_bit]
+        # Handle legacy 128-bit beacons
+        elif hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 128:
             end_bit = min(start_bit + num_bits, 128)
             return block.beacon[start_bit:end_bit]
         return [0] * num_bits
@@ -870,7 +877,7 @@ class TrackModelUI(tk.Tk):
     def set_beacon_bit(self, block, bit_position, value):
         """Set a specific beacon bit"""
         if (hasattr(block, 'beacon') and isinstance(block.beacon, list) and 
-            len(block.beacon) == 128 and 0 <= bit_position < 128):
+            len(block.beacon) == 256 and 0 <= bit_position < 256):
             block.beacon[bit_position] = 1 if value else 0
             return True
         return False
@@ -878,36 +885,35 @@ class TrackModelUI(tk.Tk):
     def set_beacon_bits(self, block, start_bit, bit_values):
         """Set multiple beacon bits starting from start_bit"""
         if (hasattr(block, 'beacon') and isinstance(block.beacon, list) and 
-            len(block.beacon) == 128 and 0 <= start_bit < 128):
+            len(block.beacon) == 256 and 0 <= start_bit < 256):
             for i, value in enumerate(bit_values):
-                if start_bit + i < 128:
+                if start_bit + i < 256:
                     block.beacon[start_bit + i] = 1 if value else 0
             return True
         return False
 
     def beacon_to_hex(self, block):
-        """Convert 128-bit beacon to 32-character hex string"""
-        if hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 128:
-            # Convert bits to bytes, then to hex
+        """Convert 256-bit beacon to 64-character hex string"""
+        if hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 256:
             hex_string = ""
-            for i in range(0, 128, 8):
+            for i in range(0, 256, 8):
                 byte = 0
                 for j in range(8):
-                    if i + j < 128 and block.beacon[i + j]:
+                    if i + j < 256 and block.beacon[i + j]:
                         byte |= (1 << (7 - j))
                 hex_string += f"{byte:02x}"
             return hex_string
-        return "0" * 32
+        return "0" * 64
 
     def beacon_from_hex(self, block, hex_string):
-        """Set beacon from 32-character hex string"""
+        """Set beacon from 64-character hex string"""
         if (hasattr(block, 'beacon') and isinstance(block.beacon, list) and 
-            len(block.beacon) == 128 and len(hex_string) == 32):
-            for i in range(0, 32, 2):
+            len(block.beacon) == 256 and len(hex_string) == 64):
+            for i in range(0, 64, 2):
                 byte_val = int(hex_string[i:i+2], 16)
                 for j in range(8):
                     bit_pos = (i // 2) * 8 + j
-                    if bit_pos < 128:
+                    if bit_pos < 256:
                         block.beacon[bit_pos] = 1 if (byte_val & (1 << (7 - j))) else 0
             return True
         return False
