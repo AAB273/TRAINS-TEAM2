@@ -74,19 +74,22 @@ class TrackModelTestUI(tk.Toplevel):
         tk.Label(frame, text="Stations", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=5)
         station_columns = ("Block", "Station", "Ticket Sales", "Boarding", "Disembarking")
         self.tree_stations = ttk.Treeview(frame, columns=station_columns, show="headings", height=5)
-        self.occupancy_canvas = tk.Canvas(frame, width=900, height=450, bg="white")
-        self.occupancy_canvas.pack(padx=10, pady=10)
 
+        # Configure station table columns FIRST
         for col in station_columns:
             self.tree_stations.heading(col, text=col)
             self.tree_stations.column(col, width=100, anchor="center")
-        self.tree_stations.pack(fill="x", padx=10, pady=5)
+        self.tree_stations.pack(fill="x", padx=10, pady=5)  # Pack station table BEFORE canvas
 
         # Station editing buttons
         edit_station_frame = tk.Frame(frame, bg="white")
         edit_station_frame.pack(fill="x", padx=10, pady=5)
         tk.Button(edit_station_frame, text="Edit Selected Station", command=self.edit_selected_station).pack(side="left", padx=5)
         tk.Button(edit_station_frame, text="Refresh Table", command=self.refresh_station_table).pack(side="left", padx=5)
+
+        # ---- Occupancy Canvas (pack this LAST so it doesn't cover other elements) ----
+        self.occupancy_canvas = tk.Canvas(frame, width=900, height=450, bg="white")
+        self.occupancy_canvas.pack(padx=10, pady=10)
 
         self.refresh_station_table()
 
@@ -168,21 +171,36 @@ class TrackModelTestUI(tk.Toplevel):
             if item["values"]:
                 selected_block_num = item["values"][0]
 
+        # Clear the table
         self.tree_stations.delete(*self.tree_stations.get_children())
-        # Sort stations by block number
+        
+        # Check if we have station data
+        if not hasattr(self.manager, 'station_location') or not self.manager.station_location:
+            print("No station data found in manager")
+            return
+            
+        # Sort stations by block number and populate table
         stations_sorted = sorted(self.manager.station_location, key=lambda x: x[0])
         for block_num, station_name in stations_sorted:
             idx = block_num - 1  # map to full-length data lists
-            self.tree_stations.insert(
-                "", "end",
-                values=(
-                    block_num,
-                    station_name,
-                    self.manager.ticket_sales[idx],
-                    self.manager.passengers_boarding[idx],
-                    self.manager.passengers_disembarking[idx],
+            
+            # Safety check - ensure index is within bounds
+            if (idx < len(self.manager.ticket_sales) and 
+                idx < len(self.manager.passengers_boarding) and 
+                idx < len(self.manager.passengers_disembarking)):
+                
+                self.tree_stations.insert(
+                    "", "end",
+                    values=(
+                        block_num,
+                        station_name,
+                        self.manager.ticket_sales[idx],
+                        self.manager.passengers_boarding[idx],
+                        self.manager.passengers_disembarking[idx],
+                    )
                 )
-            )
+            else:
+                print(f"Index out of bounds for station at block {block_num}")
 
         # Reselect previous selection
         if selected_block_num is not None:
@@ -440,11 +458,17 @@ class TrackModelTestUI(tk.Toplevel):
         block = self.manager.blocks[block_num - 1]
         if not hasattr(block, "signal") or not isinstance(block.signal, list):
             block.signal = [0, 0]
+        
         # Cycle through the four states
         current = block.signal
         val = (current[0] << 1 | current[1] + 1) % 4
         block.signal = [(val >> 1) & 1, val & 1]
-
+        
+        # Also update traffic_light_state for main UI compatibility
+        block.traffic_light_state = val
+        
+        print(f"Traffic light at Block {block_num} updated: {block.signal} (state {val})")
+        
         if hasattr(self.master, "draw_track_icons"):
             self.master.draw_track_icons()
 
@@ -522,6 +546,8 @@ class TrackModelTestUI(tk.Toplevel):
                 b0 = int(entries["signal"][0].get())
                 b1 = int(entries["signal"][1].get())
                 block.signal = [b0, b1]
+                # Also update traffic_light_state
+                block.traffic_light_state = (b0 << 1) | b1
 
             self.refresh_diagram_table()
             popup.destroy()

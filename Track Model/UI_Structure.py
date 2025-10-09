@@ -37,7 +37,6 @@ class TrackModelUI(tk.Tk):
             15: (600, 400),  
 }
 
-
         # Use the shared TrackDataManager
         self.data_manager = manager
 
@@ -330,13 +329,37 @@ class TrackModelUI(tk.Tk):
 
     def show_station_view(self):
         """Display station data with Blue Line image and dynamic train positions."""
-        # Only create the canvas and table once
+        
+        # --- Configure columns for station view ---
+        self.tree.config(columns=self.columns_station)
+        for col in self.columns_station:
+            self.tree.heading(col, text=col)
+            self.tree.column(col, width=150, anchor="center")
+        
+        # --- Clear existing rows ---
+        self.tree.delete(*self.tree.get_children())
+        
+        # --- Populate station data ---
+        for block_num, station_name in self.data_manager.station_location:
+            idx = block_num - 1
+            self.tree.insert(
+                "",
+                "end",
+                values=(
+                    block_num,
+                    station_name,
+                    f"{int(self.data_manager.ticket_sales[idx])} Tickets",
+                    f"{int(self.data_manager.passengers_boarding[idx])} Boarding",
+                    f"{int(self.data_manager.passengers_disembarking[idx])} Leaving",
+                ),
+            )
+
+        # --- Only create the canvas and visualization once ---
         if not hasattr(self, "block_canvas"):
-            # --- Frame for occupancy tab ---
+            # Create visualization components (your existing code here)
             self.block_frame = tk.Frame(self.station_tab, bg="white")
             self.block_frame.pack(fill="both", expand=True)
 
-            # --- Blue Line Image ---
             try:
                 blue_line_img = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
                 self.block_bg_img = ImageTk.PhotoImage(blue_line_img)
@@ -349,11 +372,7 @@ class TrackModelUI(tk.Tk):
                 self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=900)
                 self.block_canvas.pack(fill="x", padx=10, pady=10)
 
-            # --- PLC Upload & Terminal ---
-            self.plc_terminal_panel = self.create_PLCupload_panel(self.block_frame)
-            self.plc_terminal_panel.pack(side="right", padx=20, pady=20, anchor="n")
-
-            # --- Load Train Image ---
+            # Load Train Image
             if not hasattr(self, "train_icon"):
                 try:
                     train_img = Image.open("Train_Right.png").resize((40, 40), Image.LANCZOS)
@@ -362,7 +381,7 @@ class TrackModelUI(tk.Tk):
                     print("⚠️ Could not load Train_Right.png:", e)
                     self.train_icon = None
 
-            # --- Define block positions for occupancy diagram ---
+            # Define block positions
             self.block_positions_occupancy = {
                 1: (335, 240), 
                 2: (400, 270), 
@@ -373,41 +392,18 @@ class TrackModelUI(tk.Tk):
                 7: (480, 320), 
                 8: (480, 110),  
                 9: (480, 320),  
-                10: (550, 300),  
+                10: (300, 400),  
                 11: (480, 320), 
                 12: (300, 400), 
                 13: (300, 400), 
                 14: (300, 400),  
-                15: (600, 200),  
+                15: (600, 400),  
             }
 
-            # --- Station Table ---
-            self.station_table = ttk.Treeview(self.block_frame, columns=self.columns_station, show="headings")
-            self.station_table.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-            for col in self.columns_station:
-                self.station_table.heading(col, text=col)
-                self.station_table.column(col, width=150, anchor="center")
-
-            # --- Initialize train items for this canvas ---
+            # Initialize train items
             self.train_items_block_canvas = []
 
-        # --- Clear and populate station table ---
-        self.station_table.delete(*self.station_table.get_children())
-        for block_num, station_name in self.data_manager.station_location:
-            idx = block_num - 1
-            self.station_table.insert(
-                "",
-                "end",
-                values=(
-                    block_num,
-                    station_name,
-                    f"{int(self.data_manager.ticket_sales[idx])} Tickets",
-                    f"{int(self.data_manager.passengers_boarding[idx])} Boarding",
-                    f"{int(self.data_manager.passengers_disembarking[idx])} Leaving",
-                ),
-            )
-
-        # --- Draw trains on occupancy canvas only ---
+        # --- Draw trains on occupancy canvas ---
         self.draw_trains(canvas=self.block_canvas, items_list=self.train_items_block_canvas)
 
     def draw_trains(self, canvas, items_list):
@@ -514,6 +510,16 @@ class TrackModelUI(tk.Tk):
                     self.track_canvas.delete(item)
         self.icon_item_ids = {"switch": {}, "crossing": {}, "traffic": {}}
 
+        # Draw all traffic lights dynamically based on block numbers
+        for b in self.data_manager.blocks:
+            if getattr(b, "block_number", None) in [6, 11]:
+                # Try to get state from either attribute
+                if hasattr(b, "signal") and isinstance(b.signal, list):
+                    state = b.signal  # This will be converted in draw_traffic_light
+                else:
+                    state = getattr(b, "traffic_light_state", 0)
+                self.draw_traffic_light(b.block_number, state)
+
         def load_resized_image(path, size=(32, 32)):
             """Helper to load and resize an image once."""
             key = (path, size)
@@ -551,9 +557,14 @@ class TrackModelUI(tk.Tk):
             if getattr(b, "block_number", None) in [6, 11]:
                 self.draw_traffic_light(b.block_number, b.traffic_light_state)
 
-
     def draw_traffic_light(self, block_num, state, light_size=16):
-        """Draw a traffic light with 4 positions. Only the active state lights up."""
+        """Draw a traffic light with 4 positions. Handle both traffic_light_state and signal attributes."""
+        
+        # Convert 2-bit signal to single state if needed
+        if isinstance(state, list) and len(state) == 2:
+            # Convert [bit1, bit2] to integer 0-3
+            state = (state[0] << 1) | state[1]
+        
         x, y = self.block_positions.get(block_num, (0,0))
         spacing = 4
         num_lights = 4
