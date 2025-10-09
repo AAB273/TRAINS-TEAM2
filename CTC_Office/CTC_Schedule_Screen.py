@@ -265,11 +265,11 @@ class ScheduleScreen:
         outfile.write(str(self.trainNum) + "\n")
 
         distToStation = float(750)
+        #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
         arrTime = self.timeToSeconds(time)
         speed = distToStation / arrTime
-        #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
 
-        outfile.write(f"{speed:.2f}\n")
+        outfile.write(f"{speed:.3f}\n")
         outfile.write("8\n")
         outfile.write(line + "\n")
         outfile.close()
@@ -311,9 +311,12 @@ class ScheduleScreen:
                         #grab train number
                         outfile.write(train + "\n")
 
-                        distToStation = 750
+                        distToStation = float(750)
                         #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
-                        outfile.write("60\n")
+                        arrTime = self.timeToSeconds(self.meArea.item(rowID, "values")[2])
+                        speed = distToStation / arrTime
+                        outfile.write(f"{speed:.3f}\n")
+
                         outfile.write("7\n")
                         outfile.write(self.meArea.item(self.meArea.parent(rowID), "text") + "\n")
                         outfile.close()
@@ -345,7 +348,13 @@ class ScheduleScreen:
                         #grab specific train number
 
                         outfile.write(train + "\n")
-                        outfile.write("80\n")
+                        
+                        distToStation = float(750)
+                        #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
+                        arrTime = self.timeToSeconds(newTime)
+                        speed = distToStation / arrTime
+                        outfile.write(f"{speed:.3f}\n")
+                        
                         outfile.write("9\n")
                         outfile.write(self.meArea.item(self.meArea.parent(rowID), "text") + "\n")
                         outfile.close()
