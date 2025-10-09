@@ -84,7 +84,6 @@ class ScheduleScreen:
 
 ###############################################################################################################################################################
 
-    
     def createAreas(self):
     #create titles and display areas for each item on the "System Information" tab
 
