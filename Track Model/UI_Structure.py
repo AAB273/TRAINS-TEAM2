@@ -364,12 +364,21 @@ class TrackModelUI(tk.Tk):
 
             # --- Define block positions for occupancy diagram ---
             self.block_positions_occupancy = {
-                4: (335, 240),
-                5: (400, 270),
-                6: (480, 110),
-                10: (550, 300),
-                11: (480, 320),
-                15: (600, 200)
+                1: (335, 240), 
+                2: (400, 270), 
+                3: (480, 110), 
+                4: (335, 240), 
+                5: (400, 270),  
+                6: (480, 110), 
+                7: (480, 320), 
+                8: (480, 110),  
+                9: (480, 320),  
+                10: (550, 300),  
+                11: (480, 320), 
+                12: (300, 400), 
+                13: (300, 400), 
+                14: (300, 400),  
+                15: (600, 200),  
             }
 
             # --- Station Table ---
@@ -537,13 +546,10 @@ class TrackModelUI(tk.Tk):
                 x, y, image=img_obj, anchor="center"
             )
 
-        # --- Draw Traffic Light 1 (Block 6) ---
-        block_traffic1 = self.data_manager.blocks[5]  # index 5 → block 6
-        self.draw_traffic_light(6, getattr(block_traffic1, "traffic_light_state", 0), light_size=16)
-
-        # --- Draw Traffic Light 2 (Block 11) ---
-        block_traffic2 = self.data_manager.blocks[10]  # index 10 → block 11
-        self.draw_traffic_light(11, getattr(block_traffic2, "traffic_light_state", 0), light_size=16)
+        # Draw all traffic lights dynamically based on block numbers
+        for b in self.data_manager.blocks:
+            if getattr(b, "block_number", None) in [6, 11]:
+                self.draw_traffic_light(b.block_number, b.traffic_light_state)
 
 
     def draw_traffic_light(self, block_num, state, light_size=16):
@@ -597,16 +603,16 @@ class TrackModelUI(tk.Tk):
         self.track_canvas.create_oval(x-size, y-size, x+size, y+size, fill=color)
 
     def create_PLCupload_panel(self, parent):
-        """Creates separate Track Data upload and terminal panels to the right of the track diagram."""
+        """Creates separate PLC upload and terminal panels to the right of the track diagram."""
         outer_frame = tk.Frame(parent, bg="white")
 
-        # --- Track Data Upload SECTION ---
+        # --- PLC UPLOAD SECTION ---
         plc_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
         plc_frame.pack(fill="x", padx=5, pady=(0, 8))
 
         tk.Label(
             plc_frame,
-            text="Upload your Track Data file (.png, .txt, .xlsx)",
+            text="Upload your Track Data file                       (.pdf, .txt, .xlsx)",
             font=("Arial", 9),
             bg='white',
             fg='gray',
@@ -657,7 +663,7 @@ class TrackModelUI(tk.Tk):
         self.terminal = tk.Text(
             term_inner,
             height=8,
-            width=30,
+            width=30,  # ↓ Narrower terminal width
             bg="#f5f5f5",
             fg="black",
             font=("Consolas", 9),
@@ -670,45 +676,11 @@ class TrackModelUI(tk.Tk):
         scrollbar.pack(side="right", fill="y")
         self.terminal.config(yscrollcommand=scrollbar.set)
 
-        # ------------------- SEND OUTPUTS BUTTON -------------------
-        ttk.Button(
-            outer_frame,
-            text="Send Outputs",
-            command=self.send_outputs_to_terminal
-        ).pack(side="bottom", fill="x", padx=5, pady=5)
+        # --- SEND OUTPUTS BUTTON ---
+        send_button = ttk.Button(outer_frame, text="Send Outputs", command=self.send_outputs)
+        send_button.pack(pady=(5, 10), padx=5, anchor="s")
 
         return outer_frame
-    
-    def send_outputs_to_terminal(self):
-        # Example of sending all desired outputs to the terminal
-        for idx, train_name in enumerate(self.data_manager.active_trains):
-            self.log_message(f"Train {train_name}:")
-            self.log_message(f"  Ticket Sales: {self.data_manager.ticket_sales[idx]}")
-            self.log_message(f"  Passengers Boarding: {self.data_manager.passengers_boarding[idx]}")
-            self.log_message(f"  Passengers Disembarking: {self.data_manager.passengers_disembarking[idx]}")
-            self.log_message(f"  Block Occupancy: {self.data_manager.train_locations[idx]}")
-            self.log_message(f"  Commanded Speed: {self.data_manager.commanded_speed[idx]}")
-            self.log_message(f"  Commanded Authority: {self.data_manager.commanded_authority[idx]}")
-            self.log_message(f"  Beacons: {self.data_manager.beacons[idx]}")
-            self.log_message(f"  Failure Modes: Train Circuit={self.failure_train_circuit_var.get()}, Rail={self.failure_rail_var.get()}, Power={self.failure_power_var.get()}")
-            self.log_message("------------------------------")
-
-    def PLCupload_file(self):
-        from tkinter import filedialog
-        filetypes = [
-            ("PNG files", "*.png"),
-            ("Text files", "*.txt"),
-            ("Excel files", "*.xlsx"),
-            ("All files", "*.*")
-        ]
-        filename = filedialog.askopenfilename(title="Select Track Data File", filetypes=filetypes)
-        if filename:
-            self.file_status.config(text=f"File selected: {filename.split('/')[-1]}")
-            self.history_label.config(text="Last upload: Just now")
-            self.log_message(f"[INFO] Loaded Track Data file: {filename}")
-        else:
-            self.file_status.config(text="No file selected")
-            self.log_message("[WARN] File selection canceled.")
     
     def send_outputs(self):
         """Print key system variables to the terminal."""
@@ -749,6 +721,18 @@ class TrackModelUI(tk.Tk):
         self.terminal.see("end")
         self.terminal.config(state="disabled")
 
+    def PLCupload_file(self):
+        from tkinter import filedialog
+        filetypes = [("PLC files", "*.plc"), ("Text files", "*.txt"), ("CSV files", "*.csv"), ("All files", "*.*")]
+        filename = filedialog.askopenfilename(title="Select PLC File", filetypes=filetypes)
+        if filename:
+            self.file_status.config(text=f"File selected: {filename.split('/')[-1]}")
+            self.history_label.config(text="Last upload: Just now")
+            self.log_message(f"[INFO] Loaded PLC file: {filename}")
+        else:
+            self.file_status.config(text="No file selected")
+            self.log_message("[WARN] File selection canceled.")
+
     def on_failure_changed(self):
         print("Failure states updated")
 
@@ -774,7 +758,7 @@ class TrackModelUI(tk.Tk):
         # Update environmental temp
         self.temp_label.config(text=f"Temperature: {getattr(self.data_manager, 'environmental_temp', '--')}°C")
 
-        # Update bottom table in-place
+        #  bottom table in-place
         self.update_bottom_table()
 
         # Redraw track icons (switches, crossings, lights)

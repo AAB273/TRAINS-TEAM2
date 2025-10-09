@@ -363,8 +363,17 @@ class TrackModelTestUI(tk.Toplevel):
         self.refresh_diagram_table()
         tk.Button(frame, text="Edit Selected Element", command=self.edit_selected_diagram).pack(pady=5)
 
+    def signal_color(self, bits):
+        mapping = {
+            (0, 0): "Red",
+            (0, 1): "Yellow",
+            (1, 0): "Green",
+            (1, 1): "Super Green"
+        }
+        return mapping.get(tuple(bits), "Unknown")
+
+    # ---------------- Diagram Table Refresh ----------------
     def refresh_diagram_table(self):
-        # Remember selected block number
         selected = self.diagram_tree.selection()
         selected_block_num = None
         if selected:
@@ -372,7 +381,6 @@ class TrackModelTestUI(tk.Toplevel):
             if item["values"]:
                 selected_block_num = item["values"][0]
 
-        # Clear and repopulate
         self.diagram_tree.delete(*self.diagram_tree.get_children())
 
         switch_blocks = {5}
@@ -382,7 +390,14 @@ class TrackModelTestUI(tk.Toplevel):
         for b in self.manager.blocks:
             switch_display = bool(b.switch_state) if b.block_number in switch_blocks else "-"
             crossing_display = bool(b.crossing) if b.block_number in crossing_blocks else "-"
-            signal_display = bool(b.signal) if b.block_number in signal_blocks else "-"
+            # Ensure signal is a 2-bit list
+            if b.block_number in signal_blocks:
+                if not hasattr(b, "signal") or not isinstance(b.signal, list):
+                    b.signal = [0, 0]
+                signal_display = self.signal_color(b.signal)
+            else:
+                signal_display = "-"
+
             occupancy_display = bool(b.occupancy)
 
             self.diagram_tree.insert(
@@ -396,7 +411,6 @@ class TrackModelTestUI(tk.Toplevel):
                 )
             )
 
-        # Reselect previously selected block
         if selected_block_num is not None:
             for item_id in self.diagram_tree.get_children():
                 if self.diagram_tree.item(item_id)["values"][0] == selected_block_num:
@@ -421,12 +435,20 @@ class TrackModelTestUI(tk.Toplevel):
         if hasattr(self.master, "draw_track_icons"):
             self.master.draw_track_icons()
 
+    # ---------------- Toggle Traffic Light ----------------
     def toggle_traffic_light(self, block_num):
         block = self.manager.blocks[block_num - 1]
-        block.traffic_light_state = (getattr(block, "traffic_light_state", 0) + 1) % 4
+        if not hasattr(block, "signal") or not isinstance(block.signal, list):
+            block.signal = [0, 0]
+        # Cycle through the four states
+        current = block.signal
+        val = (current[0] << 1 | current[1] + 1) % 4
+        block.signal = [(val >> 1) & 1, val & 1]
+
         if hasattr(self.master, "draw_track_icons"):
             self.master.draw_track_icons()
 
+# ---------------- Edit Diagram Popup ----------------
     def edit_selected_diagram(self):
         selected = self.diagram_tree.selection()
         if not selected:
@@ -436,39 +458,71 @@ class TrackModelTestUI(tk.Toplevel):
 
         popup = tk.Toplevel(self)
         popup.title(f"Edit Diagram Block {block.block_number}")
-        popup.geometry("300x250")
+        popup.geometry("300x300")
 
         switch_blocks = {5}
         crossing_blocks = {4}
         signal_blocks = {6, 11}
 
         entries = {}
-        for attr in ["switch_state", "crossing", "signal", "occupancy"]:
-            tk.Label(popup, text=attr.capitalize()).pack()
-            val = getattr(block, attr)
-            e = tk.Entry(popup)
-            e.insert(0, str(val))
 
-            if attr == "switch_state" and block.block_number not in switch_blocks:
-                e.config(state="disabled")
-            elif attr == "crossing" and block.block_number not in crossing_blocks:
-                e.config(state="disabled")
-            elif attr == "signal" and block.block_number not in signal_blocks:
-                e.config(state="disabled")
+        # Switch
+        tk.Label(popup, text="Switch State").pack()
+        e_switch = tk.Entry(popup)
+        e_switch.insert(0, str(block.switch_state))
+        if block.block_number not in switch_blocks:
+            e_switch.config(state="disabled")
+        e_switch.pack()
+        entries["switch_state"] = e_switch
 
-            e.pack()
-            entries[attr] = e
+        # Crossing
+        tk.Label(popup, text="Crossing").pack()
+        e_cross = tk.Entry(popup)
+        e_cross.insert(0, str(block.crossing))
+        if block.block_number not in crossing_blocks:
+            e_cross.config(state="disabled")
+        e_cross.pack()
+        entries["crossing"] = e_cross
+
+        # Signal: two bits
+        if block.block_number in signal_blocks:
+            if not hasattr(block, "signal") or not isinstance(block.signal, list):
+                block.signal = [0, 0]
+            tk.Label(popup, text="Signal Bit 1").pack()
+            e_sig0 = tk.Entry(popup)
+            e_sig0.insert(0, str(block.signal[0]))
+            e_sig0.pack()
+            tk.Label(popup, text="Signal Bit 2").pack()
+            e_sig1 = tk.Entry(popup)
+            e_sig1.insert(0, str(block.signal[1]))
+            e_sig1.pack()
+            entries["signal"] = (e_sig0, e_sig1)
+
+        # Occupancy
+        tk.Label(popup, text="Occupancy").pack()
+        e_occ = tk.Entry(popup)
+        e_occ.insert(0, str(block.occupancy))
+        e_occ.pack()
+        entries["occupancy"] = e_occ
 
         def save_changes():
-            for attr, entry in entries.items():
-                if entry['state'] == 'disabled':
-                    continue
-                val = entry.get()
-                if attr in ["switch_state", "crossing", "signal"]:
-                    val = val.lower() in ["true", "1", "yes"]
-                elif attr == "occupancy":
-                    val = int(val)
-                setattr(block, attr, val)
+            # Switch and crossing
+            for attr in ["switch_state", "crossing", "occupancy"]:
+                entry = entries[attr]
+                if entry['state'] != 'disabled':
+                    val = entry.get()
+                    if attr in ["switch_state", "crossing"]:
+                        val = val.lower() in ["true", "1", "yes"]
+                    else:
+                        val = int(val)
+                    setattr(block, attr, val)
+
+            # Signal
+            if "signal" in entries:
+                b0 = int(entries["signal"][0].get())
+                b1 = int(entries["signal"][1].get())
+                block.signal = [b0, b1]
+
             self.refresh_diagram_table()
             popup.destroy()
 
