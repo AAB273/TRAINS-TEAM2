@@ -1,0 +1,16 @@
+Line,Block,Infrastructure
+Blue,1,
+Blue,2,
+Blue,3,RAILWAY CROSSING
+Blue,4,
+Blue,5,Switch (5-6; 5-11)
+Blue,6,Light
+Blue,7,
+Blue,8,
+Blue,9,Transponder
+Blue,10,Station
+Blue,11,Light
+Blue,12,
+Blue,13,
+Blue,14,Transponder
+Blue,15,Station
