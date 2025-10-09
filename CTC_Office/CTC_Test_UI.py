@@ -110,7 +110,7 @@ class TestUI:
 
 
         '''
-        track state area
+        block error area
         '''
         errorLocation = tk.StringVar()
         #changeable string variable for dynamic updating
@@ -118,7 +118,7 @@ class TestUI:
         tsFrame = ttk.Frame(self.leftFrame)
         tsFrame.pack(pady = 15, side = "top")
         #sub-frame to hold all track state widgets
-        tsText = ttk.Label(tsFrame, text = "Track State")
+        tsText = ttk.Label(tsFrame, text = "Block Errors")
         tsText.pack(side = "top")
         #"Track State" title Label
 
@@ -323,12 +323,12 @@ class TestUI:
 
 
         '''
-        track state output area
+        block errors output area
         '''
         tsFrame = ttk.Frame(self.rightFrame)
         tsFrame.pack(pady = 15, side = "top")
         #sub-frame to hold track state output widgets
-        tsText = ttk.Label(tsFrame, text = "Track State")
+        tsText = ttk.Label(tsFrame, text = "Block Errors")
         tsText.pack(side = "top")
         #"Track State" title Label
 

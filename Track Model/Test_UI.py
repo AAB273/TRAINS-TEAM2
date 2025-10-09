@@ -10,6 +10,7 @@ class TrackModelTestUI(tk.Toplevel):
         self.configure(bg="lightgray")
 
         self.manager = manager
+        print(f"🔗 Test UI and Main UI sharing same manager: {self.manager is parent.data_manager}")
 
         # ---------------- Train visualization setup ----------------
         from PIL import Image, ImageTk
@@ -55,7 +56,7 @@ class TrackModelTestUI(tk.Toplevel):
         # ---- Block Table ----
         tk.Label(frame, text="Blocks", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=5)
 
-        columns = ("Block", "Length", "Grade", "Elevation", "Speed Limit", "Heater", "Beacon")
+        columns = ("Block", "Length", "Grade", "Elevation", "Speed Limit", "Heater")
         self.tree_blocks = ttk.Treeview(frame, columns=columns, show="headings", height=10)
         for col in columns:
             self.tree_blocks.heading(col, text=col)
@@ -106,6 +107,9 @@ class TrackModelTestUI(tk.Toplevel):
         # Clear and repopulate the table
         self.tree_blocks.delete(*self.tree_blocks.get_children())
         for b in self.manager.blocks:
+            # Format beacon display to show Active/Inactive like Main UI
+            beacon_display = "Active" if self.is_beacon_active(b) else "Inactive"
+            
             self.tree_blocks.insert(
                 "", "end",
                 values=(
@@ -115,7 +119,6 @@ class TrackModelTestUI(tk.Toplevel):
                     b.elevation,
                     b.speed_limit,
                     b.track_heater,
-                    b.beacon
                 )
             )
 
@@ -138,11 +141,12 @@ class TrackModelTestUI(tk.Toplevel):
 
         popup = tk.Toplevel(self)
         popup.title(f"Edit Block {block.block_number}")
-        popup.geometry("300x400")  # Increased height for new fields
+        popup.geometry("500x550")
 
         entries = {}
+        
         # Existing fields
-        for attr in ["length", "grade", "elevation", "speed_limit", "beacon"]:
+        for attr in ["length", "grade", "elevation", "speed_limit"]:
             tk.Label(popup, text=attr.capitalize()).pack()
             val = getattr(block, attr)
             e = tk.Entry(popup)
@@ -150,7 +154,52 @@ class TrackModelTestUI(tk.Toplevel):
             e.pack()
             entries[attr] = e
 
-        # New heater fields
+        # Beacon Active (simple true/false input)
+        tk.Label(popup, text="Beacon Active:").pack()
+        e_beacon_active = tk.Entry(popup)
+        # Use the actual beacon state to determine initial value
+        beacon_active = self.is_beacon_active(block)
+        e_beacon_active.insert(0, "true" if beacon_active else "false")
+        e_beacon_active.pack()
+        entries["beacon_active"] = e_beacon_active
+
+        # Beacon Binary Editor - ALL 256 bits
+        tk.Label(popup, text="Beacon Bits (comma-separated 0/1, all 256 bits):").pack()
+        
+        # Create a scrollable text area for 256 bits
+        beacon_frame = tk.Frame(popup)
+        beacon_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        scrollbar = tk.Scrollbar(beacon_frame)
+        scrollbar.pack(side="right", fill="y")
+        
+        e_beacon_bits = tk.Text(beacon_frame, height=6, width=60, yscrollcommand=scrollbar.set)
+        
+        # Get current 256 bits (extend to 256 if needed)
+        current_bits = block.beacon if hasattr(block, 'beacon') and block.beacon else [0]*128
+        # Extend to 256 bits if currently only 128
+        if len(current_bits) < 256:
+            current_bits.extend([0] * (256 - len(current_bits)))
+        elif len(current_bits) > 256:
+            current_bits = current_bits[:256]
+        
+        # Format bits in groups of 16 for readability
+        formatted_bits = ""
+        for i in range(0, 256, 16):
+            chunk = current_bits[i:i+16]
+            formatted_bits += ",".join(str(bit) for bit in chunk) + ",\n"
+        # Remove the last comma and newline
+        formatted_bits = formatted_bits.rstrip(",\n")
+        
+        e_beacon_bits.insert("1.0", formatted_bits)
+        e_beacon_bits.pack(side="left", fill="both", expand=True)
+        scrollbar.config(command=e_beacon_bits.yview)
+        
+        entries["beacon_bits"] = e_beacon_bits
+
+        tk.Label(popup, text="Enter all 256 bits as 0 or 1, separated by commas", font=("Arial", 8), fg="gray").pack()
+
+        # Heater fields
         tk.Label(popup, text="Heater On (0/1)").pack()
         e_heater_on = tk.Entry(popup)
         e_heater_on.insert(0, str(block.track_heater[0] if isinstance(block.track_heater, list) else 1 if block.track_heater else 0))
@@ -164,21 +213,61 @@ class TrackModelTestUI(tk.Toplevel):
         entries["heater_working"] = e_heater_working
 
         def save_changes():
+            # Process standard attributes
+            heater_on = 0
+            heater_working = 0
+            
             for attr, entry in entries.items():
-                val = entry.get()
-                if attr in ["length", "speed_limit", "elevation", "grade"]:
-                    val = float(val)
-                elif attr in ["beacon"]:
-                    val = val.lower() in ["true", "1", "yes"]
-                elif attr in ["heater_on", "heater_working"]:
-                    val = int(val)
+                if attr in ["beacon_active", "beacon_bits"]:
+                    continue  # Skip beacon, handled separately
                     
+                val = entry.get() if hasattr(entry, 'get') else entry
+                if attr in ["length", "speed_limit", "elevation", "grade"]:
+                    try:
+                        val = float(val)
+                    except ValueError:
+                        val = 0.0
+                elif attr in ["heater_on", "heater_working"]:
+                    try:
+                        val = int(val)
+                    except ValueError:
+                        val = 0
+                
                 if attr == "heater_on":
                     heater_on = val
                 elif attr == "heater_working":
                     heater_working = val
                 else:
                     setattr(block, attr, val)
+            
+            # Process beacon active state
+            if "beacon_active" in entries:
+                beacon_active_text = entries["beacon_active"].get().strip().lower()
+                if beacon_active_text in ["false", "0", "no"]:
+                    # User wants beacon inactive - set all bits to 0
+                    block.beacon = [0] * 256
+                    print(f"🔦 User set beacon to inactive for block {block.block_number}")
+                # If user enters "true", we'll use the binary bits instead
+            
+            # Process beacon binary bits (256 bits)
+            if "beacon_bits" in entries:
+                bits_text = entries["beacon_bits"].get("1.0", "end-1c").strip()
+                if bits_text:
+                    try:
+                        # Remove newlines and parse comma-separated bits
+                        bits_text = bits_text.replace("\n", "").replace(" ", "")
+                        bit_list = [int(bit.strip()) for bit in bits_text.split(",") if bit.strip()]
+                        
+                        if len(bit_list) == 256:
+                            # Set all 256 bits
+                            block.beacon = bit_list
+                            print(f"🔦 Set all 256 beacon bits for block {block.block_number}")
+                            print(f"🔦 First 16 bits: {bit_list[:16]}")
+                            print(f"🔦 Beacon active: {any(bit != 0 for bit in bit_list)}")
+                        else:
+                            messagebox.showwarning("Invalid Beacon Bits", f"Expected 256 bits, got {len(bit_list)}")
+                    except ValueError as e:
+                        messagebox.showwarning("Invalid Beacon Bits", "Bits must be 0 or 1 separated by commas")
             
             # Set heater state with validation
             if not heater_working and heater_on:
@@ -187,10 +276,20 @@ class TrackModelTestUI(tk.Toplevel):
             
             block.track_heater = [heater_on, heater_working]
             
+            # Refresh both UIs to ensure consistency
             self.refresh_block_table()
+            if hasattr(self.master, "refresh_ui"):
+                self.master.refresh_ui()
+            
             popup.destroy()
 
         tk.Button(popup, text="Save", command=save_changes).pack(pady=10)
+
+    def is_beacon_active(self, block):
+        """Check if beacon has any bits set (not all zeros)"""
+        if hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 128:
+            return any(bit != 0 for bit in block.beacon)
+        return False
 
     # ---------------- Station Table Methods ----------------
     def refresh_station_table(self):
@@ -411,6 +510,7 @@ class TrackModelTestUI(tk.Toplevel):
         self.refresh_diagram_table()
         tk.Button(frame, text="Edit Selected Element", command=self.edit_selected_diagram).pack(pady=5)
 
+
     def signal_color(self, bits):
         mapping = {
             (0, 0): "Red",
@@ -501,6 +601,130 @@ class TrackModelTestUI(tk.Toplevel):
         
         if hasattr(self.master, "draw_track_icons"):
             self.master.draw_track_icons()
+
+    def build_diagram_tab(self):
+        frame = self.diagram_tab
+        tk.Label(frame, text="Diagram Elements", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=5)
+
+        self.diagram_tree = ttk.Treeview(frame, columns=("Block", "Switch", "Crossing", "Signal", "Occupancy"), show="headings")
+        for col in ("Block", "Switch", "Crossing", "Signal", "Occupancy"):
+            self.diagram_tree.heading(col, text=col)
+            self.diagram_tree.column(col, width=100, anchor="center")
+        self.diagram_tree.pack(fill="x", padx=10, pady=5)
+
+        self.refresh_diagram_table()
+        tk.Button(frame, text="Edit Selected Element", command=self.edit_selected_diagram).pack(pady=5)
+
+        # --- UPDATED: BIDIRECTIONAL BLOCK CONTROLS WITH BUTTONS ---
+        tk.Label(frame, text="Bidirectional Block Controls", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=(20, 5))
+
+        # Create a frame for bidirectional controls
+        bidir_frame = tk.Frame(frame, bg="white")
+        bidir_frame.pack(fill="x", padx=10, pady=5)
+
+        # Create control widgets for each bidirectional group
+        self.bidir_controls = {}
+        
+        # Use the shared data from TrackDataManager - ensure it exists
+        if not hasattr(self.manager, 'bidirectional_directions'):
+            # Initialize with default data if missing
+            self.manager.bidirectional_directions = {
+                "Blocks 1-5": 0,
+                "Blocks 6-10": 0, 
+                "Blocks 11-15": 0
+            }
+        
+        for group_name in self.manager.bidirectional_directions.keys():
+            self.create_bidirectional_control(bidir_frame, group_name)
+
+    def create_bidirectional_control(self, parent, group_name):
+        """Create a control row with label, status, and toggle button for a bidirectional group"""
+        control_frame = tk.Frame(parent, bg="white")
+        control_frame.pack(fill="x", pady=5)
+        
+        # Group label
+        lbl_group = tk.Label(control_frame, text=f"{group_name}:", width=15, anchor="w", bg="white")
+        lbl_group.pack(side="left", padx=(0, 10))
+        
+        # Direction status
+        status_var = tk.StringVar()
+        status_lbl = tk.Label(control_frame, textvariable=status_var, width=12, anchor="center", bg="white")
+        status_lbl.pack(side="left", padx=(0, 10))
+        
+        # Toggle button
+        btn_toggle = tk.Button(control_frame, text="Toggle Direction", 
+                            command=lambda gn=group_name: self.toggle_bidirectional_direction(gn))
+        btn_toggle.pack(side="left")
+        
+        # Store the status variable for updates
+        self.bidir_controls[group_name] = status_var
+        
+        # Set initial status
+        self.update_bidirectional_status(group_name)
+
+    def update_bidirectional_status(self, group_name):
+        """Update the status display for a bidirectional group - similar to refresh_block_table()"""
+        if (hasattr(self.manager, 'bidirectional_directions') and 
+            group_name in self.manager.bidirectional_directions and
+            group_name in self.bidir_controls):
+            
+            direction = self.manager.bidirectional_directions[group_name]
+            status_text = "← Left" if direction == 0 else "Right →"
+            self.bidir_controls[group_name].set(status_text)
+            print(f"🔄 Updated {group_name} status to: {status_text}")
+
+    def refresh_bidirectional_controls(self):
+        """Refresh all bidirectional controls - called by Main UI or periodically"""
+        print("🔄 Test UI refreshing bidirectional controls...")
+        
+        # Sync with main manager first
+        if hasattr(self.master, 'data_manager'):
+            main_manager = self.master.data_manager
+            if hasattr(main_manager, 'bidirectional_directions'):
+                # Ensure our manager has the data
+                if not hasattr(self.manager, 'bidirectional_directions'):
+                    self.manager.bidirectional_directions = {}
+                # Copy all data from main manager
+                self.manager.bidirectional_directions.update(main_manager.bidirectional_directions)
+        
+        # Update all status displays
+        if hasattr(self.manager, 'bidirectional_directions'):
+            for group_name in self.manager.bidirectional_directions.keys():
+                self.update_bidirectional_status(group_name)
+
+    def toggle_bidirectional_direction(self, group_name):
+        """Toggle direction - Test UI controls Main UI"""
+        print(f"🔄 Test UI toggling {group_name}...")
+        
+        # Use the main UI's data manager to ensure consistency
+        main_manager = self.master.data_manager
+        
+        # Ensure the data structure exists
+        if not hasattr(main_manager, 'bidirectional_directions'):
+            print("❌ No bidirectional_directions in main manager")
+            return
+            
+        if group_name in main_manager.bidirectional_directions:
+            current_direction = main_manager.bidirectional_directions[group_name]
+            new_direction = 1 if current_direction == 0 else 0
+            
+            print(f"📝 Test UI changing {group_name} from {current_direction} to {new_direction}")
+            
+            # Update the shared data manager directly (Test UI controls this)
+            main_manager.bidirectional_directions[group_name] = new_direction
+            
+            # Also update our local reference to stay in sync
+            self.manager.bidirectional_directions[group_name] = new_direction
+            
+            # Update the status display immediately in Test UI
+            self.update_bidirectional_status(group_name)
+            
+            # Force refresh Main UI controls
+            if hasattr(self.master, 'refresh_bidirectional_controls'):
+                self.master.refresh_bidirectional_controls()
+                print("🔄 Main UI refresh triggered from Test UI")
+            
+            print(f"✅ {group_name} direction changed by Test UI: {'Right →' if new_direction == 1 else '← Left'}")
 
 # ---------------- Edit Diagram Popup ----------------
     def edit_selected_diagram(self):
@@ -638,8 +862,34 @@ class TrackModelTestUI(tk.Toplevel):
 
     # ---------------- Periodic refresh ----------------
     def refresh_ui(self):
+        """Periodic refresh - similar to main UI refresh pattern"""
+        self.sync_with_main_ui()  # Sync data first
+        
+        # Refresh all tables and controls
         self.refresh_block_table()
-        self.refresh_station_table()
+        self.refresh_station_table() 
         self.refresh_train_table()
         self.refresh_diagram_table()
+        self.refresh_bidirectional_controls()  # Use the new method
+        
+        # Continue periodic refresh
         self.after(1000, self.refresh_ui)
+
+def sync_with_main_ui(self):
+    """Ensure Test UI data is synchronized with Main UI"""
+    if hasattr(self.master, 'data_manager'):
+        main_manager = self.master.data_manager
+        
+        # Sync bidirectional directions (Test UI is now controller)
+        if hasattr(main_manager, 'bidirectional_directions'):
+            if not hasattr(self.manager, 'bidirectional_directions'):
+                self.manager.bidirectional_directions = {}
+            # Update our data with main UI data
+            self.manager.bidirectional_directions.update(main_manager.bidirectional_directions)
+            
+            # Refresh our controls to match
+            self.refresh_bidirectional_controls()
+            
+            print("🔄 Bidirectional data synchronized - Test UI is controller")
+        
+        print("🔄 Test UI fully synchronized with Main UI")

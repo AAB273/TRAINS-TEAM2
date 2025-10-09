@@ -2,6 +2,9 @@ import tkinter as tk
 from tkinter import ttk
 import math
 import time
+from TC_SW_TrackInfo import TrackInformationPanel
+from Test_UI import TestPanel
+
 
 class ClockDisplay(tk.Label):
     def __init__(self, parent, *args, **kwargs):
@@ -303,18 +306,6 @@ class StationAnnouncementDisplay(tk.Frame):
         #current date and time: 
         self.clock = ClockDisplay(datetime_frame)
         self.clock.pack(padx=10, pady=10)
-
-        #was where I displayed a static date and time
-        """
-        tk.Label(datetime_frame, text="📅", font=("Arial", 12), bg="lightblue").pack(side=tk.LEFT, padx=2)
-        self.date_label = tk.Label(datetime_frame, text="9/20/25", font=("Arial", 10), 
-                                   bg="lightblue", padx=8)
-        self.date_label.pack(side=tk.LEFT, padx=2)
-        
-        tk.Label(datetime_frame, text="🕐", font=("Arial", 12), bg="lightblue").pack(side=tk.LEFT, padx=2)
-        self.time_label = tk.Label(datetime_frame, text="4:24 pm", font=("Arial", 10), 
-                                   bg="lightblue", padx=8)
-        self.time_label.pack(side=tk.LEFT, padx=2)"""
     
     def toggle_expand(self):
         if self.expand_callback:
@@ -400,6 +391,31 @@ class StationAnnouncementWindow(tk.Toplevel):
     def hide_window(self):
         self.withdraw()
 
+
+class FailureIndicator(tk.Canvas):
+    def __init__(self, parent, size=60, color="yellow", glow_color="orange", **kwargs):
+        super().__init__(parent, width=size, height=size, highlightthickness=0, **kwargs)
+        self.size = size
+        self.color = color
+        self.glow_color = glow_color
+        self.active = False
+        self.circle = self.create_oval(5, 5, size-5, size-5, fill=color, outline="black", width=2)
+        self.text = self.create_text(size/2, size/2, text="!", font=("Arial", int(size/2.5), "bold"), fill="black")
+
+    def activate(self):
+        self.itemconfig(self.circle, fill=self.glow_color)
+        self.active = True
+
+    def deactivate(self):
+        self.itemconfig(self.circle, fill=self.color)
+        self.active = False
+
+    def set_state(self, state):
+        if state:
+            self.activate()
+        else:
+            self.deactivate()
+
 class Main_Window:
     def __init__(self, root):
 
@@ -420,6 +436,14 @@ class Main_Window:
         title_frame.place(relx=0.4, rely=0.01, relwidth=0.2, relheight=0.05)
         tk.Label(title_frame, text="Monitor Display", font=("Arial", 18, "bold"), 
                 bg="white").pack(pady=5)
+        
+        #tab to open track info
+                # === Track Info Button (top bar) ===
+        track_btn = tk.Button(self.root, text="Track Info", font=("Arial", 12, "bold"),
+                              bg="lightblue", fg="black", relief=tk.RAISED, bd=2,
+                              command=self.open_track_info)
+        track_btn.place(relx=0.63, rely=0.015, relwidth=0.08, relheight=0.045)
+
         
         # Driver Mode Frame - centered at top
         self.driver_mode_frame = tk.Frame(main_container, bg="gray", relief=tk.RAISED, bd=2)
@@ -643,6 +667,33 @@ class Main_Window:
             self.bltLabel = tk.Label(logo_frame, text="BLT\nLOGO", font=("Arial", 14, "bold"), 
                                     bg="lightblue")
             self.bltLabel.pack(expand=True, fill=tk.BOTH)
+
+        #adding the failure modes: 
+                # === Failure Indicators Row (between BLT logo and clock) ===
+        failure_frame = tk.Frame(main_container, bg="white")
+        failure_frame.place(relx=0.16, rely=0.06, relwidth=0.13, relheight=0.12)
+
+        tk.Label(failure_frame, text="System Failures", font=("Arial", 11, "bold"), 
+                 bg="white", fg="black").pack(anchor="n", pady=(0, 3))
+
+        lights_frame = tk.Frame(failure_frame, bg="white")
+        lights_frame.pack(pady=2)
+
+        # Train Engine Failure
+        self.engine_failure = FailureIndicator(lights_frame, size=40, color="gray", glow_color="red")
+        self.engine_failure.grid(row=0, column=0, padx=5)
+        tk.Label(lights_frame, text="TEF", font=("Arial", 9, "bold"), bg="white", fg="black").grid(row=1, column=0)
+
+        # Signal Pickup Failure
+        self.signal_failure = FailureIndicator(lights_frame, size=40, color="gray", glow_color="orange")
+        self.signal_failure.grid(row=0, column=1, padx=5)
+        tk.Label(lights_frame, text="SPF", font=("Arial", 9, "bold"), bg="white", fg="black").grid(row=1, column=1)
+
+        # Brake Failure
+        self.brake_failure = FailureIndicator(lights_frame, size=40, color="gray", glow_color="red")
+        self.brake_failure.grid(row=0, column=2, padx=5)
+        tk.Label(lights_frame, text="BF", font=("Arial", 9, "bold"), bg="white", fg="black").grid(row=1, column=2)
+
         
         # Station Announcement Display - embedded in main window
         self.station_display = StationAnnouncementDisplay(main_container, 
@@ -666,7 +717,7 @@ class Main_Window:
         
         self.update_displays()
         # --- TEST PANEL LAUNCH ---
-        self.test_panel = TestPanel(self.root, self)
+        self.test_panel = TestPanel(root,self.root)
 
     
     def update_displays(self):
@@ -760,94 +811,27 @@ class Main_Window:
         """Method to control emergency light from external module"""
         self.emergency_light.set_state(active)
 
+    def set_engine_failure(self, active):
+        """Train Engine Failure light control"""
+        self.engine_failure.set_state(active)
 
+    def set_signal_failure(self, active):
+        """Signal Pickup Failure light control"""
+        self.signal_failure.set_state(active)
 
-'''------------------------------------------------------------------------------------------------------------------------------'''
-#side window for test ui
-class TestPanel(tk.Toplevel):
-    def __init__(self, parent, main_window):
-        super().__init__(parent)
-        self.title("Input Test Panel")
-        self.geometry("400x450")
-        self.main_window = main_window
+    def set_brake_failure(self, active):
+        """Brake Failure light control"""
+        self.brake_failure.set_state(active)
 
-        tk.Label(self, text="TEST INTERFACE", font=("Arial", 16, "bold")).pack(pady=10)
-
-        # Temperature Input
-        tk.Label(self, text="Set Cabin Temperature (°F):", font=("Arial", 12)).pack(pady=5)
-        self.temp_entry = tk.Entry(self)
-        self.temp_entry.insert(0, "65")
-        self.temp_entry.pack()
-        tk.Button(self, text="Send Temp", command=self.set_temp).pack(pady=5)
-
-        # Commanded Authority Input
-        tk.Label(self, text="Set Commanded Authority (Blocks):", font=("Arial", 12)).pack(pady=5)
-        self.auth_entry = tk.Entry(self)
-        self.auth_entry.insert(0, "4")
-        self.auth_entry.pack()
-        tk.Button(self, text="Send Authority", command=self.set_authority).pack(pady=5)
-
-        # Commanded Speed Input
-        tk.Label(self, text="Set Commanded Speed (mph):", font=("Arial", 12)).pack(pady=5)
-        self.speed_entry = tk.Entry(self)
-        self.speed_entry.insert(0, "55")
-        self.speed_entry.pack()
-        tk.Button(self, text="Send Speed", command=self.set_speed).pack(pady=5)
-
-        # Speedometer Input
-        tk.Label(self, text="Speedometer (Actual Speed mph):", font=("Arial", 12)).pack(pady=5)
-        self.actual_speed = tk.Scale(self, from_=0, to=80, orient=tk.HORIZONTAL, command=self.update_speedometer)
-        self.actual_speed.pack(fill="x", padx=20)
-
-        # Emergency Signal
-        tk.Label(self, text="Emergency Signal:", font=("Arial", 12)).pack(pady=10)
-        tk.Button(self, text="Activate Emergency", bg="red", fg="white", command=self.activate_emergency).pack(pady=3)
-        tk.Button(self, text="Deactivate Emergency", bg="grey", fg="white", command=self.deactivate_emergency).pack(pady=3)
-
-        # Output Log
-        tk.Label(self, text="Log:", font=("Arial", 12, "bold")).pack(pady=5)
-        self.log = tk.Text(self, height=6, width=40, state=tk.DISABLED)
-        self.log.pack(pady=5)
-
-    def log_action(self, text):
-        self.log.config(state=tk.NORMAL)
-        self.log.insert(tk.END, text + "\n")
-        self.log.see(tk.END)
-        self.log.config(state=tk.DISABLED)
-
-    def set_temp(self):
-        val = self.temp_entry.get()
-        self.main_window.current_temp.config(text=f"{val}°F")
-        self.log_action(f"✅ Temperature input set to {val}°F")
-
-    def set_authority(self):
-        val = self.auth_entry.get()
-        self.main_window.authority_value.config(text=f"{val} Blocks")
-        self.log_action(f"✅ Commanded authority set to {val} Blocks")
-
-    def set_speed(self):
-        val = self.speed_entry.get()
-        # Only update commanded speed when in auto mode
-        if self.main_window.mode_select.active_mode == "auto":
-            self.main_window.commanded_speed_value.config(text=val)
-            self.log_action(f"✅ Commanded speed set to {val} mph (auto mode)")
+    
+    def open_track_info(self):
+        """Opens the Track Information Panel"""
+        if not hasattr(self, "track_info_window") or not tk.Toplevel.winfo_exists(self.track_info_window):
+            self.track_info_window = tk.Toplevel(self.root)
+            self.track_info_window.title("Track Information Panel")
+            self.track_info_panel = TrackInformationPanel(self.track_info_window)
         else:
-            self.log_action("⚠️ Ignored commanded speed (not in auto mode)")
-
-    def update_speedometer(self, val):
-        val = int(val)
-        self.main_window.speedometer.update_speed(val)
-        self.main_window.current_speed_display.config(text=f"Current Speed: {val} mph")
-        self.log_action(f"✅ Speedometer updated to {val} mph")
-
-    def activate_emergency(self):
-        self.main_window.emergency_light.activate()
-        self.log_action("🚨 Emergency signal activated")
-
-    def deactivate_emergency(self):
-        self.main_window.emergency_light.deactivate()
-        self.log_action("🟢 Emergency signal cleared")
-
+            self.track_info_window.lift()
 
 '''---------------------------------------------------------------------------------------------------------------------------------'''
 if __name__ == "__main__":
