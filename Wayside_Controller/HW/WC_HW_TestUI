@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 import os
 from datetime import datetime
+from PIL import Image, ImageTk  # Add this import for image handling
 
 ##############################################################################################
 # Backend state (for all tracks)
@@ -97,10 +98,23 @@ track_data = {
 header_frame = tk.Frame(root, bg='#1a1a4d')
 header_frame.pack(fill='x', pady=10)
 
-# BLT LOGO in top left corner
-blt_logo = tk.Label(header_frame, text="BLT LOGO", font=("Arial", 16, "bold"), 
-                   fg='white', bg='#1a1a4d')
-blt_logo.pack(side='left', padx=20)
+# BLT LOGO in top left corner - REPLACED WITH IMAGE
+try:
+    # Load and resize the BLT logo image
+    logo_image = Image.open("blt logo.png")
+    logo_image = logo_image.resize((100, 100), Image.Resampling.LANCZOS)  # Adjust size as needed
+    logo_photo = ImageTk.PhotoImage(logo_image)
+    
+    # Create label with image
+    blt_logo = tk.Label(header_frame, image=logo_photo, bg='#1a1a4d')
+    blt_logo.image = logo_photo  # Keep a reference to prevent garbage collection
+    blt_logo.pack(side='left', padx=20)
+except Exception as e:
+    # Fallback to text if image loading fails
+    print(f"Error loading logo: {e}")
+    blt_logo = tk.Label(header_frame, text="BLT LOGO", font=("Arial", 16, "bold"), 
+                       fg='white', bg='#1a1a4d')
+    blt_logo.pack(side='left', padx=20)
 
 # PLC Upload in the center of header - ENHANCED VERSION
 PLCupload_frame = tk.Frame(header_frame, bg='#1a1a4d')
