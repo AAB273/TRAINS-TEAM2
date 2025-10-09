@@ -3,23 +3,38 @@ from Track_Blocks import Block
 
 class TrackDataManager:
     def __init__(self):
-        # Default blank/base values
+        # ---------------- Core Data ----------------
         self.blocks = []
-        self.environmental_temp = None
         self.active_trains = []
         self.train_occupancy = []
         self.commanded_speed = []
         self.commanded_authority = []
-        self.station_location = []
-        self.ticket_sales = []
-        self.passengers_boarding = []
-        self.passengers_disembarking = []
+        self.environmental_temp = None
 
-        # Create default blocks (15 blank blocks)
+        # ---------------- Default Track Setup ----------------
         self._create_default_blocks()
+        num_blocks = len(self.blocks)
 
-    # ---------------- Default Data ----------------
-        self.blocks = [Block(i + 1, length=50, grade=0, elevation=0, speed_limit=50) for i in range(15)]
+        # ---------------- Station Data ----------------
+        # station_location stays as a short list of stations
+        self.station_location = [(10, "Station B"), (15, "Station C")]
+
+        # Make full-length lists for all blocks
+        self.ticket_sales = [0] * num_blocks
+        self.passengers_boarding = [0] * num_blocks
+        self.passengers_disembarking = [0] * num_blocks
+
+        # Pre-fill default station data into full-length lists
+        for block_num, _ in self.station_location:
+            idx = block_num - 1  # zero-based index
+            self.ticket_sales[idx] = 0
+            self.passengers_boarding[idx] = 0
+            self.passengers_disembarking[idx] = 0
+
+        print("Initialized station_location:", self.station_location)
+        print("Initialized ticket_sales:", self.ticket_sales)
+        print("Initialized passengers_boarding:", self.passengers_boarding)
+        print("Initialized passengers_disembarking:", self.passengers_disembarking)
 
 
     # ---------------- Excel Data Loading ----------------
@@ -62,30 +77,12 @@ class TrackDataManager:
             print(f"❌ Error loading Excel data: {e}")
             self._create_default_blocks()
             return False
-        
-    def __init__(self):
-        # Initialize all backend data
-        self.blocks = []
-        self.active_trains = []
-        self.train_occupancy = []
-        self.commanded_speed = []
-        self.commanded_authority = []
-        self.environmental_temp = None
-
-        # Initialize station-related data
-        self.station_location = []          # list of tuples: (block_number, station_name)
-        self.ticket_sales = []
-        self.passengers_boarding = []
-        self.passengers_disembarking = []
-
-        # Initialize default blocks
-        self._create_default_blocks()
 
     def _create_default_blocks(self):
         """Create 15 default track blocks."""
         from Track_Blocks import Block
         self.blocks = [
-            Block(block_number=i+1, length=50, grade=0, elevation=0, speed_limit=50)
+            Block(block_number=i+1, length=50, grade=0, elevation=0, speed_limit=50, track_heater=[0, 1])
             for i in range(15)
         ]
 

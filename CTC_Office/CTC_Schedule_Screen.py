@@ -1,141 +1,442 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, simpledialog, filedialog
+from tkinter.messagebox import askyesno
 from PIL import Image, ImageTk
 from time import strftime
 import CTC_Main_Screen
+import pandas as pd
 
 class ScheduleScreen:
-    def __init__(self, root, main, frame, notebook):
+#"Schedule" ui screen appearance and data
+    '''
+    Attributes:
+    
+    self.root: main Tk() variable for the ui window
+    self.frame: main ttk.Frame() that all ui widgets are placed onto
+    self.mainScreen: holds the MainScreen object that displays the "Syestem Information" tab
+    self.notebook: main notebook that contains the ui tabs
+    self.trainNum: number of trains released into the yard
+    self.refMap: screen for the reference map image
+    self.clockText: a ttk.Label() that holds the current time
+    self.clockTimer: contains the call to updateTime, allowing the program to cancel the timer when switching tabs
+    '''
+
+    def __init__(self, root: tk.Tk, main: CTC_Main_Screen, frame: ttk.Frame, notebook: ttk.Notebook, refMap: tk.Tk):
+    #initialize class variables and create backdrop for schedule screen
+
         self.root = root  #main variable for the window
         self.frame = frame
-        self.frame_width = 1160  #width of white canvas
-        self.frame_height = 885  #height of white canvas
-        self.main_screen = main  #variable to hold the data of the schedule screen
+        self.mainScreen = main  #variable to hold the data of the schedule screen
+        self.refMap = refMap
         self.notebook = notebook  #variable to hold data about the tab buttons
+        self.trainNum = 1;  #number of trains that have been sent to the system
 
-        #self.clock_text: a variable to allow the time to be updated continuously
-        #self.clock_timer: a variable to hold the time for an interrupt to update the clock
+        self.createTopRow()
+        #print to top row of the UI to the window
+        self.createAreas()
+        #print the titles of each section to the window 
 
-        self.create_top_row()  #print to top row of the UI to the window
-        self.create_titles()
+###############################################################################################################################################################     
 
-
-    def create_schedule_screen(self):
-        pass
-        
-        
-
+    def createTopRow(self):
     #create the logo, tab, and reference map button
-    def create_top_row(self):
-        #sub-frame used to center the top row of widgets
-        top_frame = ttk.Frame(self.frame, style = "white.TFrame")
-        top_frame.pack(side = "top", anchor = "n", expand = True, fill = "x")
-
-       #create the BLT logo
-        blt_original_image = Image.open("CTC_Office/blt logo.png")  #create a image variable of the logo
-        blt_original_image = blt_original_image.resize((75, 75))  #resize the image
-        blt_image = ImageTk.PhotoImage(blt_original_image)  #create a TKinter image variable from the origninal image
-        blt_image_label = ttk.Label(top_frame, image = blt_image, background = "white")  #create an image widget
-        blt_image_label.image = blt_image  #keep a reference to the image so that it appears on the window
-        blt_image_label.pack(side = "left", anchor = "nw")  #pack the label to the top left corner of the top_row sub-frame
-
-        #create a button to display the reference map
-        center_frame = ttk.Frame(top_frame)  #create another sub-frame to center the button
-        center_frame.pack(side="left", anchor = "n", expand=True)  #pck the button in the center of the top row
-        button_style = ttk.Style()
-        button_style.configure("TButton", font = ("Arial", 15))  #change text style
-        map_button = ttk.Button(center_frame, text = "Reference Map", style = "TButton", command = lambda: self.disp_ref_map())
-        map_button.pack(pady = 5, anchor = "n")  #pack in the top-center of the center_frame sub-frame
-
-        #create a label for the time
-        self.clock_text = ttk.Label(top_frame, text = "", font = ("Arial", 20, "bold"), background = "white")  #create the text
-        self.clock_text.pack(side = "right", anchor = "ne")  #pack to the top-right corner of the top_row sub-frame
-        self.update_time()  #run the function to continually update the time
-
-        self.notebook.bind("<<NotebookTabChanged>>", self.update_to_main)  #bind the tab switching action to a handler function
-
-
-    #create the titles of each section on the "System Information" tab
-    def create_titles(self):
-        pass
-        #create a sub-frame for each side of the screen to center all widgets
-        left_frame = ttk.Frame(self.frame, style = "white.TFrame")
-        left_frame.pack(pady = 125, side = "left", expand = True, fill = "y")
-        right_frame = ttk.Frame(self.frame, style = "white.TFrame")
-        right_frame.pack(side = "left", expand = True, fill = "y")
-
-        white_text = ttk.Style()  #Style to put white text in each of the titles
-        white_text.configure("White.TLabel", foreground = "white", font = ("Arial", 20))
-
-        #create area for manually scheduling a train
-        sc_text = ttk.Label(left_frame, text = " Schedule Train ", style = "White.TLabel")
-        sc_text.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")
-        sc_text.pack(pady = 50, side = "top")
         
-        #enter location
-        loc_frame = ttk.Frame(left_frame, style = "white.TFrame")
-        loc_frame.pack(pady = 25, side = "top", fill = "x")
-        loc_text = ttk.Label(loc_frame, text = "Select a destination:")
-        loc_text.pack(padx = 5, pady = 5, fill = "x")
+        topFrame = ttk.Frame(self.frame, style = "white.TFrame")
+        topFrame.pack(side = "top", anchor = "n", expand = True, fill = "x")
+        #sub-frame used to center the top row of widgets
 
-        selected_location = tk.StringVar()
-        loc_select = ttk.Combobox(loc_frame, textvariable = selected_location)
-        loc_select.pack(padx = 5, pady = 5, fill = "x")
+        '''
+        create the BLT logo
+        '''
+        bltOriginalImage = Image.open("CTC_Office/blt logo.png")
+        bltOriginalImage = bltOriginalImage.resize((75, 75))
+        #create and resize image
+        bltImage = ImageTk.PhotoImage(bltOriginalImage)
+        bltImageLabel = ttk.Label(topFrame, image = bltImage, background = "white")
+        bltImageLabel.image = bltImage
+        #keep a reference to the image so that it appears on the window
+        bltImageLabel.pack(side = "left", anchor = "nw")
 
-        #enter time
-        time_frame = ttk.Frame(left_frame, style = "white.TFrame")
-        time_frame.pack(pady = 25, side = "top", fill = "x")
-        time_text = ttk.Label(time_frame, text = "Enter a time:")
-        time_text.pack(padx = 5, pady = 5, fill = "x")
+        '''
+        create a button to display the reference map
+        '''
+        centerFrame = ttk.Frame(topFrame)
+        centerFrame.pack(side="left", anchor = "n", expand=True)
+        #create a sub-frame to center the button within
+        buttonStyle = ttk.Style()
+        buttonStyle.configure("TButton", font = ("Arial", 15))
+        #button style be used for all buttons on the schedule ui screen
+        mapButton = ttk.Button(centerFrame, text = "Reference Map", style = "TButton", command = lambda: self.dispRefMap())
+        #bind button to the dispRefMap method
+        mapButton.pack(pady = 5, anchor = "n")
 
-        time_entry = ttk.Entry(time_frame)
-        time_entry.pack(padx = 5, pady = 5, fill = "x")
+        '''
+        create a label for the time
+        '''
+        self.clockText = ttk.Label(topFrame, text = "", font = ("Arial", 20, "bold"), background = "white")
+        self.clockText.pack(side = "right", anchor = "ne")
+        #create a blank Label to hold the text
+        self.updateTime()
+        #initial call for the method that updates the time dynamically
 
-        #deploy button and auto button
-        button_frame = ttk.Frame(left_frame, style = "white.TFrame")
-        button_frame.pack(pady = 40, side = "top", expand = True)
-        dep_button = ttk.Button(button_frame, text = "Deploy Train", style = "TButton")
-        dep_button.pack(pady = 5, side = "top", fill = "x")
-        auto_button = ttk.Button(button_frame, text = "Automatic Mode", style = "TButton")
-        auto_button.pack(side = "top")
+        self.notebook.bind("<<NotebookTabChanged>>", self.updateToMain)
+        #bind the tab switching action to a handler function
+
+###############################################################################################################################################################
 
     
-        #create area for manually editing train
-        me_frame = ttk.Frame(right_frame, style = "white.TFrame")
-        me_frame.pack(pady = 160, side = "top")
-        me_text = ttk.Label(me_frame, text = " Manual Edit ", style = "White.TLabel")
-        me_text.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")
-        me_text.pack()
+    def createAreas(self):
+    #create titles and display areas for each item on the "System Information" tab
 
-        #create and format the area for the train location information to be displayed
-        me_area = ttk.Treeview(me_frame, columns = ("Destination", "Arrival Time")) 
-        me_area.heading("#0", text = "Location")
-        me_area.heading("Destination", text = "Destination")
-        me_area.heading("Arrival Time", text = "Arrival Time")
-        me_area.column("#0", width = 150)
-        me_area.column("Destination", width = 150)
-        me_area.column("Arrival Time", width = 100)
-        me_area.pack(side = "left")
+        leftFrame = ttk.Frame(self.frame, style = "white.TFrame")
+        leftFrame.pack(pady = 125, side = "left", expand = True, fill = "y")
+        rightFrame = ttk.Frame(self.frame, style = "white.TFrame")
+        rightFrame.pack(side = "left", expand = True, fill = "y")
+        #create a sub-frame for each side of the screen to center all widgets
 
-        me_scrollbar = ttk.Scrollbar(me_frame, orient = "vertical", command = me_area.yview)
-        me_area.configure(yscrollcommand = me_scrollbar.set)
-        me_scrollbar.pack(side = "right", fill = "y")
+        whiteText = ttk.Style()
+        whiteText.configure("White.TLabel", foreground = "white", font = ("Arial", 20))
+        #Style to put white text in each of the titles
 
+        '''
+        schedule train area
+        '''
+        scText = ttk.Label(leftFrame, text = " Schedule Train ", style = "White.TLabel")
+        scText.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")
+        scText.pack(pady = 50, side = "top")
+        #"Schedule Train" title Label
+        
+        
+        locFrame = ttk.Frame(leftFrame, style = "white.TFrame")
+        locFrame.pack(pady = 25, side = "top", fill = "x")
+        #sub-frame to hold words and user Combobox entry
+        locText = ttk.Label(locFrame, text = "Select a destination:")
+        locText.pack(padx = 5, pady = 5, fill = "x")
+        #text to describe what the user should input
 
-    #update the time variable
-    def update_time(self):
+        selectedLocation = tk.StringVar()
+        arrivalTime = tk.StringVar()
+        #dynamic string variables that update with user choice
+
+        locSelect = ttk.Combobox(locFrame, textvariable = selectedLocation)
+        #shows options for the user to select for destination
+        locSelect["values"] = ["Station B", "Station C"]
+        #for BLUE LINE ONLY
+        locSelect["state"] = "readonly"
+        locSelect.pack(padx = 5, pady = 5, fill = "x")
+
+        timeFrame = ttk.Frame(leftFrame, style = "white.TFrame")
+        timeFrame.pack(pady = 25, side = "top", fill = "x")
+        #sub-frame to hold words and user Entry
+        timeText = ttk.Label(timeFrame, text = "Enter a time:")
+        timeText.pack(padx = 5, pady = 5, fill = "x")
+        #text to describe what the user should input
+        timeEntry = ttk.Entry(timeFrame, textvariable = arrivalTime)
+        timeEntry.pack(padx = 5, pady = 5, fill = "x")
+        #grabs user text input
+
+        buttonFrame = ttk.Frame(leftFrame, style = "white.TFrame")
+        buttonFrame.pack(pady = 40, side = "top", expand = True)
+        #sub-frame to organize buttons
+        getDeploy = ttk.Button(buttonFrame, text = "Deploy Train", style = "TButton", command = lambda: (self.sendDeployData("1", selectedLocation.get(), arrivalTime.get(), "blue"), self.updateManualEdit("1", selectedLocation.get(), arrivalTime.get(), "blue")))
+        getDeploy.pack(pady = 15, side = "top", fill = "x")
+        #grab inputs from the Combobox and Entry (if user inputs values)
+        autoButton = ttk.Button(buttonFrame, text = "Automatic Mode", style = "TButton", command = lambda: self.updateAutoEdit())
+        autoButton.pack(side = "top")
+        #opens a tab to ask the user to input a .csv file to automatically schedule trains
+    
+        '''
+        manual edit area
+        '''
+        meFrame = ttk.Frame(rightFrame, style = "white.TFrame")
+        meFrame.pack(pady = 160, side = "top")
+        #sub-frame to store the manual edit widgets
+        meText = ttk.Label(meFrame, text = " Manual Edit ", style = "White.TLabel")
+        meText.config(relief = "solid", borderwidth = 2, background = "#4d4d6d")
+        meText.pack()
+        #"Manual Edit" title Label
+
+        self.meArea = ttk.Treeview(meFrame, columns = ("Location", "Destination", "Arrival Time")) 
+        self.meArea.heading("#0", text = "Train")
+        self.meArea.heading("Location", text = "Location")
+        self.meArea.heading("Destination", text = "Destination")
+        self.meArea.heading("Arrival Time", text = "Arrival Time")
+        self.meArea.column("#0", width = 100)
+        self.meArea.column("Location", width = 100)
+        self.meArea.column("Destination", width = 150)
+        self.meArea.column("Arrival Time", width = 100)
+        self.meArea.pack(side = "left")
+        #create and format the Treeview holding the manual edit data (should be identical to train location data)
+
+        self.meArea.bind("<Button-1>", self.manualEdit)
+        #if a user clicks in the meArea treeview, bind the click to a handler function
+
+        meScrollbar = ttk.Scrollbar(meFrame, orient = "vertical", command = self.meArea.yview)
+        self.meArea.configure(yscrollcommand = meScrollbar.set)
+        meScrollbar.pack(side = "right", fill = "y")
+        #add a scrollbar to the manual edit Treeview
+
+###############################################################################################################################################################
+
+    def updateTime(self):
+    #continuously recall itself every second to update the time variable
+
         time = strftime("%I:%M %p")
-        self.clock_text.configure(text = time)
-        self.clock_timer = self.root.after(1000, self.update_time)
+        self.clockText.configure(text = time)
+        self.clockTimer = self.root.after(1000, self.updateTime)
 
+###############################################################################################################################################################
     
+    def updateToMain(self, event):
     #update the screen if "System Information" tab is clicked
-    def update_to_main(self, event):
         if (event.widget.tab(event.widget.select(), "text") == "System Information"):
-            self.root.after_cancel(self.clock_timer)  #cancel the interrupt timer
+        #prevents errors on boot
+            self.root.after_cancel(self.clockTimer)
+            #cancel this call if active
             self.notebook.select(0)
 
+###############################################################################################################################################################
 
+    def dispRefMap(self):
     #display the reference map to the user
-    def disp_ref_map(self):
-        self.main_screen.disp_ref_map()
+
+        self.refMap.title("Reference Map")
+        self.refMap.geometry("1000x500+1201+0")
+        #configure the window holding the reference map
+
+        mapOriginalImage = Image.open("CTC_Office/blue_line.png") 
+        mapImage = ImageTk.PhotoImage(mapOriginalImage.resize((1000, 500)))
+        #create and resize image
+        mapImageLabel = ttk.Label(self.refMap, image = mapImage, background = "white")
+        mapImageLabel.image = mapImage
+        #keep a reference to the image so that it appears on the window
+        mapImageLabel.pack()
+
+###############################################################################################################################################################
+    
+    def sendDeployData(self, location: str, destination: str, time: str, line: str):
+    #send user inputs to main screen to update train locations Treeview
+
+        self.mainScreen.updateTrainLocations(location, destination, time, line, self.trainNum)
+        #increase of trains on the line
+
+###############################################################################################################################################################
+
+    def updateManualEdit(self, location: str, destination: str, time: str, line: str):
+    #update the manual edit tab
+
+        children = self.meArea.get_children("")
+        #get a list of the items in the Treeview
+        if (not children):
+        #if there is no data yet, add first item
+            level = self.meArea.insert('', "end", text = line.title())
+            self.meArea.insert(level, "end", text = ("Train " + str(self.trainNum)), values = [("Block " + location), destination, time])
+        else:
+            added = False
+            #flag variable
+            for child in children: 
+            #iterate for each parent in the Treeview
+                for item in self.meArea.get_children(child):
+                #iterate for each child of every parent in the Treeview
+                    dest = self.meArea.item(item, "text")
+                    if (dest == "Train " + str(self.trainNum)):
+                    #if the user edits an existing train, update rather than adding a new item
+                        self.meArea.item(item, values = ["Block " + location, destination, time])
+                        added = True
+                        break
+                if (not added and self.meArea.item(child, "text") == line.title()):
+                #if train does not exist but is on an existing line, add under that specific line
+                    self.meArea.insert(child, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination, time])
+                    added = True
+                    break
+            if (not added):
+            #if item is not already in the treeview, add a new parent/child set
+                level = self.meArea.insert('', "end", text = line.title())
+                self.meArea.insert(level, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination, time])
+
+        self.trainNum += 1
+
+        '''
+        Write all data to to_test_ui.txt data file so the test ui can read in data changes
+        Follows formatting rules specified in README.txt
+        '''
+        outfile = open("CTC_Office/to_test_ui.txt", "w")
+        outfile.write("TL\n")
+        outfile.write(str(self.trainNum) + "\n")
+
+        distToStation = float(750)
+        #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
+        arrTime = self.timeToSeconds(time)
+        speed = distToStation / arrTime
+
+        outfile.write(f"{speed:.3f}\n")
+        outfile.write("8\n")
+        outfile.write(line + "\n")
+        outfile.close()
+
+###############################################################################################################################################################
+
+    def manualEdit(self, event):
+    #handle user clicks in the manual edit Treeview
+
+        rowID = self.meArea.identify_row(event.y)
+        #grab row user clicked in 
+        colID = self.meArea.identify_column(event.x)
+        #grab column user clicked in
+        if (rowID):
+            if (colID == "#2"):
+            #check that user clicked in destination column
+                newDestination = simpledialog.askstring("Manual Edit", "Enter a new destination:")
+                #entry box to enter a new destination
+                if (newDestination is not None):
+                    answer = askyesno(title = "Confirmation", message = "Would you like to change the destination?")
+                    #confirmation pop-up, returns True is user clicks "Yes"
+                    if (answer):
+                        self.meArea.set(rowID, colID, value = newDestination)
+                        self.mainScreen.tlArea.set(rowID, colID, value = newDestination)
+                        #update main ui train location data
+                        
+                        '''
+                        Write all data to to_test_ui.txt data file so the test ui can read in data changes
+                        Follows formatting rules specified in README.txt
+                        '''
+                        outfile = open("CTC_Office/to_test_ui.txt", "w")
+                        outfile.write("TL\n")
+
+                        temp = self.meArea.item(rowID, "text")
+                        train = ""
+                        for char in temp:
+                            if (char.isdigit()):
+                                train += char
+                        #grab train number
+                        outfile.write(train + "\n")
+
+                        distToStation = float(750)
+                        #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
+                        arrTime = self.timeToSeconds(self.meArea.item(rowID, "values")[2])
+                        speed = distToStation / arrTime
+                        outfile.write(f"{speed:.3f}\n")
+
+                        outfile.write("7\n")
+                        outfile.write(self.meArea.item(self.meArea.parent(rowID), "text") + "\n")
+                        outfile.close()
+
+            elif (colID == "#3"):
+            #check that user clicked in arrival time column
+                newTime = simpledialog.askstring("Manual Edit", "Enter a new arrival:")
+                #entry box to enter a new time
+                if (newTime is not None):
+                    answer = askyesno(title = "Confirmation", message = "Would you like to change the arrival time?")
+                    #confirmation pop-up, returns True if the user clicks "Yes"
+                    if (answer):
+                        self.meArea.set(rowID, colID, value = newTime)
+                        self.mainScreen.tlArea.set(rowID, colID, value = newTime)
+                        #update main ui train location data
+
+                        '''
+                        Write all data to to_test_ui.txt data file so the test ui can read in data changes
+                        Follows formatting rules specified in README.txt
+                        '''
+                        outfile = open("CTC_Office/to_test_ui.txt", "w")
+                        outfile.write("TL\n")
+
+                        temp = self.meArea.item(rowID, "text")
+                        train = ""
+                        for char in temp:
+                            if (char.isdigit()):
+                                train += char
+                        #grab specific train number
+
+                        outfile.write(train + "\n")
+                        
+                        distToStation = float(750)
+                        #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
+                        arrTime = self.timeToSeconds(newTime)
+                        speed = distToStation / arrTime
+                        outfile.write(f"{speed:.3f}\n")
+                        
+                        outfile.write("9\n")
+                        outfile.write(self.meArea.item(self.meArea.parent(rowID), "text") + "\n")
+                        outfile.close()
+
+###############################################################################################################################################################
+
+    def updateAutoEdit(self):
+        
+        autoFile = filedialog.askopenfilename(title = "Select a file", initialdir = "/", filetypes = [("CSV files", "*.csv")])
+        #get using input .csv file
+        if (autoFile):
+            schedule = pd.read_csv(autoFile)
+            #grab text from file
+            for i in range(0, len(schedule)):
+                dest = schedule.iloc[i, 0]
+                time = schedule.iloc[i, 1]
+                line = schedule.iloc[i, 2]
+
+                self.sendDeployData("1", dest, time, line)
+                self.updateManualEdit("1", dest, time, line)
+
+###############################################################################################################################################################        
+
+    def timeToSeconds(self, arrTimeStr):
+    #convert a given time into seconds
+
+        currTimeStr = strftime("%I:%M %p")
+
+        arrTime = 0
+        arrAbb = ""
+        for char in arrTimeStr:
+            if (char.isalpha()):
+                arrAbb += char
+        #grab AM/PM
+        if (arrAbb == "PM"):
+            arrTime += (12 * 3600)
+        #if PM, add 12 hours
+
+        found = False
+        #flag for finding colon
+        arrHoursStr = ""
+        arrHours = 0
+        arrMinsStr = ""
+        arrMins = 0
+        for char in arrTimeStr:
+            if (not found and char.isdigit()):
+                arrHoursStr += char
+            elif (not found and char == ":"):
+                found = True
+            elif (found and char.isdigit()):
+                arrMinsStr += char
+        
+        arrHours += (int(arrHoursStr) * 3600)
+        arrMins += (int(arrMinsStr) * 60)
+        arrTime += (arrHours + arrMins)
+
+        currTime = 0
+        currAbb = ""
+        for char in currTimeStr:
+            if (char.isalpha()):
+                currAbb += char
+        #grab AM/PM
+        if (currAbb == "PM"):
+            currTime += (12 * 3600)
+        #if PM, add 12 hours
+
+        found = False
+        #flag for finding colon
+        currHoursStr = ""
+        currHours = 0
+        currMinsStr = ""
+        currMins = 0
+        for char in currTimeStr:
+            if (not found and char.isdigit()):
+                currHoursStr += char
+            elif (not found and char == ":"):
+                found = True
+            elif (found and char.isdigit()):
+                currMinsStr += char
+        
+        currHours += (int(currHoursStr) * 3600)
+        currMins += (int(currMinsStr) * 60)
+        currTime += (currHours + currMins)
+
+        return float(arrTime - currTime)
