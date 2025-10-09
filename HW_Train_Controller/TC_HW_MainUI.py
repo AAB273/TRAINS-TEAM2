@@ -246,7 +246,7 @@ def checkButtons():
 		if prevEmergencyBrake == 1 and emergencyBrakeState == 0:
 			emergencyBrakeEngaged = not emergencyBrakeEngaged
 			lgpio.gpio_write(h, EMERGENCY_BRAKE_LED, 1 if emergencyBrakeEngaged else 0)
-			status = "🚨 ENGAGED 🚨" if emergencyBrakeEngaged else "RELEASED"
+			status = "ENGAGED" if emergencyBrakeEngaged else "RELEASED"
 			print(f"EMERGENCY BRAKE: {status}")
 			time.sleep(0.3)
 		
