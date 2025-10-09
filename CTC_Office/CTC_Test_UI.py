@@ -68,7 +68,7 @@ class TestUI:
             #change speed to mph           
 
             self.dtTrainOutput.config(text = "Train " + train + ", " + line + " line")
-            self.dtSpeedOutput.config(text = f"{speed:.2f} mph")
+            self.dtSpeedOutput.config(text = f"{speed:.3f} mph")
             self.dtAuthOutput.config(text = auth + " blocks")
             #display outputs on screen
 

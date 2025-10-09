@@ -8,12 +8,12 @@ import os
 #full background color = #1a1a4d
 #box color = #4d4d6d
 
-#to fix:
-#properly find suggested speed
+#to fix: 
 #error checking for clicking parents in treeviews
 #error checking for inputing time on schedule
 #turn station input into combobox on schedule train
 #add try/except for inputting files
+#when time is at 10x, allow trains to be scheduled at specific times
 
 
 def main():
