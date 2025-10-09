@@ -528,7 +528,7 @@ class TrackModelUI(tk.Tk):
         # Define block -> (x, y) coordinates (adjust to your diagram)
         self.block_positions = {
             4: (335, 240),   # Crossing (example coordinates)
-            5: (400, 270),   # Switch
+            5: (410, 270),   # Switch
             6: (480, 110),   # Traffic Light
             11: (480, 320),   # Traffic Light
         }
@@ -659,9 +659,10 @@ class TrackModelUI(tk.Tk):
         plc_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
         plc_frame.pack(fill="x", padx=5, pady=(0, 8))
 
+        # In create_PLCupload_panel method:
         tk.Label(
             plc_frame,
-            text="Upload your Track Data file                       (.png, .txt, .xlsx)",  # Updated file types
+            text="Upload your Track Data file                       (.png, .csv, .txt, .xlsx)",  # Updated
             font=("Arial", 9),
             bg='white',
             fg='gray',
@@ -971,8 +972,9 @@ class TrackModelUI(tk.Tk):
     def PLCupload_file(self):
         from tkinter import filedialog
         filetypes = [
-            ("Image files", "*.png *.jpg *.jpeg"),  # Add image file types
+            ("Image files", "*.png *.jpg *.jpeg"),
             ("Excel files", "*.xlsx *.xls"),
+            ("CSV files", "*.csv"),  # Add CSV support
             ("Text files", "*.txt"),
             ("All files", "*.*")
         ]
@@ -985,8 +987,8 @@ class TrackModelUI(tk.Tk):
             if file_extension in ['png', 'jpg', 'jpeg']:
                 self.handle_image_upload(filename)
             
-            # Handle data files
-            elif file_extension in ['xlsx', 'xls', 'txt']:
+            # Handle data files (including CSV)
+            elif file_extension in ['xlsx', 'xls', 'csv', 'txt']:
                 self.handle_data_upload(filename)
             
             else:
@@ -1060,22 +1062,327 @@ class TrackModelUI(tk.Tk):
             print(f"❌ Error processing data file: {e}")
 
     def handle_excel_upload(self, filename):
-        """Process Excel file for track data"""
+        """Process Excel file for track data with the specific structure"""
         try:
             import pandas as pd
             
             # Read Excel file
             df = pd.read_excel(filename)
             print(f"📊 Excel file loaded with columns: {list(df.columns)}")
+            print(f"📊 First few rows:\n{df.head()}")
             
-            # Process track data
-            self.process_track_data(df)
+            # Process the specific structure
+            self.process_structured_track_data(df)
             
             self.log_to_all_terminals(f"[SUCCESS] Excel data loaded from: {filename.split('/')[-1]}")
             
         except Exception as e:
             self.log_to_all_terminals(f"[ERROR] Excel processing failed: {str(e)}")
             print(f"❌ Excel processing error: {e}")
+
+    def process_structured_track_data(self, df):
+        """Process the specific CSV/Excel structure and REPLACE default data"""
+        try:
+            print(f"🔄 Starting data replacement with {len(df)} rows")
+            
+            # Clear existing station data first
+            self.data_manager.station_location = []
+            print("🧹 Cleared existing station data")
+            
+            # Map column names to handle variations
+            column_mapping = {
+                'block_number': ['Block Number', 'Block_Number', 'BlockNumber', 'Block No'],
+                'block_length': ['Block Length (m)', 'Block_Length_m', 'BlockLength', 'Length'],
+                'block_grade': ['Block Grade (%)', 'Block_Grade_%', 'Grade', 'BlockGrade'],
+                'speed_limit': ['Speed Limit (Km/Hr)', 'Speed_Limit_Km_Hr', 'SpeedLimit', 'Speed'],
+                'elevation': ['ELEVATION (M)', 'ELEVATION_M', 'Elevation', 'ELEVATION'],
+                'infrastructure': ['Infrastructure', 'Infra', 'Features'],
+                'station_side': ['Station Side', 'Station_Side', 'Side']
+            }
+            
+            # Find actual column names in the dataframe
+            actual_columns = {}
+            for standard_name, possible_names in column_mapping.items():
+                for possible_name in possible_names:
+                    if possible_name in df.columns:
+                        actual_columns[standard_name] = possible_name
+                        break
+            
+            print(f"🔍 Found columns in file: {actual_columns}")
+            print(f"📊 DataFrame columns: {list(df.columns)}")
+            print(f"📊 First row sample: {df.iloc[0].to_dict() if len(df) > 0 else 'No data'}")
+            
+            # Reset all blocks to default state first
+            self.reset_all_blocks()
+            
+            # Process each row to REPLACE data
+            blocks_updated = 0
+            for index, row in df.iterrows():
+                # Get block number (handle different formats)
+                block_num = None
+                if 'block_number' in actual_columns:
+                    try:
+                        block_num = int(row[actual_columns['block_number']])
+                        print(f"📋 Processing block {block_num} from row {index}")
+                    except (ValueError, TypeError) as e:
+                        print(f"⚠️ Could not parse block number from row {index}: {row[actual_columns['block_number']]}")
+                        continue
+                else:
+                    # Try to infer from index or other columns
+                    block_num = index + 1  # Default to row index + 1
+                    print(f"📋 Inferred block {block_num} from row index {index}")
+                
+                if block_num and 1 <= block_num <= len(self.data_manager.blocks):
+                    block = self.data_manager.blocks[block_num - 1]
+                    
+                    # REPLACE block length
+                    if 'block_length' in actual_columns:
+                        try:
+                            block.length = float(row[actual_columns['block_length']])
+                            print(f"   📏 Length: {block.length}m")
+                        except (ValueError, TypeError) as e:
+                            print(f"⚠️ Could not parse length for block {block_num}: {row[actual_columns['block_length']]}")
+                            block.length = 0.0
+                    
+                    # REPLACE block grade
+                    if 'block_grade' in actual_columns:
+                        try:
+                            block.grade = float(row[actual_columns['block_grade']])
+                            print(f"   📈 Grade: {block.grade}%")
+                        except (ValueError, TypeError) as e:
+                            print(f"⚠️ Could not parse grade for block {block_num}: {row[actual_columns['block_grade']]}")
+                            block.grade = 0.0
+                    
+                    # REPLACE speed limit
+                    if 'speed_limit' in actual_columns:
+                        try:
+                            block.speed_limit = float(row[actual_columns['speed_limit']])
+                            print(f"   🚄 Speed: {block.speed_limit}km/h")
+                        except (ValueError, TypeError) as e:
+                            print(f"⚠️ Could not parse speed for block {block_num}: {row[actual_columns['speed_limit']]}")
+                            block.speed_limit = 0.0
+                    
+                    # REPLACE elevation
+                    if 'elevation' in actual_columns:
+                        try:
+                            block.elevation = float(row[actual_columns['elevation']])
+                            print(f"   🏔️ Elevation: {block.elevation}m")
+                        except (ValueError, TypeError) as e:
+                            print(f"⚠️ Could not parse elevation for block {block_num}: {row[actual_columns['elevation']]}")
+                            block.elevation = 0.0
+                    
+                    # RESET infrastructure flags first
+                    block.switch_state = False
+                    block.crossing = False
+                    
+                    # Handle infrastructure (stations, switches, etc.)
+                    if 'infrastructure' in actual_columns:
+                        infrastructure = str(row[actual_columns['infrastructure']])
+                        if pd.notna(infrastructure) and infrastructure != 'nan':
+                            self.process_infrastructure(block, infrastructure)
+                            print(f"   🏗️ Infrastructure: {infrastructure}")
+                    
+                    blocks_updated += 1
+                    print(f"✅ UPDATED block {block_num}")
+                else:
+                    print(f"❌ Block number {block_num} out of range (1-{len(self.data_manager.blocks)})")
+            
+            print(f"🎯 Successfully updated {blocks_updated} blocks")
+            
+            # Reset ticket sales and passenger data arrays to match new station data
+            self.reset_station_data_arrays()
+            
+            # Refresh both UIs to show the new data
+            self.refresh_all_uis()
+            
+            self.log_to_all_terminals(f"[SUCCESS] Completely replaced track data with uploaded file - updated {blocks_updated} blocks")
+            
+        except Exception as e:
+            print(f"❌ Error processing structured track data: {e}")
+            import traceback
+            traceback.print_exc()
+            self.log_to_all_terminals(f"[ERROR] Data replacement failed: {str(e)}")
+
+    def reset_all_blocks(self):
+        """Reset all blocks to default state before loading new data"""
+        for block in self.data_manager.blocks:
+            # Reset to default values
+            block.length = 0.0
+            block.grade = 0.0
+            block.elevation = 0.0
+            block.speed_limit = 0.0
+            block.switch_state = False
+            block.crossing = False
+            # Keep beacon and heater states as they are hardware-specific
+            # block.track_heater = [0, 1]  # Optional: reset heaters too
+            # block.beacon = [0] * 128     # Optional: reset beacons too
+
+    def reset_station_data_arrays(self):
+        """Reset station data arrays to match the new station configuration"""
+        num_blocks = len(self.data_manager.blocks)
+        
+        # Reset to zero arrays
+        self.data_manager.ticket_sales = [0] * num_blocks
+        self.data_manager.passengers_boarding = [0] * num_blocks
+        self.data_manager.passengers_disembarking = [0] * num_blocks
+        
+        # Pre-fill default station data for any stations found
+        for block_num, station_name in self.data_manager.station_location:
+            idx = block_num - 1
+            if 0 <= idx < num_blocks:
+                self.data_manager.ticket_sales[idx] = 0
+                self.data_manager.passengers_boarding[idx] = 0
+                self.data_manager.passengers_disembarking[idx] = 0
+
+    def refresh_all_uis(self):
+        """Refresh both Main UI and Test UI to show the new data"""
+        # Refresh Main UI components
+        self.refresh_ui()
+        
+        # Force update all tables and displays
+        self.update_bottom_table()
+        self.update_bidirectional_table()
+        
+        # Force redraw track icons
+        self.draw_track_icons()
+        
+        # Refresh Test UI if it exists
+        if hasattr(self, 'tester_reference'):
+            try:
+                self.tester_reference.refresh_block_table()
+                self.tester_reference.refresh_station_table()
+                self.tester_reference.refresh_diagram_table()
+                print("🔄 Refreshed Test UI tables")
+            except Exception as e:
+                print(f"⚠️ Could not refresh Test UI: {e}")
+        
+        print("🔄 COMPLETELY refreshed all UIs with new data")
+        
+        # Debug: Print current block data to verify
+        print("🔍 CURRENT BLOCK DATA AFTER UPDATE:")
+        for i, block in enumerate(self.data_manager.blocks[:5]):  # Show first 5 blocks
+            print(f"   Block {i+1}: Length={block.length}m, Grade={block.grade}%, Speed={block.speed_limit}km/h")
+
+    def process_infrastructure(self, block, infrastructure):
+        """Process infrastructure information and REPLACE existing data"""
+        try:
+            if pd.isna(infrastructure) or infrastructure == '' or infrastructure == 'nan':
+                return
+            
+            infrastructure = str(infrastructure).upper()
+            print(f"   🏗️ Processing infrastructure: '{infrastructure}' for block {block.block_number}")
+            
+            # Handle stations
+            if 'STATION' in infrastructure:
+                station_name = self.extract_station_name(infrastructure, block)
+                if station_name:
+                    # Remove any existing station at this block
+                    self.data_manager.station_location = [
+                        (block_num, name) for block_num, name in self.data_manager.station_location 
+                        if block_num != block.block_number
+                    ]
+                    # Add the new station
+                    self.data_manager.station_location.append((block.block_number, station_name))
+                    print(f"   🏢 ADDED station '{station_name}' at block {block.block_number}")
+            
+            # Handle switches - REPLACE switch state
+            if 'SWITCH' in infrastructure:
+                block.switch_state = True  # Set to right position
+                print(f"   🔀 ADDED switch at block {block.block_number}")
+            else:
+                block.switch_state = False  # Ensure no switch if not specified
+            
+            # Handle crossings - REPLACE crossing state
+            if 'CROSSING' in infrastructure:
+                block.crossing = True
+                print(f"   🚧 ADDED crossing at block {block.block_number}")
+            else:
+                block.crossing = False  # Ensure no crossing if not specified
+                
+        except Exception as e:
+            print(f"❌ Error processing infrastructure for block {block.block_number}: {e}")
+
+    def extract_station_name(self, infrastructure_text, block):
+        """Extract station name from infrastructure text"""
+        try:
+            # Example: "STATION; PIONEER" -> "PIONEER"
+            parts = str(infrastructure_text).split(';')
+            for part in parts:
+                clean_part = part.strip()
+                if 'STATION' in clean_part.upper():
+                    continue  # Skip the station keyword
+                if clean_part and clean_part != 'STATION':
+                    print(f"   🏢 Extracted station name: '{clean_part}'")
+                    return clean_part
+            
+            # If no clear name, generate one
+            generated_name = f"Station {block.block_number}"
+            print(f"   🏢 Generated station name: '{generated_name}'")
+            return generated_name
+        
+        except Exception as e:
+            print(f"❌ Error extracting station name: {e}")
+            return f"Station {block.block_number}"
+
+    def extract_station_name(self, infrastructure_text):
+        """Extract station name from infrastructure text"""
+        try:
+            # Example: "STATION; PIONEER" -> "PIONEER"
+            parts = infrastructure_text.split(';')
+            for part in parts:
+                if 'STATION' in part.upper():
+                    continue  # Skip the station keyword
+                station_name = part.strip()
+                if station_name and station_name != 'STATION':
+                    return station_name
+            
+            # If no clear name, generate one
+            return f"Station {self.data_manager.blocks.index(block) + 1}"
+        
+        except Exception as e:
+            print(f"❌ Error extracting station name: {e}")
+            return f"Station {self.data_manager.blocks.index(block) + 1}"
+
+    def handle_text_upload(self, filename):
+        """Process text file for track data - handle CSV format"""
+        try:
+            import pandas as pd
+            
+            # Try to read as CSV first
+            try:
+                df = pd.read_csv(filename)
+                print(f"📊 CSV file loaded with columns: {list(df.columns)}")
+                self.process_structured_track_data(df)
+                self.log_to_all_terminals(f"[SUCCESS] CSV data loaded from: {filename.split('/')[-1]}")
+                return
+            except:
+                pass
+            
+            # If CSV fails, try as space/tab delimited
+            try:
+                df = pd.read_csv(filename, delim_whitespace=True)
+                print(f"📊 Text file loaded with columns: {list(df.columns)}")
+                self.process_structured_track_data(df)
+                self.log_to_all_terminals(f"[SUCCESS] Text data loaded from: {filename.split('/')[-1]}")
+                return
+            except:
+                pass
+            
+            # Fall back to original text parsing
+            with open(filename, 'r') as file:
+                lines = file.readlines()
+            
+            # Parse text data - look for common track data patterns
+            track_data = self.parse_text_track_data(lines)
+            
+            # Process the extracted data
+            self.process_track_data(track_data)
+            
+            self.log_to_all_terminals(f"[SUCCESS] Text data loaded from: {filename.split('/')[-1]}")
+            
+        except Exception as e:
+            self.log_to_all_terminals(f"[ERROR] Text processing failed: {str(e)}")
+            print(f"❌ Text processing error: {e}")
 
     def handle_text_upload(self, filename):
         """Process text file for track data"""
@@ -1305,6 +1612,9 @@ if __name__ == "__main__":
     app = TrackModelUI(manager)
     tester = TrackModelTestUI(app, manager)
     
+    # Store reference to test UI for refreshing
+    app.tester_reference = tester
+    
     # Verify integration
     print("=== SYSTEM INTEGRATION CHECK ===")
     print(f"Main UI manager: {app.data_manager}")
@@ -1312,5 +1622,5 @@ if __name__ == "__main__":
     print(f"Same instance: {app.data_manager is tester.manager}")
     print(f"Bidirectional data shared: {hasattr(manager, 'bidirectional_directions')}")
     
-    tester.lift()  # Keep this line to bring test window to front
+    tester.lift()
     app.mainloop()
