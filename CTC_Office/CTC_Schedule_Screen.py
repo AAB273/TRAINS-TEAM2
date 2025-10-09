@@ -1,9 +1,10 @@
 import tkinter as tk
-from tkinter import ttk, simpledialog
+from tkinter import ttk, simpledialog, filedialog
 from tkinter.messagebox import askyesno
 from PIL import Image, ImageTk
 from time import strftime
 import CTC_Main_Screen
+import pandas as pd
 
 class ScheduleScreen:
 #"Schedule" ui screen appearance and data
@@ -28,7 +29,7 @@ class ScheduleScreen:
         self.mainScreen = main  #variable to hold the data of the schedule screen
         self.refMap = refMap
         self.notebook = notebook  #variable to hold data about the tab buttons
-        self.trainNum = 0;  #number of trains that have been sent to the system
+        self.trainNum = 1;  #number of trains that have been sent to the system
 
         self.createTopRow()
         #print to top row of the UI to the window
@@ -140,7 +141,7 @@ class ScheduleScreen:
         getDeploy = ttk.Button(buttonFrame, text = "Deploy Train", style = "TButton", command = lambda: (self.sendDeployData("1", selectedLocation.get(), arrivalTime.get(), "blue"), self.updateManualEdit("1", selectedLocation.get(), arrivalTime.get(), "blue")))
         getDeploy.pack(pady = 15, side = "top", fill = "x")
         #grab inputs from the Combobox and Entry (if user inputs values)
-        autoButton = ttk.Button(buttonFrame, text = "Automatic Mode", style = "TButton")
+        autoButton = ttk.Button(buttonFrame, text = "Automatic Mode", style = "TButton", command = lambda: self.updateAutoEdit())
         autoButton.pack(side = "top")
         #opens a tab to ask the user to input a .csv file to automatically schedule trains
     
@@ -216,9 +217,8 @@ class ScheduleScreen:
     def sendDeployData(self, location: str, destination: str, time: str, line: str):
     #send user inputs to main screen to update train locations Treeview
 
-        self.trainNum += 1
-        #increase of trains on the line
         self.mainScreen.updateTrainLocations(location, destination, time, line, self.trainNum)
+        #increase of trains on the line
 
 ###############################################################################################################################################################
 
@@ -254,6 +254,8 @@ class ScheduleScreen:
                 level = self.meArea.insert('', "end", text = line.title())
                 self.meArea.insert(level, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination, time])
 
+        self.trainNum += 1
+
         '''
         Write all data to to_test_ui.txt data file so the test ui can read in data changes
         Follows formatting rules specified in README.txt
@@ -269,7 +271,7 @@ class ScheduleScreen:
 ###############################################################################################################################################################
 
     def manualEdit(self, event):
-    #handle user clicks in the maintenance mode Treeview
+    #handle user clicks in the manual edit Treeview
 
         rowID = self.meArea.identify_row(event.y)
         #grab row user clicked in 
@@ -337,4 +339,19 @@ class ScheduleScreen:
                         outfile.write(self.meArea.item(self.meArea.parent(rowID), "text") + "\n")
                         outfile.close()
 
-            #add outputs to test ui
+###############################################################################################################################################################
+
+    def updateAutoEdit(self):
+        
+        autoFile = filedialog.askopenfilename(title = "Select a file", initialdir = "/", filetypes = [("CSV files", "*.csv")])
+        #get using input .csv file
+        if (autoFile):
+            schedule = pd.read_csv(autoFile)
+            #grab text from file
+            for i in range(0, len(schedule)):
+                dest = schedule.iloc[i, 0]
+                time = schedule.iloc[i, 1]
+                line = schedule.iloc[i, 2]
+
+                self.sendDeployData("1", dest, time, line)
+                self.updateManualEdit("1", dest, time, line)

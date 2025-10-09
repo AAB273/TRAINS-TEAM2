@@ -12,8 +12,8 @@ import os
 #properly find suggested speed
 #error checking for clicking parents in treeviews
 #error checking for inputing time on schedule
-#auto schedule with csv files
 #turn station input into combobox on schedule train
+#add try/except for inputting files
 
 
 def main():
