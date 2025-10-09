@@ -7,6 +7,8 @@ import socket
 import threading
 import json  # For structured data exchange
 import time
+from playsound import playsound
+import random
 # Socket server setup
 class TrainSocketServer:
     def __init__(self, port=12345):
@@ -101,12 +103,20 @@ class TrainSocketServer:
             elif command == 'service_brake':
                 if value == 'on':
                     current_train.set_service_brake(1)
-                    current_train.calculate_force_speed_acceleration_()
+                    current_train.set_acceleration(-1.2)
+                    #current_train.calculate_force_speed_acceleration_()
                 else:
                     current_train.set_service_brake(0)
                     current_train.calculate_force_speed_acceleration_()
             elif command == 'set_passenger_count':
                 current_train.set_passenger_count(value)
+                current_train.calculate_force_speed_acceleration_()
+            elif command == 'set_speed_limit':
+                current_train.set_speed_limit(value)
+            elif command == 'set_elevation':
+                current_train.set_elevation(value)
+            elif command == 'set_grade':
+                current_train.set_grade(value)
             elif command == 'select_train':
                 on_train_selected(value)
             elif command == 'set_temperature':
@@ -116,6 +126,8 @@ class TrainSocketServer:
                 current_train.set_station(value)
             elif command == 'set_time_to_station':
                 current_train.set_time_to_station(value)
+            elif command == 'horn':
+                playsound('/mnt/c/Users/wolfm/OneDrive - University of Pittsburgh/Desktop/Trains GIT Location/TRAINS-TEAM2/Train Model/diesel-horn-02-98042.mp3')
             # NEW DEPLOYMENT COMMANDS
             elif command == 'deploy_train':
                 train_id = value
@@ -189,7 +201,7 @@ class TrainSocketServer:
             
             # Schedule next increment
             root.after(1000, lambda: self._animate_temperature_change(target_temp))
-        
+
         elif current_temp > target_temp:
             # Decrement by 1 degree
             new_temp = current_temp - 1
@@ -198,7 +210,8 @@ class TrainSocketServer:
             
             # Schedule next decrement
             root.after(1000, lambda: self._animate_temperature_change(target_temp))
-        
+            
+        print(f"Real Cabin Temp: {current_train.cabin_temp} Sent!")
         
 def start_ui_heartbeat():
     """Periodically check and update UI to ensure it stays in sync"""
@@ -207,7 +220,7 @@ def start_ui_heartbeat():
             # Just update the UI regardless of changes
             update_ui_from_train(current_train)
         # Schedule next heartbeat
-        root.after(2000, heartbeat)  # Check every 2 seconds
+        root.after(1000, heartbeat)  # Check every 2 seconds
     
     heartbeat()
 
@@ -243,9 +256,9 @@ def emergency_brake_activated():
 def failure_service_brake_var_changed():
     if failure_brake_var.get():
         current_train.set_service_brake(0)
-        current_train.set_emergency_brake(1)
+        emergency_brake_activated()
         print(f"Service Brake Failure Activated")
-    else:
+    elif failure_brake_var.get() == 0:
         print(f"Service Brake Deactivated")
         current_train.set_emergency_brake(0)    
 
@@ -255,16 +268,21 @@ def failure_train_engine_var_changed():
     if failure_train_engine_var.get():
         current_train.set_engine_failure(True)
         current_train.set_power_command(0)
+        current_train.set_acceleration(0)
         print(f"Train Engine Failure Activated")
-    elif failure_train_engine_var.get():
+    elif failure_train_engine_var.get() == 0:
         current_train.set_engine_failure(False)
         print(f"Train Engine Failure Deactivated")
 
 def failure_signal_pickup_var_changed():
     if failure_signal_pickup_var.get():
         print(f"Signal Pickup Failure Activated")
+        ui_labels['Speed Limit'].config(text=f"Speed Limit: ??? MPH")
+        ui_labels['Grade'].config(text=f"Grade: ???")
+        ui_labels['Elevation'].config(text=f"Elevation: ???")
     else:
         print(f"Signal Pickup Failure Deactivated")
+
 
 
 def update_ui_from_train(train):
@@ -279,6 +297,9 @@ def update_ui_from_train(train):
     
     # Update passenger count
     ui_labels['passenger_count'].config(text=f"Passenger Count: {train.passenger_count}")
+
+    # Update passenger disembarking
+    ui_labels['disembarking'].config(text=f"Passengers Disembarking: {train.passengers_disembarking}")
     
     # Update crew count
     ui_labels['crew_count'].config(text=f"Crew Count: {train.crew_count}")
@@ -309,8 +330,8 @@ def update_ui_from_train(train):
     
     #Update Time
     local_time = time.localtime()
-    formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", local_time)
-    #ui_labels['time'].conifg(text=f"{formatted_time}")
+    formatted_time = time.strftime("%H:%M:%S\n%p", local_time)
+    ui_labels['time'].config(text=f"{formatted_time}")
 
     # Update power command
     ui_labels['power_command'].config(text=f"{train.power_command:.0f} Watts")
@@ -517,7 +538,8 @@ blt_logo_frame.image = converted_blt_logo_image
 time_frame = tk.Frame(top_container, bg=off_color, width=200, height=80, highlightbackground="black", highlightthickness=4)
 time_frame.pack(side='left', padx=3, pady=3)
 time_frame.pack_propagate(False)
-ui_labels['time'] = tk.Label(time_frame, text="Time", bg=off_color, fg='white', font=('Arial',10,'bold')).pack(padx=5, pady=5)
+ui_labels['time'] = tk.Label(time_frame, text="Time", bg=off_color, fg='white', font=('Arial',20,'bold'))
+ui_labels['time'].pack(padx=5, pady=5)
 
 Announcement_frame = tk.Frame(top_container, bg=off_color, width=800, height=80, highlightbackground="black", highlightthickness=4)
 Announcement_frame.pack(side='left', padx=3, pady=3)
@@ -541,7 +563,7 @@ tk.Label(Advertisement, image=converted_ad_image).pack(padx=1,pady=1)
 Advertisement.image = converted_ad_image
 
 # Doors/Lights Frame
-doors_and_lights_frame = tk.Frame(right_frame,height=300,highlightbackground="black",highlightthickness=2,bg=off_color)
+doors_and_lights_frame = tk.Frame(right_frame,height=250,highlightbackground="black",highlightthickness=2,bg=off_color)
 doors_and_lights_frame.pack(side='top',padx=3,pady=3,fill='x')
 doors_and_lights_frame.pack_propagate(False)
 
@@ -618,6 +640,23 @@ brake_switch = ttk.Checkbutton(murphy_frame, text="Brake", variable=failure_brak
                                command=lambda: failure_service_brake_var_changed(),
                                style="Large.TCheckbutton")
 brake_switch.pack(pady=3,padx=5,fill='x',expand=True)
+
+pass_disembarking_frame = tk.Frame(right_frame,highlightbackground="black",highlightthickness=2,bg=off_color,height=60)
+pass_disembarking_frame.pack(side='top',padx=1,pady=1,fill='both')
+
+
+disembarking_content = tk.Frame(pass_disembarking_frame, bg=off_color)
+disembarking_content.pack(expand=True, fill='both', padx=5, pady=5)
+
+
+generate_button = tk.Button(disembarking_content, text="Generate", bg=main_color, fg='white',font=('Arial', 10, 'bold'),relief='raised',bd=2,width=8,height=1,
+                            command=lambda: [current_train.set_disembarking(random.randint(0,current_train.passenger_count)),
+                                             current_train.set_passenger_count(current_train.passenger_count - current_train.passengers_disembarking)])
+generate_button.pack(side='left', padx=(0, 10))
+
+
+ui_labels['disembarking'] = tk.Label(disembarking_content, text="Passengers Disembarking: 0", bg=off_color, fg='white',font=('Arial', 12, 'bold'))
+ui_labels['disembarking'].pack(side='left', fill='both', expand=True)
 
 style = ttk.Style()
 style.theme_use('clam')
