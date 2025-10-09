@@ -69,6 +69,8 @@ class TrackModelUI(tk.Tk):
         self.create_center_panel(center_frame)
         self.create_bottom_table(center_frame)
 
+        self.after(1000, self.force_bidirectional_table_visible)
+
         # Refresh periodically
         self.after(1000, self.refresh_ui)
 
@@ -659,10 +661,9 @@ class TrackModelUI(tk.Tk):
         plc_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
         plc_frame.pack(fill="x", padx=5, pady=(0, 8))
 
-        # In create_PLCupload_panel method:
         tk.Label(
             plc_frame,
-            text="Upload your Track Data file                       (.png, .csv, .txt, .xlsx)",  # Updated
+            text="Upload your Track Data file (.png, .csv, .txt, .xlsx)",
             font=("Arial", 9),
             bg='white',
             fg='gray',
@@ -695,7 +696,7 @@ class TrackModelUI(tk.Tk):
         )
         history_label.pack(pady=3)
 
-        # --- BIDIRECTIONAL BLOCK TABLE ---
+        # --- BIDIRECTIONAL BLOCK CONTROLS (WITH BUTTONS LIKE TEST UI) ---
         bidir_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
         bidir_frame.pack(fill="x", padx=5, pady=(0, 8))
 
@@ -707,23 +708,21 @@ class TrackModelUI(tk.Tk):
             fg="black"
         ).pack(pady=(5, 3))
 
-        # Create the bidirectional block table
-        bidir_columns = ("Block Group", "Direction")
-        self.bidir_tree = ttk.Treeview(bidir_frame, columns=bidir_columns, show="headings", height=3)
+        # Create control widgets for each bidirectional group (like Test UI)
+        self.bidir_controls = {}
         
-        # Configure columns
-        self.bidir_tree.heading("Block Group", text="Block Group")
-        self.bidir_tree.heading("Direction", text="Direction")
-        self.bidir_tree.column("Block Group", width=100, anchor="center")
-        self.bidir_tree.column("Direction", width=80, anchor="center")
+        # Use the shared data from TrackDataManager - ensure it exists
+        if not hasattr(self.data_manager, 'bidirectional_directions'):
+            # Initialize with default data if missing
+            self.data_manager.bidirectional_directions = {
+                "Blocks 1-5": 0,
+                "Blocks 6-10": 0, 
+                "Blocks 11-15": 0
+            }
         
-        self.bidir_tree.pack(fill="x", padx=5, pady=(0, 5))
-        
-        # ADD THIS LINE: Make the table interactive
-        self.bidir_tree.bind("<ButtonRelease-1>", self.on_bidir_table_click)
-        
-        # Populate the table
-        self.update_bidirectional_table()
+        # Create controls for each group
+        for group_name in self.data_manager.bidirectional_directions.keys():
+            self.create_bidirectional_control(bidir_frame, group_name)
 
         # --- TERMINAL / EVENT LOG SECTION ---
         terminal_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
@@ -765,17 +764,116 @@ class TrackModelUI(tk.Tk):
         send_button.pack(pady=(5, 10), padx=5, anchor="s")
 
         return outer_frame
+
+    def create_bidirectional_control(self, parent, group_name):
+        """Create a control row with label, status, and toggle button for a bidirectional group"""
+        control_frame = tk.Frame(parent, bg="white")
+        control_frame.pack(fill="x", pady=3, padx=5)
+        
+        # Group label
+        lbl_group = tk.Label(control_frame, text=f"{group_name}:", width=15, anchor="w", bg="white")
+        lbl_group.pack(side="left", padx=(0, 10))
+        
+        # Direction status
+        status_var = tk.StringVar()
+        status_lbl = tk.Label(control_frame, textvariable=status_var, width=12, anchor="center", 
+                            bg="white", relief="sunken", bd=1)
+        status_lbl.pack(side="left", padx=(0, 10))
+        
+        # Toggle button (immediate action, no save required)
+        btn_toggle = tk.Button(control_frame, text="Toggle Direction", 
+                            command=lambda gn=group_name: self.toggle_bidirectional_direction(gn),
+                            width=15)
+        btn_toggle.pack(side="left")
+        
+        # Store the status variable for updates
+        self.bidir_controls[group_name] = status_var
+        
+        # Set initial status
+        self.update_bidirectional_status(group_name)
+
+    def update_bidirectional_status(self, group_name):
+        """Update the status display for a bidirectional group"""
+        if (hasattr(self.data_manager, 'bidirectional_directions') and 
+            group_name in self.data_manager.bidirectional_directions and
+            group_name in self.bidir_controls):
+            
+            direction = self.data_manager.bidirectional_directions[group_name]
+            status_text = "← Left" if direction == 0 else "Right →"
+            self.bidir_controls[group_name].set(status_text)
+
+    def toggle_bidirectional_direction(self, group_name):
+        """Main UI toggle - now just a placeholder since Test UI controls"""
+        print(f"ℹ️ Main UI toggle for {group_name} - Test UI is the controller")
+
+    def save_bidirectional_direction(self, group_name):
+        """Main UI save - now just a placeholder"""
+        print(f"ℹ️ Main UI save for {group_name} - Test UI controls changes")
+
+    def refresh_bidirectional_controls(self):
+        """Refresh all bidirectional controls - called by Test UI"""
+        print("🔄 Main UI refreshing bidirectional controls from Test UI")
+        if hasattr(self.data_manager, 'bidirectional_directions'):
+            for group_name in self.data_manager.bidirectional_directions.keys():
+                self.update_bidirectional_status(group_name)
+    
+    def force_bidirectional_table_visible(self):
+        """Force the bidirectional table to be visible - debugging method"""
+        if hasattr(self, 'bidir_tree'):
+            # Make sure the treeview is mapped (visible)
+            self.bidir_tree.update()
+            
+            # Force a geometry update
+            self.bidir_tree.pack_info()
+            
+            # Print treeview geometry information
+            print("=== BIDIRECTIONAL TABLE VISIBILITY DEBUG ===")
+            print(f"Treeview exists: {self.bidir_tree is not None}")
+            print(f"Treeview mapped: {self.bidir_tree.winfo_ismapped()}")
+            print(f"Treeview width: {self.bidir_tree.winfo_width()}")
+            print(f"Treeview height: {self.bidir_tree.winfo_height()}")
+            print(f"Treeview x: {self.bidir_tree.winfo_x()}")
+            print(f"Treeview y: {self.bidir_tree.winfo_y()}")
+            print(f"Parent visible: {self.bidir_tree.winfo_parent()}")
+            
+            # Try to force focus and selection to make it visible
+            children = self.bidir_tree.get_children()
+            if children:
+                self.bidir_tree.focus(children[0])
+                self.bidir_tree.selection_set(children[0])
+            
+            print("=============================================")
     
     def on_bidir_table_click(self, event):
         """Handle clicks on the bidirectional table to toggle directions"""
         item = self.bidir_tree.identify_row(event.y)
         if item:
+            column = self.bidir_tree.identify_column(event.x)
+            # Only respond to clicks anywhere in the row (not just direction column)
+            # This makes it easier to toggle
             values = self.bidir_tree.item(item, "values")
             if values and len(values) > 0:
                 group_name = values[0]
+                print(f"🖱️ Clicked on {group_name} in column {column}")
                 self.toggle_bidirectional_direction(group_name)
 
+    def debug_bidirectional_table(self):
+        """Debug method to check the current state of the bidirectional table"""
+        if hasattr(self, 'bidir_tree'):
+            print("=== BIDIRECTIONAL TABLE DEBUG ===")
+            print(f"Treeview exists: {self.bidir_tree is not None}")
+            print(f"Number of rows: {len(self.bidir_tree.get_children())}")
+            
+            for item in self.bidir_tree.get_children():
+                values = self.bidir_tree.item(item, "values")
+                print(f"  Row: {values}")
+            
+            print(f"Data manager state: {getattr(self.data_manager, 'bidirectional_directions', 'NO DATA')}")
+            print("=================================")
+
     def send_outputs(self):
+        """Only refresh terminals when Send Outputs button is clicked"""
+        print("🔄 Manual terminal refresh triggered by Send Outputs button")
         for terminal in self.terminals:
             self._send_outputs_to_terminal(terminal)
 
@@ -935,13 +1033,11 @@ class TrackModelUI(tk.Tk):
         self.refresh_bidirectional_display()  # ✅ Call the refresh method
 
     def toggle_bidirectional_direction(self, group_name):
-        """Toggle the direction for a block group using shared data"""
-        if group_name in self.data_manager.bidirectional_directions:
-            current_direction = self.data_manager.bidirectional_directions[group_name]
-            new_direction = 1 if current_direction == 0 else 0
-            self.data_manager.bidirectional_directions[group_name] = new_direction
-            self.update_bidirectional_table()  # This will now call refresh_bidirectional_display
-            print(f"🔄 {group_name} direction changed to: {'Right →' if new_direction == 1 else '← Left'}")
+        """Main UI toggle method - now just calls Test UI's method"""
+        print(f"🔄 Main UI toggle called for {group_name} - delegating to Test UI")
+        # If you want Main UI buttons to also control, you can call Test UI's method
+        # But for now, let's make Test UI the primary controller
+        pass
 
     def get_block_group_direction(self, block_number):
         """Get the direction for a specific block based on its group"""
@@ -1308,6 +1404,47 @@ class TrackModelUI(tk.Tk):
         except Exception as e:
             print(f"❌ Error processing infrastructure for block {block.block_number}: {e}")
 
+    def update_bidirectional_table(self):
+        """Update the bidirectional block table with current directions from shared data"""
+        if hasattr(self, 'bidir_tree'):
+            # Clear existing rows
+            for item in self.bidir_tree.get_children():
+                self.bidir_tree.delete(item)
+            
+            # Populate with current directions from shared manager
+            if hasattr(self.data_manager, 'bidirectional_directions'):
+                print(f"🔄 Updating Main UI table with: {self.data_manager.bidirectional_directions}")
+                
+                for group, direction in self.data_manager.bidirectional_directions.items():
+                    direction_text = "← Left" if direction == 0 else "Right →"
+                    self.bidir_tree.insert("", "end", values=(group, direction_text))
+                    print(f"   ➕ Added row: {group} = {direction_text}")
+                
+                # Force the treeview to update visually
+                self.bidir_tree.update_idletasks()
+                print("✅ Main UI bidirectional table VISUALLY updated")
+
+    def toggle_bidirectional_direction(self, group_name):
+        """Toggle the direction for a block group using shared data"""
+        if hasattr(self.data_manager, 'bidirectional_directions') and group_name in self.data_manager.bidirectional_directions:
+            current_direction = self.data_manager.bidirectional_directions[group_name]
+            new_direction = 1 if current_direction == 0 else 0
+            
+            print(f"🔄 Toggling {group_name} from {current_direction} to {new_direction}")
+            
+            # Update the shared data manager
+            self.data_manager.bidirectional_directions[group_name] = new_direction
+            
+            # Force immediate refresh of the table
+            self.update_bidirectional_table()
+            
+            # Also force refresh the Test UI if it exists
+            if hasattr(self, 'tester_reference') and hasattr(self.tester_reference, 'refresh_bidirectional_controls'):
+                self.tester_reference.refresh_bidirectional_controls()
+                print("🔄 Test UI refresh triggered")
+            
+            print(f"✅ {group_name} direction changed to: {'Right →' if new_direction == 1 else '← Left'}")
+
     def extract_station_name(self, infrastructure_text, block):
         """Extract station name from infrastructure text"""
         try:
@@ -1550,19 +1687,17 @@ class TrackModelUI(tk.Tk):
         # Redraw track icons (switches, crossings, lights)
         self.draw_track_icons()
 
-        # Refresh bidirectional table ✅ ADD THIS
+        # Refresh bidirectional table 
         self.update_bidirectional_table()
 
+        # REMOVED: Automatic terminal refresh - terminal only updates on button click now
+
         # Draw trains on BOTH occupancy canvases:
-        # 1. Bottom panel station view (if it exists)
         if hasattr(self, "block_canvas") and hasattr(self, "train_items_block_canvas"):
             self.draw_trains(canvas=self.block_canvas, items_list=self.train_items_block_canvas)
-            print("Drew trains on bottom panel Station Occupancy")
         
-        # 2. Center panel Block and Station Occupancy tab (if it exists)
         if hasattr(self, "block_canvas") and hasattr(self, "train_items_center"):
             self.draw_trains(canvas=self.block_canvas, items_list=self.train_items_center)
-            print("Drew trains on center panel Block and Station Occupancy tab")
 
         # Refresh again in 1 second
         self.after(1000, self.refresh_ui)
