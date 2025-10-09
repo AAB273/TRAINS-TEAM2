@@ -82,10 +82,10 @@ class TrackDataManager:
         """Create 15 default track blocks."""
         from Track_Blocks import Block
         self.blocks = [
-            Block(block_number=i+1, length=50, grade=0, elevation=0, speed_limit=50, track_heater=[0, 1])
+            Block(block_number=i+1, length=50, grade=0, elevation=0, speed_limit=50, 
+                track_heater=[0, 1], beacon=[0]*128)  # Default 128-bit beacon
             for i in range(15)
         ]
-
 
     # ---------------- Data Access ----------------
     def get_data(self):
@@ -102,6 +102,29 @@ class TrackDataManager:
             "passengers_boarding": self.passengers_boarding,
             "passengers_disembarking": self.passengers_disembarking,
         }
+    
+    def collect_outputs_to_send(self):
+        outputs_to_send = [
+            "ticket_sales",
+            "passengers_disembarking",
+            "occupancy",
+            "commanded_speed",
+            "commanded_authority",
+            "beacon",
+            "failure_mode",
+            "passengers_boarding"
+        ]
+
+        data_to_send = []
+
+        # For each block
+        for b in self.manager.blocks:
+            block_data = {}
+            for attr in outputs_to_send:
+                block_data[attr] = getattr(b, attr, None)
+            data_to_send.append(block_data)
+
+        return data_to_send
 
     # ---------------- Helper Accessors ----------------
     def get_active_trains(self):

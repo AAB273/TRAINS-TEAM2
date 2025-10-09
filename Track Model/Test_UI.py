@@ -163,6 +163,26 @@ class TrackModelTestUI(tk.Toplevel):
         e_heater_working.pack()
         entries["heater_working"] = e_heater_working
 
+        # Add beacon editing
+        tk.Label(popup, text="Beacon (128-bit hex)").pack()
+        e_beacon = tk.Entry(popup)
+        beacon_hex = self.master.beacon_to_hex(block) if hasattr(self.master, 'beacon_to_hex') else "0"*32
+        e_beacon.insert(0, beacon_hex)
+        e_beacon.pack()
+        entries["beacon"] = e_beacon
+
+        def save_changes():
+            # ... existing attribute saving ...
+            
+            # Beacon - handle 128-bit hex
+            if "beacon" in entries:
+                hex_string = entries["beacon"].get().strip().lower()
+                if len(hex_string) == 32 and all(c in '0123456789abcdef' for c in hex_string):
+                    if hasattr(self.master, 'beacon_from_hex'):
+                        self.master.beacon_from_hex(block, hex_string)
+                else:
+                    messagebox.showwarning("Invalid Beacon", "Beacon must be 32-character hex string")
+
         def save_changes():
             for attr, entry in entries.items():
                 val = entry.get()
@@ -411,6 +431,38 @@ class TrackModelTestUI(tk.Toplevel):
         self.refresh_diagram_table()
         tk.Button(frame, text="Edit Selected Element", command=self.edit_selected_diagram).pack(pady=5)
 
+        # --- NEW: BIDIRECTIONAL BLOCK CONTROLS ---
+        tk.Label(frame, text="Bidirectional Block Controls", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=(20, 5))
+
+        # Create bidirectional control table
+        bidir_columns = ("Block Group", "Current Direction", "Toggle")
+        self.bidir_control_tree = ttk.Treeview(frame, columns=bidir_columns, show="headings", height=3)
+        
+        # Configure columns
+        self.bidir_control_tree.heading("Block Group", text="Block Group")
+        self.bidir_control_tree.heading("Current Direction", text="Current Direction")
+        self.bidir_control_tree.heading("Toggle", text="Toggle")
+        
+        self.bidir_control_tree.column("Block Group", width=100, anchor="center")
+        self.bidir_control_tree.column("Current Direction", width=120, anchor="center")
+        self.bidir_control_tree.column("Toggle", width=80, anchor="center")
+        
+        self.bidir_control_tree.pack(fill="x", padx=10, pady=5)
+
+        # Initialize bidirectional directions if not exists
+        if not hasattr(self.manager, 'bidirectional_directions'):
+            self.manager.bidirectional_directions = {
+                "Blocks 1-5": 0,  # 0 = left, 1 = right
+                "Blocks 6-10": 0,
+                "Blocks 11-15": 0
+            }
+
+        # Populate the table
+        self.refresh_bidirectional_table()
+
+        # Make the table interactive
+        self.bidir_control_tree.bind("<ButtonRelease-1>", self.on_bidir_control_click)
+
     def signal_color(self, bits):
         mapping = {
             (0, 0): "Red",
@@ -466,6 +518,30 @@ class TrackModelTestUI(tk.Toplevel):
                     self.diagram_tree.focus(item_id)
                     break
 
+    def refresh_bidirectional_table(self):
+        """Update the bidirectional control table with current directions"""
+        if hasattr(self, 'bidir_control_tree'):
+            # Clear existing rows
+            self.bidir_control_tree.delete(*self.bidir_control_tree.get_children())
+        
+        # Populate with current directions
+        for group, direction in self.manager.bidirectional_directions.items():
+            direction_text = "← Left" if direction == 0 else "Right →"
+            toggle_text = "Click to Toggle"
+            self.bidir_control_tree.insert("", "end", values=(group, direction_text, toggle_text))
+
+    def on_bidir_control_click(self, event):
+        """Handle clicks on the bidirectional control table to toggle directions"""
+        item = self.bidir_control_tree.identify_row(event.y)
+        if item:
+            column = self.bidir_control_tree.identify_column(event.x)
+            # Only respond to clicks in the "Toggle" column (column #3)
+            if column == "#3":  # Toggle column
+                values = self.bidir_control_tree.item(item, "values")
+                if values and len(values) > 0:
+                    group_name = values[0]
+                    self.toggle_bidirectional_direction(group_name)
+
     def toggle_switch(self, block_num):
         block = self.data_manager.blocks[block_num - 1]
         block.switch_state = not block.switch_state
@@ -501,6 +577,22 @@ class TrackModelTestUI(tk.Toplevel):
         
         if hasattr(self.master, "draw_track_icons"):
             self.master.draw_track_icons()
+
+    def toggle_bidirectional_direction(self, group_name):
+        """Toggle the direction for a block group in both Test UI and Main UI"""
+        if group_name in self.manager.bidirectional_directions:
+            current_direction = self.manager.bidirectional_directions[group_name]
+            new_direction = 1 if current_direction == 0 else 0
+            self.manager.bidirectional_directions[group_name] = new_direction
+            
+            # Also update Main UI if it exists
+            if hasattr(self.master, 'bidirectional_directions'):
+                self.master.bidirectional_directions[group_name] = new_direction
+                if hasattr(self.master, 'update_bidirectional_table'):
+                    self.master.update_bidirectional_table()
+            
+            self.refresh_bidirectional_table()
+            print(f"🔄 {group_name} direction changed to: {'Right →' if new_direction == 1 else '← Left'}")
 
 # ---------------- Edit Diagram Popup ----------------
     def edit_selected_diagram(self):
@@ -642,4 +734,5 @@ class TrackModelTestUI(tk.Toplevel):
         self.refresh_station_table()
         self.refresh_train_table()
         self.refresh_diagram_table()
+        self.refresh_bidirectional_table() 
         self.after(1000, self.refresh_ui)
