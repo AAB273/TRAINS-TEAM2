@@ -175,7 +175,6 @@ class TrackModelUI(tk.Tk):
             cb = tk.Checkbutton(self.filter_card, text=opt, bg="white", variable=self.filter_vars[opt])
             cb.pack(anchor="w", padx=10)
 
-
     def update_train_info(self, event):
         idx = self.train_combo.current()
         occ = self.data_manager.train_occupancy[idx]
@@ -258,6 +257,10 @@ class TrackModelUI(tk.Tk):
         # Filters remain intact; no destroying checkbuttons
         self.init_filter_checkbuttons()
 
+    def refresh_block_table(self):
+        """Refresh the block table display"""
+        self.update_bottom_table()
+
     def show_track_view(self):
         """Display the track table view with active filters applied."""
 
@@ -266,6 +269,8 @@ class TrackModelUI(tk.Tk):
         crossing_blocks = {4}
         signal_blocks = {6, 11}
         station_blocks = {10, 15}
+        # All blocks are bidirectional, so we'll include all block numbers 1-15
+        bidirectional_blocks = set(range(1, 16))  # Blocks 1 through 15
 
         # --- Configure columns ---
         self.tree.config(columns=self.columns_track)
@@ -281,6 +286,7 @@ class TrackModelUI(tk.Tk):
         show_switch = self.filter_vars["Switch Blocks"].get()
         show_crossing = self.filter_vars["Crossing Blocks"].get()
         show_station = self.filter_vars["Station Blocks"].get()
+        show_bidirectional = self.filter_vars["Bidirectional Blocks"].get()  # New filter
         show_signal = self.filter_vars["Signal Blocks"].get()
 
         # --- Insert filtered rows ---
@@ -297,6 +303,8 @@ class TrackModelUI(tk.Tk):
                 elif show_crossing and num in crossing_blocks:
                     show = True
                 elif show_station and num in station_blocks:
+                    show = True
+                elif show_bidirectional and num in bidirectional_blocks:  # New condition
                     show = True
                 elif show_signal and num in signal_blocks:
                     show = True
@@ -319,7 +327,7 @@ class TrackModelUI(tk.Tk):
                         f"{b.length}m",
                         f"{b.speed_limit} km/h",
                         heater_display,
-                        beacon_display,  # Updated beacon display
+                        beacon_display,
                     ),
                 )
 
@@ -653,7 +661,7 @@ class TrackModelUI(tk.Tk):
 
         tk.Label(
             plc_frame,
-            text="Upload your Track Data file                       (.pdf, .txt, .xlsx)",
+            text="Upload your Track Data file                       (.png, .txt, .xlsx)",  # Updated file types
             font=("Arial", 9),
             bg='white',
             fg='gray',
@@ -962,21 +970,229 @@ class TrackModelUI(tk.Tk):
 
     def PLCupload_file(self):
         from tkinter import filedialog
-        filetypes = [("PLC files", "*.plc"), ("Text files", "*.txt"), ("CSV files", "*.csv"), ("All files", "*.*")]
-        filename = filedialog.askopenfilename(title="Select PLC File", filetypes=filetypes)
+        filetypes = [
+            ("Image files", "*.png *.jpg *.jpeg"),  # Add image file types
+            ("Excel files", "*.xlsx *.xls"),
+            ("Text files", "*.txt"),
+            ("All files", "*.*")
+        ]
+        filename = filedialog.askopenfilename(title="Select Track Data File", filetypes=filetypes)
+        
         if filename:
-            # Update all terminals with file upload message
-            for terminal in self.terminals:
-                terminal.config(state="normal")
-                terminal.insert("end", f"[INFO] Loaded PLC file: {filename}\n")
-                terminal.see("end")
-                terminal.config(state="disabled")
+            file_extension = filename.lower().split('.')[-1]
+            
+            # Handle image files
+            if file_extension in ['png', 'jpg', 'jpeg']:
+                self.handle_image_upload(filename)
+            
+            # Handle data files
+            elif file_extension in ['xlsx', 'xls', 'txt']:
+                self.handle_data_upload(filename)
+            
+            else:
+                self.log_to_all_terminals(f"[ERROR] Unsupported file type: {file_extension}")
+                
         else:
-            for terminal in self.terminals:
-                terminal.config(state="normal")
-                terminal.insert("end", f"[WARN] File selection canceled.\n")
-                terminal.see("end")
-                terminal.config(state="disabled")
+            self.log_to_all_terminals("[WARN] File selection canceled.")
+
+    def handle_image_upload(self, filename):
+        """Handle PNG/JPG upload - replace track diagram background and clear all icons"""
+        try:
+            # Load and resize the new image
+            new_img = Image.open(filename).resize((900, 450), Image.LANCZOS)
+            self.track_bg = ImageTk.PhotoImage(new_img)
+            
+            # Clear EVERYTHING from the canvas first
+            self.track_canvas.delete("all")  # This removes all canvas items
+            
+            # Add the new background image
+            self.track_canvas.create_image(0, 0, image=self.track_bg, anchor="nw")
+            self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
+            
+            # Clear all track icons from tracking
+            self.clear_all_track_icons()
+            
+            # Clear train items from track diagram
+            if hasattr(self, "train_items"):
+                self.train_items.clear()  # Clear the list, items already deleted by delete("all")
+            
+            # Clear any other canvas item lists
+            if hasattr(self, "train_items_center"):
+                self.train_items_center.clear()
+            if hasattr(self, "train_items_block_canvas"):
+                self.train_items_block_canvas.clear()
+            
+            self.log_to_all_terminals(f"[SUCCESS] Track diagram updated with: {filename.split('/')[-1]}")
+            print(f"✅ Track diagram background updated with: {filename}")
+            print("🧹 ALL track icons, trains, and canvas items cleared from diagram")
+            
+        except Exception as e:
+            self.log_to_all_terminals(f"[ERROR] Failed to load image: {str(e)}")
+            print(f"❌ Error loading image: {e}")
+
+    def clear_all_track_icons(self):
+        """Completely clear all track icons and reset all tracking"""
+        # Reset icon tracking dictionaries
+        self.icon_item_ids = {"crossing": {}, "switch": {}, "traffic": {}}
+        
+        # Clear any stored icon images to free memory
+        if hasattr(self, 'icons'):
+            self.icons.clear()
+        
+        # Clear any icon images from the image cache
+        if hasattr(self, 'icon_images'):
+            self.icon_images.clear()
+        
+        print("🧹 Completely cleared all track icons and reset all tracking data")
+
+    def handle_data_upload(self, filename):
+        """Handle Excel/TXT upload - read track data"""
+        try:
+            file_extension = filename.lower().split('.')[-1]
+            
+            if file_extension in ['xlsx', 'xls']:
+                self.handle_excel_upload(filename)
+            elif file_extension == 'txt':
+                self.handle_text_upload(filename)
+                
+        except Exception as e:
+            self.log_to_all_terminals(f"[ERROR] Failed to process data file: {str(e)}")
+            print(f"❌ Error processing data file: {e}")
+
+    def handle_excel_upload(self, filename):
+        """Process Excel file for track data"""
+        try:
+            import pandas as pd
+            
+            # Read Excel file
+            df = pd.read_excel(filename)
+            print(f"📊 Excel file loaded with columns: {list(df.columns)}")
+            
+            # Process track data
+            self.process_track_data(df)
+            
+            self.log_to_all_terminals(f"[SUCCESS] Excel data loaded from: {filename.split('/')[-1]}")
+            
+        except Exception as e:
+            self.log_to_all_terminals(f"[ERROR] Excel processing failed: {str(e)}")
+            print(f"❌ Excel processing error: {e}")
+
+    def handle_text_upload(self, filename):
+        """Process text file for track data"""
+        try:
+            with open(filename, 'r') as file:
+                lines = file.readlines()
+            
+            # Parse text data - look for common track data patterns
+            track_data = self.parse_text_track_data(lines)
+            
+            # Process the extracted data
+            self.process_track_data(track_data)
+            
+            self.log_to_all_terminals(f"[SUCCESS] Text data loaded from: {filename.split('/')[-1]}")
+            
+        except Exception as e:
+            self.log_to_all_terminals(f"[ERROR] Text processing failed: {str(e)}")
+            print(f"❌ Text processing error: {e}")
+
+    def parse_text_track_data(self, lines):
+        """Parse text file to extract track data in a structured format"""
+        data = {}
+        current_section = None
+        
+        for line in lines:
+            line = line.strip()
+            
+            # Skip empty lines and comments
+            if not line or line.startswith('#'):
+                continue
+                
+            # Detect section headers (e.g., "Block Grade (%)")
+            if ':' in line or line.endswith('(%)') or any(keyword in line for keyword in 
+                                                        ['Grade', 'Elevation', 'Length', 'Speed', 'Block']):
+                current_section = line.split(':')[0].strip()
+                data[current_section] = []
+                continue
+                
+            # Parse numeric data
+            if current_section and line.replace('.', '').replace('-', '').isdigit():
+                try:
+                    value = float(line)
+                    data[current_section].append(value)
+                except ValueError:
+                    continue
+                    
+        return data
+
+    def process_track_data(self, data):
+        """Process extracted track data and update blocks"""
+        try:
+            # Handle DataFrame (Excel) or dict (Text) input
+            if hasattr(data, 'columns'):  # It's a DataFrame
+                self.process_dataframe(data)
+            elif isinstance(data, dict):  # It's a dict from text parsing
+                self.process_data_dict(data)
+                
+            # Refresh UI to show updated data
+            self.refresh_ui()
+            
+        except Exception as e:
+            print(f"❌ Error processing track data: {e}")
+
+    def process_dataframe(self, df):
+        """Process DataFrame from Excel file"""
+        # Update block data based on Excel columns
+        for index, row in df.iterrows():
+            if index < len(self.data_manager.blocks):
+                block = self.data_manager.blocks[index]
+                
+                # Update block attributes based on available columns
+                if "Block Grade (%)" in df.columns:
+                    block.grade = float(row["Block Grade (%)"])
+                if "ELEVATION (M)" in df.columns:
+                    block.elevation = float(row["ELEVATION (M)"])
+                if "Block Length (m)" in df.columns:
+                    block.length = float(row["Block Length (m)"])
+                if "Speed Limit (Km/Hr)" in df.columns:
+                    block.speed_limit = float(row["Speed Limit (Km/Hr)"])
+                    
+                print(f"📝 Updated block {block.block_number}: Grade={block.grade}%, Elevation={block.elevation}m")
+
+    def process_data_dict(self, data_dict):
+        """Process dictionary from text file"""
+        print(f"📋 Processing data dictionary: {list(data_dict.keys())}")
+        
+        # Example: Update block grades if found in text data
+        if "Block Grade (%)" in data_dict:
+            grades = data_dict["Block Grade (%)"]
+            for i, grade in enumerate(grades):
+                if i < len(self.data_manager.blocks):
+                    self.data_manager.blocks[i].grade = grade
+                    print(f"📝 Set block {i+1} grade to: {grade}%")
+
+    def clear_all_track_icons(self):
+        """Clear all switches, signals, and crossing icons from track diagram"""
+        if hasattr(self, 'icon_item_ids'):
+            for icon_type in self.icon_item_ids:
+                for block_num, item in self.icon_item_ids[icon_type].items():
+                    if isinstance(item, list):
+                        for subitem in item:
+                            self.track_canvas.delete(subitem)
+                    else:
+                        self.track_canvas.delete(item)
+            
+            # Reset the icon tracking dictionary
+            self.icon_item_ids = {"crossing": {}, "switch": {}, "traffic": {}}
+            
+            print("🧹 Cleared all track icons from diagram")
+
+    def log_to_all_terminals(self, message):
+        """Log message to all terminal widgets"""
+        for terminal in self.terminals:
+            terminal.config(state="normal")
+            terminal.insert("end", f"{message}\n")
+            terminal.see("end")
+            terminal.config(state="disabled")
 
     def on_failure_changed(self):
         print("Failure states updated")
