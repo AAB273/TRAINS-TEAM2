@@ -82,7 +82,7 @@ class TrackDataManager:
         """Create 15 default track blocks."""
         from Track_Blocks import Block
         self.blocks = [
-            Block(block_number=i+1, length=50, grade=0, elevation=0, speed_limit=50)
+            Block(block_number=i+1, length=50, grade=0, elevation=0, speed_limit=50, track_heater=[0, 1])
             for i in range(15)
         ]
 

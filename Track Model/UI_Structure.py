@@ -36,6 +36,7 @@ class TrackModelUI(tk.Tk):
             14: (300, 400),  
             15: (600, 400),  
 }
+        self.terminals = []
 
         # Use the shared TrackDataManager
         self.data_manager = manager
@@ -192,32 +193,27 @@ class TrackModelUI(tk.Tk):
         card.config(height=500)  # fixed height to prevent shrinking
         card.pack_propagate(False)
 
-        # Container with two columns: left = notebook, right = persistent PLC/terminal
-        container = tk.Frame(card, bg="white")
-        container.pack(fill="both", expand=True, padx=10, pady=10)
-        container.grid_rowconfigure(0, weight=1)
-        container.grid_columnconfigure(0, weight=1)   # notebook column stretches
-        container.grid_columnconfigure(1, weight=0)   # right panel fixed
-
-        # ---------------- Left: Notebook ----------------
-        left_col = tk.Frame(container, bg="white")
-        left_col.grid(row=0, column=0, sticky="nsew")
-
-        notebook = ttk.Notebook(left_col)
+        # Use a simple notebook layout
+        notebook = ttk.Notebook(card)
         notebook.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # Tab 1: Track Diagram (canvas etc. will live here)
+        # Tab 1: Track Diagram
         frame1 = tk.Frame(notebook, bg="white")
         notebook.add(frame1, text="Track Switches and Signals")
         self.diagram_frame = frame1
-        # build canvas + icons (note: build_track_diagram must NOT create a separate PLC panel)
+        
+        # Build track diagram (using the existing method that uses self.diagram_frame)
         self.build_track_diagram()
 
-        # Tab 2: Block/Station Occupancy (same Blue Line image + occupancy UI)
+        # ADD PLC PANEL TO TAB 1 - place it in the top-right corner
+        plc_panel1 = self.create_PLCupload_panel(frame1)
+        plc_panel1.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
+
+        # Tab 2: Block/Station Occupancy
         frame2 = tk.Frame(notebook, bg="white")
         notebook.add(frame2, text="Block and Station Occupancy")
 
-        # --- Add the same Blue Line image to tab 2 (same size & placement) ---
+        # --- Add Blue Line image to tab 2 ---
         try:
             bg_img2 = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
             self.block_view_bg = ImageTk.PhotoImage(bg_img2)
@@ -226,7 +222,7 @@ class TrackModelUI(tk.Tk):
             self.block_canvas.create_image(0, 0, image=self.block_view_bg, anchor="nw")
             self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
             
-            # ADD THIS: Initialize train items for the center panel occupancy tab
+            # Initialize train items for the center panel occupancy tab
             self.train_items_center = []
             
         except Exception as e:
@@ -234,6 +230,10 @@ class TrackModelUI(tk.Tk):
             self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=900)
             self.block_canvas.pack(fill="x", padx=10, pady=10)
             self.train_items_center = []
+
+        # ADD PLC PANEL TO TAB 2 - place it in the top-right corner
+        plc_panel2 = self.create_PLCupload_panel(frame2)
+        plc_panel2.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
 
     # ---------------- Bottom Table ----------------
     def create_bottom_table(self, parent):
@@ -303,6 +303,9 @@ class TrackModelUI(tk.Tk):
 
             # Insert visible blocks
             if show:
+
+                heater_display = f"{'On' if self.is_heater_on(b) else 'Off'}/{'Working' if self.is_heater_working(b) else 'Broken'}"
+
                 self.tree.insert(
                     "",
                     "end",
@@ -312,7 +315,7 @@ class TrackModelUI(tk.Tk):
                         f"{b.elevation}m",
                         f"{b.length}m",
                         f"{b.speed_limit} km/h",
-                        f"{b.track_heater}",
+                        heater_display,  # Updated display
                         f"{b.beacon}",
                     ),
                 )
@@ -662,23 +665,23 @@ class TrackModelUI(tk.Tk):
             width=18
         ).pack(pady=5)
 
-        self.file_status = tk.Label(
+        file_status = tk.Label(  # Changed from self.file_status to local variable
             plc_frame,
             text="No file selected",
             font=("Arial", 9),
             bg='white',
             fg='gray'
         )
-        self.file_status.pack(pady=3)
+        file_status.pack(pady=3)
 
-        self.history_label = tk.Label(
+        history_label = tk.Label(  # Changed from self.history_label to local variable
             plc_frame,
             text="Last upload: Never",
             font=("Arial", 8),
             bg='white',
             fg='darkgray'
         )
-        self.history_label.pack(pady=3)
+        history_label.pack(pady=3)
 
         # --- TERMINAL / EVENT LOG SECTION ---
         terminal_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
@@ -695,59 +698,111 @@ class TrackModelUI(tk.Tk):
         term_inner = tk.Frame(terminal_frame, bg="white")
         term_inner.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 
-        self.terminal = tk.Text(
+        # Create terminal widget
+        terminal = tk.Text(
             term_inner,
             height=8,
-            width=30,  # ↓ Narrower terminal width
+            width=30,
             bg="#f5f5f5",
             fg="black",
             font=("Consolas", 9),
             state="disabled",
             wrap="word"
         )
-        self.terminal.pack(side="left", fill="both", expand=True)
+        terminal.pack(side="left", fill="both", expand=True)
+        
+        # STORE THIS TERMINAL REFERENCE
+        self.terminals.append(terminal)
 
-        scrollbar = ttk.Scrollbar(term_inner, command=self.terminal.yview)
+        scrollbar = ttk.Scrollbar(term_inner, command=terminal.yview)
         scrollbar.pack(side="right", fill="y")
-        self.terminal.config(yscrollcommand=scrollbar.set)
+        terminal.config(yscrollcommand=scrollbar.set)
 
         # --- SEND OUTPUTS BUTTON ---
         send_button = ttk.Button(outer_frame, text="Send Outputs", command=self.send_outputs)
         send_button.pack(pady=(5, 10), padx=5, anchor="s")
 
         return outer_frame
-    
+
     def send_outputs(self):
-        """Print key system variables to the terminal."""
+        """Print key system variables to all terminal widgets."""
+        print(f"📡 Sending outputs to {len(self.terminals)} terminal(s)")
+        
+        for terminal in self.terminals:
+            self._send_outputs_to_terminal(terminal)
+
+    def _send_outputs_to_terminal(self, terminal):
+        """Send outputs to a specific terminal widget."""
         dm = self.data_manager
 
+        # Clear the terminal first
+        terminal.config(state="normal")
+        terminal.delete(1.0, "end")
+        
+        print("🔄 Updating terminal with system data...")
+        
         # Ticket Sales and Boarding/Disembarking
+        terminal.insert("end", "=== STATION DATA ===\n")
         for idx, station in enumerate(dm.station_location):
             block_num, station_name = station
-            self.log_message(f"Station {station_name} (Block {block_num}):")
-            self.log_message(f"  Tickets Sold: {int(dm.ticket_sales[idx])}")
-            self.log_message(f"  Passengers Boarding: {int(dm.passengers_boarding[idx])}")
-            self.log_message(f"  Passengers Disembarking: {int(dm.passengers_disembarking[idx])}")
+            terminal.insert("end", f"Station {station_name} (Block {block_num}):\n")
+            terminal.insert("end", f"  Tickets Sold: {int(dm.ticket_sales[idx])}\n")
+            terminal.insert("end", f"  Passengers Boarding: {int(dm.passengers_boarding[idx])}\n")
+            terminal.insert("end", f"  Passengers Disembarking: {int(dm.passengers_disembarking[idx])}\n\n")
 
         # Track Circuit Signals / Occupancy
+        terminal.insert("end", "=== BLOCK OCCUPANCY ===\n")
         for block in dm.blocks:
-            self.log_message(f"Block {block.block_number}: Occupancy: {getattr(block, 'occupancy', '--')}")
+            occupancy = getattr(block, 'occupancy', 0)
+            if occupancy != 0:  # Only show occupied blocks
+                terminal.insert("end", f"Block {block.block_number}: OCCUPIED (value: {occupancy})\n")
+        terminal.insert("end", "\n")
 
         # Commanded Speed and Authority
+        terminal.insert("end", "=== TRAIN COMMANDS ===\n")
         for idx, train_name in enumerate(dm.active_trains):
             speed = dm.commanded_speed[idx]
             auth = dm.commanded_authority[idx]
-            self.log_message(f"Train {train_name}: Commanded Speed = {speed} m/s, Authority = {auth} blocks")
+            terminal.insert("end", f"Train {train_name}:\n")
+            terminal.insert("end", f"  Commanded Speed: {speed} m/s\n")
+            terminal.insert("end", f"  Commanded Authority: {auth} blocks\n\n")
 
         # Beacons
-        for block in dm.blocks:
-            self.log_message(f"Block {block.block_number}: Beacon = {getattr(block, 'beacon', '--')}")
+        terminal.insert("end", "=== BEACON STATUS ===\n")
+        beacon_blocks = [block for block in dm.blocks if getattr(block, 'beacon', False)]
+        if beacon_blocks:
+            for block in beacon_blocks:
+                terminal.insert("end", f"Block {block.block_number}: Beacon ACTIVE\n")
+        else:
+            terminal.insert("end", "No active beacons\n")
+        terminal.insert("end", "\n")
 
         # Failure Modes
-        self.log_message("Failure Modes:")
-        self.log_message(f"  Train Circuit: {self.failure_train_circuit_var.get()}")
-        self.log_message(f"  Broken Railroads: {self.failure_rail_var.get()}")
-        self.log_message(f"  Power: {self.failure_power_var.get()}")
+        terminal.insert("end", "=== FAILURE MODES ===\n")
+        terminal.insert("end", f"Train Circuit: {'ACTIVE' if self.failure_train_circuit_var.get() else 'Inactive'}\n")
+        terminal.insert("end", f"Broken Railroads: {'ACTIVE' if self.failure_rail_var.get() else 'Inactive'}\n")
+        terminal.insert("end", f"Power Failure: {'ACTIVE' if self.failure_power_var.get() else 'Inactive'}\n")
+        terminal.insert("end", "\n")
+
+        # Heater Status
+        terminal.insert("end", "=== HEATER STATUS ===\n")
+        for block in dm.blocks:
+            if hasattr(block, 'track_heater') and isinstance(block.track_heater, list):
+                if block.track_heater[0] == 1 or block.track_heater[1] == 0:  # On or broken
+                    status = "ON" if block.track_heater[0] == 1 else "OFF"
+                    working = "WORKING" if block.track_heater[1] == 1 else "BROKEN"
+                    terminal.insert("end", f"Block {block.block_number}: {status} / {working}\n")
+        terminal.insert("end", "\n")
+        
+        terminal.see("end")
+        terminal.config(state="disabled")
+        print("✅ Terminal update complete")
+
+    def _log_to_terminal(self, terminal, msg):
+        """Append a message to a specific terminal."""
+        terminal.insert("end", f"{msg}\n")
+        terminal.see("end")
+        terminal.config(state="disabled")
     
     def log_message(self, msg):
         """Append a message to the terminal log."""
@@ -761,12 +816,18 @@ class TrackModelUI(tk.Tk):
         filetypes = [("PLC files", "*.plc"), ("Text files", "*.txt"), ("CSV files", "*.csv"), ("All files", "*.*")]
         filename = filedialog.askopenfilename(title="Select PLC File", filetypes=filetypes)
         if filename:
-            self.file_status.config(text=f"File selected: {filename.split('/')[-1]}")
-            self.history_label.config(text="Last upload: Just now")
-            self.log_message(f"[INFO] Loaded PLC file: {filename}")
+            # Update all terminals with file upload message
+            for terminal in self.terminals:
+                terminal.config(state="normal")
+                terminal.insert("end", f"[INFO] Loaded PLC file: {filename}\n")
+                terminal.see("end")
+                terminal.config(state="disabled")
         else:
-            self.file_status.config(text="No file selected")
-            self.log_message("[WARN] File selection canceled.")
+            for terminal in self.terminals:
+                terminal.config(state="normal")
+                terminal.insert("end", f"[WARN] File selection canceled.\n")
+                terminal.see("end")
+                terminal.config(state="disabled")
 
     def on_failure_changed(self):
         print("Failure states updated")
@@ -824,6 +885,51 @@ class TrackModelUI(tk.Tk):
 
         # Refresh again in 1 second
         self.after(1000, self.refresh_ui)
+
+    def is_heater_on(self, block):
+        """Check if heater is on (first bit)"""
+        if hasattr(block, 'track_heater') and isinstance(block.track_heater, list):
+            return block.track_heater[0] == 1
+        return False
+
+    def is_heater_working(self, block):
+        """Check if heater is working (second bit)"""
+        if hasattr(block, 'track_heater') and isinstance(block.track_heater, list):
+            return block.track_heater[1] == 1
+        return False
+
+    def set_heater_state(self, block, is_on, is_working):
+        """Set heater state with validation"""
+        if not is_working and is_on:
+            print(f"⚠️ Cannot turn on heater for block {block.block_number} - heater is not working")
+            return False  # Can't turn on a non-working heater
+        
+        block.track_heater = [1 if is_on else 0, 1 if is_working else 0]
+        print(f"🔧 Block {block.block_number} heater: {'ON' if is_on else 'OFF'}, {'WORKING' if is_working else 'BROKEN'}")
+        return True
+
+    def toggle_heater(self, block_num):
+        """Toggle heater on/off if it's working"""
+        block = self.data_manager.blocks[block_num - 1]
+        if self.is_heater_working(block):
+            new_state = not self.is_heater_on(block)
+            self.set_heater_state(block, new_state, True)
+        else:
+            print(f"❌ Cannot toggle heater for block {block_num} - heater is not working")
+
+    def break_heater(self, block_num):
+        """Break the heater (turns it off if it was on)"""
+        block = self.data_manager.blocks[block_num - 1]
+        was_on = self.is_heater_on(block)
+        self.set_heater_state(block, False, False)  # Turn off and break
+        if was_on:
+            print(f"🔧 Heater broken and turned off for block {block_num}")
+
+    def fix_heater(self, block_num):
+        """Fix the heater (doesn't change on/off state)"""
+        block = self.data_manager.blocks[block_num - 1]
+        is_on = self.is_heater_on(block)
+        self.set_heater_state(block, is_on, True)  # Keep current on/off state, set working
 
 # ---------------- Run Application ----------------
 if __name__ == "__main__":

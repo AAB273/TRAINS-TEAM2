@@ -138,10 +138,11 @@ class TrackModelTestUI(tk.Toplevel):
 
         popup = tk.Toplevel(self)
         popup.title(f"Edit Block {block.block_number}")
-        popup.geometry("300x350")
+        popup.geometry("300x400")  # Increased height for new fields
 
         entries = {}
-        for attr in ["length", "grade", "elevation", "speed_limit", "track_heater", "beacon"]:
+        # Existing fields
+        for attr in ["length", "grade", "elevation", "speed_limit", "beacon"]:
             tk.Label(popup, text=attr.capitalize()).pack()
             val = getattr(block, attr)
             e = tk.Entry(popup)
@@ -149,14 +150,43 @@ class TrackModelTestUI(tk.Toplevel):
             e.pack()
             entries[attr] = e
 
+        # New heater fields
+        tk.Label(popup, text="Heater On (0/1)").pack()
+        e_heater_on = tk.Entry(popup)
+        e_heater_on.insert(0, str(block.track_heater[0] if isinstance(block.track_heater, list) else 1 if block.track_heater else 0))
+        e_heater_on.pack()
+        entries["heater_on"] = e_heater_on
+
+        tk.Label(popup, text="Heater Working (0/1)").pack()
+        e_heater_working = tk.Entry(popup)
+        e_heater_working.insert(0, str(block.track_heater[1] if isinstance(block.track_heater, list) else 1))
+        e_heater_working.pack()
+        entries["heater_working"] = e_heater_working
+
         def save_changes():
             for attr, entry in entries.items():
                 val = entry.get()
                 if attr in ["length", "speed_limit", "elevation", "grade"]:
                     val = float(val)
-                elif attr in ["track_heater", "beacon"]:
+                elif attr in ["beacon"]:
                     val = val.lower() in ["true", "1", "yes"]
-                setattr(block, attr, val)
+                elif attr in ["heater_on", "heater_working"]:
+                    val = int(val)
+                    
+                if attr == "heater_on":
+                    heater_on = val
+                elif attr == "heater_working":
+                    heater_working = val
+                else:
+                    setattr(block, attr, val)
+            
+            # Set heater state with validation
+            if not heater_working and heater_on:
+                messagebox.showwarning("Invalid State", "Cannot turn on a non-working heater!")
+                heater_on = 0  # Force off
+            
+            block.track_heater = [heater_on, heater_working]
+            
             self.refresh_block_table()
             popup.destroy()
 
