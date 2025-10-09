@@ -329,39 +329,40 @@ class TrackModelUI(tk.Tk):
                 )
 
     def show_station_view(self):
-        """Display station data with Blue Line image above the table and dynamic train positions."""
-        # Only create the frame and canvas if they don't exist
-        if not hasattr(self, "occupancy_frame"):
-            self.occupancy_frame = tk.Frame(self.content_frame, bg="white")
-            self.occupancy_frame.pack(fill="both", expand=True)
+        """Display station data with Blue Line image and dynamic train positions."""
+        # Only create the canvas and table once
+        if not hasattr(self, "block_canvas"):
+            # --- Frame for occupancy tab ---
+            self.block_frame = tk.Frame(self.station_tab, bg="white")
+            self.block_frame.pack(fill="both", expand=True)
 
             # --- Blue Line Image ---
             try:
-                blue_line_img = Image.open("Assets/blue_line.png")
-                blue_line_img = blue_line_img.resize((500, 80), Image.Resampling.LANCZOS)
-                self.blue_line_station = ImageTk.PhotoImage(blue_line_img)
-                tk.Label(self.occupancy_frame, image=self.blue_line_station, bg="white").pack(pady=(10, 10))
+                blue_line_img = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
+                self.block_bg_img = ImageTk.PhotoImage(blue_line_img)
+                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=900, highlightthickness=0)
+                self.block_canvas.pack(fill="x", padx=10, pady=10)
+                self.block_canvas.create_image(0, 0, image=self.block_bg_img, anchor="nw")
+                self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
             except Exception as e:
-                print(f"[WARN] Could not load Blue Line image for Station View: {e}")
+                print("⚠️ Could not load Blue Line.png for occupancy view:", e)
+                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=900)
+                self.block_canvas.pack(fill="x", padx=10, pady=10)
 
-            # --- Canvas for Track / Train display ---
-            self.track_canvas = tk.Canvas(self.occupancy_frame, bg="white", height=450)
-            self.track_canvas.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-
-            # --- Draw PLC upload & terminal panel to right of canvas ---
-            self.plc_terminal_panel = self.create_PLCupload_panel(self.occupancy_frame)
+            # --- PLC Upload & Terminal ---
+            self.plc_terminal_panel = self.create_PLCupload_panel(self.block_frame)
             self.plc_terminal_panel.pack(side="right", padx=20, pady=20, anchor="n")
 
-            # --- Load train image ---
-            try:
-                train_img = Image.open("Assets/Train_Right.png").resize((40, 40), Image.Resampling.LANCZOS)
-                self.train_icon = ImageTk.PhotoImage(train_img)
-            except Exception as e:
-                print(f"[WARN] Could not load Train_Right.png: {e}")
-                self.train_icon = None
+            # --- Load Train Image ---
+            if not hasattr(self, "train_icon"):
+                try:
+                    train_img = Image.open("Train_Right.png").resize((40, 40), Image.LANCZOS)
+                    self.train_icon = ImageTk.PhotoImage(train_img)
+                except Exception as e:
+                    print("⚠️ Could not load Train_Right.png:", e)
+                    self.train_icon = None
 
             # --- Define block positions for occupancy diagram ---
-            # Example coordinates; adjust to your track layout
             self.block_positions_occupancy = {
                 4: (335, 240),
                 5: (400, 270),
@@ -371,15 +372,17 @@ class TrackModelUI(tk.Tk):
                 15: (600, 200)
             }
 
-        # --- Station Table ---
-        if not hasattr(self, "station_table"):
-            self.station_table = ttk.Treeview(self.occupancy_frame, columns=self.columns_station, show="headings")
+            # --- Station Table ---
+            self.station_table = ttk.Treeview(self.block_frame, columns=self.columns_station, show="headings")
             self.station_table.pack(fill="both", expand=True, padx=10, pady=(0, 10))
             for col in self.columns_station:
                 self.station_table.heading(col, text=col)
                 self.station_table.column(col, width=150, anchor="center")
 
-        # --- Clear and populate table ---
+            # --- Initialize train items for this canvas ---
+            self.train_items_block_canvas = []
+
+        # --- Clear and populate station table ---
         self.station_table.delete(*self.station_table.get_children())
         for block_num, station_name in self.data_manager.station_location:
             idx = block_num - 1
@@ -395,29 +398,29 @@ class TrackModelUI(tk.Tk):
                 ),
             )
 
-        # --- Draw trains on canvas ---
-        self.draw_trains(canvas=self.block_canvas)
+        # --- Draw trains on occupancy canvas only ---
+        self.draw_trains(canvas=self.block_canvas, items_list=self.train_items_block_canvas)
 
-
-    def draw_trains(self, canvas=None):
-        canvas = canvas or getattr(self, "track_canvas", None)
-        if canvas is None or self.train_icon is None:
+    def draw_trains(self, canvas, items_list):
+        """Draw trains on the given canvas using train locations and block coordinates."""
+        if not self.train_icon or canvas is None or items_list is None:
             return
 
-        # Remove old train images
-        if hasattr(self, "train_items"):
-            for item in getattr(self, "train_items", []):
-                canvas.delete(item)
-        self.train_items = []
+        # Remove previous train images
+        for item in items_list:
+            canvas.delete(item)
+        items_list.clear()
 
         # Draw trains at updated positions
         for idx, train_name in enumerate(self.data_manager.active_trains):
-            train_block = self.data_manager.train_locations[idx]
+            if idx >= len(self.data_manager.train_locations):
+                continue  # avoid index errors
+            train_block = self.data_manager.train_locations[idx]  # block number
             coords = self.block_positions_occupancy.get(train_block)
             if coords:
                 x, y = coords
                 item = canvas.create_image(x, y, image=self.train_icon, anchor="center")
-                self.train_items.append(item)
+                items_list.append(item)
 
     def on_view_tab_change(self, event):
         tab = self.view_tabs.tab(self.view_tabs.select(), "text")
@@ -667,7 +670,43 @@ class TrackModelUI(tk.Tk):
         scrollbar.pack(side="right", fill="y")
         self.terminal.config(yscrollcommand=scrollbar.set)
 
+        # --- SEND OUTPUTS BUTTON ---
+        send_button = ttk.Button(outer_frame, text="Send Outputs", command=self.send_outputs)
+        send_button.pack(pady=(5, 10), padx=5, anchor="s")
+
         return outer_frame
+    
+    def send_outputs(self):
+        """Print key system variables to the terminal."""
+        dm = self.data_manager
+
+        # Ticket Sales and Boarding/Disembarking
+        for idx, station in enumerate(dm.station_location):
+            block_num, station_name = station
+            self.log_message(f"Station {station_name} (Block {block_num}):")
+            self.log_message(f"  Tickets Sold: {int(dm.ticket_sales[idx])}")
+            self.log_message(f"  Passengers Boarding: {int(dm.passengers_boarding[idx])}")
+            self.log_message(f"  Passengers Disembarking: {int(dm.passengers_disembarking[idx])}")
+
+        # Track Circuit Signals / Occupancy
+        for block in dm.blocks:
+            self.log_message(f"Block {block.block_number}: Occupancy: {getattr(block, 'occupancy', '--')}")
+
+        # Commanded Speed and Authority
+        for idx, train_name in enumerate(dm.active_trains):
+            speed = dm.commanded_speed[idx]
+            auth = dm.commanded_authority[idx]
+            self.log_message(f"Train {train_name}: Commanded Speed = {speed} m/s, Authority = {auth} blocks")
+
+        # Beacons
+        for block in dm.blocks:
+            self.log_message(f"Block {block.block_number}: Beacon = {getattr(block, 'beacon', '--')}")
+
+        # Failure Modes
+        self.log_message("Failure Modes:")
+        self.log_message(f"  Train Circuit: {self.failure_train_circuit_var.get()}")
+        self.log_message(f"  Broken Railroads: {self.failure_rail_var.get()}")
+        self.log_message(f"  Power: {self.failure_power_var.get()}")
     
     def log_message(self, msg):
         """Append a message to the terminal log."""
@@ -719,8 +758,11 @@ class TrackModelUI(tk.Tk):
         # Redraw track icons (switches, crossings, lights)
         self.draw_track_icons()
 
-        # Redraw trains (if occupancy or train locations changed)
-        self.draw_trains()
+        # Redraw trains on the correct canvas
+        if hasattr(self, "block_canvas") and hasattr(self, "train_items_block_canvas"):
+            self.draw_trains(canvas=self.block_canvas, items_list=self.train_items_block_canvas)
+        elif hasattr(self, "track_canvas") and hasattr(self, "train_items"):
+            self.draw_trains(canvas=self.track_canvas, items_list=self.train_items)
 
         # Refresh again in 1 second
         self.after(1000, self.refresh_ui)

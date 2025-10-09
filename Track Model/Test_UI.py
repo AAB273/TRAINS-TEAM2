@@ -11,6 +11,22 @@ class TrackModelTestUI(tk.Toplevel):
 
         self.manager = manager
 
+        # ---------------- Train visualization setup ----------------
+        from PIL import Image, ImageTk
+        train_img = Image.open("Train_Right.png").resize((40, 40), Image.LANCZOS)
+        self.train_icon = ImageTk.PhotoImage(train_img)
+
+        self.block_positions_occupancy = {
+            4: (335, 240),
+            5: (400, 270),
+            6: (480, 110),
+            10: (550, 300),
+            11: (480, 320),
+            15: (600, 200)
+        }
+        self.train_items = []
+
+        # ---------------- Notebook & Tabs ----------------
         notebook = ttk.Notebook(self)
         notebook.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -58,6 +74,9 @@ class TrackModelTestUI(tk.Toplevel):
         tk.Label(frame, text="Stations", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=5)
         station_columns = ("Block", "Station", "Ticket Sales", "Boarding", "Disembarking")
         self.tree_stations = ttk.Treeview(frame, columns=station_columns, show="headings", height=5)
+        self.occupancy_canvas = tk.Canvas(frame, width=900, height=450, bg="white")
+        self.occupancy_canvas.pack(padx=10, pady=10)
+
         for col in station_columns:
             self.tree_stations.heading(col, text=col)
             self.tree_stations.column(col, width=100, anchor="center")
@@ -455,10 +474,29 @@ class TrackModelTestUI(tk.Toplevel):
 
         tk.Button(popup, text="Save", command=save_changes).pack(pady=10)
 
+    def draw_trains(self):
+        if not hasattr(self, "occupancy_canvas") or not self.train_icon:
+            return
+
+        # Clear previous train images
+        for item in getattr(self, "train_items", []):
+            self.occupancy_canvas.delete(item)
+        self.train_items.clear()
+
+        # Draw trains
+        for idx, train_name in enumerate(self.manager.active_trains):
+            block_num = self.manager.train_locations[idx]  # make sure this exists
+            coords = self.block_positions_occupancy.get(block_num)
+            if coords:
+                x, y = coords
+                item = self.occupancy_canvas.create_image(x, y, image=self.train_icon, anchor="center")
+                self.train_items.append(item)
+
     # ---------------- Periodic refresh ----------------
     def refresh_ui(self):
         self.refresh_block_table()
         self.refresh_station_table()
         self.refresh_train_table()
         self.refresh_diagram_table()
+        self.draw_trains()  # <-- add this
         self.after(1000, self.refresh_ui)
