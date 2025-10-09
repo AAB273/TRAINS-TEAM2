@@ -173,7 +173,7 @@ class Train:
         AVG_PASSENGER_MASS = 65.77 
         SERVICE_BRAKE_DECEL = -1.2  
         EMERGENCY_BRAKE_DECEL = -2.73 
-        MAX_ACCELERATION = 0.5 
+        MAX_FORCE = 25715 
         total_mass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passenger_count+2)) # +2 to account for the crew
 
         # CASE 1: Emergency Brake (highest priority)
@@ -185,23 +185,16 @@ class Train:
             if self.speed > 0:
                 a = SERVICE_BRAKE_DECEL
             elif self.speed == 0:
-                a = MAX_ACCELERATION
+                f = MAX_FORCE
+                a = MAX_FORCE / (total_mass)
                 self.service_brake_active = 0
             else:
                 a = 0 
         # CASE 3: Power command with existing speed
         elif self.power_command > 0 and self.speed > 0:
             # P = F*v, so F = P/v
-            try:
-                force = self.power_command / self.speed
-                a = force / total_mass
-                
-                # Limit acceleration to maximum
-                if a > MAX_ACCELERATION:
-                    a = MAX_ACCELERATION
-                    
-            except ZeroDivisionError:
-                a = MAX_ACCELERATION  # Default when starting
+            force = self.power_command / self.speed
+            a = force / total_mass
         
         # INTEGRATE: Update speed using acceleration
         new_speed = self.speed + (a * dt)
