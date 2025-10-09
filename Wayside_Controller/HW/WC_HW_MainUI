@@ -43,22 +43,21 @@ class MockData:
         
         # Sample block data: [Occupied, Line, Block]
         self.block_data = [
-            ["Yes", "Blue", "Yard"],
             ["No", "Blue", "1"],
             ["No", "Blue", "2"],
             ["Yes", "Blue", "3"],
             ["No", "Blue", "4"],
-            ["No", "Blue", "5"],
-            ["Yes", "Blue", "6"],
-            ["No", "Blue", "7"],
-            ["No", "Blue", "8"],
-            ["Yes", "Blue", "9"],
-            ["No", "Blue", "10"],
-            ["No", "Blue", "11"],
-            ["Yes", "Blue", "12"],
-            ["No", "Blue", "13"],
-            ["No", "Blue", "14"],
-            ["Yes", "Blue", "15"]
+            # ["No", "Blue", "5"],
+            # ["Yes", "Blue", "6"],
+            # ["No", "Blue", "7"],
+            # ["No", "Blue", "8"],
+            # ["Yes", "Blue", "9"],
+            # ["No", "Blue", "10"],
+            # ["No", "Blue", "11"],
+            # ["Yes", "Blue", "12"],
+            # ["No", "Blue", "13"],
+            # ["No", "Blue", "14"],
+            # ["Yes", "Blue", "15"]
         ]
         self.filtered_block_data = self.block_data.copy()
         
