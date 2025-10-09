@@ -43,14 +43,22 @@ class MockData:
         
         # Sample block data: [Occupied, Line, Block]
         self.block_data = [
-            ["Yes", "Blue", "15"],
-            ["No", "Blue", "16"], 
-            ["Yes", "Blue", "17"],
-            ["No", "Blue", "18"],
-            # ["Yes", "Green", "25"],
-            # ["No", "Green", "26"],
-            # ["Yes", "Red", "35"],
-            # ["No", "Red", "36"]
+            ["Yes", "Blue", "Yard"],
+            ["No", "Blue", "1"],
+            ["No", "Blue", "2"],
+            ["Yes", "Blue", "3"],
+            ["No", "Blue", "4"],
+            ["No", "Blue", "5"],
+            ["Yes", "Blue", "6"],
+            ["No", "Blue", "7"],
+            ["No", "Blue", "8"],
+            ["Yes", "Blue", "9"],
+            ["No", "Blue", "10"],
+            ["No", "Blue", "11"],
+            ["Yes", "Blue", "12"],
+            ["No", "Blue", "13"],
+            ["No", "Blue", "14"],
+            ["Yes", "Blue", "15"]
         ]
         self.filtered_block_data = self.block_data.copy()
         
@@ -368,8 +376,9 @@ center_container = tk.Frame(main_frame, bg="#0b1443")
 center_container.pack(side="left", fill="both", expand=True, padx=5, pady=5)
 
 # Map Display
-map_frame = tk.Frame(center_container, bg="white", relief="ridge", borderwidth=3)
-map_frame.pack(fill="both", expand=True)
+map_frame = tk.Frame(center_container, bg="white", relief="ridge", borderwidth=3, width=700, height=450)
+map_frame.pack(fill="none", expand=False)  # Don't expand, use fixed size
+map_frame.pack_propagate(False)  # Prevent frame from shrinking to fit contents
 
 # Create canvas for displaying the track image
 canvas = tk.Canvas(map_frame, bg="white")
@@ -379,11 +388,11 @@ canvas.pack(fill="both", expand=True)
 try:
     track_image = Image.open(r"C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Blue Line.png")
     # Resize image to fit the canvas while maintaining aspect ratio
-    track_image = track_image.resize((725, 490), Image.Resampling.LANCZOS)
+    track_image = track_image.resize((700, 400), Image.Resampling.LANCZOS)
     track_photo = ImageTk.PhotoImage(track_image)
     
     # Display image on canvas
-    canvas.create_image(400, 250, image=track_photo)
+    canvas.create_image(360, 215, image=track_photo)
     canvas.image = track_photo  # Keep a reference to prevent garbage collection
     
 except Exception as e:
