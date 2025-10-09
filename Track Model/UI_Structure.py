@@ -225,25 +225,15 @@ class TrackModelUI(tk.Tk):
             self.block_canvas.pack(fill="x", padx=10, pady=10)
             self.block_canvas.create_image(0, 0, image=self.block_view_bg, anchor="nw")
             self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
+            
+            # ADD THIS: Initialize train items for the center panel occupancy tab
+            self.train_items_center = []
+            
         except Exception as e:
             print("⚠️ Could not load Blue Line.png for Block/Station tab:", e)
-
-        # ---------------- Right: Persistent PLC + Terminal ----------------
-        right_col = tk.Frame(container, bg="white", width=260)
-        right_col.grid(row=0, column=1, sticky="ns", padx=(10,0), pady=10)
-        # ensure right_col doesn't expand horizontally:
-        right_col.grid_propagate(False)
-
-        # Create the PLC upload panel (only once) and pack at the top of right column
-        self.plc_panel = self.create_PLCupload_panel(right_col)
-        # pack the returned outer frame so PLC is top-aligned
-        self.plc_panel.pack(side="top", fill="x", padx=5, pady=(5,8), anchor="n")
-
-        # If you want the terminal to expand vertically to fill right_col, make sure create_PLCupload_panel
-        # returns a frame whose terminal uses fill="both" and expand=True (the version we used earlier does).
-
-#        self.create_PLCupload_panel(frame1).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
-#        self.create_PLCupload_panel(frame2).place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
+            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=900)
+            self.block_canvas.pack(fill="x", padx=10, pady=10)
+            self.train_items_center = []
 
     # ---------------- Bottom Table ----------------
     def create_bottom_table(self, parent):
@@ -407,8 +397,15 @@ class TrackModelUI(tk.Tk):
         self.draw_trains(canvas=self.block_canvas, items_list=self.train_items_block_canvas)
 
     def draw_trains(self, canvas, items_list):
-        """Draw trains on the given canvas using train locations and block coordinates."""
-        if not self.train_icon or canvas is None or items_list is None:
+        """Draw trains on the given canvas using block occupancy data."""
+        if not self.train_icon:
+            print("❌ No train icon available")
+            return
+        if canvas is None:
+            print("❌ No canvas available")
+            return
+        if items_list is None:
+            print("❌ No items_list available")
             return
 
         # Remove previous train images
@@ -416,16 +413,34 @@ class TrackModelUI(tk.Tk):
             canvas.delete(item)
         items_list.clear()
 
-        # Draw trains at updated positions
-        for idx, train_name in enumerate(self.data_manager.active_trains):
-            if idx >= len(self.data_manager.train_locations):
-                continue  # avoid index errors
-            train_block = self.data_manager.train_locations[idx]  # block number
-            coords = self.block_positions_occupancy.get(train_block)
+        print("🔍 === Checking Block Occupancy ===")
+        occupied_blocks = []
+        
+        # Check all blocks for occupancy
+        for i, block in enumerate(self.data_manager.blocks):
+            block_num = i + 1
+            occupancy_value = getattr(block, 'occupancy', 0)
+            if occupancy_value != 0:
+                occupied_blocks.append(block_num)
+                print(f"   Block {block_num}: OCCUPIED (value: {occupancy_value})")
+        
+        print(f"   Found {len(occupied_blocks)} occupied blocks: {occupied_blocks}")
+        
+        trains_drawn = 0
+        # Draw trains for occupied blocks
+        for block_num in occupied_blocks:
+            coords = self.block_positions_occupancy.get(block_num)
             if coords:
                 x, y = coords
                 item = canvas.create_image(x, y, image=self.train_icon, anchor="center")
                 items_list.append(item)
+                trains_drawn += 1
+                print(f"   🚂 Drawing train at block {block_num}, coordinates: {coords}")
+            else:
+                print(f"   ❌ Block {block_num} occupied but no coordinates available")
+
+        print(f"🎯 Total trains drawn: {trains_drawn}")
+        print("=====================================")
 
     def on_view_tab_change(self, event):
         tab = self.view_tabs.tab(self.view_tabs.select(), "text")
@@ -483,6 +498,15 @@ class TrackModelUI(tk.Tk):
             "lever_left": load_icon("Lever_Left.png", (32,32)),
             "lever_right": load_icon("Lever_Right.png", (32, 32)),
         }
+
+        # Load train icon once
+        self.train_icon = None
+        try:
+            img = Image.open("Train_Right.png").resize((40, 40), Image.LANCZOS)
+            self.train_icon = ImageTk.PhotoImage(img)
+            print("✅ Train icon loaded successfully")
+        except Exception as e:
+            print(f"❌ Could not load Train_Right.png: {e}")
 
         # where we will keep canvas item ids for icons (so we can update/delete them)
         self.icon_item_ids = {"crossing": {}, "switch": {}}
@@ -764,22 +788,39 @@ class TrackModelUI(tk.Tk):
                     item = self.track_canvas.create_image(x, y, image=self.train_icon, anchor="center")
                     self.train_items.append(item)
 
+    def refresh_all_trains(self):
+        """Force refresh trains on all canvases"""
+        print("Force refreshing all trains...")
+        
+        # Track Diagram canvas
+        if hasattr(self, "track_canvas") and hasattr(self, "train_items"):
+            self.draw_trains(canvas=self.track_canvas, items_list=self.train_items)
+        
+        # Station Occupancy canvas
+        if hasattr(self, "block_canvas") and hasattr(self, "train_items_block_canvas"):
+            self.draw_trains(canvas=self.block_canvas, items_list=self.train_items_block_canvas)
+
     # Refresh UI periodically
     def refresh_ui(self):
         # Update environmental temp
         self.temp_label.config(text=f"Temperature: {getattr(self.data_manager, 'environmental_temp', '--')}°C")
 
-        #  bottom table in-place
+        # Update bottom table in-place
         self.update_bottom_table()
 
         # Redraw track icons (switches, crossings, lights)
         self.draw_track_icons()
 
-        # Redraw trains on the correct canvas
+        # Draw trains on BOTH occupancy canvases:
+        # 1. Bottom panel station view (if it exists)
         if hasattr(self, "block_canvas") and hasattr(self, "train_items_block_canvas"):
             self.draw_trains(canvas=self.block_canvas, items_list=self.train_items_block_canvas)
-        elif hasattr(self, "track_canvas") and hasattr(self, "train_items"):
-            self.draw_trains(canvas=self.track_canvas, items_list=self.train_items)
+            print("Drew trains on bottom panel Station Occupancy")
+        
+        # 2. Center panel Block and Station Occupancy tab (if it exists)
+        if hasattr(self, "block_canvas") and hasattr(self, "train_items_center"):
+            self.draw_trains(canvas=self.block_canvas, items_list=self.train_items_center)
+            print("Drew trains on center panel Block and Station Occupancy tab")
 
         # Refresh again in 1 second
         self.after(1000, self.refresh_ui)

@@ -549,28 +549,62 @@ class TrackModelTestUI(tk.Toplevel):
                 # Also update traffic_light_state
                 block.traffic_light_state = (b0 << 1) | b1
 
+            # Occupancy
+            entry = entries["occupancy"]
+            if entry['state'] != 'disabled':
+                val = entry.get()
+                # Convert to integer
+                if val.lower() in ["true", "1", "yes"]:
+                    val = 1
+                elif val.lower() in ["false", "0", "no"]:
+                    val = 0
+                else:
+                    try:
+                        val = int(val)
+                    except ValueError:
+                        val = 0
+                        
+                setattr(block, "occupancy", val)
+                print(f"Set block {block.block_number} occupancy to {val}")
+
             self.refresh_diagram_table()
+            
+            # Force refresh on the main UI's station occupancy view
+            if hasattr(self.master, "refresh_ui"):
+                self.master.refresh_ui()
+                print("🔄 Triggered Main UI refresh")
+            
             popup.destroy()
 
         tk.Button(popup, text="Save", command=save_changes).pack(pady=10)
 
-    def draw_trains(self):
-        if not hasattr(self, "occupancy_canvas") or not self.train_icon:
+    def draw_trains(self, canvas, items_list):
+        """Draw trains on the given canvas using block occupancy data."""
+        if not self.train_icon or canvas is None or items_list is None:
             return
 
-        # Clear previous train images
-        for item in getattr(self, "train_items", []):
-            self.occupancy_canvas.delete(item)
-        self.train_items.clear()
+        # Remove previous train images
+        for item in items_list:
+            canvas.delete(item)
+        items_list.clear()
 
-        # Draw trains
-        for idx, train_name in enumerate(self.manager.active_trains):
-            block_num = self.manager.train_locations[idx]  # make sure this exists
-            coords = self.block_positions_occupancy.get(block_num)
-            if coords:
-                x, y = coords
-                item = self.occupancy_canvas.create_image(x, y, image=self.train_icon, anchor="center")
-                self.train_items.append(item)
+        # Debug: identify which canvas we're drawing on
+        if canvas == self.block_canvas:
+            print("🟢 Drawing trains on Station Occupancy tab")
+        else:
+            print("🔴 Drawing trains on UNKNOWN canvas")
+
+        # Draw trains based on block occupancy
+        for block_num, coords in self.block_positions_occupancy.items():
+            if 1 <= block_num <= len(self.data_manager.blocks):
+                block = self.data_manager.blocks[block_num - 1]
+                occupancy_value = getattr(block, 'occupancy', 0)
+                
+                if occupancy_value != 0:
+                    x, y = coords
+                    item = canvas.create_image(x, y, image=self.train_icon, anchor="center")
+                    items_list.append(item)
+                    print(f"  ✓ Train drawn at block {block_num}")
 
     # ---------------- Periodic refresh ----------------
     def refresh_ui(self):
@@ -578,5 +612,4 @@ class TrackModelTestUI(tk.Toplevel):
         self.refresh_station_table()
         self.refresh_train_table()
         self.refresh_diagram_table()
-        self.draw_trains()  # <-- add this
         self.after(1000, self.refresh_ui)
