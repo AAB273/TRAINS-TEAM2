@@ -1,11 +1,11 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from datetime import datetime
-from PIL import Image
+from PIL import Image, ImageTk
 
 ########################################################################################################################
 # Backend Data Structures (same as before)
-#
+
 commanded_speed = []
 commanded_authority = []
 switch_positions = []
@@ -45,38 +45,23 @@ class MockData:
         self.block_data = [
             ["No", "Blue", "1"],
             ["No", "Blue", "2"],
-            ["Yes", "Blue", "3"],
-            ["No", "Blue", "4"],
-            # ["No", "Blue", "5"],
-            # ["Yes", "Blue", "6"],
-            # ["No", "Blue", "7"],
-            # ["No", "Blue", "8"],
-            # ["Yes", "Blue", "9"],
-            # ["No", "Blue", "10"],
-            # ["No", "Blue", "11"],
-            # ["Yes", "Blue", "12"],
-            # ["No", "Blue", "13"],
-            # ["No", "Blue", "14"],
-            # ["Yes", "Blue", "15"]
+            ["Yes", "Blue", "6"],
+            ["No", "Blue", "10"]
         ]
         self.filtered_block_data = self.block_data.copy()
         
         # Track data for left panel
         self.track_data = {
             "crossings": {
-                "Railway 107": {"condition": "Normal", "lights": "Red", "bar": "Closed"},
-                "Railway 108": {"condition": "Fault", "lights": "Off", "bar": "Open"},
-                "Railway 109": {"condition": "Normal", "lights": "Green", "bar": "Closed"}
+                "Railway 3": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
             },
             "switches": {
-                "Switch 28": {"condition": "Normal", "direction": "57-58"},
-                "Switch 29": {"condition": "Fault", "direction": "Normal"},
-                "Switch 30": {"condition": "Normal", "direction": "Reverse"}
+                "Switch 5-6": {"condition": "Normal", "direction": "Blocks 5-11"},
+                "Switch 5-11": {"condition": "Fault", "direction": "Blocks 5-15"}
             },
             "lights": {
-                "Light 3": {"condition": "Fault", "signal": "Red"},
-                "Light 4": {"condition": "Normal", "signal": "Green"},
-                "Light 5": {"condition": "Normal", "signal": "Yellow"}
+                "Light 6": {"condition": "Fault", "signal": "Red"},
+                "Light 11": {"condition": "Normal", "signal": "Green"}
             }
         }
         self.filtered_track_data = self.track_data.copy()
@@ -131,7 +116,11 @@ except Exception as e:
 
 # Fault LED indicator
 fault_led = tk.Label(header_frame, text="Fault LED", bg="red", fg="white", width=10, font=("Arial", 10, "bold"))
-fault_led.pack(side="left", padx=10)
+fault_led.pack(side="right", padx=30)
+
+# Maintenance Mode LED indicator:
+maint_led = tk.Label(header_frame, text="MM OFF", bg="gray", fg="white", width=10, font=("Arial", 10, "bold"))
+maint_led.pack(side="right", padx=10)
 
 # PLC upload and run buttons
 plc_upload_btn = tk.Button(header_frame, text="Select PLC File", font=("Arial", 11, "bold"), width=16, height=2)
@@ -150,30 +139,41 @@ view_var_maint = tk.BooleanVar(value=False)
 def update_screen_view():
     if view_var_main.get():
         main_frame.tkraise()
-    elif view_var_maint.get():
-        maintenance_frame.tkraise()
-        # Update maintenance mode when switching to maintenance screen
-        mock_data.maintenance_mode = True
+        # When switching to main screen, update maintenance mode based on maint_check
+        mock_data.maintenance_mode = view_var_maint.get()
         if hasattr(right_panel, 'update_mode_ui'):
             right_panel.update_mode_ui()
+    elif view_var_maint.get():
+        maintenance_frame.tkraise()
 
 main_check = tk.Checkbutton(toggle_frame, text="Main Screen", variable=view_var_main,
-                            command=lambda: [view_var_maint.set(False), update_screen_view(), set_maintenance_mode(False)],
+                            command=lambda: [view_var_maint.set(False), update_screen_view()],
                             bg="#0b1443", fg="white", selectcolor="#333", font=("Arial", 10))
 main_check.grid(row=0, column=0, padx=10)
 
-maint_check = tk.Checkbutton(toggle_frame, text="Maintenance", variable=view_var_maint,
-                             command=lambda: [view_var_main.set(False), update_screen_view(), set_maintenance_mode(True)],
-                             bg="#0b1443", fg="white", selectcolor="#333", font=("Arial", 10))
-maint_check.grid(row=0, column=1, padx=10)
+def toggle_maintenance_mode():
+    """Toggle maintenance mode when Maintenance checkbox is clicked"""
+    mock_data.maintenance_mode = view_var_maint.get()
 
-def set_maintenance_mode(mode):
-    """Set maintenance mode and update UI"""
-    mock_data.maintenance_mode = mode
+    # Update the maintenance LED color/text
+    if mock_data.maintenance_mode:
+        maint_led.config(bg="orange", text="MM ON")
+    else:
+        maint_led.config(bg="gray", text="MM OFF")
+
+    # Update the right panel UI
     if hasattr(right_panel, 'update_mode_ui'):
         right_panel.update_mode_ui()
-    if hasattr(left_panel, 'update_mode_ui'):
-        left_panel.update_mode_ui()
+
+    # Keep the main screen visible regardless of maintenance mode
+    if view_var_main.get():
+        main_frame.tkraise()
+
+
+maint_check = tk.Checkbutton(toggle_frame, text="Maintenance", variable=view_var_maint,
+                             command=lambda: [view_var_main.set(True), toggle_maintenance_mode(), update_screen_view()],
+                             bg="#0b1443", fg="white", selectcolor="#333", font=("Arial", 10))
+maint_check.grid(row=0, column=1, padx=10)
 
 # ========== BODY ========== #
 body_frame = tk.Frame(root, bg="#0b1443")
@@ -225,7 +225,7 @@ class LeftPanel(tk.Frame):
         
         tk.Label(crossing_frame, text="Lights:", bg='#cccccc').pack()
         self.crossing_lights = ttk.Combobox(crossing_frame, width=18, 
-                                           values=["Red", "Green", "Yellow", "Off"])
+                                           values=["On", "Off"])
         self.crossing_lights.pack()
         self.crossing_lights.bind('<<ComboboxSelected>>', self.update_crossing_lights)
         
@@ -260,7 +260,7 @@ class LeftPanel(tk.Frame):
         
         tk.Label(switch_frame, text="Direction:", bg='#cccccc').pack()
         self.switch_direction = ttk.Combobox(switch_frame, width=18, 
-                                            values=["57-58", "Normal", "Reverse"])
+                                            values=["Blocks 5-11", "Blocks 5-15"])
         self.switch_direction.pack()
         self.switch_direction.bind('<<ComboboxSelected>>', self.update_switch_direction)
 
@@ -291,7 +291,7 @@ class LeftPanel(tk.Frame):
         
         tk.Label(light_frame, text="Signal:", bg='#cccccc').pack()
         self.light_signal = ttk.Combobox(light_frame, width=18, 
-                                        values=["Red", "Green", "Yellow"])
+                                        values=["Red", "Yellow", "Green", "Super Green" ])
         self.light_signal.pack()
         self.light_signal.bind('<<ComboboxSelected>>', self.update_light_signal)
 
@@ -328,8 +328,11 @@ class LeftPanel(tk.Frame):
     def update_crossing_lights(self, event=None):
         selected = self.crossing_selector.get()
         if selected in self.data.track_data["crossings"]:
+            old_value = self.data.track_data["crossings"][selected]["lights"]
+            new_value = self.crossing_lights.get()
             self.data.track_data["crossings"][selected]["lights"] = self.crossing_lights.get()
-    
+            add_to_message_log(f"Crossing {selected}: Lights changed from {old_value} ot {new_value}")
+
     def update_switch_display(self, event=None):
         selected = self.switch_selector.get()
         switches = self.data.filtered_track_data.get("switches", {})
@@ -344,7 +347,10 @@ class LeftPanel(tk.Frame):
     def update_switch_direction(self, event=None):
         selected = self.switch_selector.get()
         if selected in self.data.track_data["switches"]:
-            self.data.track_data["switches"][selected]["direction"] = self.switch_direction.get()
+            old_value = self.data.track_data["switches"][selected]["direction"]
+            new_value = self.switch_direction.get()
+            self.data.track_data["switches"][selected]["direction"] = new_value
+            add_to_message_log(f"Switch {selected}: Direction changed from {old_value} to {new_value}")
     
     def update_light_display(self, event=None):
         selected = self.light_selector.get()
@@ -360,7 +366,10 @@ class LeftPanel(tk.Frame):
     def update_light_signal(self, event=None):
         selected = self.light_selector.get()
         if selected in self.data.track_data["lights"]:
-            self.data.track_data["lights"][selected]["signal"] = self.light_signal.get()
+            old_value = self.data.track_data["lights"][selected]["signal"]
+            new_value = self.light_signal.get()
+            self.data.track_data["lights"][selected]["signal"] = new_value
+            add_to_message_log(f"Light {selected}: Signal changed from {old_value} to {new_value}")
     
     def update_mode_ui(self):
         # Refresh UI based on maintenance mode
@@ -417,10 +426,18 @@ log_text.configure(yscrollcommand=scrollbar.set)
 log_text.pack(side="left", fill="x", expand=True)
 scrollbar.pack(side="right", fill="y")
 
-log_text.insert("end", f"{datetime.now():%Y-%m-%d %H:%M:%S} INFO: UI initialized.\n")
-log_text.insert("end", f"{datetime.now():%Y-%m-%d %H:%M:%S} INFO: Map display loaded.\n")
-log_text.insert("end", f"{datetime.now():%Y-%m-%d %H:%M:%S} INFO: Control panels ready.\n")
-log_text.config(state="disabled")
+def add_to_message_log(message):
+    """Add a message to the message log with timestamp"""
+    log_text.config(state="normal")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_text.insert("end", f"{timestamp} {message}\n")
+    log_text.see("end")  # Auto-scroll to bottom
+    log_text.config(state="disabled")
+
+# Initialize with some messages
+add_to_message_log("INFO: UI initialized.")
+add_to_message_log("INFO: Map display loaded.")
+add_to_message_log("INFO: Control panels ready.")
 
 # ---------- RIGHT PANEL ---------- #
 class RightPanel(tk.Frame):
@@ -480,20 +497,46 @@ class RightPanel(tk.Frame):
     
     def create_commanded_section(self):
         commanded_frame = tk.LabelFrame(self, text="Commanded:", 
-                                       bg='#cccccc', font=('Arial', 10, 'bold'))
+                                   bg='#cccccc', font=('Arial', 10, 'bold'))
         commanded_frame.pack(fill=tk.X, pady=5)
-        
+    
+    # Authority section
         auth_frame = tk.Frame(commanded_frame, bg='#cccccc')
         auth_frame.pack(fill=tk.X, padx=5, pady=2)
         tk.Label(auth_frame, text="Authority:", bg='#cccccc').pack(side=tk.LEFT)
-        tk.Entry(auth_frame, width=10).pack(side=tk.LEFT, padx=2)
-        tk.Button(auth_frame, text="↕", width=2).pack(side=tk.LEFT)
-        
+    
+        self.auth_entry = tk.Entry(auth_frame, width=10)
+        self.auth_entry.insert(0, "2 blocks")  # Default value
+        self.auth_entry.pack(side=tk.LEFT, padx=2)
+    
+        auth_button = tk.Button(auth_frame, text="Send", width=5, command=self.update_authority)
+        auth_button.pack(side=tk.LEFT)
+    
+    # Speed section
         speed_frame = tk.Frame(commanded_frame, bg='#cccccc')
         speed_frame.pack(fill=tk.X, padx=5, pady=2)
         tk.Label(speed_frame, text="Speed:", bg='#cccccc').pack(side=tk.LEFT)
-        tk.Entry(speed_frame, width=10).pack(side=tk.LEFT, padx=2)
-        tk.Button(speed_frame, text="↕", width=2).pack(side=tk.LEFT)
+    
+        self.speed_entry = tk.Entry(speed_frame, width=10)
+        self.speed_entry.insert(0, "38 mph")  # Default value
+        self.speed_entry.pack(side=tk.LEFT, padx=2)
+    
+        speed_button = tk.Button(speed_frame, text="Send", width=5, command=self.update_speed)
+        speed_button.pack(side=tk.LEFT)
+
+    def update_authority(self):
+        """Update commanded authority and log the change"""
+        new_authority = self.auth_entry.get()
+        add_to_message_log(f"Commanded Authority updated to: {new_authority}")
+        # Here you would also update the backend data structure
+        # commanded_authority.append(new_authority)
+
+    def update_speed(self):
+        """Update commanded speed and log the change"""
+        new_speed = self.speed_entry.get()
+        add_to_message_log(f"Commanded Speed updated to: {new_speed}")
+    # Here you would also update the backend data structure
+    # commanded_speed.append(new_speed)
     
     def create_block_table_section(self):
         # Search
