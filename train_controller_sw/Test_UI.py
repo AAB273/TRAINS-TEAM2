@@ -60,13 +60,13 @@ class EmergencyLight(tk.Canvas):
         self.itemconfig(self.triangle, fill=new_color)
         self.after(500, self._pulse_light)
 
-class TestPanel(tk.Toplevel):
+class TestPanel(tk.Tk):
     """Standalone input test GUI with auto-test mode."""
-    def __init__(self, parent, main_window):
-        super().__init__(parent)
+    def __init__(self):
+        super().__init__()
         self.title("Input Test Panel")
         self.geometry("400x450")
-        self.main_window = main_window
+        #self.main_window = main_window
 
         tk.Label(self, text="TEST INTERFACE", font=("Arial", 18, "bold"), bg="white").pack(pady=10)
 
