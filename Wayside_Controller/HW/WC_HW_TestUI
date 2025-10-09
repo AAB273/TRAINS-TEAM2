@@ -90,25 +90,25 @@ track_data = {
         "suggested_authority": "4 blocks",
         "commanded_speed": "50 mph",
         "commanded_authority": "4 blocks",
-        "block_number": "18"
+        "block_number": "15"
     }
 }
 
 # Header frame to organize top elements
 header_frame = tk.Frame(root, bg='#1a1a4d')
-header_frame.pack(fill='x', pady=10)
+header_frame.pack(fill='x', pady=5)
 
 # BLT LOGO in top left corner - REPLACED WITH IMAGE
 try:
     # Load and resize the BLT logo image
-    logo_image = Image.open("blt logo.png")
+    logo_image = Image.open("/home/siram/TRAINS-TEAM2/blt logo.png")
     logo_image = logo_image.resize((100, 100), Image.Resampling.LANCZOS)  # Adjust size as needed
     logo_photo = ImageTk.PhotoImage(logo_image)
     
     # Create label with image
     blt_logo = tk.Label(header_frame, image=logo_photo, bg='#1a1a4d')
     blt_logo.image = logo_photo  # Keep a reference to prevent garbage collection
-    blt_logo.pack(side='left', padx=20)
+    blt_logo.pack(side='left', padx=20, pady=0)
 except Exception as e:
     # Fallback to text if image loading fails
     print(f"Error loading logo: {e}")
@@ -281,6 +281,36 @@ tk.Label(suggested_frame, text="Speed:", font=("Arial", 12), bg='white').pack(an
 suggested_speed_var = tk.StringVar(value="45 mph")
 suggested_speed_label = tk.Label(suggested_frame, textvariable=suggested_speed_var, font=("Arial", 12, "bold"), bg='white')
 suggested_speed_label.pack(anchor='w', pady=5)
+
+def send_suggested_data():
+    track = suggested_track_var.get()
+    speed = suggested_speed_var.get()
+    authority = suggested_auth_var.get()
+    
+    # Update backend
+    try:
+        speed_val = float(speed.split()[0])  # remove 'mph'
+        auth_val = int(authority.split()[0])  # remove 'blocks'
+    except:
+        messagebox.showerror("Error", "Invalid suggested speed or authority format")
+        return
+    
+    track_state[track]["suggested_speed"] = speed_val
+    track_state[track]["suggested_authority"] = auth_val
+    
+    # Log
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_text.config(state='normal')
+    log_text.insert('end', f"{current_time} UPDATE: Suggested values sent for {track} track - Speed: {speed_val} mph, Authority: {auth_val} blocks\n")
+    log_text.see('end')
+    log_text.config(state='disabled')
+    
+    messagebox.showinfo("Data Sent", f"Suggested data sent for {track} track.")
+
+# Send Data Button
+send_suggested_btn = tk.Button(suggested_frame, text="Send Data", command=send_suggested_data, bg="#4d4d60", fg="white", width=12)
+send_suggested_btn.pack(anchor='w', pady=10)
+
 
 tk.Label(suggested_frame, text="Authority:", font=("Arial", 12), bg='white').pack(anchor='w')
 suggested_auth_var = tk.StringVar(value="3 blocks")
