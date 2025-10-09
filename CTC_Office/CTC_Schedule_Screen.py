@@ -263,7 +263,13 @@ class ScheduleScreen:
         outfile = open("CTC_Office/to_test_ui.txt", "w")
         outfile.write("TL\n")
         outfile.write(str(self.trainNum) + "\n")
-        outfile.write("70\n")
+
+        distToStation = float(750)
+        arrTime = self.timeToSeconds(time)
+        speed = distToStation / arrTime
+        #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
+
+        outfile.write(f"{speed:.2f}\n")
         outfile.write("8\n")
         outfile.write(line + "\n")
         outfile.close()
@@ -302,7 +308,11 @@ class ScheduleScreen:
                         for char in temp:
                             if (char.isdigit()):
                                 train += char
+                        #grab train number
                         outfile.write(train + "\n")
+
+                        distToStation = 750
+                        #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
                         outfile.write("60\n")
                         outfile.write("7\n")
                         outfile.write(self.meArea.item(self.meArea.parent(rowID), "text") + "\n")
@@ -333,6 +343,7 @@ class ScheduleScreen:
                             if (char.isdigit()):
                                 train += char
                         #grab specific train number
+
                         outfile.write(train + "\n")
                         outfile.write("80\n")
                         outfile.write("9\n")
@@ -355,3 +366,68 @@ class ScheduleScreen:
 
                 self.sendDeployData("1", dest, time, line)
                 self.updateManualEdit("1", dest, time, line)
+
+###############################################################################################################################################################        
+
+    def timeToSeconds(self, arrTimeStr):
+    #convert a given time into seconds
+
+        currTimeStr = strftime("%I:%M %p")
+
+        arrTime = 0
+        arrAbb = ""
+        for char in arrTimeStr:
+            if (char.isalpha()):
+                arrAbb += char
+        #grab AM/PM
+        if (arrAbb == "PM"):
+            arrTime += (12 * 3600)
+        #if PM, add 12 hours
+
+        found = False
+        #flag for finding colon
+        arrHoursStr = ""
+        arrHours = 0
+        arrMinsStr = ""
+        arrMins = 0
+        for char in arrTimeStr:
+            if (not found and char.isdigit()):
+                arrHoursStr += char
+            elif (not found and char == ":"):
+                found = True
+            elif (found and char.isdigit()):
+                arrMinsStr += char
+        
+        arrHours += (int(arrHoursStr) * 3600)
+        arrMins += (int(arrMinsStr) * 60)
+        arrTime += (arrHours + arrMins)
+
+        currTime = 0
+        currAbb = ""
+        for char in currTimeStr:
+            if (char.isalpha()):
+                currAbb += char
+        #grab AM/PM
+        if (currAbb == "PM"):
+            currTime += (12 * 3600)
+        #if PM, add 12 hours
+
+        found = False
+        #flag for finding colon
+        currHoursStr = ""
+        currHours = 0
+        currMinsStr = ""
+        currMins = 0
+        for char in currTimeStr:
+            if (not found and char.isdigit()):
+                currHoursStr += char
+            elif (not found and char == ":"):
+                found = True
+            elif (found and char.isdigit()):
+                currMinsStr += char
+        
+        currHours += (int(currHoursStr) * 3600)
+        currMins += (int(currMinsStr) * 60)
+        currTime += (currHours + currMins)
+
+        return float(arrTime - currTime)

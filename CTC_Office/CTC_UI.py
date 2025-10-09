@@ -14,6 +14,7 @@ import os
 #error checking for inputing time on schedule
 #turn station input into combobox on schedule train
 #add try/except for inputting files
+#when time is at 10x, allow trains to be scheduled at specific times
 
 
 def main():
