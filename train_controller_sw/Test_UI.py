@@ -38,6 +38,19 @@ class EmergencyLight(tk.Canvas):
         self.glow = False
         self.itemconfig(self.triangle, fill="gray")
 
+    def toggle_failure(self, failure_type, state):
+        """Send failure signal input to main UI"""
+        if failure_type == 'engine':
+            self.main_window.set_engine_failure(state)
+        elif failure_type == 'signal':
+            self.main_window.set_signal_failure(state)
+        elif failure_type == 'brake':
+            self.main_window.set_brake_failure(state)
+
+        action = "activated" if state else "cleared"
+        self.log_action(f"⚠️ {failure_type.title()} failure {action}")
+
+
     def _pulse_light(self):
         if not self.glow:
             return
@@ -47,13 +60,13 @@ class EmergencyLight(tk.Canvas):
         self.itemconfig(self.triangle, fill=new_color)
         self.after(500, self._pulse_light)
 
-class TestPanel(tk.Tk):
+class TestPanel(tk.Toplevel):
     """Standalone input test GUI with auto-test mode."""
-    def __init__(self):
-        super().__init__()
-        self.title("Train Controller Input Test Panel")
-        self.geometry("400x550")
-        self.configure(bg="white")
+    def __init__(self, parent, main_window):
+        super().__init__(parent)
+        self.title("Input Test Panel")
+        self.geometry("400x450")
+        self.main_window = main_window
 
         tk.Label(self, text="TEST INTERFACE", font=("Arial", 18, "bold"), bg="white").pack(pady=10)
 
@@ -86,6 +99,31 @@ class TestPanel(tk.Tk):
         self.emergency_light.pack(pady=5)
         tk.Button(self, text="Activate", bg="red", fg="white", command=self.emergency_light.activate).pack(side="left", padx=30, pady=10)
         tk.Button(self, text="Deactivate", bg="grey", fg="white", command=self.emergency_light.deactivate).pack(side="right", padx=30, pady=10)
+
+        # Failure Mode Signals
+        tk.Label(self, text="Failure Mode Signals:", font=("Arial", 12, "bold")).pack(pady=8)
+
+        fail_frame = tk.Frame(self)
+        fail_frame.pack(pady=5)
+
+        # Train Engine Failure
+        tk.Button(fail_frame, text="Engine FAIL", bg="red", fg="white",
+                command=lambda: self.toggle_failure('engine', True)).grid(row=0, column=0, padx=5)
+        tk.Button(fail_frame, text="Engine CLEAR", bg="grey", fg="white",
+                command=lambda: self.toggle_failure('engine', False)).grid(row=1, column=0, padx=5)
+
+        # Signal Pickup Failure
+        tk.Button(fail_frame, text="Signal FAIL", bg="orange", fg="white",
+                command=lambda: self.toggle_failure('signal', True)).grid(row=0, column=1, padx=5)
+        tk.Button(fail_frame, text="Signal CLEAR", bg="grey", fg="white",
+                command=lambda: self.toggle_failure('signal', False)).grid(row=1, column=1, padx=5)
+
+        # Brake Failure
+        tk.Button(fail_frame, text="Brake FAIL", bg="red", fg="white",
+                command=lambda: self.toggle_failure('brake', True)).grid(row=0, column=2, padx=5)
+        tk.Button(fail_frame, text="Brake CLEAR", bg="grey", fg="white",
+                command=lambda: self.toggle_failure('brake', False)).grid(row=1, column=2, padx=5)
+
 
         # Auto test controls
         tk.Label(self, text="Automatic Test Mode:", bg="white").pack(pady=10)

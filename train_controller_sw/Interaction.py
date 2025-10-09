@@ -3,6 +3,7 @@ from tkinter import ttk
 import math
 import time
 from TC_SW_TrackInfo import TrackInformationPanel
+from Test_UI import TestPanel
 
 
 class ClockDisplay(tk.Label):
@@ -305,18 +306,6 @@ class StationAnnouncementDisplay(tk.Frame):
         #current date and time: 
         self.clock = ClockDisplay(datetime_frame)
         self.clock.pack(padx=10, pady=10)
-
-        #was where I displayed a static date and time
-        """
-        tk.Label(datetime_frame, text="📅", font=("Arial", 12), bg="lightblue").pack(side=tk.LEFT, padx=2)
-        self.date_label = tk.Label(datetime_frame, text="9/20/25", font=("Arial", 10), 
-                                   bg="lightblue", padx=8)
-        self.date_label.pack(side=tk.LEFT, padx=2)
-        
-        tk.Label(datetime_frame, text="🕐", font=("Arial", 12), bg="lightblue").pack(side=tk.LEFT, padx=2)
-        self.time_label = tk.Label(datetime_frame, text="4:24 pm", font=("Arial", 10), 
-                                   bg="lightblue", padx=8)
-        self.time_label.pack(side=tk.LEFT, padx=2)"""
     
     def toggle_expand(self):
         if self.expand_callback:
@@ -728,7 +717,7 @@ class Main_Window:
         
         self.update_displays()
         # --- TEST PANEL LAUNCH ---
-        self.test_panel = TestPanel(self.root, self)
+        self.test_panel = TestPanel(root,self.root)
 
     
     def update_displays(self):
@@ -821,6 +810,19 @@ class Main_Window:
     def set_emergency_signal(self, active):
         """Method to control emergency light from external module"""
         self.emergency_light.set_state(active)
+
+    def set_engine_failure(self, active):
+        """Train Engine Failure light control"""
+        self.engine_failure.set_state(active)
+
+    def set_signal_failure(self, active):
+        """Signal Pickup Failure light control"""
+        self.signal_failure.set_state(active)
+
+    def set_brake_failure(self, active):
+        """Brake Failure light control"""
+        self.brake_failure.set_state(active)
+
     
     def open_track_info(self):
         """Opens the Track Information Panel"""
@@ -835,91 +837,64 @@ class Main_Window:
 
 
 '''------------------------------------------------------------------------------------------------------------------------------'''
-#side window for test ui
-class TestPanel(tk.Toplevel):
-    def __init__(self, parent, main_window):
-        super().__init__(parent)
-        self.title("Input Test Panel")
-        self.geometry("400x450")
-        self.main_window = main_window
+class NumberDisplay(tk.Frame):
+    """Displays a label + dynamic number value (with optional unit)."""
+    def __init__(self, parent, label_text="Value:", initial_value=0, unit="", **kwargs):
+        super().__init__(parent, **kwargs)
+        self.value = initial_value
+        self.unit = unit
+        tk.Label(self, text=label_text, font=("Arial", 12, "bold")).pack(side="left", padx=5)
+        self.display = tk.Label(self, text=f"{self.value} {self.unit}", font=("Arial", 12))
+        self.display.pack(side="left", padx=5)
+    def update_value(self, new_value):
+        self.value = new_value
+        self.display.config(text=f"{self.value} {self.unit}")
 
-        tk.Label(self, text="TEST INTERFACE", font=("Arial", 16, "bold")).pack(pady=10)
+class EmergencyLight(tk.Canvas):
+    """Triangle warning light that glows red when activated."""
+    def __init__(self, parent, size=80, **kwargs):
+        super().__init__(parent, width=size, height=size, highlightthickness=0, **kwargs)
+        self.size = size
+        self.glow = False
+        h = size
+        w = size
+        self.triangle = self.create_polygon(
+            w/2, 5,
+            w-5, h-5,
+            5, h-5,
+            fill="gray", outline="black", width=2
+        )
+        self.text = self.create_text(w/2, h*0.65, text="!", font=("Arial", int(size/2), "bold"), fill="white")
 
-        # Temperature Input
-        tk.Label(self, text="Set Cabin Temperature (°F):", font=("Arial", 12)).pack(pady=5)
-        self.temp_entry = tk.Entry(self)
-        self.temp_entry.insert(0, "65")
-        self.temp_entry.pack()
-        tk.Button(self, text="Send Temp", command=self.set_temp).pack(pady=5)
+    def activate(self):
+        self.glow = True
+        self._pulse_light()
 
-        # Commanded Authority Input
-        tk.Label(self, text="Set Commanded Authority (Blocks):", font=("Arial", 12)).pack(pady=5)
-        self.auth_entry = tk.Entry(self)
-        self.auth_entry.insert(0, "4")
-        self.auth_entry.pack()
-        tk.Button(self, text="Send Authority", command=self.set_authority).pack(pady=5)
+    def deactivate(self):
+        self.glow = False
+        self.itemconfig(self.triangle, fill="gray")
 
-        # Commanded Speed Input
-        tk.Label(self, text="Set Commanded Speed (mph):", font=("Arial", 12)).pack(pady=5)
-        self.speed_entry = tk.Entry(self)
-        self.speed_entry.insert(0, "55")
-        self.speed_entry.pack()
-        tk.Button(self, text="Send Speed", command=self.set_speed).pack(pady=5)
+    def toggle_failure(self, failure_type, state):
+        """Send failure signal input to main UI"""
+        if failure_type == 'engine':
+            self.main_window.set_engine_failure(state)
+        elif failure_type == 'signal':
+            self.main_window.set_signal_failure(state)
+        elif failure_type == 'brake':
+            self.main_window.set_brake_failure(state)
 
-        # Speedometer Input
-        tk.Label(self, text="Speedometer (Actual Speed mph):", font=("Arial", 12)).pack(pady=5)
-        self.actual_speed = tk.Scale(self, from_=0, to=80, orient=tk.HORIZONTAL, command=self.update_speedometer)
-        self.actual_speed.pack(fill="x", padx=20)
+        action = "activated" if state else "cleared"
+        self.log_action(f"⚠️ {failure_type.title()} failure {action}")
 
-        # Emergency Signal
-        tk.Label(self, text="Emergency Signal:", font=("Arial", 12)).pack(pady=10)
-        tk.Button(self, text="Activate Emergency", bg="red", fg="white", command=self.activate_emergency).pack(pady=3)
-        tk.Button(self, text="Deactivate Emergency", bg="grey", fg="white", command=self.deactivate_emergency).pack(pady=3)
 
-        # Output Log
-        tk.Label(self, text="Log:", font=("Arial", 12, "bold")).pack(pady=5)
-        self.log = tk.Text(self, height=6, width=40, state=tk.DISABLED)
-        self.log.pack(pady=5)
-
-    def log_action(self, text):
-        self.log.config(state=tk.NORMAL)
-        self.log.insert(tk.END, text + "\n")
-        self.log.see(tk.END)
-        self.log.config(state=tk.DISABLED)
-
-    def set_temp(self):
-        val = self.temp_entry.get()
-        self.main_window.current_temp.config(text=f"{val}°F")
-        self.log_action(f"✅ Temperature input set to {val}°F")
-
-    def set_authority(self):
-        val = self.auth_entry.get()
-        self.main_window.authority_value.config(text=f"{val} Blocks")
-        self.log_action(f"✅ Commanded authority set to {val} Blocks")
-
-    def set_speed(self):
-        val = self.speed_entry.get()
-        # Only update commanded speed when in auto mode
-        if self.main_window.mode_select.active_mode == "auto":
-            self.main_window.commanded_speed_value.config(text=val)
-            self.log_action(f"✅ Commanded speed set to {val} mph (auto mode)")
-        else:
-            self.log_action("⚠️ Ignored commanded speed (not in auto mode)")
-
-    def update_speedometer(self, val):
-        val = int(val)
-        self.main_window.speedometer.update_speed(val)
-        self.main_window.current_speed_display.config(text=f"Current Speed: {val} mph")
-        self.log_action(f"✅ Speedometer updated to {val} mph")
-
-    def activate_emergency(self):
-        self.main_window.emergency_light.activate()
-        self.log_action("🚨 Emergency signal activated")
-
-    def deactivate_emergency(self):
-        self.main_window.emergency_light.deactivate()
-        self.log_action("🟢 Emergency signal cleared")
-
+    def _pulse_light(self):
+        if not self.glow:
+            return
+        # Alternate between two shades of red
+        current_color = self.itemcget(self.triangle, "fill")
+        new_color = "red2" if current_color == "darkred" else "darkred"
+        self.itemconfig(self.triangle, fill=new_color)
+        self.after(500, self._pulse_light)
 
 '''---------------------------------------------------------------------------------------------------------------------------------'''
 if __name__ == "__main__":
