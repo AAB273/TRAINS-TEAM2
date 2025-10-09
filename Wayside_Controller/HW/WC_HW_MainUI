@@ -5,7 +5,7 @@ from PIL import Image
 
 ########################################################################################################################
 # Backend Data Structures (same as before)
-##
+#
 commanded_speed = []
 commanded_authority = []
 switch_positions = []
