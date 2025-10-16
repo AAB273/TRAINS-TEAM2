@@ -524,7 +524,7 @@ def add_to_message_log(message):
 # plc = PLCController(add_to_message_log)
 plc_instance = PLCController(add_to_message_log)
 plc_instance.main()  # Runs PLC logic
-
+#
 # Initialize with some messages
 add_to_message_log("INFO: UI initialized.")
 add_to_message_log("INFO: Map display loaded.")
