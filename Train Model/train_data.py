@@ -15,6 +15,7 @@ class Train:
         self.speed = 0.0
         self.acceleration = 0.0
         self.passenger_count = 0
+        self.passengers_disembarking = 0
         self.crew_count = 2
         self.power_command = 0.0
         self.cabin_temp = 72.0
@@ -74,9 +75,22 @@ class Train:
             callback(self)
     
     # Metric setters with validation
+    def set_speed_limit(self,value):
+        self.speed_limit = float(value)
+        self._notify_observers()
+    
+    def set_elevation(self,value):
+        self.elevation = float(value)
+        self._notify_observers
+
+    def set_grade(self,value):
+        self.grade = float(value)
+        self._notify_observers
+        
     def set_speed(self, value):
         try:
             self.speed = float(value)
+            print(f"Actual Speed Sent to Train Model")
             self._notify_observers()
         except ValueError:
             pass
@@ -91,6 +105,7 @@ class Train:
     def set_passenger_count(self, value):
         try:
             self.passenger_count = max(0, int(value))
+            print(f"Train Occupancy Sent to Track Model")
             self._notify_observers()
         except ValueError:
             pass
@@ -155,6 +170,10 @@ class Train:
         else:
             self.service_brake_active = 0
 
+    def set_disembarking(self,value):
+        self.passengers_disembarking = int(value)
+        self._notify_observers()
+
     def calculate_force_speed_acceleration_(self,dt=1.0):
         """
         When the train's power command is 0, and either the service brake or emergency brake is on,  we must output the Force to max.
@@ -176,7 +195,7 @@ class Train:
         MAX_FORCE = 25715 
         total_mass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passenger_count+2)) # +2 to account for the crew
 
-        # CASE 1: Emergency Brake (highest priority)
+        # CASE 1: Emergency Brake 
         if self.emergency_brake_active:
             a = EMERGENCY_BRAKE_DECEL
         
@@ -192,6 +211,7 @@ class Train:
                 a = 0 
         # CASE 3: Power command with existing speed
         elif self.power_command > 0 and self.speed > 0:
+            print(f"Sent Commanded Speed and Authority")
             # P = F*v, so F = P/v
             force = self.power_command / self.speed
             a = force / total_mass
@@ -203,7 +223,7 @@ class Train:
         # Ensure speed doesn't go negative
         if new_speed < 0:
             new_speed = 0
-            a = 0  # No acceleration when stopped
+           # a = 0  # No acceleration when stopped
         
         # Update state
         self.speed = new_speed

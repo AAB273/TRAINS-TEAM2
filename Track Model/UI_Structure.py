@@ -781,10 +781,10 @@ class TrackModelUI(tk.Tk):
         status_lbl.pack(side="left", padx=(0, 10))
         
         # Toggle button (immediate action, no save required)
-        btn_toggle = tk.Button(control_frame, text="Toggle Direction", 
-                            command=lambda gn=group_name: self.toggle_bidirectional_direction(gn),
-                            width=15)
-        btn_toggle.pack(side="left")
+        # btn_toggle = tk.Button(control_frame, text="Toggle Direction", 
+        #                     command=lambda gn=group_name: self.toggle_bidirectional_direction(gn),
+        #                     width=15)
+        #btn_toggle.pack(side="left")
         
         # Store the status variable for updates
         self.bidir_controls[group_name] = status_var
