@@ -1,7 +1,95 @@
 import tkinter as tk
-import random
+from tkinter import ttk
+import math
+import time
 
-class NumberDisplay(tk.Frame):
+
+class TestPanel(tk.Toplevel):
+    def __init__(self, parent, main_window):
+        super().__init__(parent)
+        self.title("Input Test Panel")
+        self.geometry("400x450")
+        self.main_window = main_window
+
+        tk.Label(self, text="TEST INTERFACE", font=("Arial", 16, "bold")).pack(pady=10)
+
+        # Temperature Input
+        tk.Label(self, text="Set Cabin Temperature (°F):", font=("Arial", 12)).pack(pady=5)
+        self.temp_entry = tk.Entry(self)
+        self.temp_entry.insert(0, "65")
+        self.temp_entry.pack()
+        tk.Button(self, text="Send Temp", command=self.set_temp).pack(pady=5)
+
+        # Commanded Authority Input
+        tk.Label(self, text="Set Commanded Authority (Blocks):", font=("Arial", 12)).pack(pady=5)
+        self.auth_entry = tk.Entry(self)
+        self.auth_entry.insert(0, "4")
+        self.auth_entry.pack()
+        tk.Button(self, text="Send Authority", command=self.set_authority).pack(pady=5)
+
+        # Commanded Speed Input
+        tk.Label(self, text="Set Commanded Speed (mph):", font=("Arial", 12)).pack(pady=5)
+        self.speed_entry = tk.Entry(self)
+        self.speed_entry.insert(0, "55")
+        self.speed_entry.pack()
+        tk.Button(self, text="Send Speed", command=self.set_speed).pack(pady=5)
+
+        # Speedometer Input
+        tk.Label(self, text="Speedometer (Actual Speed mph):", font=("Arial", 12)).pack(pady=5)
+        self.actual_speed = tk.Scale(self, from_=0, to=80, orient=tk.HORIZONTAL, command=self.update_speedometer)
+        self.actual_speed.pack(fill="x", padx=20)
+
+        # Emergency Signal
+        tk.Label(self, text="Emergency Signal:", font=("Arial", 12)).pack(pady=10)
+        tk.Button(self, text="Activate Emergency", bg="red", fg="white", command=self.activate_emergency).pack(pady=3)
+        tk.Button(self, text="Deactivate Emergency", bg="grey", fg="white", command=self.deactivate_emergency).pack(pady=3)
+
+        # Output Log
+        tk.Label(self, text="Log:", font=("Arial", 12, "bold")).pack(pady=5)
+        self.log = tk.Text(self, height=6, width=40, state=tk.DISABLED)
+        self.log.pack(pady=5)
+
+    def log_action(self, text):
+        self.log.config(state=tk.NORMAL)
+        self.log.insert(tk.END, text + "\n")
+        self.log.see(tk.END)
+        self.log.config(state=tk.DISABLED)
+
+    def set_temp(self):
+        val = self.temp_entry.get()
+        self.main_window.current_temp.config(text=f"{val}°F")
+        self.log_action(f"✅ Temperature input set to {val}°F")
+
+    def set_authority(self):
+        val = self.auth_entry.get()
+        self.main_window.authority_value.config(text=f"{val} Blocks")
+        self.log_action(f"✅ Commanded authority set to {val} Blocks")
+
+    def set_speed(self):
+        val = self.speed_entry.get()
+        # Only update commanded speed when in auto mode
+        if self.main_window.mode_select.active_mode == "auto":
+            self.main_window.commanded_speed_value.config(text=val)
+            self.log_action(f"✅ Commanded speed set to {val} mph (auto mode)")
+        else:
+            self.log_action("⚠️ Ignored commanded speed (not in auto mode)")
+
+    def update_speedometer(self, val):
+        val = int(val)
+        self.main_window.speedometer.update_speed(val)
+        self.main_window.current_speed_display.config(text=f"Current Speed: {val} mph")
+        self.log_action(f"✅ Speedometer updated to {val} mph")
+
+    def activate_emergency(self):
+        self.main_window.emergency_light.activate()
+        self.log_action("🚨 Emergency signal activated")
+
+    def deactivate_emergency(self):
+        self.main_window.emergency_light.deactivate()
+        self.log_action("🟢 Emergency signal cleared")
+
+        
+'''class NumberDisplay(tk.Frame):
     """Displays a label + dynamic number value (with optional unit)."""
     def __init__(self, parent, label_text="Value:", initial_value=0, unit="", **kwargs):
         super().__init__(parent, **kwargs)
@@ -200,7 +288,7 @@ class TestPanel(tk.Tk):
         self.log.insert(tk.END, text + "\n")
         self.log.see(tk.END)
         self.log.config(state=tk.DISABLED)
-
+'''
 if __name__ == "__main__":
     app = TestPanel()
     app.mainloop()

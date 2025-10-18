@@ -2,24 +2,15 @@ import tkinter as tk
 from tkinter import ttk
 import math
 import time
+from ClockDisplay import ClockDisplay
+from CircleButton import Circle_button
+from Emlight import EmergencyLight
+from speedometer import Speedometer
+from SA_display import StationAnnouncementDisplay
+from SA_window import StationAnnouncementWindow
+from Test_UI import TestPanel
 from TC_SW_TrackInfo import TrackInformationPanel
 
-
-class ClockDisplay(tk.Label):
-    def __init__(self, parent, *args, **kwargs):
-        super().__init__(parent, font=("Arial", 18), bg="black", fg="lime", *args, **kwargs)
-        self.update_time()  # Start updating
-
-    def update_time(self):
-        # Get current local time and date
-        current_time = time.strftime("%H:%M:%S")   # 24-hour time
-        current_date = time.strftime("%Y-%m-%d")   # YYYY-MM-DD
-
-        # Update the label text
-        self.config(text=f"{current_date}\n{current_time}")
-
-        # Call this function again after 1000 ms (1 second)
-        self.after(1000, self.update_time)
 
 class Mode_Toggle(tk.Frame):
     def __init__(self, parent, callback=None):
@@ -54,166 +45,6 @@ class Mode_Toggle(tk.Frame):
         if self.callback:
             self.callback(mode)
 
-class Circle_button(tk.Canvas):
-    def __init__(self, parent, radius=40, color="orange", hover_color="lightorange",
-                 active_color="darkorange", text="", command=None, hold_mode=False, canvas_bg="white", **kwargs):
-        # Extract canvas_bg before passing to super
-        super().__init__(parent, width=radius*2, height=radius*2, highlightthickness=0, 
-                        bg=canvas_bg, **kwargs)
-        
-        self.radius = radius
-        self.color = color
-        self.hover_color = hover_color
-        self.active_color = active_color
-        self.command = command
-        self.hold_mode = hold_mode
-        self.is_pressed = False
-        
-        self.circle = self.create_oval(2, 2, radius*2-2, radius*2-2, fill=color, outline="black", width=3)
-        self.text_id = self.create_text(radius, radius, text=text, font=("Arial", 12, "bold"), 
-                                       fill="white", width=radius*1.5)
-        
-        self.bind("<Enter>", self.on_hover)
-        self.bind("<Leave>", self.on_leave)
-        self.bind("<ButtonPress-1>", self.on_press)
-        self.bind("<ButtonRelease-1>", self.on_release)
-    
-    def on_hover(self, event):
-        if not self.is_pressed:
-            self.itemconfig(self.circle, fill=self.hover_color)
-    
-    def on_leave(self, event):
-        if not self.is_pressed:
-            self.itemconfig(self.circle, fill=self.color)
-    
-    def on_press(self, event):
-        self.is_pressed = True
-        self.itemconfig(self.circle, fill=self.active_color)
-        if self.command:
-            self.command(True)
-    
-    def on_release(self, event):
-        if self.hold_mode:
-            self.is_pressed = False
-            self.itemconfig(self.circle, fill=self.color)
-            if self.command:
-                self.command(False)
-
-class EmergencyLight(tk.Canvas):
-    def __init__(self, parent, size=100, color="red", glow_color="darkred", **kwargs):
-        super().__init__(parent, width=size, height=size, highlightthickness=0, **kwargs)
-        self.size = size
-        self.color = color
-        self.glow_color = glow_color
-        self.active = False
-        
-        self.points = [size/2, 0, 0, size, size, size]
-        self.triangle = self.create_polygon(self.points, fill=color, outline="black", width=2)
-        self.text = self.create_text(size/2, size*0.65, text="!", 
-                                    font=("Arial", int(size/3), "bold"), fill="white")
-    
-    def activate(self):
-        self.itemconfig(self.triangle, fill=self.glow_color)
-        self.active = True
-    
-    def deactivate(self):
-        self.itemconfig(self.triangle, fill=self.color)
-        self.active = False
-    
-    def set_state(self, state):
-        if state:
-            self.activate()
-        else:
-            self.deactivate()
-
-class Speedometer(tk.Canvas):
-    def __init__(self, parent, max_speed=80, **kwargs):
-        super().__init__(parent, bg="white", highlightthickness=2, 
-                        highlightbackground="navy", **kwargs)
-        self.max_speed = max_speed
-        self.current_speed = 0
-        
-        # Will be set dynamically based on canvas size
-        self.center_x = 0
-        self.center_y = 0
-        self.radius = 0
-        
-        self.bind("<Configure>", self.on_resize)
-    
-    def on_resize(self, event=None):
-        # Clear canvas
-        self.delete("all")
-        
-        # Get canvas dimensions
-        width = self.winfo_width()
-        height = self.winfo_height()
-        
-        if width <= 1 or height <= 1:
-            return
-        
-        # Calculate center and radius based on available space
-        self.center_x = width / 2
-        self.center_y = height / 2
-        self.radius = min(width, height) * 0.4
-        
-        # Draw speedometer
-        margin = 20
-        self.create_oval(margin, margin, width-margin, height-margin, 
-                        outline="navy", width=4)
-        self.create_oval(margin+20, margin+20, width-margin-20, height-margin-20, 
-                        outline="lightblue", width=2, fill="lightblue")
-        
-        # Draw tick marks and numbers
-        for i in range(0, self.max_speed + 1, 10):
-            angle = 225 - (i / self.max_speed * 270)
-            angle_rad = math.radians(angle)
-            
-            x1 = self.center_x + (self.radius - 20) * math.cos(angle_rad)
-            y1 = self.center_y - (self.radius - 20) * math.sin(angle_rad)
-            x2 = self.center_x + (self.radius - 5) * math.cos(angle_rad)
-            y2 = self.center_y - (self.radius - 5) * math.sin(angle_rad)
-            
-            self.create_line(x1, y1, x2, y2, width=3, fill="navy")
-            
-            x_text = self.center_x + (self.radius - 40) * math.cos(angle_rad)
-            y_text = self.center_y - (self.radius - 40) * math.sin(angle_rad)
-            self.create_text(x_text, y_text, text=str(i), 
-                           font=("Arial", int(self.radius/8), "bold"), fill="navy")
-        
-        # Draw label
-        self.create_text(self.center_x, self.center_y + self.radius * 0.5, 
-                        text="mph", font=("Arial", int(self.radius/7), "bold"), 
-                        fill="gray")
-        
-        # Redraw needle at current speed
-        self.draw_needle(self.current_speed)
-    
-    def draw_needle(self, speed):
-        # Remove old needle
-        self.delete("needle")
-        
-        if self.radius == 0:
-            return
-        
-        speed = max(0, min(speed, self.max_speed))
-        angle = 225 - (speed / self.max_speed * 270)
-        angle_rad = math.radians(angle)
-        
-        needle_length = self.radius - 35
-        x = self.center_x + needle_length * math.cos(angle_rad)
-        y = self.center_y - needle_length * math.sin(angle_rad)
-        
-        self.create_line(self.center_x, self.center_y, x, y, 
-                        width=5, fill="navy", arrow=tk.LAST, 
-                        arrowshape=(12, 15, 6), tags="needle")
-        
-        self.create_oval(self.center_x-10, self.center_y-10, 
-                        self.center_x+10, self.center_y+10, 
-                        fill="navy", outline="navy", tags="needle")
-    
-    def update_speed(self, speed):
-        self.current_speed = speed
-        self.draw_needle(speed)
 
 class ToggleButton(tk.Button):
     def __init__(self, parent, text="", callback=None, **kwargs):
@@ -231,176 +62,6 @@ class ToggleButton(tk.Button):
         
         if self.callback:
             self.callback(self.is_on)
-
-class StationAnnouncementDisplay(tk.Frame):
-    def __init__(self, parent, callback=None, expand_callback=None):
-        super().__init__(parent, bg="grey", relief=tk.RAISED, bd=2)
-        self.callback = callback
-        self.expand_callback = expand_callback
-        self.is_expanded = False
-        
-        main_frame = tk.Frame(self, bg="grey", padx=10, pady=10)
-        main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Header with expand button
-        header_frame = tk.Frame(main_frame, bg="lightgrey", relief=tk.RAISED)
-        header_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        expand_btn = tk.Button(header_frame, text="➤", font=("Arial", 14, "bold"),
-                              command=self.toggle_expand, bg="lightgrey", relief=tk.FLAT,
-                              cursor="hand2")
-        expand_btn.pack(side=tk.LEFT, padx=5)
-        
-        title_label = tk.Label(header_frame, text="Station Announcement Display", 
-                              font=("Arial", 14, "bold"), bg="lightgrey", padx=10, pady=5)
-        title_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        
-        line_frame = tk.Frame(main_frame, bg="grey")
-        line_frame.pack(pady=10)
-        
-        tk.Label(line_frame, text="Select Line:", font=("Arial", 12), bg="grey").pack(side=tk.LEFT, padx=5)
-        
-        self.line_var = tk.StringVar(value="Red Line")
-        line_combo = ttk.Combobox(line_frame, textvariable=self.line_var, 
-                                 values=["Red Line", "Blue Line", "Green Line", "Emergency Announcement"], 
-                                 state="readonly", width=15)
-        line_combo.pack(side=tk.LEFT, padx=5)
-        line_combo.bind("<<ComboboxSelected>>", self.on_line_change)
-        
-        station_frame = tk.Frame(main_frame, bg="white", relief=tk.SUNKEN, bd=2)
-        station_frame.pack(pady=10, fill=tk.BOTH, expand=True)
-        
-        tk.Label(station_frame, text="Select Station:", font=("Arial", 11, "bold"), 
-                bg="white").pack(pady=5)
-        
-        scrollbar = tk.Scrollbar(station_frame)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        self.station_listbox = tk.Listbox(station_frame, yscrollcommand=scrollbar.set, 
-                                         font=("Arial", 10), height=10)
-        self.station_listbox.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        scrollbar.config(command=self.station_listbox.yview)
-        
-        self.stations = {
-            "Red Line": ["Shadyside", "Herron Ave", "Swissville", "Penn Station", 
-                        "Steel Plaza", "First Ave", "Station Square", "South Hills Jct"],
-            "Blue Line": ["Station A", "Station B"],
-            "Green Line": ["Pioneer", "Edgebrook", "Whited", "South Bank", "Central", 
-                          "Inglewood", "Overbrook", "Glenbury", "Dormont", "Mt Lebanon"]
-        }
-        
-        self.populate_stations()
-        
-        button_frame = tk.Frame(main_frame, bg="grey")
-        button_frame.pack(pady=10)
-        
-        announce_btn = tk.Button(button_frame, text="ANNOUNCE", font=("Arial", 12, "bold"), 
-                                bg="darkgreen", fg="white", padx=20, pady=8, 
-                                command=self.announce_station)
-        announce_btn.pack()
-        
-        datetime_frame = tk.Frame(main_frame, bg="lightblue")
-        datetime_frame.pack(pady=5)
-
-        #current date and time: 
-        self.clock = ClockDisplay(datetime_frame)
-        self.clock.pack(padx=10, pady=10)
-
-        #was where I displayed a static date and time
-        """
-        tk.Label(datetime_frame, text="📅", font=("Arial", 12), bg="lightblue").pack(side=tk.LEFT, padx=2)
-        self.date_label = tk.Label(datetime_frame, text="9/20/25", font=("Arial", 10), 
-                                   bg="lightblue", padx=8)
-        self.date_label.pack(side=tk.LEFT, padx=2)
-        
-        tk.Label(datetime_frame, text="🕐", font=("Arial", 12), bg="lightblue").pack(side=tk.LEFT, padx=2)
-        self.time_label = tk.Label(datetime_frame, text="4:24 pm", font=("Arial", 10), 
-                                   bg="lightblue", padx=8)
-        self.time_label.pack(side=tk.LEFT, padx=2)"""
-    
-    def toggle_expand(self):
-        if self.expand_callback:
-            self.expand_callback()
-    
-    def populate_stations(self):
-        self.station_listbox.delete(0, tk.END)
-        line = self.line_var.get()
-        for station in self.stations.get(line, []):
-            self.station_listbox.insert(tk.END, station)
-    
-    def on_line_change(self, event):
-        line = self.line_var.get()
-        self.station_listbox.delete(0, tk.END)
-        
-        # Hide any previous emergency widgets
-        if hasattr(self, "emergency_text"):
-            self.emergency_text.pack_forget()
-            self.emergency_label.pack_forget()
-
-        if line == "Emergency Announcement":
-            # Show emergency input box
-        
-    # Create a subframe so it can expand properly
-            self.emergency_frame = tk.Frame(self, bg="grey")
-            self.emergency_frame.pack(fill="both", expand=True, pady=5)
-
-            self.emergency_label = tk.Label(
-                self.emergency_frame, 
-                text="Enter Emergency Message:",
-                font=("Arial", 11, "bold"), 
-                bg="grey", fg="white"
-            )
-            self.emergency_label.pack(pady=(5, 2))
-
-            self.emergency_text = tk.Text(
-                self.emergency_frame,
-                height=3, width=40,
-                font=("Arial", 10),
-                bg="white",
-                fg="black",
-                insertbackground="black"   # ensures cursor visible
-            )
-            self.emergency_text.pack(pady=5)
-        else:
-            self.populate_stations()
-
-    
-    def announce_station(self):
-        line = self.line_var.get()
-        if line == "Emergency Announcement":
-            message = self.emergency_text.get("1.0", tk.END).strip()
-            if message:
-                print(f"EMERGENCY ANNOUNCEMENT OUTPUT: '{message}'")
-                if self.callback:
-                    self.callback(line, message)
-        else:
-            selection = self.station_listbox.curselection()
-            if selection:
-                station = self.station_listbox.get(selection[0])
-                print(f"ANNOUNCEMENT OUTPUT: Line='{line}', Station='{station}'")
-                if self.callback:
-                    self.callback(line, station)
-
-class StationAnnouncementWindow(tk.Toplevel):
-    def __init__(self, parent, callback=None):
-        super().__init__(parent)
-        self.title("Station Announcement Display - Expanded View")
-        self.geometry("600x500")
-        self.callback = callback
-        
-        self.withdraw()
-        
-        self.station_display = StationAnnouncementDisplay(self, callback=callback)
-        self.station_display.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
-        
-        self.protocol("WM_DELETE_WINDOW", self.hide_window)
-    
-    def show_window(self):
-        self.deiconify()
-        self.lift()
-    
-    def hide_window(self):
-        self.withdraw()
 
 
 class FailureIndicator(tk.Canvas):
@@ -830,13 +491,9 @@ class Main_Window:
             self.track_info_panel = TrackInformationPanel(self.track_info_window)
         else:
             self.track_info_window.lift()
-
-
-
-
 '''------------------------------------------------------------------------------------------------------------------------------'''
 #side window for test ui
-class TestPanel(tk.Toplevel):
+'''class TestPanel(tk.Toplevel):
     def __init__(self, parent, main_window):
         super().__init__(parent)
         self.title("Input Test Panel")
@@ -919,7 +576,7 @@ class TestPanel(tk.Toplevel):
     def deactivate_emergency(self):
         self.main_window.emergency_light.deactivate()
         self.log_action("🟢 Emergency signal cleared")
-
+'''
 
 '''---------------------------------------------------------------------------------------------------------------------------------'''
 if __name__ == "__main__":
