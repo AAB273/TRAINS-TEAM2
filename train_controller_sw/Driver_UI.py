@@ -90,8 +90,6 @@ class FailureIndicator(tk.Canvas):
 
 class Main_Window:
     def __init__(self, root):
-
-
         self.root = root
         self.root.title("Train Controller - Monitor Display")
         
@@ -109,15 +107,28 @@ class Main_Window:
         tk.Label(title_frame, text="Monitor Display", font=("Arial", 18, "bold"), 
                 bg="white").pack(pady=5)
         
-        #tab to open track info
-                # === Track Info Button (top bar) ===
+        # Track Info Button
         track_btn = tk.Button(self.root, text="Track Info", font=("Arial", 12, "bold"),
                               bg="lightblue", fg="black", relief=tk.RAISED, bd=2,
                               command=self.open_track_info)
         track_btn.place(relx=0.63, rely=0.015, relwidth=0.08, relheight=0.045)
 
+        # Status Log Frame (Simple version for now)
+        self.status_log_frame = tk.Frame(main_container, bg="black", relief=tk.SUNKEN, bd=2)
+        self.status_log_frame.place(relx=.8, rely=.374, relwidth=0.18, relheight=0.3)
         
-        # Driver Mode Frame - centered at top
+        tk.Label(self.status_log_frame, text="STATUS LOG", font=("Arial", 12, "bold"), 
+                bg="black", fg="white").pack(pady=2)
+        
+        self.status_log = tk.Text(self.status_log_frame, height=6, width=50, 
+                                 font=("Courier", 9), bg="black", fg="lime", 
+                                 state=tk.DISABLED, wrap=tk.WORD)
+        scrollbar = tk.Scrollbar(self.status_log_frame, command=self.status_log.yview)
+        self.status_log.config(yscrollcommand=scrollbar.set)
+        self.status_log.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=2, pady=2)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Driver Mode Frame
         self.driver_mode_frame = tk.Frame(main_container, bg="gray", relief=tk.RAISED, bd=2)
         self.driver_mode_frame.place(relx=0.38, rely=0.02, relwidth=0.24, relheight=0.14)
         
@@ -139,11 +150,15 @@ class Main_Window:
                                              font=("Arial", 14, "bold"), bg="white", fg="navy")
         self.current_speed_display.pack(pady=5)
         
-        # Commanded Speed Frame - below speedometer (better formatting, no cutoff)
+        # Service Brake Percentage Display
+        self.brake_percentage_display = tk.Label(speedometer_frame, text="Service Brake: 0%", 
+                                                font=("Arial", 12, "bold"), bg="white", fg="red")
+        self.brake_percentage_display.pack(pady=2)
+        
+        # Commanded Speed Frame
         self.commanded_speed_frame = tk.Frame(main_container, bg="grey", relief=tk.RAISED, bd=2)
         self.commanded_speed_frame.place(relx=0.32, rely=0.69, relwidth=0.36, relheight=0.27)
         
-        # Use grid with proper column configuration for centering
         self.commanded_speed_frame.columnconfigure(0, weight=1)
         
         tk.Label(self.commanded_speed_frame, text="Commanded Speed:", 
@@ -180,11 +195,10 @@ class Main_Window:
                                command=self.confirm_speed, padx=25, pady=5)
         confirm_btn.grid(row=4, column=0, pady=8)
         
-        # AC Frame - left side (better formatting and filling)
+        # AC Frame
         self.ac_frame = tk.Frame(main_container, bg="grey", relief=tk.RAISED, bd=2)
         self.ac_frame.place(relx=0.02, rely=0.25, relwidth=0.18, relheight=0.35)
         
-        # Configure grid to center and fill
         self.ac_frame.columnconfigure(0, weight=1)
         
         tk.Label(self.ac_frame, text="Current Cabin Temperature:", 
@@ -216,9 +230,9 @@ class Main_Window:
                                      callback=self.toggle_ac, width=10, pady=5)
         self.power_btn.grid(row=4, column=0, pady=15)
         
-        # Authority Frame - bottom left
+        # Authority Frame
         self.authority_frame = tk.Frame(main_container, bg="grey", relief=tk.RAISED, bd=2)
-        self.authority_frame.place(relx=0.02, rely=0.65, relwidth=0.22, relheight=0.25)
+        self.authority_frame.place(relx=0.02, rely=0.70, relwidth=0.22, relheight=0.25)
         
         tk.Label(self.authority_frame, text="Commanded\nAuthority:", 
                 font=("Arial", 14, "bold"), bg="lightblue").pack(pady=10)
@@ -230,7 +244,7 @@ class Main_Window:
                                        font=("Arial", 20, "bold"), bg="lightgrey")
         self.authority_value.pack(expand=True)
         
-        # Train Horn Button - left middle
+        # Train Horn Button
         try:
             self.train_horn_icon = tk.PhotoImage(file="trainhorn.png")
             self.train_horn_icon = self.train_horn_icon.subsample(5, 5)
@@ -247,35 +261,51 @@ class Main_Window:
          bg="white").place(relx=0.22, rely=0.27)
 
         
-        # Service Brake - left lower middle (raised higher)
-        self.service_brake = Circle_button(main_container, radius=80, color="orange", 
+        # Service Brake with Percentage Control
+        #service_brake_container = tk.Frame(main_container, bg="white")
+        #service_brake_container.place(relx=0.20, rely=0.45, relwidth=0.20, relheight=0.22)
+        
+        # Service Brake Button
+        self.service_brake = Circle_button(main_container, radius=70, color="orange", 
                                           hover_color="darkorange", active_color="orange4",
                                           text="Service\nBrake", command=self.service_brake_action,
                                           hold_mode=True, canvas_bg="white")
-        self.service_brake.place(relx=0.215, rely=0.46)
+        self.service_brake.place(relx=.23, rely=.52)
         
-        # Emergency Brake - right lower middle (raised higher)
-        self.emergency_brake = Circle_button(main_container, radius=80, color="darkred", 
+        # Brake Percentage Control
+        brake_percent_frame = tk.Frame(main_container, bg="white")
+        brake_percent_frame.place(relx=.23, rely=.48)
+        
+        tk.Label(brake_percent_frame, text="Brake %:", font=("Arial", 10, "bold"), 
+                bg="white").pack(side=tk.LEFT, padx=(0, 5))
+        
+        self.brake_percent_var = tk.StringVar(value="50%")
+        brake_percent_menu = ttk.Combobox(brake_percent_frame, 
+                                        textvariable=self.brake_percent_var,
+                                        values=["25%", "50%", "75%", "100%"],
+                                        state="readonly", width=6,
+                                        font=("Arial", 10))
+        brake_percent_menu.pack(side=tk.LEFT)
+        brake_percent_menu.bind("<<ComboboxSelected>>", self.on_brake_percent_change)
+        
+        # Emergency Brake
+        self.emergency_brake = Circle_button(main_container, radius=70, color="darkred", 
                                             hover_color="red", active_color="red4",
                                             text="Emergency\nBrake", 
                                             command=self.emergency_brake_action, canvas_bg="white")
-        self.emergency_brake.place(relx=0.70, rely=0.46)
+        self.emergency_brake.place(relx=.69, rely=.52)
         
-        # Emergency Light - right of emergency brake
-        emergency_container = tk.Frame(main_container, bg="white")
-        emergency_container.place(relx=0.8, rely=0.47, relwidth=0.15, relheight=0.25)
+        # Emergency Light
+        self.emergency_light = EmergencyLight(main_container, size=100)
+        self.emergency_light.place(relx=.7, rely=.41)
         
-        self.emergency_light = EmergencyLight(emergency_container, size=120)
-        self.emergency_light.pack(pady=(5, 2))
+        tk.Label(main_container, text="Emergency Signal", font=("Arial", 14, "bold"),
+                bg="lightgray", fg="darkred").place(relx=.68, rely=.38)
         
-        tk.Label(emergency_container, text="Emergency Signal", font=("Arial", 11, "bold"),
-                bg="white", fg="darkred").pack(pady=2)
-        
-        # Control Buttons Grid - bottom right
+        # Control Buttons Grid
         self.button_grid_frame = tk.Frame(main_container, bg="grey", relief=tk.RAISED, bd=2)
         self.button_grid_frame.place(relx=0.75, rely=0.68, relwidth=0.22, relheight=0.28)
         
-        # Try to load images, fallback to text
         try:
             self.bulb_logo = tk.PhotoImage(file="bulb.png").subsample(9, 9)
             self.cabin_lights_btn = ToggleButton(self.button_grid_frame, image=self.bulb_logo,
@@ -327,7 +357,7 @@ class Main_Window:
         self.button_grid_frame.rowconfigure(0, weight=1)
         self.button_grid_frame.rowconfigure(1, weight=1)
         
-        # BLT Logo - top left (bigger container to show full logo)
+        # BLT Logo
         logo_frame = tk.Frame(main_container, bg="white", relief=tk.RAISED, bd=1)
         logo_frame.place(relx=0.01, rely=0.01, relwidth=0.12, relheight=0.24)
         
@@ -340,8 +370,7 @@ class Main_Window:
                                     bg="lightblue")
             self.bltLabel.pack(expand=True, fill=tk.BOTH)
 
-        #adding the failure modes: 
-                # === Failure Indicators Row (between BLT logo and clock) ===
+        # Failure Indicators
         failure_frame = tk.Frame(main_container, bg="white")
         failure_frame.place(relx=0.16, rely=0.06, relwidth=0.13, relheight=0.12)
 
@@ -367,7 +396,7 @@ class Main_Window:
         tk.Label(lights_frame, text="BF", font=("Arial", 9, "bold"), bg="white", fg="black").grid(row=1, column=2)
 
         
-        # Station Announcement Display - embedded in main window
+        # Station Announcement Display
         self.station_display = StationAnnouncementDisplay(main_container, 
                                                          callback=self.on_station_announce,
                                                          expand_callback=self.expand_station_window)
@@ -376,27 +405,91 @@ class Main_Window:
         self.station_window = StationAnnouncementWindow(self.root, 
                                                        callback=self.on_station_announce)
         
-        #clock frame
+        # Clock frame
         self.clock_frame = tk.Label(self.root, bg="lightblue")
         self.clock_frame.place(relx=.3, rely=0.15)
         self.clock = ClockDisplay(self.clock_frame)
         self.clock.pack(padx=5, pady=5)
 
+        # State variables
         self.current_speed = 0
         self.set_speed = 45
         self.set_temp = 68
         self.is_auto_mode = True
+        self.service_brake_percentage = 50  # Default to 50%
+        self.service_brake_active = False
+        self.emergency_brake_active = False
+        self.door_safety_lock = True
         
         self.update_displays()
-        # --- TEST PANEL LAUNCH ---
+        # Test Panel
         self.test_panel = TestPanel(self.root, self)
-
+    
+    def add_to_status_log(self, message):
+        """Add timestamped message to status log"""
+        timestamp = time.strftime("%H:%M:%S")
+        self.status_log.config(state=tk.NORMAL)
+        self.status_log.insert(tk.END, f"[{timestamp}] {message}\n")
+        # Keep only last 100 lines to prevent memory issues
+        lines = self.status_log.get(1.0, tk.END).split('\n')
+        if len(lines) > 100:
+            self.status_log.delete(1.0, f"{len(lines)-100}.0")
+        self.status_log.see(tk.END)
+        self.status_log.config(state=tk.DISABLED)
     
     def update_displays(self):
-        pass
+        """Update all displays periodically"""
+        # Update brake effect on speed
+        self.apply_brake_effect()
+        
+        # Update door safety
+        self.update_door_safety()
+        
+        # Schedule next update
+        self.root.after(100, self.update_displays)
+    
+    def apply_brake_effect(self):
+        """Apply brake effects to current speed"""
+        if self.emergency_brake_active:
+            # Emergency brake: immediate full deceleration
+            if self.current_speed > 0:
+                self.current_speed = max(0, self.current_speed - 20)  # Rapid deceleration
+                self.set_current_speed(self.current_speed)
+        elif self.service_brake_active:
+            # Service brake: gradual deceleration based on percentage
+            deceleration_rate = self.service_brake_percentage * 0.1  # Scale factor
+            if self.current_speed > 0:
+                self.current_speed = max(0, self.current_speed - deceleration_rate)
+                self.set_current_speed(self.current_speed)
+    
+    def update_door_safety(self):
+        """Update door safety based on current speed"""
+        if self.current_speed > 0 and not self.door_safety_lock:
+            # Train is moving but doors aren't locked - force close
+            self.door_safety_lock = True
+            if self.left_door_btn.is_on:
+                self.left_door_btn.toggle()  # Close left door
+                self.add_to_status_log("Left door auto-closed: train moving")
+            if self.right_door_btn.is_on:
+                self.right_door_btn.toggle()  # Close right door
+                self.add_to_status_log("Right door auto-closed: train moving")
+        
+        # Update door button states based on safety lock
+        door_state = "normal" if self.current_speed == 0 else "disabled"
+        self.left_door_btn.config(state=door_state)
+        self.right_door_btn.config(state=door_state)
+    
+    def on_brake_percent_change(self, event):
+        """Handle brake percentage selection from dropdown"""
+        percent_str = self.brake_percent_var.get()
+        self.service_brake_percentage = int(percent_str.replace('%', ''))
+        self.brake_percentage_display.config(text=f"Service Brake: {self.service_brake_percentage}%")
+        if self.service_brake_active:
+            self.add_to_status_log(f"Service brake percentage changed to {self.service_brake_percentage}%")
     
     def on_mode_change(self, mode):
         self.is_auto_mode = (mode == "auto")
+        self.add_to_status_log(f"Driver mode changed to: {mode}")
         print(f"Mode changed to: {mode}")
     
     def increase_set_speed(self):
@@ -404,56 +497,91 @@ class Main_Window:
             self.mode_select.set_mode("manual")
         self.set_speed = min(80, self.set_speed + 5)
         self.set_speed_value.config(text=str(self.set_speed))
+        self.add_to_status_log(f"Set speed increased to: {self.set_speed} mph")
     
     def decrease_set_speed(self):
         if self.is_auto_mode:
             self.mode_select.set_mode("manual")
         self.set_speed = max(0, self.set_speed - 5)
         self.set_speed_value.config(text=str(self.set_speed))
+        self.add_to_status_log(f"Set speed decreased to: {self.set_speed} mph")
     
     def confirm_speed(self):
         if not self.is_auto_mode:
             self.commanded_speed_value.config(text=str(self.set_speed))
+            self.add_to_status_log(f"Commanded speed confirmed: {self.set_speed} mph")
             print(f"Commanded speed set to: {self.set_speed}")
     
     def increase_temp(self):
         self.set_temp = min(85, self.set_temp + 1)
-        self.set_temp_value.config(text=f"{self.set_temp}F")
-        print(f"Set temperature: {self.set_temp}F")
+        self.set_temp_value.config(text=f"{self.set_temp}°F")
+        self.add_to_status_log(f"Temperature set point increased to: {self.set_temp}°F")
+        print(f"Set temperature: {self.set_temp}°F")
     
     def decrease_temp(self):
         self.set_temp = max(60, self.set_temp - 1)
-        self.set_temp_value.config(text=f"{self.set_temp}F")
-        print(f"Set temperature: {self.set_temp}F")
-    
-    def toggle_ac(self):
-        print("AC toggled")
+        self.set_temp_value.config(text=f"{self.set_temp}°F")
+        self.add_to_status_log(f"Temperature set point decreased to: {self.set_temp}°F")
+        print(f"Set temperature: {self.set_temp}°F")
     
     def toggle_ac(self, state):
-        print(f"AC Power: {'ON' if state else 'OFF'}")
+        status = "ON" if state else "OFF"
+        self.add_to_status_log(f"AC Power: {status}")
+        print(f"AC Power: {status}")
     
     def press_horn(self):
+        self.add_to_status_log("Train horn activated")
         print("Train horn pressed!")
     
     def service_brake_action(self, pressed):
-        print(f"Service brake: {'PRESSED' if pressed else 'RELEASED'}")
+        if pressed:
+            self.service_brake_active = True
+            self.add_to_status_log(f"Service brake activated at {self.service_brake_percentage}%")
+            print(f"Service brake: PRESSED at {self.service_brake_percentage}%")
+        else:
+            self.service_brake_active = False
+            self.add_to_status_log("Service brake released")
+            print("Service brake: RELEASED")
     
     def emergency_brake_action(self, pressed):
         if pressed:
+            self.emergency_brake_active = True
+            self.emergency_light.activate()
+            self.add_to_status_log("🚨 EMERGENCY BRAKE ACTIVATED!")
             print("EMERGENCY BRAKE ACTIVATED!")
-            # Emergency light is controlled by external signal, not by brake
+        else:
+            self.emergency_brake_active = False
+            self.emergency_light.deactivate()
+            self.add_to_status_log("Emergency brake deactivated")
+            print("Emergency brake deactivated")
     
     def toggle_cabin_lights(self, state):
-        print(f"Cabin lights: {'ON' if state else 'OFF'}")
+        status = "ON" if state else "OFF"
+        self.add_to_status_log(f"Cabin lights: {status}")
+        print(f"Cabin lights: {status}")
     
     def toggle_headlights(self, state):
-        print(f"Headlights: {'ON' if state else 'OFF'}")
+        status = "ON" if state else "OFF"
+        self.add_to_status_log(f"Headlights: {status}")
+        print(f"Headlights: {status}")
     
     def toggle_left_door(self, state):
-        print(f"Left door: {'OPEN' if state else 'CLOSED'}")
+        if self.current_speed > 0:
+            self.add_to_status_log("Left door: REQUEST DENIED - Train moving")
+            return
+            
+        status = "OPEN" if state else "CLOSED"
+        self.add_to_status_log(f"Left door: {status}")
+        print(f"Left door: {status}")
     
     def toggle_right_door(self, state):
-        print(f"Right door: {'OPEN' if state else 'CLOSED'}")
+        if self.current_speed > 0:
+            self.add_to_status_log("Right door: REQUEST DENIED - Train moving")
+            return
+            
+        status = "OPEN" if state else "CLOSED"
+        self.add_to_status_log(f"Right door: {status}")
+        print(f"Right door: {status}")
     
     def open_station_window(self):
         self.station_window.show_window()
@@ -462,27 +590,41 @@ class Main_Window:
         self.station_window.show_window()
     
     def on_station_announce(self, line, station):
+        self.add_to_status_log(f"Station announcement: {station} on {line}")
         print(f"Announcing: {station} on {line}")
     
     def set_current_speed(self, speed):
+        """Set current speed and update displays"""
         self.current_speed = speed
         self.speedometer.update_speed(speed)
         self.current_speed_display.config(text=f"Current Speed: {int(speed)} mph")
     
     def set_commanded_speed(self, speed):
+        """Set commanded speed from external input"""
         if self.is_auto_mode:
             self.commanded_speed_value.config(text=str(speed))
     
     def set_authority(self, blocks):
+        """Set authority from external input"""
         self.authority_value.config(text=f"{blocks} Blocks")
     
     def set_cabin_temp(self, temp):
+        """Set cabin temperature from external input"""
         self.current_temp.config(text=f"{temp}°F")
     
     def set_emergency_signal(self, active):
-        """Method to control emergency light from external module"""
+        """Control emergency light from external module"""
         self.emergency_light.set_state(active)
     
+    def set_service_brake_percentage(self, percentage):
+        """Set service brake percentage from test panel"""
+        self.service_brake_percentage = percentage
+        self.brake_percentage_display.config(text=f"Service Brake: {percentage}%")
+        # Update dropdown to match
+        self.brake_percent_var.set(f"{percentage}%")
+        if self.service_brake_active:
+            self.add_to_status_log(f"Service brake percentage set to {percentage}%")
+
     def open_track_info(self):
         """Opens the Track Information Panel"""
         if not hasattr(self, "track_info_window") or not tk.Toplevel.winfo_exists(self.track_info_window):
@@ -491,105 +633,8 @@ class Main_Window:
             self.track_info_panel = TrackInformationPanel(self.track_info_window)
         else:
             self.track_info_window.lift()
-'''------------------------------------------------------------------------------------------------------------------------------'''
-#side window for test ui
-'''class TestPanel(tk.Toplevel):
-    def __init__(self, parent, main_window):
-        super().__init__(parent)
-        self.title("Input Test Panel")
-        self.geometry("400x450")
-        self.main_window = main_window
 
-        tk.Label(self, text="TEST INTERFACE", font=("Arial", 16, "bold")).pack(pady=10)
-
-        # Temperature Input
-        tk.Label(self, text="Set Cabin Temperature (°F):", font=("Arial", 12)).pack(pady=5)
-        self.temp_entry = tk.Entry(self)
-        self.temp_entry.insert(0, "65")
-        self.temp_entry.pack()
-        tk.Button(self, text="Send Temp", command=self.set_temp).pack(pady=5)
-
-        # Commanded Authority Input
-        tk.Label(self, text="Set Commanded Authority (Blocks):", font=("Arial", 12)).pack(pady=5)
-        self.auth_entry = tk.Entry(self)
-        self.auth_entry.insert(0, "4")
-        self.auth_entry.pack()
-        tk.Button(self, text="Send Authority", command=self.set_authority).pack(pady=5)
-
-        # Commanded Speed Input
-        tk.Label(self, text="Set Commanded Speed (mph):", font=("Arial", 12)).pack(pady=5)
-        self.speed_entry = tk.Entry(self)
-        self.speed_entry.insert(0, "55")
-        self.speed_entry.pack()
-        tk.Button(self, text="Send Speed", command=self.set_speed).pack(pady=5)
-
-        # Speedometer Input
-        tk.Label(self, text="Speedometer (Actual Speed mph):", font=("Arial", 12)).pack(pady=5)
-        self.actual_speed = tk.Scale(self, from_=0, to=80, orient=tk.HORIZONTAL, command=self.update_speedometer)
-        self.actual_speed.pack(fill="x", padx=20)
-
-        # Emergency Signal
-        tk.Label(self, text="Emergency Signal:", font=("Arial", 12)).pack(pady=10)
-        tk.Button(self, text="Activate Emergency", bg="red", fg="white", command=self.activate_emergency).pack(pady=3)
-        tk.Button(self, text="Deactivate Emergency", bg="grey", fg="white", command=self.deactivate_emergency).pack(pady=3)
-
-        # Output Log
-        tk.Label(self, text="Log:", font=("Arial", 12, "bold")).pack(pady=5)
-        self.log = tk.Text(self, height=6, width=40, state=tk.DISABLED)
-        self.log.pack(pady=5)
-
-    def log_action(self, text):
-        self.log.config(state=tk.NORMAL)
-        self.log.insert(tk.END, text + "\n")
-        self.log.see(tk.END)
-        self.log.config(state=tk.DISABLED)
-
-    def set_temp(self):
-        val = self.temp_entry.get()
-        self.main_window.current_temp.config(text=f"{val}°F")
-        self.log_action(f"✅ Temperature input set to {val}°F")
-
-    def set_authority(self):
-        val = self.auth_entry.get()
-        self.main_window.authority_value.config(text=f"{val} Blocks")
-        self.log_action(f"✅ Commanded authority set to {val} Blocks")
-
-    def set_speed(self):
-        val = self.speed_entry.get()
-        # Only update commanded speed when in auto mode
-        if self.main_window.mode_select.active_mode == "auto":
-            self.main_window.commanded_speed_value.config(text=val)
-            self.log_action(f"✅ Commanded speed set to {val} mph (auto mode)")
-        else:
-            self.log_action("⚠️ Ignored commanded speed (not in auto mode)")
-
-    def update_speedometer(self, val):
-        val = int(val)
-        self.main_window.speedometer.update_speed(val)
-        self.main_window.current_speed_display.config(text=f"Current Speed: {val} mph")
-        self.log_action(f"✅ Speedometer updated to {val} mph")
-
-    def activate_emergency(self):
-        self.main_window.emergency_light.activate()
-        self.log_action("🚨 Emergency signal activated")
-
-    def deactivate_emergency(self):
-        self.main_window.emergency_light.deactivate()
-        self.log_action("🟢 Emergency signal cleared")
-'''
-
-'''---------------------------------------------------------------------------------------------------------------------------------'''
 if __name__ == "__main__":
     root = tk.Tk()
     app = Main_Window(root)
-
-    '''
-    def test_speed_update():
-        import random
-        speed = random.randint(0, 80)
-        app.set_current_speed(speed)
-        root.after(2000, test_speed_update)'''
-    
-    #test_speed_update()
-    
     root.mainloop()
