@@ -3,202 +3,139 @@ from PIL import Image, ImageTk
 from tkinter import font
 from tkinter import ttk
 from train_data import get_train_manager
-import socket
-import threading
-import json  # For structured data exchange
+from TrainSocketServer import TrainSocketServer
 import time
 #from playsound import playsound
 import random
 
 # Socket server setup (unchanged)
-class TrainSocketServer:
-    def __init__(self, port=12345):
-        self.port = port
-        self.server_socket = None
-        self.running = False
+def _refresh_train_selector():
+    """Refresh the train selector UI to show/hide trains based on deployment status"""
+    print("Socket server requesting train selector refresh")
+    root.after(0, refresh_train_selector)
+
+
+def _animate_temperature_change(target_temp):
+    """Gradually change temperature using Tkinter's after()"""
+    if not current_train:
+        return
+
+    current_temp = current_train.cabin_temp
+    target_temp = float(target_temp)
+    
+    if current_temp < target_temp:
+        new_temp = current_temp + 1
+        current_train.set_cabin_temp(new_temp)
+        update_ui_from_train(current_train)
+        root.after(1000, lambda: _animate_temperature_change(target_temp))
+    elif current_temp > target_temp:
+        new_temp = current_temp - 1
+        current_train.set_cabin_temp(new_temp)
+        update_ui_from_train(current_train)
+        root.after(1000, lambda: _animate_temperature_change(target_temp))
         
-    def start_server(self, update_callback):
-        """Start the socket server in a separate thread"""
-        self.update_callback = update_callback
-        self.running = True
+    print(f"Real Cabin Temp: {current_train.cabin_temp} Sent!")
+
+def _process_message(message, source_ui_id):
+    """Process incoming messages and update train state"""
+    try:
+        command = message.get('command')
+        value = message.get('value')
         
-        try:
-            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.server_socket.bind(('localhost', self.port))
-            self.server_socket.listen(1)
-            print(f"Train GUI Server listening on port {self.port}")
-            
-            # Start accepting connections in background thread
-            self.thread = threading.Thread(target=self._accept_connections, daemon=True)
-            self.thread.start()
-        except Exception as e:
-            print(f"Failed to start server: {e}")
-            
-    def _accept_connections(self):
-        """Accept incoming connections"""
-        while self.running:
-            try:
-                client_socket, addr = self.server_socket.accept()
-                print(f"Connection from {addr}")
-                threading.Thread(target=self._handle_client, args=(client_socket,), daemon=True).start()
-            except Exception as e:
-                if self.running:
-                    print(f"Connection error: {e}")
-                    
-    def _handle_client(self, client_socket):
-        """Handle client messages"""
-        while self.running:
-            try:
-                data = client_socket.recv(1024).decode('utf-8')
-                if not data:
-                    break
-                    
-                # Parse JSON message
-                message = json.loads(data)
-                self._process_message(message)
-                
-            except json.JSONDecodeError:
-                print("Invalid JSON received")
-            except Exception as e:
-                print(f"Client handling error: {e}")
-                break
-                
-        client_socket.close()
-        
-    def _process_message(self, message):
-        """Process incoming messages and update train state"""
-        try:
-            command = message.get('command')
-            value = message.get('value')
-            
-            if command == 'set_power':
-                current_train.set_power_command(value)
+        if command == 'set_power':
+            current_train.set_power_command(value)
+            current_train.calculate_force_speed_acceleration_()
+        elif command == 'set_right_door':
+            if value == 'open':
+                current_train.set_right_door(1)
+            elif value == 'close':
+                current_train.set_right_door(0)
+        elif command == 'set_left_door':
+            if value == 'open':
+                current_train.set_left_door(1)
+            elif value == 'close':
+                current_train.set_left_door(0)
+        elif command == 'set_headlights':
+            if value == 'on':
+                current_train.set_headlights(1)
+            else:
+                current_train.set_headlights(0)
+        elif command == 'set_interior_lights':
+            if value == 'on':
+                current_train.set_interior_lights(1)
+            elif value == 'off':
+                current_train.set_interior_lights(0)
+        elif command == 'emergency_brake':
+            if value == 'on':
+                emergency_brake_activated()
                 current_train.calculate_force_speed_acceleration_()
-            elif command == 'set_right_door':
-                if value == 'open':
-                    current_train.set_right_door(1)
-                elif value == 'close':
-                    current_train.set_right_door(0)
-            elif command == 'set_left_door':
-                if value == 'open':
-                    current_train.set_left_door(1)
-                elif value == 'close':
-                    current_train.set_left_door(0)
-            elif command == 'set_headlights':
-                if value == 'on':
-                    current_train.set_headlights(1)
-                else:
-                    current_train.set_headlights(0)
-            elif command == 'set_interior_lights':
-                if value == 'on':
-                    current_train.set_interior_lights(1)
-                elif value == 'off':
-                    current_train.set_interior_lights(0)
-            elif command == 'emergency_brake':
-                if value == 'on':
-                    emergency_brake_activated()
-                    current_train.calculate_force_speed_acceleration_()
-                else:
-                    current_train.set_emergency_brake(0)
-                    current_train.calculate_force_speed_acceleration_()
-            elif command == 'service_brake':
-                if value == 'on':
-                    current_train.set_service_brake(1)
-                    current_train.set_acceleration(-1.2)
-                else:
-                    current_train.set_service_brake(0)
-                    current_train.calculate_force_speed_acceleration_()
-            elif command == 'set_passenger_count':
-                current_train.set_passenger_count(value)
+            else:
+                current_train.set_emergency_brake(0)
                 current_train.calculate_force_speed_acceleration_()
-            elif command == 'set_speed_limit':
-                current_train.set_speed_limit(value)
-            elif command == 'set_elevation':
-                current_train.set_elevation(value)
-            elif command == 'set_grade':
-                current_train.set_grade(value)
-            elif command == 'select_train':
-                on_train_selected(value)
-            elif command == 'set_temperature':
-                target_temp = value
-                self._animate_temperature_change(target_temp)
-            elif command == 'set_station':
-                current_train.set_station(value)
-            elif command == 'set_time_to_station':
-                current_train.set_time_to_station(value)
-            elif command == 'deploy_train':
-                train_id = value
+        elif command == 'service_brake':
+            if value == 'on':
+                current_train.set_service_brake(1)
+                current_train.set_acceleration(-1.2)
+            else:
+                current_train.set_service_brake(0)
+                current_train.calculate_force_speed_acceleration_()
+        elif command == 'set_passenger_count':
+            current_train.set_passenger_count(value)
+            current_train.calculate_force_speed_acceleration_()
+        elif command == 'set_speed_limit':
+            current_train.set_speed_limit(value)
+        elif command == 'set_elevation':
+            current_train.set_elevation(value)
+        elif command == 'set_grade':
+            current_train.set_grade(value)
+        elif command == 'select_train':
+            on_train_selected(value)
+        elif command == 'set_temperature':
+            target_temp = value
+            _animate_temperature_change(target_temp)
+        elif command == 'set_station':
+            current_train.set_station(value)
+        elif command == 'set_time_to_station':
+            current_train.set_time_to_station(value)
+        elif command == 'deploy_train':
+            train_id = value
+            train = train_manager.get_train(train_id)
+            if train:
+                train.deployed = True
+                print(f"Deployed train {train_id}")
+                _refresh_train_selector()
+                train.calculate_force_speed_acceleration_()
+        elif command == 'undeploy_train':
+            train_id = value
+            train = train_manager.get_train(train_id)
+            if train:
+                train.deployed = False
+                print(f"Undeployed train {train_id}")
+                _refresh_train_selector()
+        elif command == 'deploy_all':
+            for train_id in range(1, 15):
                 train = train_manager.get_train(train_id)
                 if train:
                     train.deployed = True
-                    print(f"Deployed train {train_id}")
-                    self._refresh_train_selector()
-                    train.calculate_force_speed_acceleration_()
-            elif command == 'undeploy_train':
-                train_id = value
+                    current_train.calculate_force_speed_acceleration_()
+            print("Deployed all trains")
+            _refresh_train_selector()
+        elif command == 'undeploy_all':
+            for train_id in range(1, 15):
                 train = train_manager.get_train(train_id)
                 if train:
                     train.deployed = False
-                    print(f"Undeployed train {train_id}")
-                    self._refresh_train_selector()
-            elif command == 'deploy_all':
-                for train_id in range(1, 15):
-                    train = train_manager.get_train(train_id)
-                    if train:
-                        train.deployed = True
-                        current_train.calculate_force_speed_acceleration_()
-                print("Deployed all trains")
-                self._refresh_train_selector()
-            elif command == 'undeploy_all':
-                for train_id in range(1, 15):
-                    train = train_manager.get_train(train_id)
-                    if train:
-                        train.deployed = False
-                print("Undeployed all trains")
-                self._refresh_train_selector()
-            elif command == 'refresh_trains':
-                self._refresh_train_selector()
-            
-            # Force UI update
-            update_ui_from_train(current_train)
-            
-        except Exception as e:
-            print(f"Error processing message: {e}")
-
-    def _refresh_train_selector(self):
-        """Refresh the train selector UI to show/hide trains based on deployment status"""
-        print("Socket server requesting train selector refresh")
-        root.after(0, refresh_train_selector)
-
-    def stop_server(self):
-        self.running = False
-        if self.server_socket:
-            try:
-                self.server_socket.close()
-            except:
-                pass
-        print("Socket server stopped")
-
-    def _animate_temperature_change(self, target_temp):
-        """Gradually change temperature using Tkinter's after()"""
-        if not current_train:
-            return
-    
-        current_temp = current_train.cabin_temp
-        target_temp = float(target_temp)
+            print("Undeployed all trains")
+            _refresh_train_selector()
+        elif command == 'refresh_trains':
+            _refresh_train_selector()
         
-        if current_temp < target_temp:
-            new_temp = current_temp + 1
-            current_train.set_cabin_temp(new_temp)
-            update_ui_from_train(current_train)
-            root.after(1000, lambda: self._animate_temperature_change(target_temp))
-        elif current_temp > target_temp:
-            new_temp = current_temp - 1
-            current_train.set_cabin_temp(new_temp)
-            update_ui_from_train(current_train)
-            root.after(1000, lambda: self._animate_temperature_change(target_temp))
-            
-        print(f"Real Cabin Temp: {current_train.cabin_temp} Sent!")
+        # Force UI update
+        update_ui_from_train(current_train)
+        
+    except Exception as e:
+        print(f"Error processing message: {e}")
+
 
 def continuous_physics_update():
     """Continuously update train physics for real-time speed changes"""
@@ -214,7 +151,12 @@ def continuous_state_update():
     root.after(500, continuous_state_update)
 
 # Create and start the socket server
-socket_server = TrainSocketServer()
+server = TrainSocketServer(port=12345, ui_id="Train_Model_Passenger_UI")
+server.set_allowed_connections(["Test_UI", "ui_3"])
+server.start_server(_process_message)
+
+server.connect_to_ui('localhost', 12346, "Test_UI")
+#server.connect_to_ui('localhost', 12347, "passenger_interface")
 
 main_color = '#1a1a4d'
 off_color = '#4d4d6d'
