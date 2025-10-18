@@ -15,28 +15,28 @@ block_occupancy = []
 blocks = []
 track_direction = []
 railway_crossing = []
-heaters_work = []
+# heaters_work = []
 
 switch_locations = []
 light_location = []
 railway_location = []
 station_location = []
 
-environmental_temp: float
-failure_modes = []
-track_circuit_fail: bool
-railway_crossing_fail: bool
-power_fail: bool
+# environmental_temp: float
+# failure_modes = []
+# track_circuit_fail: bool
+# railway_crossing_fail: bool
+# power_fail: bool
 
-ticket_sales = []
-passengers_boarding = []
-passengers_disembarking = []
-train_occupancy = []
-active_trains = []
+# ticket_sales = []
+# passengers_boarding = []
+# passengers_disembarking = []
+# train_occupancy = []
+# active_trains = []
 ######
 ##############
 # Enhanced Mock data class for both panels
-class MockData:
+class UITestData:
     def __init__(self):
         # Current line
         self.current_line = "Blue"
@@ -96,7 +96,7 @@ class MockData:
 
 
 # Create mock data instance
-mock_data = MockData()
+mock_data = UITestData()
 
 ########################################################################################################################
 
@@ -524,7 +524,7 @@ def add_to_message_log(message):
 # plc = PLCController(add_to_message_log)
 plc_instance = PLCController(add_to_message_log)
 plc_instance.main()  # Runs PLC logic
-
+#
 # Initialize with some messages
 add_to_message_log("INFO: UI initialized.")
 add_to_message_log("INFO: Map display loaded.")

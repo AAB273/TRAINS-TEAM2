@@ -1,92 +1,94 @@
 import tkinter as tk
-import math as m
+from tkinter import ttk
+import math
+import time
 
-class RadiusError(Exception):
-    pass
 
-class Speedometer:
-    def changerange(self, Range=(-10,190), rfont=("Verdana",12)):
-        for i in range(-10,195,10):
-            self.canvas.itemconfig(
-                self.range_marks[int((i+10)/10)],
-                text=str((i+10)*(Range[1]-Range[0])/200+Range[0]),
-                font=rfont
-            )
-
-    def moveto(self, value, tag):
-        if value > self.range[1]:
-            value = self.range[1]
-            self.canvas.itemconfig(self.needle, fill="#000000")
-        elif value < self.range[0]:
-            value = self.range[0]
-            self.canvas.itemconfig(self.needle, fill="#000000")
-        else:
-            self.canvas.itemconfig(self.needle, fill=self.needlecolor)
-
-        self.canvas.coords(
-            self.needle,
-            self.radius,
-            self.radius,
-            self.radius + self.radius * m.cos((value * self.slope + self.intercept) * m.pi / 180),
-            self.radius - self.radius * m.sin((value * self.slope + self.intercept) * m.pi / 180)
-        )
-
-    def __init__(self, canvas, tag, bg="#ffffff", needlecolor="#0d47a1", markscolor="#000000",
-                 Range=(0,200), digitscolor="#ff9933"):
-        self.range = Range
-        self.needlecolor = needlecolor
-        self.canvas = canvas
-        self.tag = tag
-        temp = self.canvas.coords(tag)
-
-        if (temp[0] - temp[2]) != (temp[1] - temp[3]):
-            raise RadiusError
-        else:
-            self.radius = (temp[2] - temp[0]) / 2
-
-        self.slope = 200.0 / (self.range[1] - self.range[0])
-        self.intercept = 190 - self.range[1] * self.slope
-        self.range_marks = []
-
-        q = 10
-        u = 0
-
-        for i in range(-10, 195, 5):
-            if i % 10 == 0:
-                x1, y1 = (
-                    self.radius + (self.radius - 20) * m.cos(i * m.pi / 180),
-                    self.radius - (self.radius - 20) * m.sin(i * m.pi / 180)
-                )
-                canvas.create_line(
-                    x1, y1,
-                    self.radius + self.radius * m.cos(i * m.pi / 180),
-                    self.radius - self.radius * m.sin(i * m.pi / 180),
-                    fill=markscolor, width=3
-                )
-                self.range_marks.append(canvas.create_text(
-                    x1 + u, y1 + q,
-                    text=str((i + 10) * (self.range[1] - self.range[0]) / 200 + self.range[0]),
-                    font=("Courier", int(self.radius / 25)),
-                    fill=digitscolor
-                ))
-            else:
-                x1, y1 = (
-                    self.radius + (self.radius - 10) * m.cos(i * m.pi / 180),
-                    self.radius - (self.radius - 10) * m.sin(i * m.pi / 180)
-                )
-                canvas.create_line(
-                    x1, y1,
-                    self.radius + self.radius * m.cos(i * m.pi / 180),
-                    self.radius - self.radius * m.sin(i * m.pi / 180),
-                    fill="#acace6", width=2
-                )
-
-            if i >= 90:
-                q = +10
-                u = q
-            else:
-                q = 10
-                u = 0
-
-        self.needle = canvas.create_line(self.radius, self.radius, self.radius, 20, fill=needlecolor, width=2)
-        canvas.create_oval(self.radius - 30, self.radius - 30, self.radius + 30, self.radius + 30, fill="#e936a7")
+class Speedometer(tk.Canvas):
+    def __init__(self, parent, max_speed=80, **kwargs):
+        super().__init__(parent, bg="white", highlightthickness=2, 
+                        highlightbackground="navy", **kwargs)
+        self.max_speed = max_speed
+        self.current_speed = 0
+        
+        # Will be set dynamically based on canvas size
+        self.center_x = 0
+        self.center_y = 0
+        self.radius = 0
+        
+        self.bind("<Configure>", self.on_resize)
+    
+    def on_resize(self, event=None):
+        # Clear canvas
+        self.delete("all")
+        
+        # Get canvas dimensions
+        width = self.winfo_width()
+        height = self.winfo_height()
+        
+        if width <= 1 or height <= 1:
+            return
+        
+        # Calculate center and radius based on available space
+        self.center_x = width / 2
+        self.center_y = height / 2
+        self.radius = min(width, height) * 0.4
+        
+        # Draw speedometer
+        margin = 20
+        self.create_oval(margin, margin, width-margin, height-margin, 
+                        outline="navy", width=4)
+        self.create_oval(margin+20, margin+20, width-margin-20, height-margin-20, 
+                        outline="lightblue", width=2, fill="lightblue")
+        
+        # Draw tick marks and numbers
+        for i in range(0, self.max_speed + 1, 10):
+            angle = 225 - (i / self.max_speed * 270)
+            angle_rad = math.radians(angle)
+            
+            x1 = self.center_x + (self.radius - 20) * math.cos(angle_rad)
+            y1 = self.center_y - (self.radius - 20) * math.sin(angle_rad)
+            x2 = self.center_x + (self.radius - 5) * math.cos(angle_rad)
+            y2 = self.center_y - (self.radius - 5) * math.sin(angle_rad)
+            
+            self.create_line(x1, y1, x2, y2, width=3, fill="navy")
+            
+            x_text = self.center_x + (self.radius - 40) * math.cos(angle_rad)
+            y_text = self.center_y - (self.radius - 40) * math.sin(angle_rad)
+            self.create_text(x_text, y_text, text=str(i), 
+                           font=("Arial", int(self.radius/8), "bold"), fill="navy")
+        
+        # Draw label
+        self.create_text(self.center_x, self.center_y + self.radius * 0.5, 
+                        text="mph", font=("Arial", int(self.radius/7), "bold"), 
+                        fill="gray")
+        
+        # Redraw needle at current speed
+        self.draw_needle(self.current_speed)
+    
+    def draw_needle(self, speed):
+        # Remove old needle
+        self.delete("needle")
+        
+        if self.radius == 0:
+            return
+        
+        speed = max(0, min(speed, self.max_speed))
+        angle = 225 - (speed / self.max_speed * 270)
+        angle_rad = math.radians(angle)
+        
+        needle_length = self.radius - 35
+        x = self.center_x + needle_length * math.cos(angle_rad)
+        y = self.center_y - needle_length * math.sin(angle_rad)
+        
+        self.create_line(self.center_x, self.center_y, x, y, 
+                        width=5, fill="navy", arrow=tk.LAST, 
+                        arrowshape=(12, 15, 6), tags="needle")
+        
+        self.create_oval(self.center_x-10, self.center_y-10, 
+                        self.center_x+10, self.center_y+10, 
+                        fill="navy", outline="navy", tags="needle")
+    
+    def update_speed(self, speed):
+        self.current_speed = speed
+        self.draw_needle(speed)
