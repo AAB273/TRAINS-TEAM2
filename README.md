@@ -1,7 +1,1 @@
-wassssup!  - Alex
-wazzzup - Ben
-heyheyyy - Sira 
-oh hey - Jackson
-yo - lucas
-hi - Gabriella
-hi - Ryan 
+***** FOR TIMER TO WORK IN INDIVIDUAL MODULE **

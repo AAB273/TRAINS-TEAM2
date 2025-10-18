@@ -41,3 +41,10 @@ class Clock:
 
     def getTimeNoSecs(self):
         return self._fastTime[:5]
+    
+
+    def endTimer(self):
+        self._incTimer.cancel()
+    
+
+clock = Clock()
