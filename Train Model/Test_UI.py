@@ -8,7 +8,7 @@ class TestUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Test Control Panel")
-        self.root.geometry("400x1100")  # Increased width to accommodate log
+        self.root.geometry("460x910")  # Slightly increased width to fit elevation button
         
         self.socket = None
         if self.connect_to_server():
@@ -48,13 +48,13 @@ class TestUI:
                 # Log the command to terminal instead of UI log
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 log_entry = f"[{timestamp}] {command}: {value}"
-                self.log_to_terminal(log_entry)  # Changed this line
+                self.log_to_terminal(log_entry)
                 
                 print(f"Sent: {json_message}")
                 self.status_label.config(text=f"Sent: {command} {value}")
             except Exception as e:
                 error_msg = f"Send failed: {e}"
-                self.log_to_terminal(f"[ERROR] {error_msg}")  # Changed this line
+                self.log_to_terminal(f"[ERROR] {error_msg}")
                 print(f"Send failed: {e}")
                 self.status_label.config(text=error_msg)
     
@@ -64,199 +64,234 @@ class TestUI:
     
     def log_command(self, log_entry):
         """Add a command to the log (kept for compatibility)"""
-        # Now just prints to terminal
         self.log_to_terminal(log_entry)
         
     def create_widgets(self):
-        # Create main container with left and right frames
+        # Create main container without scrolling
         main_container = tk.Frame(self.root)
         main_container.pack(fill='both', expand=True, padx=5, pady=5)
         
-        # Left frame for controls
-        left_frame = tk.Frame(main_container)
-        left_frame.pack(side='left', fill='both', expand=True)
+        # ===== MAIN CONTROLS =====
         
-        # Right frame for log (keeping the structure but it will show terminal instructions)
-        right_frame = tk.Frame(main_container, width=250)  # Fixed width for log
-        right_frame.pack(side='right', fill='y', padx=(5, 0))
-        right_frame.pack_propagate(False)  # Prevent frame from shrinking
+        # Train Deployment Section - Compact layout
+        deployment_frame = ttk.LabelFrame(main_container, text="Train Deployment", padding=6)
+        deployment_frame.pack(fill='x', padx=5, pady=2)
         
-        # ===== LEFT FRAME CONTROLS =====
-        
-        # Train Deployment Section
-        deployment_frame = ttk.LabelFrame(left_frame, text="Train Deployment", padding=10)
-        deployment_frame.pack(fill='x', padx=10, pady=5)
-        
-        # Train selection for deployment
-        deploy_select_frame = tk.Frame(deployment_frame)
-        deploy_select_frame.pack(fill='x', pady=5)
-        
-        tk.Label(deploy_select_frame, text="Train:").pack(side='left')
-        self.deploy_train_var = tk.IntVar(value=1)
-        deploy_spinbox = tk.Spinbox(deploy_select_frame, from_=1, to=14, textvariable=self.deploy_train_var, width=5)
-        deploy_spinbox.pack(side='left', padx=5)
-        
-        # Deployment controls
+        # Train selection and controls in one row
         deploy_control_frame = tk.Frame(deployment_frame)
-        deploy_control_frame.pack(fill='x', pady=5)
+        deploy_control_frame.pack(fill='x', pady=2)
         
-        ttk.Button(deploy_control_frame, text="Deploy Train", 
-                  command=self.deploy_train).pack(side='left', padx=2)
-        ttk.Button(deploy_control_frame, text="Undeploy Train", 
-                  command=self.undeploy_train).pack(side='left', padx=2)
+        tk.Label(deploy_control_frame, text="Train:").pack(side='left')
+        self.deploy_train_var = tk.IntVar(value=1)
+        deploy_spinbox = tk.Spinbox(deploy_control_frame, from_=1, to=14, textvariable=self.deploy_train_var, width=4)
+        deploy_spinbox.pack(side='left', padx=2)
         
-        # Bulk deployment controls
-        bulk_frame = tk.Frame(deployment_frame)
-        bulk_frame.pack(fill='x', pady=5)
+        ttk.Button(deploy_control_frame, text="Deploy", 
+                  command=self.deploy_train, width=7).pack(side='left', padx=1)
+        ttk.Button(deploy_control_frame, text="Undeploy", 
+                  command=self.undeploy_train, width=7).pack(side='left', padx=1)
         
-        ttk.Button(bulk_frame, text="Deploy All Trains", 
-                  command=lambda: self.bulk_deploy(True)).pack(side='left', padx=2)
-        ttk.Button(bulk_frame, text="Undeploy All Trains", 
-                  command=lambda: self.bulk_deploy(False)).pack(side='left', padx=2)
+        # Power Control - Compact
+        power_frame = ttk.LabelFrame(main_container, text="Power Control", padding=6)
+        power_frame.pack(fill='x', padx=5, pady=2)
         
-        # Power Control
-        power_frame = ttk.LabelFrame(left_frame, text="Power Control", padding=10)
-        power_frame.pack(fill='x', padx=10, pady=5)
+        power_control_frame = tk.Frame(power_frame)
+        power_control_frame.pack(fill='x', pady=2)
         
-        # Custom power entry
-        custom_power_frame = tk.Frame(power_frame)
-        custom_power_frame.pack(fill='x', pady=5)
-        
-        tk.Label(custom_power_frame, text="Custom:").pack(side='left')
+        tk.Label(power_control_frame, text="Custom:").pack(side='left')
         self.custom_power_var = tk.StringVar(value="1000")
-        custom_power_entry = tk.Entry(custom_power_frame, textvariable=self.custom_power_var, width=8)
+        custom_power_entry = tk.Entry(power_control_frame, textvariable=self.custom_power_var, width=6)
         custom_power_entry.pack(side='left', padx=2)
-        ttk.Button(custom_power_frame, text="Set", 
-                  command=self.set_custom_power).pack(side='left', padx=2)
+        ttk.Button(power_control_frame, text="Set", 
+                  command=self.set_custom_power, width=5).pack(side='left', padx=2)
         
-        # Door Control
-        door_frame = ttk.LabelFrame(left_frame, text="Door Control", padding=10)
-        door_frame.pack(fill='x', padx=10, pady=5)
+        # Door Control - Compact side-by-side layout
+        door_frame = ttk.LabelFrame(main_container, text="Door Control", padding=6)
+        door_frame.pack(fill='x', padx=5, pady=2)
         
-        top_door_frame = ttk.LabelFrame(door_frame,text="Right Door")
-        top_door_frame.pack(side='top')
-        ttk.Button(top_door_frame, text="Open", 
-                  command=lambda: self.send_command('set_right_door', 'open')).pack(side='left', padx=2)
-        ttk.Button(top_door_frame, text="Close", 
-                  command=lambda: self.send_command('set_right_door', 'close')).pack(side='left', padx=2)
+        door_row_frame = tk.Frame(door_frame)
+        door_row_frame.pack(fill='x', pady=2)
         
-        bottom_door_frame = ttk.LabelFrame(door_frame,text="Left Door")
-        bottom_door_frame.pack(side='top')
-        ttk.Button(bottom_door_frame, text="Open", 
-                  command=lambda: self.send_command('set_left_door', 'open')).pack(side='left', padx=2)
-        ttk.Button(bottom_door_frame, text="Close", 
-                  command=lambda: self.send_command('set_left_door', 'close')).pack(side='left', padx=2)
+        # Right Door
+        right_door_frame = tk.Frame(door_row_frame)
+        right_door_frame.pack(side='left', padx=3)
+        tk.Label(right_door_frame, text="Right:").pack()
+        door_btn_frame1 = tk.Frame(right_door_frame)
+        door_btn_frame1.pack()
+        ttk.Button(door_btn_frame1, text="Open", 
+                  command=lambda: self.send_command('set_right_door', 'open'), width=5).pack(side='left', padx=1)
+        ttk.Button(door_btn_frame1, text="Close", 
+                  command=lambda: self.send_command('set_right_door', 'close'), width=5).pack(side='left', padx=1)
+        
+        # Left Door
+        left_door_frame = tk.Frame(door_row_frame)
+        left_door_frame.pack(side='left', padx=3)
+        tk.Label(left_door_frame, text="Left:").pack()
+        door_btn_frame2 = tk.Frame(left_door_frame)
+        door_btn_frame2.pack()
+        ttk.Button(door_btn_frame2, text="Open", 
+                  command=lambda: self.send_command('set_left_door', 'open'), width=5).pack(side='left', padx=1)
+        ttk.Button(door_btn_frame2, text="Close", 
+                  command=lambda: self.send_command('set_left_door', 'close'), width=5).pack(side='left', padx=1)
 
-        # Light Control
-        light_frame = ttk.LabelFrame(left_frame, text="Light Control", padding=10)
-        light_frame.pack(fill='x', padx=10, pady=5)
+        # Light Control - Compact side-by-side layout
+        light_frame = ttk.LabelFrame(main_container, text="Light Control", padding=6)
+        light_frame.pack(fill='x', padx=5, pady=2)
         
-        light_frame_top = ttk.LabelFrame(light_frame,text = "Headlights")
-        light_frame_top.pack(side='top')
-        ttk.Button(light_frame_top, text="Turn On", 
-                  command=lambda: self.send_command('set_headlights', 'on')).pack(side='left', padx=2)
-        ttk.Button(light_frame_top, text="Turn Off", 
-                  command=lambda: self.send_command('set_headlights', 'off')).pack(side='left', padx=2)
+        light_row_frame = tk.Frame(light_frame)
+        light_row_frame.pack(fill='x', pady=2)
         
-        light_frame_bottom = ttk.LabelFrame(light_frame,text="Interior Cabin Lights")
-        light_frame_bottom.pack(side='top')
-        ttk.Button(light_frame_bottom, text="Turn On", 
-                  command=lambda: self.send_command('set_interior_lights', 'on')).pack(side='left', padx=2)
-        ttk.Button(light_frame_bottom, text="Turn Off", 
-                  command=lambda: self.send_command('set_interior_lights', 'off')).pack(side='left', padx=2)
+        # Headlights
+        headlight_frame = tk.Frame(light_row_frame)
+        headlight_frame.pack(side='left', padx=3)
+        tk.Label(headlight_frame, text="Headlights:").pack()
+        light_btn_frame1 = tk.Frame(headlight_frame)
+        light_btn_frame1.pack()
+        ttk.Button(light_btn_frame1, text="On", 
+                  command=lambda: self.send_command('set_headlights', 'on'), width=5).pack(side='left', padx=1)
+        ttk.Button(light_btn_frame1, text="Off", 
+                  command=lambda: self.send_command('set_headlights', 'off'), width=5).pack(side='left', padx=1)
         
-        # Temp Control
-        temp_frame = ttk.LabelFrame(left_frame, text="Interior Cabin Temperature Control", padding=10)
-        temp_frame.pack(fill='x',padx=10,pady=5)
-        spinbox = ttk.Spinbox(temp_frame,from_= 64, to=75)
-        spinbox.pack(padx=5,pady=5)
-        ttk.Button(temp_frame,text="Send Temperature",
-                                 command=lambda: self.send_command('set_temperature',spinbox.get())).pack(padx=2)
+        # Interior Lights
+        interior_frame = tk.Frame(light_row_frame)
+        interior_frame.pack(side='left', padx=3)
+        tk.Label(interior_frame, text="Interior:").pack()
+        light_btn_frame2 = tk.Frame(interior_frame)
+        light_btn_frame2.pack()
+        ttk.Button(light_btn_frame2, text="On", 
+                  command=lambda: self.send_command('set_interior_lights', 'on'), width=5).pack(side='left', padx=1)
+        ttk.Button(light_btn_frame2, text="Off", 
+                  command=lambda: self.send_command('set_interior_lights', 'off'), width=5).pack(side='left', padx=1)
+        
+        # Temp Control - Compact
+        temp_frame = ttk.LabelFrame(main_container, text="Temperature Control", padding=6)
+        temp_frame.pack(fill='x', padx=5, pady=2)
+        
+        temp_control_frame = tk.Frame(temp_frame)
+        temp_control_frame.pack(fill='x', pady=2)
+        
+        tk.Label(temp_control_frame, text="Temp (64-75):").pack(side='left')
+        self.temp_spinbox = ttk.Spinbox(temp_control_frame, from_=64, to=75, width=4)
+        self.temp_spinbox.pack(side='left', padx=2)
+        ttk.Button(temp_control_frame, text="Set", 
+                  command=lambda: self.send_command('set_temperature', self.temp_spinbox.get()), width=5).pack(side='left', padx=2)
 
-        # Station Announcement
-        announcement_frame = ttk.LabelFrame(left_frame, text="Station Announcement",padding=10)
-        announcement_frame.pack(fill='x',padx=10,pady=10)
+        # Station Announcement - Compact
+        announcement_frame = ttk.LabelFrame(main_container, text="Station Announcement", padding=6)
+        announcement_frame.pack(fill='x', padx=5, pady=2)
+
+        announcement_control_frame = tk.Frame(announcement_frame)
+        announcement_control_frame.pack(fill='x', pady=2)
 
         station_options = ["A","B"]
-        station_var = tk.StringVar()
+        self.station_var = tk.StringVar()
         time_options = ["1","2","3","4","5","6"]
-        time_var = tk.StringVar()
+        self.time_var = tk.StringVar()
 
-        dropdown = ttk.Combobox(announcement_frame, textvariable=station_var, values=station_options,width=10)
-        dropdown.pack(pady=10,side='left')
-        time_dropdown = ttk.Combobox(announcement_frame, textvariable=time_var, values=time_options,width =10)
-        time_dropdown.pack(pady=10,side='left')
+        tk.Label(announcement_control_frame, text="Station:").pack(side='left')
+        station_dropdown = ttk.Combobox(announcement_control_frame, textvariable=self.station_var, 
+                                       values=station_options, width=3, state="readonly")
+        station_dropdown.pack(side='left', padx=2)
+        
+        tk.Label(announcement_control_frame, text="Time:").pack(side='left')
+        time_dropdown = ttk.Combobox(announcement_control_frame, textvariable=self.time_var, 
+                                    values=time_options, width=3, state="readonly")
+        time_dropdown.pack(side='left', padx=2)
 
-        ttk.Button(announcement_frame,text="Send Announcement",
-                                 command=lambda: [
-                                     self.send_command('set_station',station_var.get()),
-                                     self.send_command('set_time_to_station',time_var.get())
-                                    ]).pack(padx=2,side='right')
+        ttk.Button(announcement_control_frame, text="Send", width=6,
+                  command=lambda: [
+                      self.send_command('set_station', self.station_var.get()),
+                      self.send_command('set_time_to_station', self.time_var.get())
+                  ]).pack(side='left', padx=2)
         
-        # Activating Brakes
-        service_brake_frame = ttk.LabelFrame(left_frame,text="Service Brake Control",padding=10)
-        service_brake_frame.pack(fill='x',padx=10,pady=10)
+        # Service Brake Control - Compact
+        service_brake_frame = ttk.LabelFrame(main_container, text="Service Brake", padding=6)
+        service_brake_frame.pack(fill='x', padx=5, pady=2)
 
-        ttk.Button(service_brake_frame,text="Activate",
-                                 command=lambda: self.send_command('set_service_brake','on')).pack(padx=2,side='left')
-        ttk.Button(service_brake_frame,text="Deactivate",
-                                 command=lambda: self.send_command('set_service_brake','off')).pack(padx=2,side='left')
-        
-        ttk.Button(left_frame,text="Emergency Brake Deactivation",
-                                                command=lambda: self.send_command('emergency_brake','off')).pack(padx=2)
-        
-        # Status label at bottom of left frame
-        self.status_label = tk.Label(left_frame, text="Ready", relief='sunken', bd=1)
-        self.status_label.pack(fill='x', padx=10, pady=5, side='bottom')
+        brake_control_frame = tk.Frame(service_brake_frame)
+        brake_control_frame.pack(fill='x', pady=2)
 
-        # FIXED: This was a duplicate section with wrong variable name
-        passenger_frame = ttk.LabelFrame(left_frame, text="Passenger Count Control", padding=10)  
-        passenger_frame.pack(fill='x',padx=10,pady=5)
-        passenger_spinbox = ttk.Spinbox(passenger_frame, from_=0, to=222) 
-        passenger_spinbox.pack(padx=5,pady=5)
-        ttk.Button(passenger_frame,text="Set Passenger Count",  
-                                 command=lambda: self.send_command('set_passenger_count',passenger_spinbox.get())).pack(padx=2)
-        """
-        # ===== RIGHT FRAME LOG =====
+        ttk.Button(brake_control_frame, text="Activate", width=8,
+                  command=lambda: self.send_command('set_service_brake','on')).pack(side='left', padx=2)
+        ttk.Button(brake_control_frame, text="Deactivate", width=8,
+                  command=lambda: self.send_command('set_service_brake','off')).pack(side='left', padx=2)
         
-        # Log title - now shows it's going to terminal
-        log_title = tk.Label(right_frame, text="Logs → Terminal", font=('Arial', 12, 'bold'))
-        log_title.pack(pady=(5, 0))
+        # Emergency Brake
+        emergency_frame = tk.Frame(main_container)
+        emergency_frame.pack(fill='x', padx=5, pady=2)
         
-        # Info frame explaining where logs go
-        info_frame = tk.Frame(right_frame, relief='sunken', bd=1, bg='#f0f0f0')
-        info_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        ttk.Button(emergency_frame, text="Emergency Brake Deactivate", width=22,
+                  command=lambda: self.send_command('emergency_brake','off')).pack(pady=2)
         
-        info_text = tk.Text(
-            info_frame, 
-            height=30, 
-            width=30, 
-            state=tk.NORMAL,
-            font=('Arial', 10),
-            wrap=tk.WORD,
-            bg='#f0f0f0',
-            relief='flat'
-        )
-        info_text.pack(side='left', fill='both', expand=True)
+        # Passenger Count Control - Compact
+        passenger_frame = ttk.LabelFrame(main_container, text="Passenger Count", padding=6)  
+        passenger_frame.pack(fill='x', padx=5, pady=2)
         
-      
-        info_text.insert(tk.END, instructions)
-        info_text.config(state=tk.DISABLED)
+        passenger_control_frame = tk.Frame(passenger_frame)
+        passenger_control_frame.pack(fill='x', pady=2)
         
-        # Clear terminal button instead of clear log
-        clear_button = ttk.Button(right_frame, text="Clear Terminal", command=self.clear_terminal_display)
-        clear_button.pack(pady=5)
+        tk.Label(passenger_control_frame, text="Count (0-222):").pack(side='left')
+        self.passenger_spinbox = ttk.Spinbox(passenger_control_frame, from_=0, to=222, width=4)
+        self.passenger_spinbox.pack(side='left', padx=2)
+        ttk.Button(passenger_control_frame, text="Set", width=5,
+                  command=lambda: self.send_command('set_passenger_count', self.passenger_spinbox.get())).pack(side='left', padx=2)
         
-        # Add initial log entry to terminal
-        self.log_to_terminal("Test UI initialized - All logs going to terminal")
+
         
-    def clear_terminal_display(self):
-        Print a separator to 'clear' the terminal visually
-        print("\n" + "="*50)
-        print("TERMINAL CLEARED (Visual separator)")
-        print("="*50 + "\n")
-        self.log_to_terminal("Terminal display cleared")
-"""
+        # Beacon Data Control - Compact grid layout with individual buttons
+        beacon_data_frame = ttk.LabelFrame(main_container, text="Beacon Data", padding=6)
+        beacon_data_frame.pack(fill='x', padx=5, pady=2)
+        
+        # Input fields row
+        beacon_input_frame = tk.Frame(beacon_data_frame)
+        beacon_input_frame.pack(fill='x', pady=2)
+        
+        # Grade
+        grade_frame = tk.Frame(beacon_input_frame)
+        grade_frame.pack(side='left', padx=2)
+        tk.Label(grade_frame, text="Grade %:").pack()
+        self.grade_var = tk.StringVar()
+        grade_entry = ttk.Entry(grade_frame, textvariable=self.grade_var, width=6)
+        grade_entry.pack()
+        
+        # Speed Limit
+        speed_frame = tk.Frame(beacon_input_frame)
+        speed_frame.pack(side='left', padx=2)
+        tk.Label(speed_frame, text="Speed Limit (MPH):").pack()
+        self.speed_limit_var = tk.StringVar()
+        speed_entry = ttk.Entry(speed_frame, textvariable=self.speed_limit_var, width=6)
+        speed_entry.pack()
+        
+        # Elevation
+        elevation_frame = tk.Frame(beacon_input_frame)
+        elevation_frame.pack(side='left', padx=2)
+        tk.Label(elevation_frame, text='Elevation (ft):').pack()
+        self.elevation_var = tk.StringVar()
+        elevation_entry = ttk.Entry(elevation_frame, textvariable=self.elevation_var, width=8)
+        elevation_entry.pack()
+        
+        # Individual beacon buttons in a compact row
+        beacon_buttons_frame = tk.Frame(beacon_data_frame)
+        beacon_buttons_frame.pack(fill='x', pady=2)
+        
+        ttk.Button(beacon_buttons_frame, text="Send Grade", width=12,
+                  command=lambda: self.send_command('set_grade', self.grade_var.get())).pack(side='left', padx=1)
+        ttk.Button(beacon_buttons_frame, text="Send Speed Limit", width=12,
+                  command=lambda: self.send_command('set_speed_limit', self.speed_limit_var.get())).pack(side='left', padx=1)
+        ttk.Button(beacon_buttons_frame, text="Send Elevation", width=12,
+                  command=lambda: self.send_command('set_elevation', self.elevation_var.get())).pack(side='left', padx=1)
+        
+        #Train Horn
+        train_horn = ttk.Button(main_container,text="Train Horn", command=lambda:self.send_command("horn"))
+        train_horn.pack(fill='x',padx=5,pady=5)
+        # Status label at bottom
+        status_frame = tk.Frame(main_container)
+        status_frame.pack(fill='x', padx=5, pady=3)
+        self.status_label = tk.Label(status_frame, text="Ready", relief='sunken', bd=1, anchor='w')
+        self.status_label.pack(fill='x', ipady=2)
+
+
+
     def deploy_train(self):
         """Deploy a specific train"""
         train_id = self.deploy_train_var.get()
