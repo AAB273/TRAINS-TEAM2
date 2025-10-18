@@ -4,14 +4,99 @@ Handles all train data and state for both Test UI and Passenger UI
 All calculations are done in metric, then converted to imperial when displayed onto the UI, except for temperature which is already in farenheight
 """
 import numpy as np
-from scipy.integrate import cumtrapz
+import time
+
+class TrainState:
+    """Train finite state machine states"""
+    AT_STATION = "at_station"
+    LEAVING_STATION = "leaving_station"
+    NORMAL_OPERATION = "normal_operation"
+    ARRIVING_AT_STATION = "arriving_at_station"
+    EMERGENCY_BRAKE = "emergency_brake"
+    OUT_OF_SERVICE = "out_of_service"
+    DOOR_OBSTRUCTION = "door_obstruction"
+    WAITING_FOR_CLEARANCE = "waiting_for_clearance"
+
+class TrainStateMachine:
+    """Manages train state transitions and behaviors"""
+    def __init__(self, train):
+        self.train = train
+        self.current_state = TrainState.AT_STATION
+        self.previous_state = None
+        self.state_entry_time = 0
+        self.station_dwell_time = 15  # seconds at station
+        
+    def transition_to(self, new_state):
+        """Handle state transitions with validation"""
+        if self.current_state == new_state:
+            return
+            
+        print(f"Train {self.train.train_id}: {self.current_state} -> {new_state}")
+        self.previous_state = self.current_state
+        self.current_state = new_state
+        self.state_entry_time = time.time()
+        self._on_state_enter()
+        
+    def update_state_based_on_conditions(self):
+        """Auto-transition based on train conditions and timers"""
+        current_time = time.time()
+        time_in_state = current_time - self.state_entry_time
+        
+        # Emergency conditions (highest priority)
+        if self.train.emergency_brake_active:
+            if self.current_state != TrainState.EMERGENCY_BRAKE:
+                self.transition_to(TrainState.EMERGENCY_BRAKE)
+            return
+            
+        if self.train.engine_failure:
+            if self.current_state != TrainState.OUT_OF_SERVICE:
+                self.transition_to(TrainState.OUT_OF_SERVICE)
+            return
+            
+        # State-specific transitions
+        if self.current_state == TrainState.AT_STATION:
+            # Stay at station for dwell time, then depart
+            if time_in_state >= self.station_dwell_time and not self.train.right_door_open:
+                self.transition_to(TrainState.LEAVING_STATION)
+                
+        elif self.current_state == TrainState.LEAVING_STATION:
+            # Transition to normal operation when reaching cruising speed
+            if self.train.speed >= self.train.speed_limit * 0.7:
+                self.transition_to(TrainState.NORMAL_OPERATION)
+                
+        elif self.current_state == TrainState.NORMAL_OPERATION:
+            # Check if approaching station (simplified - you'd use actual station distance)
+            if self.train.time_to_station <= 2:  # 2 minutes to station
+                self.transition_to(TrainState.ARRIVING_AT_STATION)
+                
+        elif self.current_state == TrainState.ARRIVING_AT_STATION:
+            # Transition to at_station when nearly stopped
+            if self.train.speed < 0.5:  # Almost stopped (m/s)
+                self.transition_to(TrainState.AT_STATION)
+                
+        elif self.current_state == TrainState.EMERGENCY_BRAKE:
+            # Can only leave emergency brake if manually reset
+            if not self.train.emergency_brake_active and self.train.speed == 0:
+                # Return to previous state or default to AT_STATION
+                if self.previous_state:
+                    self.transition_to(self.previous_state)
+                else:
+                    self.transition_to(TrainState.AT_STATION)
+                    
+        elif self.current_state == TrainState.OUT_OF_SERVICE:
+            # Can only leave out_of_service if engine failure is fixed
+            if not self.train.engine_failure:
+                self.transition_to(TrainState.AT_STATION)
 
 class Train:
     """Represents a single train with all its properties"""
     def __init__(self, train_id):
         self.train_id = train_id
         
-        # Metrics            All Values come from blue line for testing
+        # State Machine
+        self.state_machine = TrainStateMachine(self)
+        
+        # Metrics - All Values come from blue line for testing
         self.speed = 0.0
         self.acceleration = 0.0
         self.passenger_count = 0
@@ -25,6 +110,10 @@ class Train:
         self.commanded_speed = 0
         self.commanded_authority = 0
 
+        # For physics calculations
+        self.last_power_command = 0.0
+        self.last_service_brake = True
+        self.last_emergency_brake = False
         
         # Dimensions
         self.height = 3.42
@@ -51,14 +140,39 @@ class Train:
         # Deployment status
         self.deployed = False
         
-        #Line assignment
-        self.line = "blue"  #blue for testing
+        # Line assignment
+        self.line = "blue"  # blue for testing
 
-        #Station
+        # Station
         self.station = ""
         self.time_to_station = 0
+        
         # Observers (callbacks for UI updates)
         self._observers = []
+    
+    def update_physics_continuously(self):
+        """Update train physics based on current state and commands"""
+        # Only recalculate if something has changed or we're in a moving state
+        state_changed = (
+            self.power_command != self.last_power_command or
+            self.service_brake_active != self.last_service_brake or
+            self.emergency_brake_active != self.last_emergency_brake or
+            self.state_machine.current_state in [TrainState.LEAVING_STATION, 
+                                               TrainState.NORMAL_OPERATION,
+                                               TrainState.ARRIVING_AT_STATION]
+        )
+        
+        if state_changed:
+            self.calculate_force_speed_acceleration_()
+            
+            # Store current state for comparison
+            self.last_power_command = self.power_command
+            self.last_service_brake = self.service_brake_active
+            self.last_emergency_brake = self.emergency_brake_active
+    
+    def update_state(self):
+        """Update the train's state machine"""
+        self.state_machine.update_state_based_on_conditions()
     
     def add_observer(self, callback):
         """Register a callback to be notified of changes"""
@@ -75,17 +189,17 @@ class Train:
             callback(self)
     
     # Metric setters with validation
-    def set_speed_limit(self,value):
+    def set_speed_limit(self, value):
         self.speed_limit = float(value)
         self._notify_observers()
     
-    def set_elevation(self,value):
+    def set_elevation(self, value):
         self.elevation = float(value)
-        self._notify_observers
+        self._notify_observers()
 
-    def set_grade(self,value):
+    def set_grade(self, value):
         self.grade = float(value)
-        self._notify_observers
+        self._notify_observers()
         
     def set_speed(self, value):
         try:
@@ -119,6 +233,7 @@ class Train:
     
     def set_power_command(self, value):
         try:
+            self.last_power_command = self.power_command
             self.power_command = float(value)
             self._notify_observers()
         except ValueError:
@@ -153,8 +268,8 @@ class Train:
             pass
 
     def set_station(self, station_name):
-            self.station = str(station_name)
-            self._notify_observers()
+        self.station = str(station_name)
+        self._notify_observers()
         
     def set_time_to_station(self, minutes):
         try:
@@ -163,85 +278,81 @@ class Train:
         except ValueError:
             pass
     
-    def set_service_brake(self,value):
+    def set_service_brake(self, value):
         value = bool(value)
         if value:
             self.service_brake_active = 1
         else:
             self.service_brake_active = 0
+        self._notify_observers()
 
-    def set_disembarking(self,value):
+    def set_disembarking(self, value):
         self.passengers_disembarking = int(value)
         self._notify_observers()
 
-    def calculate_force_speed_acceleration_(self,dt=1.0):
+    def calculate_force_speed_acceleration_(self, dt=1.0):
         """
-        When the train's power command is 0, and either the service brake or emergency brake is on,  we must output the Force to max.
-
-        Maximum Force: (51.43 * 1000) * 0.5 = 25715 N   (This is F = ma)
-        With a calculated from the above calculation, you would then get 
-
-        v = integral(a)
-
-        When the train's speed is greater than 0, meaning the train is currently moving, 
-        we simply take the power command and directly calculate the speed and acceleration from it
+        Calculate train physics based on current state and commands
         """
-
         # Constants
         EMPTY_TRAIN_MASS = 40900  
         AVG_PASSENGER_MASS = 65.77 
         SERVICE_BRAKE_DECEL = -1.2  
         EMERGENCY_BRAKE_DECEL = -2.73 
         MAX_FORCE = 25715 
-        total_mass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passenger_count+2)) # +2 to account for the crew
+        total_mass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passenger_count + 2))
 
-        # CASE 1: Emergency Brake 
-        if self.emergency_brake_active:
-            a = EMERGENCY_BRAKE_DECEL
+        # State-based acceleration logic
+        current_state = self.state_machine.current_state
         
-        # CASE 2: Service Brake
+        if current_state == TrainState.EMERGENCY_BRAKE:
+            a = EMERGENCY_BRAKE_DECEL
+            
+        elif current_state == TrainState.AT_STATION:
+            a = 0  # Stationary at station
+            
+        elif current_state == TrainState.LEAVING_STATION:
+            # Gradual acceleration when leaving station
+            if self.power_command > 0:
+                a = MAX_FORCE / total_mass
+            else:
+                a = 0
+                
+        elif current_state == TrainState.ARRIVING_AT_STATION:
+            # Controlled deceleration when arriving
+            a = SERVICE_BRAKE_DECEL
+            
         elif self.service_brake_active:
             if self.speed > 0:
                 a = SERVICE_BRAKE_DECEL
-            elif self.speed == 0:
-                f = MAX_FORCE
-                a = MAX_FORCE / (total_mass)
-                self.service_brake_active = 0
             else:
-                a = 0 
-        # CASE 3: Power command with existing speed
+                a = 0
+                
         elif self.power_command > 0 and self.speed > 0:
-            print(f"Sent Commanded Speed and Authority")
-            # P = F*v, so F = P/v
+            # Normal operation
             force = self.power_command / self.speed
             a = force / total_mass
+        else:
+            a = self.acceleration
         
         # INTEGRATE: Update speed using acceleration
         new_speed = self.speed + (a * dt)
+        
+        # Apply speed limits
         if new_speed > self.speed_limit:
-            new_speed = self.speed_limit             #WIP: still need to see what to do if the speed ends up being greater than the speed limit
+            new_speed = self.speed_limit
+            
         # Ensure speed doesn't go negative
         if new_speed < 0:
             new_speed = 0
-           # a = 0  # No acceleration when stopped
+            if current_state not in [TrainState.AT_STATION, TrainState.EMERGENCY_BRAKE]:
+                a = 0  # No acceleration when stopped (except in specific states)
         
         # Update state
         self.speed = new_speed
         self.acceleration = a
-    
-                
+        self._notify_observers()
 
-        
-    """
-    def calculate_temp_change_time(self, temp):
-        t = (m * c_p * ΔT) / Q_AC
-
-        ΔT = temp - self.cabin_temp
-        t = ((11.2*150.642*8.7) * .24 * ΔT) / 6824
-
-        return t, temp
-
-        """ 
     # Door controls
     def set_right_door(self, is_open):
         """Set right door state (True=Open, False=Closed)"""
@@ -306,9 +417,9 @@ class Train:
             'signal_pickup_failure': self.signal_pickup_failure,
             'brake_failure': self.brake_failure,
             'emergency_brake_active': self.emergency_brake_active,
-            'deployed': self.deployed
+            'deployed': self.deployed,
+            'current_state': self.state_machine.current_state
         }
-
 
 class TrainManager:
     """Manages all trains in the system"""
