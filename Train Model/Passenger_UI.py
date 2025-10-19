@@ -3,6 +3,8 @@ from PIL import Image, ImageTk
 from tkinter import font
 from tkinter import ttk
 from train_data import get_train_manager
+import os, sys
+sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
 import time
 #from playsound import playsound
@@ -39,6 +41,8 @@ def _animate_temperature_change(target_temp):
 def _process_message(message, source_ui_id):
     """Process incoming messages and update train state"""
     try:
+        print(f"Received message from {source_ui_id}: {message}")
+
         command = message.get('command')
         value = message.get('value')
         
@@ -250,9 +254,9 @@ def update_ui_from_train(train):
     ui_labels['time'].config(text=f"{formatted_time}")
 
     # Update power command and commanded values
-    ui_labels['power_command'].config(text=f"{train.power_command:.0f} Watts")
-    ui_labels['Commanded Authority'].config(text=f"{train.commanded_authority:.0f} ft")
-    ui_labels['Commanded Speed'].config(text=f"{train.commanded_speed:.0f} MPH")
+    ui_labels['power_command'].config(text=f"Power Command: {train.power_command:.0f} Watts")
+    ui_labels['Commanded Authority'].config(text=f"Commanded Authority: {train.commanded_authority:.0f} ft")
+    ui_labels['Commanded Speed'].config(text=f"Commanded Speed: {train.commanded_speed:.0f} MPH")
     
     # Update door and light indicators
     right_door_color = 'green' if train.right_door_open else 'red'
@@ -586,10 +590,10 @@ emergency_brake_button.pack(fill='both')
 def on_closing():
     """Handle application closing"""
     print("Closing application...")
-    socket_server.running = False
-    if socket_server.server_socket:
+    server.running = False
+    if server.server_socket:
         try:
-            socket_server.server_socket.close()
+            server.server_socket.close()
         except:
             pass
     root.destroy()
@@ -599,7 +603,7 @@ root.protocol("WM_DELETE_WINDOW", on_closing)
 #
 
 # Start the socket server
-socket_server.start_server(update_ui_from_train)
+#server.start_server(update_ui_from_train)
 
 # Register observer to update UI when train data changes
 current_train.add_observer(update_ui_from_train)
