@@ -235,4 +235,8 @@ server1.send_to_ui("ui_2", {"command": "set_power", "value": 0.5})
 #Need to create your own "process_message" function that proccesses the commands other UI's send to so that you can act on those commands.
 Look at Train Model Passenger Ui for an example of what it looks like. If you need help with making your test UI interact with your main UI the same,
 let Alex know and I can iron it out for you.
+
+
+#You also need to create a "launch_both".py file that launches both the UI's at the same time so they connect. Loom at Alex's example of launch both.py
+and just change the file address of the UI's to yours.
 """
