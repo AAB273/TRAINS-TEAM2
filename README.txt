@@ -9,3 +9,8 @@ You can then grab the time using clock.clock.getTime() or clock.clock.getTimeNoS
 BE SURE to end the timer by calling clock.clock.endTimer() AFTER root.mainloop() or else your program will be stuck in an infinite look updating the time.
 
 Look at CTC_Office/CTC_UI.py for an example.
+
+
+NOTE: We will be implementing a command in the socket/server that sends a command to every module when the timer is updated. This
+way, no one will have to call methods related to the clock, and it will run autonomously, updating without extra code in individual
+modules.
