@@ -255,7 +255,7 @@ class MainScreen:
         '''
         create a label for the time
         '''
-        self.clockText = ttk.Label(topFrame, text = "", font = ("Arial", 20, "bold"), background = "white")
+        self.clockText = ttk.Label(topFrame, text = clock.clock.getTime(), font = ("Arial", 20, "bold"), background = "white")
         self.clockText.pack(side = "right", anchor = "ne")
         #create a blank Label to hold the text
         self.updateTime()
@@ -439,9 +439,9 @@ class MainScreen:
     def updateTime(self):
     #continuously recall itself every second to update the time variable 
         
-        time = clock.clock.getTimeNoSecs()
+        time = clock.clock.getTime()
         self.clockText.configure(text = time)
-        self.clockTimer = self.root.after(1000, self.updateTime)
+        self.clockTimer = self.root.after(100, self.updateTime)
 
 ###############################################################################################################################################################
     

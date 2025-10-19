@@ -1,3 +1,4 @@
+import tkinter as tk
 from threading import Timer
 from time import strftime
 
@@ -8,7 +9,7 @@ class Clock:
         self._incTimer = Timer(0.1, self._incTime)
         self._incTimer.start()
 
-
+        
     def _incTime(self):
         self._incTimer = Timer(0.1, self._incTime)
         self._incTimer.start()
@@ -32,14 +33,9 @@ class Clock:
                     hours = 0
 
         self._fastTime = f"{hours:02d}:{mins:02d}:{secs:02d}"
-        print(self._fastTime)
-
     
+
     def getTime(self):
-        return self._fastTime
-    
-
-    def getTimeNoSecs(self):
         return self._fastTime[:5]
     
 
