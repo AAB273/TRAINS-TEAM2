@@ -46,6 +46,13 @@ class UITestData:
         self.on_line_change = []
         self.on_block_change = []  # For block updates
 
+        self.maintenance_changes = {
+            "switches" : True,          # only switches chan be changed
+            "lights" : False,           # lights cannot be changed 
+            "crossing" : False,         # crossing cannot be changed
+            "block_occupancy" : False   # block occupancy cannot be changed
+        }
+
         # Sample block data: [Occupied, Line, Block]
         self.block_data = [
             ["No", "Blue", "1"],
@@ -93,10 +100,15 @@ class UITestData:
                 row for row in self.block_data
                 if any(search_term in str(cell).lower() for cell in row)
             ]
-
+    
+    def is_changeable(self, component_type):
+        """Check if a compnenet type can be edited in current mode"""
+        if not self.maintenace_mode:
+            return False    #nothing can be edided in main mode
+        return self.maintenance_changes.get(component_type, False)
 
 # Create mock data instance
-mock_data = UITestData()
+test_data = UITestData()
 
 ########################################################################################################################
 
@@ -128,12 +140,16 @@ except Exception as e:
     logo.pack(side="left", padx=15)
 
 # Fault LED indicator
-fault_led = tk.Label(header_frame, text="Fault LED", bg="red", fg="white", width=10, font=("Arial", 10, "bold"))
+fault_led = tk.Label(header_frame, text="Fault LED", bg="gray", fg="white", width=10, font=("Arial", 10, "bold"))
 fault_led.pack(side="right", padx=30)
 
 # Maintenance Mode LED indicator:
 maint_led = tk.Label(header_frame, text="MM OFF", bg="gray", fg="white", width=10, font=("Arial", 10, "bold"))
 maint_led.pack(side="right", padx=10)
+
+#PLC Upload LED indicator:
+plc_LED = tk.Label(header_frame, text="PLC Ready", bg="gray", fg="black", font=("Arial", 10, "bold"))
+plc_LED.pack(side="left", padx=0)
 
 # PLC upload and run buttons
 def trigger_plc_fault():
@@ -149,7 +165,7 @@ def clear_plc_fault():
 selected_plc_file = None
 plc_instance = None
 
-
+#creating a frame to contain buttons and status of PLC
 plc_upload_btn = tk.Button(header_frame, text="Select PLC File", font=("Arial", 11, "bold"), 
     width=16, height=2, command=lambda: select_plc_file())
 plc_upload_btn.pack(side="left", padx=20)
@@ -220,13 +236,13 @@ class MessageLogger:
         """Add timestamped message with color coding"""
         self.text_widget.config(state="normal")
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        color = self._get_color_for_level(level)
+        color = self.get_color_for_level(level)
         self.text_widget.insert("end", f"{timestamp} [{level}] {message}\n")
         self.text_widget.tag_config(level, foreground=color)
         self.text_widget.see("end")
         self.text_widget.config(state="disabled")
     
-    def _get_color_for_level(self, level):
+    def get_color_for_level(self, level):
         colors = {"INFO": "white", "WARNING": "yellow", "ERROR": "red", "DEBUG": "cyan"}
         return colors.get(level, "white")
     
@@ -314,7 +330,7 @@ class PLCManager:
         }
     
 #creating mock data instance 
-mock_data = UITestData()   
+test_data = UITestData()   
 
 # Creating MessageLogger
 message_logger = MessageLogger(log_text)
@@ -326,20 +342,20 @@ plc_manager = PLCManager(message_logger)
 def select_plc_file():
     """Open a file dialog to select a PLC file"""
     file_path = filedialog.askopenfilename(
-        title="Select PLC File",
+        title ="Select PLC File",
         filetypes=[("Python Files", "*.py")]
     )
     if file_path:
         if plc_manager.load_plc_file(file_path):
             # Update LED or other UI elements if needed
-            fault_led.config(bg="blue", text="PLC LOADED")
+            plc_LED.config(bg="white", text="PLC LOADED")
 
 def run_plc_file():
     """Run the PLC logic using the selected file."""
     if plc_manager.run_plc():
-        fault_led.config(bg="green", text="PLC RUNNING")
+        plc_LED.config(bg="green", text="PLC RUNNING")
     else:
-        fault_led.config(bg="red", text="FAULT")
+        plc_LED.config(bg="red", text="FAULT")
 
 # Keep global plc_instance for backward compatibility
 plc_instance = None  # This will be set by PLCManager internally
@@ -348,6 +364,8 @@ plc_instance = None  # This will be set by PLCManager internally
 plc_upload_btn.config(command=select_plc_file)
 run_plc_btn.config(command=run_plc_file)
 
+#########################################################################################
+#########################################################################################
 
 # Screen toggle checkboxes
 toggle_frame = tk.Frame(header_frame, bg="#0b1443")
@@ -360,7 +378,7 @@ def update_screen_view():
     if view_var_main.get():
         main_frame.tkraise()
         # When switching to main screen, update maintenance mode based on maint_check
-        mock_data.maintenance_mode = view_var_maint.get()
+        test_data.maintenance_mode = view_var_maint.get()
         if hasattr(right_panel, 'update_mode_ui'):
             right_panel.update_mode_ui()
     elif view_var_maint.get():
@@ -373,10 +391,10 @@ main_check.grid(row=0, column=0, padx=10)
 
 def toggle_maintenance_mode():
     """Toggle maintenance mode when Maintenance checkbox is clicked"""
-    mock_data.maintenance_mode = view_var_maint.get()
+    test_data.maintenance_mode = view_var_maint.get()
 
     # Update the maintenance LED color/text
-    if mock_data.maintenance_mode:
+    if test_data.maintenance_mode:
         maint_led.config(bg="orange", text="MM ON")
     else:
         maint_led.config(bg="gray", text="MM OFF")
@@ -405,8 +423,7 @@ class LeftPanel(tk.Frame):
         self.pack_propagate(False)
         self.data = data
         self.create_widgets()
-
-        # Connect line change callback
+        # Connect line change callback:
         self.data.on_line_change.append(self.on_line_changed)
     
     def create_widgets(self):
@@ -437,12 +454,12 @@ class LeftPanel(tk.Frame):
         
         tk.Label(crossing_frame, text="Lights:", bg='#cccccc').pack()
         self.crossing_lights = ttk.Combobox(crossing_frame, width=18, 
-                                           values=["On", "Off"])
+                                           values=["On", "Off"], state='readonly')
         self.crossing_lights.pack()
         self.crossing_lights.bind('<<ComboboxSelected>>', self.update_crossing_lights)
         
         tk.Label(crossing_frame, text="Bar:", bg='#cccccc').pack()
-        self.crossing_bar = ttk.Combobox(crossing_frame, width=18, values=["Closed", "Open"])
+        self.crossing_bar = ttk.Combobox(crossing_frame, width=18, values=["Closed", "Open"], state='readonly')
         self.crossing_bar.pack()
 
         # Initialize with current line data
@@ -503,7 +520,8 @@ class LeftPanel(tk.Frame):
         
         tk.Label(light_frame, text="Signal:", bg='#cccccc').pack()
         self.light_signal = ttk.Combobox(light_frame, width=18, 
-                                        values=["Red", "Yellow", "Green", "Super Green" ])
+                                        values=["Red", "Yellow", "Green", "Super Green" ],
+                                        state='readonly')
         self.light_signal.pack()
         self.light_signal.bind('<<ComboboxSelected>>', self.update_light_signal)
 
@@ -585,10 +603,75 @@ class LeftPanel(tk.Frame):
     
     def update_mode_ui(self):
         # Refresh UI based on maintenance mode
-        pass
+        # pass
+        """Update UI elements based on maintenance mode"""
+        # enable/diable comoboxes based on mainteneance mode and specific edits
+        switch_changes = self.data.is_changeable("switches")
+        light_changes = self.data.is_changeable("lights")
+        crossing_changes = self.data.is_changeable("crossing")
+
+        # update switch controls 
+        if switch_changes:
+            self.switch_direction.config(state='readonly')
+            add_to_message_log("switch controls enabled for maintenance")
+        else:
+            self.switch_direction.config(state='disabled')
+        
+        #update light controls 
+        self.light_signal.config(state='disabled')
+
+        # Update crossing controls (always disabled in this design)
+        self.crossing_lights.config(state='disabled')
+        self.crossing_bar.config(state='disabled')
+
+        # Visual feedback - change background colors to show editable state
+        self.update_visual_feedback()
+
+    def update_visual_feedback(self):
+        """Change background colors to indicate editable fields"""
+        switch_editable = self.data.is_changeable("switches")
+        
+        if switch_editable:
+            # Make editable fields stand out
+            self.switch_direction.config(background='#ffffcc')  # Light yellow for editable
+        else:
+            self.switch_direction.config(background='white')    # Normal white for read-only
+            
+        # Keep non-editable fields with normal background
+        self.light_signal.config(background='#f0f0f0')          # Grayed out
+        self.crossing_lights.config(background='#f0f0f0')
+        self.crossing_bar.config(background='#f0f0f0')
+    
+    def update_switch_direction(self, event=None):
+        """Only allow switch direction changes if editable"""
+        if not self.data.is_changeable("switches"):
+            add_to_message_log("WARNING: Switch changes not allowed in current mode", "WARNING")
+            return
+            
+        selected = self.switch_selector.get()
+        if selected in self.data.track_data["switches"]:
+            old_value = self.data.track_data["switches"][selected]["direction"]
+            new_value = self.switch_direction.get()
+            self.data.track_data["switches"][selected]["direction"] = new_value
+            add_to_message_log(f"Switch {selected}: Direction changed from {old_value} to {new_value}")
+    
+    def update_crossing_lights(self, event=None):
+        """Prevent crossing light changes"""
+        if self.data.maintenance_mode:
+            add_to_message_log("WARNING: Crossing light changes not permitted in maintenance mode", "WARNING")
+            # Revert to original value
+            self.update_crossing_display()
+    
+    def update_light_signal(self, event=None):
+        """Prevent light signal changes"""
+        if self.data.maintenance_mode:
+            add_to_message_log("WARNING: Light signal changes not permitted in maintenance mode", "WARNING")
+            # Revert to original value
+            self.update_light_display()
+
 
 # Create the left panel with mock data
-left_panel = LeftPanel(main_frame, mock_data)
+left_panel = LeftPanel(main_frame, test_data)
 left_panel.pack(side="left", fill="y", padx=5, pady=5)
 
 #######################################################################################
@@ -803,7 +886,7 @@ class RightPanel(tk.Frame):
         self.create_block_table()
 
 # Create the right panel with mock data
-right_panel = RightPanel(main_frame, mock_data)
+right_panel = RightPanel(main_frame, test_data)
 right_panel.pack(side="right", fill="y", padx=5, pady=5)
 
 # ---------- MAINTENANCE SCREEN (simple placeholder) ---------- #
