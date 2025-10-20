@@ -5,6 +5,11 @@ from PIL import Image, ImageTk
 from time import strftime
 import CTC_Schedule_Screen
 
+#necessary to import the clock from the parent directory#
+import os, sys
+sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
+import clock
+
 
 class MainScreen:
 #"System Information" ui screen appearance and data
@@ -250,7 +255,7 @@ class MainScreen:
         '''
         create a label for the time
         '''
-        self.clockText = ttk.Label(topFrame, text = "", font = ("Arial", 20, "bold"), background = "white")
+        self.clockText = ttk.Label(topFrame, text = clock.clock.getTime(), font = ("Arial", 20, "bold"), background = "white")
         self.clockText.pack(side = "right", anchor = "ne")
         #create a blank Label to hold the text
         self.updateTime()
@@ -434,9 +439,9 @@ class MainScreen:
     def updateTime(self):
     #continuously recall itself every second to update the time variable 
         
-        time = strftime("%I:%M %p")
+        time = clock.clock.getTime()
         self.clockText.configure(text = time)
-        self.clockTimer = self.root.after(1000, self.updateTime)
+        self.clockTimer = self.root.after(100, self.updateTime)
 
 ###############################################################################################################################################################
     

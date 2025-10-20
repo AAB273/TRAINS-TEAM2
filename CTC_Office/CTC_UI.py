@@ -5,6 +5,11 @@ import CTC_Schedule_Screen
 import CTC_Test_UI
 import os
 
+#necessary to import the clock from the parent directory#
+import sys
+sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
+import clock
+
 #full background color = #1a1a4d
 #box color = #4d4d6d
 
@@ -53,6 +58,8 @@ def main():
     #run the loop the continuously checks the data file
         
     root.mainloop()
+    clock.clock.endTimer()
+    #end program by ending mainloop() and ending the clock timer
 
 
 def programLoop(root: tk.Tk, mainScreen: CTC_Main_Screen, testUI: CTC_Test_UI):

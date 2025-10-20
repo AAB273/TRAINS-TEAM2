@@ -15,28 +15,28 @@ block_occupancy = []
 blocks = []
 track_direction = []
 railway_crossing = []
-heaters_work = []
+# heaters_work = []
 
 switch_locations = []
 light_location = []
 railway_location = []
 station_location = []
 
-environmental_temp: float
-failure_modes = []
-track_circuit_fail: bool
-railway_crossing_fail: bool
-power_fail: bool
+# environmental_temp: float
+# failure_modes = []
+# track_circuit_fail: bool
+# railway_crossing_fail: bool
+# power_fail: bool
 
-ticket_sales = []
-passengers_boarding = []
-passengers_disembarking = []
-train_occupancy = []
-active_trains = []
+# ticket_sales = []
+# passengers_boarding = []
+# passengers_disembarking = []
+# train_occupancy = []
+# active_trains = []
 ######
 ##############
 # Enhanced Mock data class for both panels
-class MockData:
+class UITestData:
     def __init__(self):
         # Current line
         self.current_line = "Blue"
@@ -96,7 +96,7 @@ class MockData:
 
 
 # Create mock data instance
-mock_data = MockData()
+mock_data = UITestData()
 
 ########################################################################################################################
 
@@ -166,54 +166,187 @@ run_plc_btn = tk.Button(
 )
 run_plc_btn.pack(side="left", padx=10)
 
+#######################################################################################
+#######################################################################################
+# ========== BODY ========== #
+body_frame = tk.Frame(root, bg="#0b1443")
+body_frame.pack(fill="both", expand=True, padx=15, pady=10)
 
-# Global variable to store selected PLC file
-selected_plc_file = None
+# Two main pages (stacked)
+main_frame = tk.Frame(body_frame, bg="#0b1443")
+maintenance_frame = tk.Frame(body_frame, bg="#0b1443")
 
-def select_plc_file():
-    """Open a file dialog to select a PLC file and initialize PLCController"""
-    file_path = filedialog.askopenfilename(
-        title="Select PLC File",
-        filetypes=[("Python Files", "*.py")]
-    )
-    if file_path:
-        add_to_message_log(f"PLC file uploaded: {file_path}")
-        global plc_instance
+for frame in (main_frame, maintenance_frame):
+    frame.place(relwidth=1, relheight=1)
+
+#######################################################################################
+#######################################################################################
+# ---------- CENTER AREA (Map + Message Log) ---------- #
+center_container = tk.Frame(main_frame, bg="#0b1443")
+center_container.pack(side="left", fill="both", expand=True, padx=5, pady=5)
+
+# Map Display
+map_frame = tk.Frame(center_container, bg="white", relief="ridge", borderwidth=3, width=700, height=450)
+map_frame.pack(fill="none", expand=False)  # Don't expand, use fixed size
+map_frame.pack_propagate(False)  # Prevent frame from shrinking to fit contents
+##
+# Create canvas for displaying the track image
+canvas = tk.Canvas(map_frame, bg="white")
+canvas.pack(fill="both", expand=True)
+
+# Load and display the Blue Linge track image
+try:
+    track_image = Image.open("/home/siram/TRAINS-TEAM2/Blue Line.png")
+    # Resize image to fit the canvas while maintaining aspect ratio
+    track_image = track_image.resize((700, 400), Image.Resampling.LANCZOS)
+    track_photo = ImageTk.PhotoImage(track_image)
+    
+    # Display image on canvas
+    canvas.create_image(360, 215, image=track_photo)
+    canvas.image = track_photo  # Keep a reference to prevent garbage collection
+    
+except Exception as e:
+    # Fallback if image loading fails
+    print(f"Error loading track image: {e}")
+    canvas.create_text(400, 250, text="TRACK MAP DISPLAY\n(Blue Linge.png not found)", 
+                      fill="black", font=("Arial", 14, "bold"), justify="center")
+
+# Add the MessageLogger class definition right after your imports
+class MessageLogger:
+    def __init__(self, text_widget):
+        self.text_widget = text_widget
+        
+    def log(self, message, level="INFO"):
+        """Add timestamped message with color coding"""
+        self.text_widget.config(state="normal")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        color = self._get_color_for_level(level)
+        self.text_widget.insert("end", f"{timestamp} [{level}] {message}\n")
+        self.text_widget.tag_config(level, foreground=color)
+        self.text_widget.see("end")
+        self.text_widget.config(state="disabled")
+    
+    def _get_color_for_level(self, level):
+        colors = {"INFO": "white", "WARNING": "yellow", "ERROR": "red", "DEBUG": "cyan"}
+        return colors.get(level, "white")
+    
+    def clear(self):
+        self.text_widget.config(state="normal")
+        self.text_widget.delete(1.0, "end")
+        self.text_widget.config(state="disabled")
+
+# Message Log (now underneath the map)
+message_frame = tk.Frame(center_container, bg="#0b1443", height=150)
+message_frame.pack(fill="x", pady=(10, 0))
+
+tk.Label(message_frame, text="Messages", bg="#0b1443", fg="white", font=("Arial", 12, "bold")).pack(anchor="w", padx=5)
+
+# Create a frame for the text widget with scrollbar
+log_container = tk.Frame(message_frame, bg="#0b1443")
+log_container.pack(fill="x", pady=5)
+
+log_text = tk.Text(log_container, height=6, bg="#111b52", fg="white", font=("Courier", 10))
+scrollbar = tk.Scrollbar(log_container, orient="vertical", command=log_text.yview)
+log_text.configure(yscrollcommand=scrollbar.set)
+
+log_text.pack(side="left", fill="x", expand=True)
+scrollbar.pack(side="right", fill="y")
+
+# Create MessageLogger instance
+message_logger = MessageLogger(log_text)
+
+# Keep this function for backward compatibility with existing code
+def add_to_message_log(message):
+    """Wrapper for backward compatibility"""
+    message_logger.log(message, "INFO")
+
+# plc = PLCController(add_to_message_log)
+# plc_instance = PLCController(add_to_message_log)
+# plc_instance.main()  # Runs PLC logic
+#
+# Initialize with some messages
+add_to_message_log("INFO: UI initialized.")
+add_to_message_log("INFO: Map display loaded.")
+add_to_message_log("INFO: Control panels ready.")
+###########################################################################################
+############################      PLC MANAGER  ############################################
+
+# Add PLCManager class definition after MessageLogger
+class PLCManager:
+    def __init__(self, message_logger):
+        self.message_logger = message_logger
+        self.plc_instance = None
+        self.current_file = None
+        
+    def load_plc_file(self, file_path):
         try:
-            # Import the selected PLC file dynamically
             import importlib.util
             spec = importlib.util.spec_from_file_location("plc_module", file_path)
             plc_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(plc_module)
             
-            # Initialize PLCController from the loaded module
-            plc_instance = plc_module.PLCController(add_to_message_log)
-            
-            add_to_message_log("PLC instance created successfully.")
-            
+            self.plc_instance = plc_module.PLCController(self.message_logger.log)
+            self.current_file = file_path
+            self.message_logger.log(f"PLC file loaded: {file_path}", "INFO")
+            return True
         except Exception as e:
-            add_to_message_log(f"ERROR loading PLC file: {e}")
+            self.message_logger.log(f"PLC load error: {e}", "ERROR")
+            return False
+    
+    def run_plc(self):
+        if not self.plc_instance:
+            self.message_logger.log("No PLC file loaded", "WARNING")
+            messagebox.showwarning("No PLC File", "Please upload a PLC file first!")
+            return False
+        
+        try:
+            self.plc_instance.main()
+            self.message_logger.log(f"PLC file executed: {self.current_file.split('/')[-1]}", "INFO")
+            return True
+        except Exception as e:
+            self.message_logger.log(f"PLC runtime error: {e}", "ERROR")
+            return False
+    
+    def get_status(self):
+        return {
+            "loaded": self.plc_instance is not None,
+            "file": self.current_file
+        }
+    
+#creating mock data instance 
+mock_data = UITestData()   
+
+# Creating MessageLogger
+message_logger = MessageLogger(log_text)
+
+# Create PLCManager instance (after message_logger is created)
+plc_manager = PLCManager(message_logger)
+
+# Update the button functions:
+def select_plc_file():
+    """Open a file dialog to select a PLC file"""
+    file_path = filedialog.askopenfilename(
+        title="Select PLC File",
+        filetypes=[("Python Files", "*.py")]
+    )
+    if file_path:
+        if plc_manager.load_plc_file(file_path):
+            # Update LED or other UI elements if needed
+            fault_led.config(bg="blue", text="PLC LOADED")
 
 def run_plc_file():
     """Run the PLC logic using the selected file."""
-    if not selected_plc_file:
-        messagebox.showwarning("No PLC File", "Please upload a PLC file first!")
-        return
-    
-    try:
-        # If your PLCController instance already contains the logic, just run it
-        if plc_instance:
-            plc_instance.main()  # Run the PLC logic
-        add_to_message_log(f"PLC file executed: {selected_plc_file.split('/')[-1]}")
+    if plc_manager.run_plc():
         fault_led.config(bg="green", text="PLC RUNNING")
-    except Exception as e:
-        add_to_message_log(f"ERROR running PLC file: {e}")
+    else:
         fault_led.config(bg="red", text="FAULT")
+
+# Keep global plc_instance for backward compatibility
+plc_instance = None  # This will be set by PLCManager internally
 
 # Update buttons
 plc_upload_btn.config(command=select_plc_file)
 run_plc_btn.config(command=run_plc_file)
-
 
 
 # Screen toggle checkboxes
@@ -262,17 +395,9 @@ maint_check = tk.Checkbutton(toggle_frame, text="Maintenance", variable=view_var
                              bg="#0b1443", fg="white", selectcolor="#333", font=("Arial", 10))
 maint_check.grid(row=0, column=1, padx=10)
 
-# ========== BODY ========== #
-body_frame = tk.Frame(root, bg="#0b1443")
-body_frame.pack(fill="both", expand=True, padx=15, pady=10)
 
-# Two main pages (stacked)
-main_frame = tk.Frame(body_frame, bg="#0b1443")
-maintenance_frame = tk.Frame(body_frame, bg="#0b1443")
-
-for frame in (main_frame, maintenance_frame):
-    frame.place(relwidth=1, relheight=1)
-
+#######################################################################################
+#######################################################################################
 # ---------- LEFT PANEL ---------- #
 class LeftPanel(tk.Frame):
     def __init__(self, parent, data):
@@ -418,7 +543,7 @@ class LeftPanel(tk.Frame):
             old_value = self.data.track_data["crossings"][selected]["lights"]
             new_value = self.crossing_lights.get()
             self.data.track_data["crossings"][selected]["lights"] = self.crossing_lights.get()
-            add_to_message_log(f"Crossing {selected}: Lights changed from {old_value} ot {new_value}")
+            message_logger.log(f"Crossing {selected}: Lights changed from {old_value} to {new_value}", "INFO")
 
     def update_switch_display(self, event=None):
         selected = self.switch_selector.get()
@@ -437,7 +562,7 @@ class LeftPanel(tk.Frame):
             old_value = self.data.track_data["switches"][selected]["direction"]
             new_value = self.switch_direction.get()
             self.data.track_data["switches"][selected]["direction"] = new_value
-            add_to_message_log(f"Switch {selected}: Direction changed from {old_value} to {new_value}")
+            message_logger.log(f"Switch {selected}: Direction changed from {old_value} to {new_value}")
     
     def update_light_display(self, event=None):
         selected = self.light_selector.get()
@@ -456,7 +581,7 @@ class LeftPanel(tk.Frame):
             old_value = self.data.track_data["lights"][selected]["signal"]
             new_value = self.light_signal.get()
             self.data.track_data["lights"][selected]["signal"] = new_value
-            add_to_message_log(f"Light {selected}: Signal changed from {old_value} to {new_value}")
+            message_logger.log(f"Light {selected}: Signal changed from {old_value} to {new_value}")
     
     def update_mode_ui(self):
         # Refresh UI based on maintenance mode
@@ -466,70 +591,8 @@ class LeftPanel(tk.Frame):
 left_panel = LeftPanel(main_frame, mock_data)
 left_panel.pack(side="left", fill="y", padx=5, pady=5)
 
-# ---------- CENTER AREA (Map + Message Log) ---------- #
-center_container = tk.Frame(main_frame, bg="#0b1443")
-center_container.pack(side="left", fill="both", expand=True, padx=5, pady=5)
-
-# Map Display
-map_frame = tk.Frame(center_container, bg="white", relief="ridge", borderwidth=3, width=700, height=450)
-map_frame.pack(fill="none", expand=False)  # Don't expand, use fixed size
-map_frame.pack_propagate(False)  # Prevent frame from shrinking to fit contents
-##
-# Create canvas for displaying the track image
-canvas = tk.Canvas(map_frame, bg="white")
-canvas.pack(fill="both", expand=True)
-
-# Load and display the Blue Linge track image
-try:
-    track_image = Image.open("/home/siram/TRAINS-TEAM2/Blue Line.png")
-    # Resize image to fit the canvas while maintaining aspect ratio
-    track_image = track_image.resize((700, 400), Image.Resampling.LANCZOS)
-    track_photo = ImageTk.PhotoImage(track_image)
-    
-    # Display image on canvas
-    canvas.create_image(360, 215, image=track_photo)
-    canvas.image = track_photo  # Keep a reference to prevent garbage collection
-    
-except Exception as e:
-    # Fallback if image loading fails
-    print(f"Error loading track image: {e}")
-    canvas.create_text(400, 250, text="TRACK MAP DISPLAY\n(Blue Linge.png not found)", 
-                      fill="black", font=("Arial", 14, "bold"), justify="center")
-
-# Message Log (now underneath the map)
-message_frame = tk.Frame(center_container, bg="#0b1443", height=150)
-message_frame.pack(fill="x", pady=(10, 0))  # Add top padding to separate from map
-
-tk.Label(message_frame, text="Messages", bg="#0b1443", fg="white", font=("Arial", 12, "bold")).pack(anchor="w", padx=5)
-
-# Create a frame for the text widget with scrollbar
-log_container = tk.Frame(message_frame, bg="#0b1443")
-log_container.pack(fill="x", pady=5)
-
-log_text = tk.Text(log_container, height=6, bg="#111b52", fg="white", font=("Courier", 10))
-scrollbar = tk.Scrollbar(log_container, orient="vertical", command=log_text.yview)
-log_text.configure(yscrollcommand=scrollbar.set)
-
-log_text.pack(side="left", fill="x", expand=True)
-scrollbar.pack(side="right", fill="y")
-
-def add_to_message_log(message):
-    """Add a message to the message log with timestamp"""
-    log_text.config(state="normal")
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_text.insert("end", f"{timestamp} {message}\n")
-    log_text.see("end")  # Auto-scroll to bottom
-    log_text.config(state="disabled")
-    
-# plc = PLCController(add_to_message_log)
-plc_instance = PLCController(add_to_message_log)
-plc_instance.main()  # Runs PLC logic
-
-# Initialize with some messages
-add_to_message_log("INFO: UI initialized.")
-add_to_message_log("INFO: Map display loaded.")
-add_to_message_log("INFO: Control panels ready.")
-
+#######################################################################################
+#######################################################################################
 # ---------- RIGHT PANEL ---------- #
 class RightPanel(tk.Frame):
     def __init__(self, parent, data):
