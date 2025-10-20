@@ -1,4 +1,5 @@
 import tkinter as tk
+import pandas as pd
 from tkinter import ttk
 from PIL import Image, ImageTk
 import UI_Variables
@@ -8,6 +9,7 @@ from FileUploadManager import FileUploadManager
 from TrackDiagramDrawer import TrackDiagramDrawer
 from TrackDirectionController import TrackDirectionController
 from HeaterSystemManager import HeaterSystemManager
+from BeaconManager import BeaconManager
 
 class TrackModelUI(tk.Tk):
     def __init__(self, manager: UI_Variables.TrackDataManager):
@@ -326,7 +328,7 @@ class TrackModelUI(tk.Tk):
                 heater_display = f"{'On' if self.heater_manager.is_heater_on(b) else 'Off'}/{'Working' if self.heater_manager.is_heater_working(b) else 'Broken'}"
             
                 # Simple beacon display - only show Active/Inactive
-                beacon_active = self.is_beacon_active(b)
+                beacon_active = BeaconManager.is_beacon_active(b)
                 beacon_display = "Active" if beacon_active else "Inactive"
             
                 self.tree.insert(
@@ -630,70 +632,6 @@ class TrackModelUI(tk.Tk):
 #        terminal.config(state="disabled")
 #        print("✅ Terminal update complete")
 
-    def is_beacon_active(self, block):
-        """Check if beacon has any bits set (not all zeros)"""
-        if hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 256:
-            return any(bit != 0 for bit in block.beacon)
-        # Handle legacy 128-bit beacons
-        elif hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 128:
-            return any(bit != 0 for bit in block.beacon)
-        return False
-
-    def get_beacon_bits(self, block, start_bit=0, num_bits=8):
-        """Get a slice of beacon bits for display"""
-        if hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 256:
-            end_bit = min(start_bit + num_bits, 256)
-            return block.beacon[start_bit:end_bit]
-        # Handle legacy 128-bit beacons
-        elif hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 128:
-            end_bit = min(start_bit + num_bits, 128)
-            return block.beacon[start_bit:end_bit]
-        return [0] * num_bits
-
-    def set_beacon_bit(self, block, bit_position, value):
-        """Set a specific beacon bit"""
-        if (hasattr(block, 'beacon') and isinstance(block.beacon, list) and 
-            len(block.beacon) == 256 and 0 <= bit_position < 256):
-            block.beacon[bit_position] = 1 if value else 0
-            return True
-        return False
-
-    def set_beacon_bits(self, block, start_bit, bit_values):
-        """Set multiple beacon bits starting from start_bit"""
-        if (hasattr(block, 'beacon') and isinstance(block.beacon, list) and 
-            len(block.beacon) == 256 and 0 <= start_bit < 256):
-            for i, value in enumerate(bit_values):
-                if start_bit + i < 256:
-                    block.beacon[start_bit + i] = 1 if value else 0
-            return True
-        return False
-
-    def beacon_to_hex(self, block):
-        """Convert 256-bit beacon to 64-character hex string"""
-        if hasattr(block, 'beacon') and isinstance(block.beacon, list) and len(block.beacon) == 256:
-            hex_string = ""
-            for i in range(0, 256, 8):
-                byte = 0
-                for j in range(8):
-                    if i + j < 256 and block.beacon[i + j]:
-                        byte |= (1 << (7 - j))
-                hex_string += f"{byte:02x}"
-            return hex_string
-        return "0" * 64
-
-    def beacon_from_hex(self, block, hex_string):
-        """Set beacon from 64-character hex string"""
-        if (hasattr(block, 'beacon') and isinstance(block.beacon, list) and 
-            len(block.beacon) == 256 and len(hex_string) == 64):
-            for i in range(0, 64, 2):
-                byte_val = int(hex_string[i:i+2], 16)
-                for j in range(8):
-                    bit_pos = (i // 2) * 8 + j
-                    if bit_pos < 256:
-                        block.beacon[bit_pos] = 1 if (byte_val & (1 << (7 - j))) else 0
-            return True
-        return False
-
     def _log_to_terminal(self, terminal, msg):
         """Append a message to a specific terminal."""
         terminal.insert("end", f"{msg}\n")
@@ -915,47 +853,6 @@ class TrackModelUI(tk.Tk):
         except Exception as e:
             print(f"❌ Error processing infrastructure for block {block.block_number}: {e}")
 
-    def update_bidirectional_table(self):
-        """Update the bidirectional block table with current directions from shared data"""
-        if hasattr(self, 'bidir_tree'):
-            # Clear existing rows
-            for item in self.bidir_tree.get_children():
-                self.bidir_tree.delete(item)
-            
-            # Populate with current directions from shared manager
-            if hasattr(self.data_manager, 'bidirectional_directions'):
-                print(f"🔄 Updating Main UI table with: {self.data_manager.bidirectional_directions}")
-                
-                for group, direction in self.data_manager.bidirectional_directions.items():
-                    direction_text = "← Left" if direction == 0 else "Right →"
-                    self.bidir_tree.insert("", "end", values=(group, direction_text))
-                    print(f"   ➕ Added row: {group} = {direction_text}")
-                
-                # Force the treeview to update visually
-                self.bidir_tree.update_idletasks()
-                print("✅ Main UI bidirectional table VISUALLY updated")
-
-    def toggle_bidirectional_direction(self, group_name):
-        """Toggle the direction for a block group using shared data"""
-        if hasattr(self.data_manager, 'bidirectional_directions') and group_name in self.data_manager.bidirectional_directions:
-            current_direction = self.data_manager.bidirectional_directions[group_name]
-            new_direction = 1 if current_direction == 0 else 0
-            
-            print(f"🔄 Toggling {group_name} from {current_direction} to {new_direction}")
-            
-            # Update the shared data manager
-            self.data_manager.bidirectional_directions[group_name] = new_direction
-            
-            # Force immediate refresh of the table
-            self.update_bidirectional_table()
-            
-            # Also force refresh the Test UI if it exists
-            if hasattr(self, 'tester_reference') and hasattr(self.tester_reference, 'refresh_bidirectional_controls'):
-                self.tester_reference.refresh_bidirectional_controls()
-                print("🔄 Test UI refresh triggered")
-            
-            print(f"✅ {group_name} direction changed to: {'Right →' if new_direction == 1 else '← Left'}")
-
     def extract_station_name(self, infrastructure_text, block):
         """Extract station name from infrastructure text"""
         try:
@@ -977,25 +874,6 @@ class TrackModelUI(tk.Tk):
         except Exception as e:
             print(f"❌ Error extracting station name: {e}")
             return f"Station {block.block_number}"
-
-    def extract_station_name(self, infrastructure_text):
-        """Extract station name from infrastructure text"""
-        try:
-            # Example: "STATION; PIONEER" -> "PIONEER"
-            parts = infrastructure_text.split(';')
-            for part in parts:
-                if 'STATION' in part.upper():
-                    continue  # Skip the station keyword
-                station_name = part.strip()
-                if station_name and station_name != 'STATION':
-                    return station_name
-            
-            # If no clear name, generate one
-            return f"Station {self.data_manager.blocks.index(block) + 1}"
-        
-        except Exception as e:
-            print(f"❌ Error extracting station name: {e}")
-            return f"Station {self.data_manager.blocks.index(block) + 1}"
 
     def clear_all_track_icons(self):
         """Clear all switches, signals, and crossing icons from track diagram"""

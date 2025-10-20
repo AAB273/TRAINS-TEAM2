@@ -110,6 +110,47 @@ class TrackDirectionController:
             
             print("=============================================")
 
+    def update_bidirectional_table(self):
+        """Update the bidirectional block table with current directions from shared data"""
+        if hasattr(self, 'bidir_tree'):
+            # Clear existing rows
+            for item in self.bidir_tree.get_children():
+                self.bidir_tree.delete(item)
+            
+            # Populate with current directions from shared manager
+            if hasattr(self.data_manager, 'bidirectional_directions'):
+                print(f"🔄 Updating Main UI table with: {self.data_manager.bidirectional_directions}")
+                
+                for group, direction in self.data_manager.bidirectional_directions.items():
+                    direction_text = "← Left" if direction == 0 else "Right →"
+                    self.bidir_tree.insert("", "end", values=(group, direction_text))
+                    print(f"   ➕ Added row: {group} = {direction_text}")
+                
+                # Force the treeview to update visually
+                self.bidir_tree.update_idletasks()
+                print("✅ Main UI bidirectional table VISUALLY updated")
+
+    def toggle_bidirectional_direction(self, group_name):
+        """Toggle the direction for a block group using shared data"""
+        if hasattr(self.data_manager, 'bidirectional_directions') and group_name in self.data_manager.bidirectional_directions:
+            current_direction = self.data_manager.bidirectional_directions[group_name]
+            new_direction = 1 if current_direction == 0 else 0
+            
+            print(f"🔄 Toggling {group_name} from {current_direction} to {new_direction}")
+            
+            # Update the shared data manager
+            self.data_manager.bidirectional_directions[group_name] = new_direction
+            
+            # Force immediate refresh of the table
+            self.update_bidirectional_table()
+            
+            # Also force refresh the Test UI if it exists
+            if hasattr(self, 'tester_reference') and hasattr(self.tester_reference, 'refresh_bidirectional_controls'):
+                self.tester_reference.refresh_bidirectional_controls()
+                print("🔄 Test UI refresh triggered")
+            
+            print(f"✅ {group_name} direction changed to: {'Right →' if new_direction == 1 else '← Left'}")
+
     # -------------------------------------------------------------------------
     # OPTIONAL: UI HOOKS
     # -------------------------------------------------------------------------
