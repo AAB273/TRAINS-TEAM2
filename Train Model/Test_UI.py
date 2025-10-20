@@ -1,66 +1,58 @@
 import tkinter as tk
 from tkinter import ttk
-import socket
 import json
+import os, sys
+sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
+from TrainSocketServer import TrainSocketServer
 from datetime import datetime
 
 class TestUI:
+    
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Test Control Panel")
-        self.root.geometry("460x910")  # Slightly increased width to fit elevation button
+        self.root.geometry("460x910")
         
-        self.socket = None
-        if self.connect_to_server():
-            self.create_widgets()
-        else:
+        self.server = TrainSocketServer(port=12346, ui_id="Test_UI")
+        self.server.set_allowed_connections(["Train_Model_Passenger_UI", "ui_3"])
+        
+        # Start server with minimal handler
+        def empty_handler(message, source_ui_id):
+            print(f"Test UI received: {message} from {source_ui_id}")
+        
+        self.server.start_server(empty_handler)
+        self.server.connect_to_ui('localhost', 12345, "Train_Model_Passenger_UI")
+        
+        self.create_widgets()
+        #else:
             # Show error and retry button
-            error_frame = tk.Frame(self.root)
-            error_frame.pack(expand=True)
-            tk.Label(error_frame, text="Failed to connect to Main UI", fg='red').pack()
-            tk.Button(error_frame, text="Retry", command=self.retry_connection).pack()
+        #    error_frame = tk.Frame(self.root)
+         #   error_frame.pack(expand=True)
+        ##    tk.Label(error_frame, text="Failed to connect to Main UI", fg='red').pack()
+        #    tk.Button(error_frame, text="Retry", command=self.retry_connection).pack()
+    
+    def send_to_ui(self, command, value=None):
+        """Send command to the target UI (creates dict for socket server)"""
+        message = {'command': command}
+        if value is not None:
+            message['value'] = value
         
-    def connect_to_server(self):
-        try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.settimeout(5)  # 5 second timeout
-            self.socket.connect(('localhost', 12345))
-            print("Connected to Train GUI")
-            return True
-        except Exception as e:
-            print(f"Connection failed: {e}")
-            return False
-
-    def retry_connection(self):
-        # Clear the window and try again
-        for widget in self.root.winfo_children():
-            widget.destroy()
-        self.__init__()
-                
-    def send_command(self, command, value=None):
-        """Send a command to the main GUI"""
-        if self.socket:
-            try:
-                message = {'command': command, 'value': value}
-                json_message = json.dumps(message)
-                self.socket.send(json_message.encode('utf-8'))
-                
-                # Log the command to terminal instead of UI log
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                log_entry = f"[{timestamp}] {command}: {value}"
-                self.log_to_terminal(log_entry)
-                
-                print(f"Sent: {json_message}")
-                self.status_label.config(text=f"Sent: {command} {value}")
-            except Exception as e:
-                error_msg = f"Send failed: {e}"
-                self.log_to_terminal(f"[ERROR] {error_msg}")
-                print(f"Send failed: {e}")
-                self.status_label.config(text=error_msg)
+        # Always send to Train_Model_Passenger_UI
+        target_ui = "Train_Model_Passenger_UI"
+        success = self.server.send_to_ui(target_ui, message)
+        
+        if success:
+            print(f"Sent {command} to {target_ui}")
+            self.status_label.config(text=f"Sent: {command}")
+        else:
+            print(f"Failed to send {command} to {target_ui}")
+            self.status_label.config(text=f"Failed: {command}")
+        return success
     
     def log_to_terminal(self, log_entry):
         """Print log entry to terminal instead of UI log"""
         print(f"TEST UI LOG: {log_entry}")
+    
     
     def log_command(self, log_entry):
         """Add a command to the log (kept for compatibility)"""
@@ -119,9 +111,9 @@ class TestUI:
         door_btn_frame1 = tk.Frame(right_door_frame)
         door_btn_frame1.pack()
         ttk.Button(door_btn_frame1, text="Open", 
-                  command=lambda: self.send_command('set_right_door', 'open'), width=5).pack(side='left', padx=1)
+                  command=lambda: self.send_to_ui('set_right_door', 'open'), width=5).pack(side='left', padx=1)
         ttk.Button(door_btn_frame1, text="Close", 
-                  command=lambda: self.send_command('set_right_door', 'close'), width=5).pack(side='left', padx=1)
+                  command=lambda: self.send_to_ui('set_right_door', 'close'), width=5).pack(side='left', padx=1)
         
         # Left Door
         left_door_frame = tk.Frame(door_row_frame)
@@ -130,9 +122,9 @@ class TestUI:
         door_btn_frame2 = tk.Frame(left_door_frame)
         door_btn_frame2.pack()
         ttk.Button(door_btn_frame2, text="Open", 
-                  command=lambda: self.send_command('set_left_door', 'open'), width=5).pack(side='left', padx=1)
+                  command=lambda: self.send_to_ui('set_left_door', 'open'), width=5).pack(side='left', padx=1)
         ttk.Button(door_btn_frame2, text="Close", 
-                  command=lambda: self.send_command('set_left_door', 'close'), width=5).pack(side='left', padx=1)
+                  command=lambda: self.send_to_ui('set_left_door', 'close'), width=5).pack(side='left', padx=1)
 
         # Light Control - Compact side-by-side layout
         light_frame = ttk.LabelFrame(main_container, text="Light Control", padding=6)
@@ -148,9 +140,9 @@ class TestUI:
         light_btn_frame1 = tk.Frame(headlight_frame)
         light_btn_frame1.pack()
         ttk.Button(light_btn_frame1, text="On", 
-                  command=lambda: self.send_command('set_headlights', 'on'), width=5).pack(side='left', padx=1)
+                  command=lambda: self.send_to_ui('set_headlights', 'on'), width=5).pack(side='left', padx=1)
         ttk.Button(light_btn_frame1, text="Off", 
-                  command=lambda: self.send_command('set_headlights', 'off'), width=5).pack(side='left', padx=1)
+                  command=lambda: self.send_to_ui('set_headlights', 'off'), width=5).pack(side='left', padx=1)
         
         # Interior Lights
         interior_frame = tk.Frame(light_row_frame)
@@ -159,9 +151,9 @@ class TestUI:
         light_btn_frame2 = tk.Frame(interior_frame)
         light_btn_frame2.pack()
         ttk.Button(light_btn_frame2, text="On", 
-                  command=lambda: self.send_command('set_interior_lights', 'on'), width=5).pack(side='left', padx=1)
+                  command=lambda: self.send_to_ui('set_interior_lights', 'on'), width=5).pack(side='left', padx=1)
         ttk.Button(light_btn_frame2, text="Off", 
-                  command=lambda: self.send_command('set_interior_lights', 'off'), width=5).pack(side='left', padx=1)
+                  command=lambda: self.send_to_ui('set_interior_lights', 'off'), width=5).pack(side='left', padx=1)
         
         # Temp Control - Compact
         temp_frame = ttk.LabelFrame(main_container, text="Temperature Control", padding=6)
@@ -174,7 +166,7 @@ class TestUI:
         self.temp_spinbox = ttk.Spinbox(temp_control_frame, from_=64, to=75, width=4)
         self.temp_spinbox.pack(side='left', padx=2)
         ttk.Button(temp_control_frame, text="Set", 
-                  command=lambda: self.send_command('set_temperature', self.temp_spinbox.get()), width=5).pack(side='left', padx=2)
+                  command=lambda: self.send_to_ui('set_temperature', self.temp_spinbox.get()), width=5).pack(side='left', padx=2)
 
         # Station Announcement - Compact
         announcement_frame = ttk.LabelFrame(main_container, text="Station Announcement", padding=6)
@@ -200,8 +192,8 @@ class TestUI:
 
         ttk.Button(announcement_control_frame, text="Send", width=6,
                   command=lambda: [
-                      self.send_command('set_station', self.station_var.get()),
-                      self.send_command('set_time_to_station', self.time_var.get())
+                      self.send_to_ui('set_station', self.station_var.get()),
+                      self.send_to_ui('set_time_to_station', self.time_var.get())
                   ]).pack(side='left', padx=2)
         
         # Service Brake Control - Compact
@@ -212,16 +204,16 @@ class TestUI:
         brake_control_frame.pack(fill='x', pady=2)
 
         ttk.Button(brake_control_frame, text="Activate", width=8,
-                  command=lambda: self.send_command('set_service_brake','on')).pack(side='left', padx=2)
+                  command=lambda: self.send_to_ui('set_service_brake','on')).pack(side='left', padx=2)
         ttk.Button(brake_control_frame, text="Deactivate", width=8,
-                  command=lambda: self.send_command('set_service_brake','off')).pack(side='left', padx=2)
+                  command=lambda: self.send_to_ui('set_service_brake','off')).pack(side='left', padx=2)
         
         # Emergency Brake
         emergency_frame = tk.Frame(main_container)
         emergency_frame.pack(fill='x', padx=5, pady=2)
         
         ttk.Button(emergency_frame, text="Emergency Brake Deactivate", width=22,
-                  command=lambda: self.send_command('emergency_brake','off')).pack(pady=2)
+                  command=lambda: self.send_to_ui('emergency_brake','off')).pack(pady=2)
         
         # Passenger Count Control - Compact
         passenger_frame = ttk.LabelFrame(main_container, text="Passenger Count", padding=6)  
@@ -234,7 +226,7 @@ class TestUI:
         self.passenger_spinbox = ttk.Spinbox(passenger_control_frame, from_=0, to=222, width=4)
         self.passenger_spinbox.pack(side='left', padx=2)
         ttk.Button(passenger_control_frame, text="Set", width=5,
-                  command=lambda: self.send_command('set_passenger_count', self.passenger_spinbox.get())).pack(side='left', padx=2)
+                  command=lambda: self.send_to_ui('set_passenger_count', self.passenger_spinbox.get())).pack(side='left', padx=2)
         
 
         
@@ -275,14 +267,14 @@ class TestUI:
         beacon_buttons_frame.pack(fill='x', pady=2)
         
         ttk.Button(beacon_buttons_frame, text="Send Grade", width=12,
-                  command=lambda: self.send_command('set_grade', self.grade_var.get())).pack(side='left', padx=1)
+                  command=lambda: self.send_to_ui('set_grade', self.grade_var.get())).pack(side='left', padx=1)
         ttk.Button(beacon_buttons_frame, text="Send Speed Limit", width=12,
-                  command=lambda: self.send_command('set_speed_limit', self.speed_limit_var.get())).pack(side='left', padx=1)
+                  command=lambda: self.send_to_ui('set_speed_limit', self.speed_limit_var.get())).pack(side='left', padx=1)
         ttk.Button(beacon_buttons_frame, text="Send Elevation", width=12,
-                  command=lambda: self.send_command('set_elevation', self.elevation_var.get())).pack(side='left', padx=1)
+                  command=lambda: self.send_to_ui('set_elevation', self.elevation_var.get())).pack(side='left', padx=1)
         
         #Train Horn
-        train_horn = ttk.Button(main_container,text="Train Horn", command=lambda:self.send_command("horn"))
+        train_horn = ttk.Button(main_container,text="Train Horn", command=lambda:self.send_to_ui("Train_Model_Passenger_UI", "horn"))
         train_horn.pack(fill='x',padx=5,pady=5)
         # Status label at bottom
         status_frame = tk.Frame(main_container)
@@ -295,35 +287,35 @@ class TestUI:
     def deploy_train(self):
         """Deploy a specific train"""
         train_id = self.deploy_train_var.get()
-        self.send_command('deploy_train', train_id)
+        self.send_to_ui('deploy_train', train_id)
         self.status_label.config(text=f"Deployed Train {train_id}")
         
     def undeploy_train(self):
         """Undeploy a specific train"""
         train_id = self.deploy_train_var.get()
-        self.send_command('undeploy_train', train_id)
+        self.send_to_ui('undeploy_train', train_id)
         self.status_label.config(text=f"Undeployed Train {train_id}")
         
     def bulk_deploy(self, deploy=True):
         """Deploy or undeploy all trains"""
         action = "deploy_all" if deploy else "undeploy_all"
-        self.send_command(action)
+        self.send_to_ui(action)
         self.status_label.config(text=f"{'Deployed' if deploy else 'Undeployed'} All Trains")
         
     def set_custom_power(self):
         """Set custom power value"""
         try:
             power = int(self.custom_power_var.get())
-            self.send_command('set_power', power)
+            self.send_to_ui('set_power', power)
             self.status_label.config(text=f"Set power to {power}")
         except ValueError:
             self.status_label.config(text="Invalid power value")
             
     def refresh_train_list(self):
         """Refresh the list of deployed trains"""
-        self.send_command('refresh_trains')
+        self.send_to_ui('refresh_trains')
         self.status_label.config(text="Refreshing train list...")
-        
+            
     def run(self):
         self.root.mainloop()
 

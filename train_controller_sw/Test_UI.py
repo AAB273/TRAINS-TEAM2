@@ -1,205 +1,150 @@
 import tkinter as tk
-import random
+from tkinter import ttk
+import math
+import time
 
-class NumberDisplay(tk.Frame):
-    """Displays a label + dynamic number value (with optional unit)."""
-    def __init__(self, parent, label_text="Value:", initial_value=0, unit="", **kwargs):
-        super().__init__(parent, **kwargs)
-        self.value = initial_value
-        self.unit = unit
-        tk.Label(self, text=label_text, font=("Arial", 12, "bold")).pack(side="left", padx=5)
-        self.display = tk.Label(self, text=f"{self.value} {self.unit}", font=("Arial", 12))
-        self.display.pack(side="left", padx=5)
-    def update_value(self, new_value):
-        self.value = new_value
-        self.display.config(text=f"{self.value} {self.unit}")
-
-class EmergencyLight(tk.Canvas):
-    """Triangle warning light that glows red when activated."""
-    def __init__(self, parent, size=80, **kwargs):
-        super().__init__(parent, width=size, height=size, highlightthickness=0, **kwargs)
-        self.size = size
-        self.glow = False
-        h = size
-        w = size
-        self.triangle = self.create_polygon(
-            w/2, 5,
-            w-5, h-5,
-            5, h-5,
-            fill="gray", outline="black", width=2
-        )
-        self.text = self.create_text(w/2, h*0.65, text="!", font=("Arial", int(size/2), "bold"), fill="white")
-
-    def activate(self):
-        self.glow = True
-        self._pulse_light()
-
-    def deactivate(self):
-        self.glow = False
-        self.itemconfig(self.triangle, fill="gray")
-
-    def toggle_failure(self, failure_type, state):
-        """Send failure signal input to main UI"""
-        if failure_type == 'engine':
-            self.main_window.set_engine_failure(state)
-        elif failure_type == 'signal':
-            self.main_window.set_signal_failure(state)
-        elif failure_type == 'brake':
-            self.main_window.set_brake_failure(state)
-
-        action = "activated" if state else "cleared"
-        self.log_action(f"⚠️ {failure_type.title()} failure {action}")
-
-
-    def _pulse_light(self):
-        if not self.glow:
-            return
-        # Alternate between two shades of red
-        current_color = self.itemcget(self.triangle, "fill")
-        new_color = "red2" if current_color == "darkred" else "darkred"
-        self.itemconfig(self.triangle, fill=new_color)
-        self.after(500, self._pulse_light)
-
-class TestPanel(tk.Tk):
-    """Standalone input test GUI with auto-test mode."""
-    def __init__(self):
-        super().__init__()
+class TestPanel(tk.Toplevel):
+    def __init__(self, parent, main_window):
+        super().__init__(parent)
         self.title("Input Test Panel")
-        self.geometry("400x450")
-        #self.main_window = main_window
+        self.geometry("500x650")
+        self.main_window = main_window
 
-        tk.Label(self, text="TEST INTERFACE", font=("Arial", 18, "bold"), bg="white").pack(pady=10)
+        tk.Label(self, text="TEST INTERFACE", font=("Arial", 16, "bold")).pack(pady=10)
 
-        # Temperature input
-        tk.Label(self, text="Cabin Temperature (°F):", bg="white").pack()
-        self.temp_display = NumberDisplay(self, label_text="", initial_value=70, unit="°F", bg="white")
-        self.temp_display.pack(pady=5)
-        tk.Button(self, text="Random Temp", command=self.random_temp).pack(pady=5)
+        # Temperature Input
+        tk.Label(self, text="Set Cabin Temperature (°F):", font=("Arial", 12)).pack(pady=5)
+        self.temp_entry = tk.Entry(self)
+        self.temp_entry.insert(0, "65")
+        self.temp_entry.pack()
+        tk.Button(self, text="Send Temp", command=self.set_temp).pack(pady=5)
 
-        # Authority
-        tk.Label(self, text="Commanded Authority (blocks):", bg="white").pack()
-        self.auth_display = NumberDisplay(self, label_text="", initial_value=4, unit="Blocks", bg="white")
-        self.auth_display.pack(pady=5)
-        tk.Button(self, text="Random Authority", command=self.random_authority).pack(pady=5)
+        # Commanded Authority Input
+        tk.Label(self, text="Set Commanded Authority (Blocks):", font=("Arial", 12)).pack(pady=5)
+        self.auth_entry = tk.Entry(self)
+        self.auth_entry.insert(0, "4")
+        self.auth_entry.pack()
+        tk.Button(self, text="Send Authority", command=self.set_authority).pack(pady=5)
 
-        # Commanded Speed
-        tk.Label(self, text="Commanded Speed (mph):", bg="white").pack()
-        self.speed_display = NumberDisplay(self, label_text="", initial_value=55, unit="mph", bg="white")
-        self.speed_display.pack(pady=5)
-        tk.Button(self, text="Random Speed", command=self.random_speed).pack(pady=5)
+        # Commanded Speed Input
+        tk.Label(self, text="Set Commanded Speed (mph):", font=("Arial", 12)).pack(pady=5)
+        self.speed_entry = tk.Entry(self)
+        self.speed_entry.insert(0, "55")
+        self.speed_entry.pack()
+        tk.Button(self, text="Send Speed", command=self.set_speed).pack(pady=5)
 
-        # Speedometer Slider
-        tk.Label(self, text="Actual Speed (mph):", bg="white").pack()
-        self.speed_scale = tk.Scale(self, from_=0, to=80, orient=tk.HORIZONTAL, command=self.update_speed, bg="white")
-        self.speed_scale.pack(fill="x", padx=30, pady=5)
+        # Speedometer Input
+        tk.Label(self, text="Speedometer (Actual Speed mph):", font=("Arial", 12)).pack(pady=5)
+        self.actual_speed = tk.Scale(self, from_=0, to=80, orient=tk.HORIZONTAL, command=self.update_speedometer)
+        self.actual_speed.pack(fill="x", padx=20)
 
-        # Emergency Light
-        tk.Label(self, text="Emergency Indicator:", bg="white").pack(pady=10)
-        self.emergency_light = EmergencyLight(self)
-        self.emergency_light.pack(pady=5)
-        tk.Button(self, text="Activate", bg="red", fg="white", command=self.emergency_light.activate).pack(side="left", padx=30, pady=10)
-        tk.Button(self, text="Deactivate", bg="grey", fg="white", command=self.emergency_light.deactivate).pack(side="right", padx=30, pady=10)
+        # Service Brake Percentage
+        tk.Label(self, text="Service Brake Percentage:", font=("Arial", 12)).pack(pady=5)
+        self.brake_percentage = tk.Scale(self, from_=0, to=100, orient=tk.HORIZONTAL, 
+                                       command=self.update_brake_percentage)
+        self.brake_percentage.set(0)
+        self.brake_percentage.pack(fill="x", padx=20)
 
-        # Failure Mode Signals
-        tk.Label(self, text="Failure Mode Signals:", font=("Arial", 12, "bold")).pack(pady=8)
+        # Emergency Signal
+        tk.Label(self, text="Emergency Signal:", font=("Arial", 12)).pack(pady=10)
+        tk.Button(self, text="Activate Emergency", bg="red", fg="white", command=self.activate_emergency).pack(pady=3)
+        tk.Button(self, text="Deactivate Emergency", bg="grey", fg="white", command=self.deactivate_emergency).pack(pady=3)
 
-        fail_frame = tk.Frame(self)
-        fail_frame.pack(pady=5)
-
+        # Failure Mode Controls
+        failure_frame = tk.Frame(self)
+        failure_frame.pack(pady=10, fill="x", padx=20)
+        
+        tk.Label(failure_frame, text="Failure Modes:", font=("Arial", 12, "bold")).pack()
+        
+        failure_controls = tk.Frame(failure_frame)
+        failure_controls.pack(pady=5)
+        
         # Train Engine Failure
-        tk.Button(fail_frame, text="Engine FAIL", bg="red", fg="white",
-                command=lambda: self.toggle_failure('engine', True)).grid(row=0, column=0, padx=5)
-        tk.Button(fail_frame, text="Engine CLEAR", bg="grey", fg="white",
-                command=lambda: self.toggle_failure('engine', False)).grid(row=1, column=0, padx=5)
-
-        # Signal Pickup Failure
-        tk.Button(fail_frame, text="Signal FAIL", bg="orange", fg="white",
-                command=lambda: self.toggle_failure('signal', True)).grid(row=0, column=1, padx=5)
-        tk.Button(fail_frame, text="Signal CLEAR", bg="grey", fg="white",
-                command=lambda: self.toggle_failure('signal', False)).grid(row=1, column=1, padx=5)
-
+        tk.Button(failure_controls, text="TEF ON", bg="red", fg="white", 
+                 command=lambda: self.set_failure("engine", True)).grid(row=0, column=0, padx=5)
+        tk.Button(failure_controls, text="TEF OFF", bg="green", fg="white",
+                 command=lambda: self.set_failure("engine", False)).grid(row=0, column=1, padx=5)
+        
+        # Signal Pickup Failure  
+        tk.Button(failure_controls, text="SPF ON", bg="orange", fg="white",
+                 command=lambda: self.set_failure("signal", True)).grid(row=1, column=0, padx=5, pady=2)
+        tk.Button(failure_controls, text="SPF OFF", bg="green", fg="white",
+                 command=lambda: self.set_failure("signal", False)).grid(row=1, column=1, padx=5, pady=2)
+        
         # Brake Failure
-        tk.Button(fail_frame, text="Brake FAIL", bg="red", fg="white",
-                command=lambda: self.toggle_failure('brake', True)).grid(row=0, column=2, padx=5)
-        tk.Button(fail_frame, text="Brake CLEAR", bg="grey", fg="white",
-                command=lambda: self.toggle_failure('brake', False)).grid(row=1, column=2, padx=5)
+        tk.Button(failure_controls, text="BF ON", bg="red", fg="white",
+                 command=lambda: self.set_failure("brake", True)).grid(row=2, column=0, padx=5, pady=2)
+        tk.Button(failure_controls, text="BF OFF", bg="green", fg="white",
+                 command=lambda: self.set_failure("brake", False)).grid(row=2, column=1, padx=5, pady=2)
 
-
-        # Auto test controls
-        tk.Label(self, text="Automatic Test Mode:", bg="white").pack(pady=10)
-        tk.Button(self, text="Start Auto Test", bg="blue", fg="white", command=self.start_auto_test).pack(pady=3)
-        tk.Button(self, text="Stop Auto Test", bg="grey", fg="white", command=self.stop_auto_test).pack(pady=3)
-
-        # Log output
-        tk.Label(self, text="Log:", font=("Arial", 12, "bold"), bg="white").pack(pady=5)
-        self.log = tk.Text(self, height=6, width=40, state=tk.DISABLED)
-        self.log.pack(pady=5)
-
-        # State
-        self.auto_testing = False
-        self.auto_step = 0
-
-    # Random value setters
-    def random_temp(self):
-        val = random.randint(60, 75)
-        self.temp_display.update_value(val)
-        self.log_action(f"🌡️ Temperature set to {val}°F")
-
-    def random_authority(self):
-        val = random.randint(1, 5)
-        self.auth_display.update_value(val)
-        self.log_action(f"📏 Authority set to {val} blocks")
-
-    def random_speed(self):
-        val = random.randint(30, 80)
-        self.speed_display.update_value(val)
-        self.log_action(f"🚆 Commanded speed set to {val} mph")
-
-    def update_speed(self, val):
-        self.log_action(f"🧭 Actual speed: {val} mph")
-
-    # Auto test
-    def start_auto_test(self):
-        self.auto_testing = True
-        self.auto_step = 0
-        self.log_action("🤖 Starting auto test mode...")
-        self.run_auto_step()
-
-    def stop_auto_test(self):
-        self.auto_testing = False
-        self.log_action("🛑 Auto test mode stopped.")
-
-    def run_auto_step(self):
-        if not self.auto_testing:
-            return
-
-        step = self.auto_step % 6
-
-        if step == 0:
-            self.random_temp()
-        elif step == 1:
-            self.random_authority()
-        elif step == 2:
-            self.random_speed()
-        elif step == 3:
-            speed = random.randint(0, 80)
-            self.speed_scale.set(speed)
-            self.update_speed(speed)
-        elif step == 4:
-            self.emergency_light.activate()
-            self.log_action("🚨 Emergency activated")
-        elif step == 5:
-            self.emergency_light.deactivate()
-            self.log_action("🟢 Emergency cleared")
-
-        self.auto_step += 1
-        self.after(1500, self.run_auto_step)
+        # Output Log
+        tk.Label(self, text="Log:", font=("Arial", 12, "bold")).pack(pady=5)
+        self.log = tk.Text(self, height=8, width=50, state=tk.DISABLED)
+        self.log.pack(pady=5, fill="both", expand=True)
 
     def log_action(self, text):
         self.log.config(state=tk.NORMAL)
         self.log.insert(tk.END, text + "\n")
         self.log.see(tk.END)
         self.log.config(state=tk.DISABLED)
+
+    def set_temp(self):
+        val = self.temp_entry.get()
+        self.main_window.set_cabin_temp(val)
+        self.main_window.add_to_status_log(f"Temperature set to {val}°F")
+        self.log_action(f"✅ Temperature input set to {val}°F")
+
+    def set_authority(self):
+        val = self.auth_entry.get()
+        self.main_window.set_authority(val)
+        self.main_window.add_to_status_log(f"Authority set to {val} blocks")
+        self.log_action(f"✅ Commanded authority set to {val} Blocks")
+
+    def set_speed(self):
+        val = self.speed_entry.get()
+        # Only update commanded speed when in auto mode
+        if self.main_window.mode_select.active_mode == "auto":
+            self.main_window.set_commanded_speed(val)
+            self.main_window.add_to_status_log(f"Commanded speed set to {val} mph (auto mode)")
+            self.log_action(f"✅ Commanded speed set to {val} mph (auto mode)")
+        else:
+            self.log_action("⚠️ Ignored commanded speed (not in auto mode)")
+
+    def update_speedometer(self, val):
+        val = int(val)
+        self.main_window.set_current_speed(val)
+        self.log_action(f"✅ Speedometer updated to {val} mph")
+
+    def update_brake_percentage(self, val):
+        self.main_window.set_service_brake_percentage(int(val))
+        self.log_action(f"🛑 Service brake percentage set to {val}%")
+
+    def activate_emergency(self):
+        self.main_window.emergency_brake_action(True)
+        self.log_action("🚨 Emergency signal activated")
+
+    def deactivate_emergency(self):
+        self.main_window.emergency_brake_action(False)
+        self.log_action("🟢 Emergency signal cleared")
+
+    def set_failure(self, failure_type, state):
+        if failure_type == "engine":
+            self.main_window.engine_failure.set_state(state)
+            status = "ON" if state else "OFF"
+            self.main_window.add_to_status_log(f"Train Engine Failure: {status}")
+            self.log_action(f"🔧 Train Engine Failure: {status}")
+        elif failure_type == "signal":
+            self.main_window.signal_failure.set_state(state)
+            status = "ON" if state else "OFF"
+            self.main_window.add_to_status_log(f"Signal Pickup Failure: {status}")
+            self.log_action(f"📡 Signal Pickup Failure: {status}")
+        elif failure_type == "brake":
+            self.main_window.brake_failure.set_state(state)
+            status = "ON" if state else "OFF"
+            self.main_window.add_to_status_log(f"Brake Failure: {status}")
+            self.log_action(f"🛑 Brake Failure: {status}")
+
+
 
 if __name__ == "__main__":
     app = TestPanel()
