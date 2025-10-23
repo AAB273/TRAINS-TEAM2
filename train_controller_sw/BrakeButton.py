@@ -3,7 +3,7 @@ from tkinter import ttk
 import math
 import time
 
-class Circle_button(tk.Canvas):
+class Brake_button(tk.Canvas):
     def __init__(self, parent, radius=40, color="orange", hover_color="lightorange",
                  active_color="darkorange", text="", command=None, hold_mode=False, canvas_bg="white", **kwargs):
         # Extract canvas_bg before passing to super

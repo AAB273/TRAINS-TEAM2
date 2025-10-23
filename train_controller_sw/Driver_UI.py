@@ -3,7 +3,7 @@ from tkinter import ttk
 import math
 import time
 from ClockDisplay import ClockDisplay
-from CircleButton import Circle_button
+from BrakeButton import Brake_button
 from Emlight import EmergencyLight
 from speedometer import Speedometer
 from SA_display import StationAnnouncementDisplay
@@ -259,14 +259,9 @@ class Main_Window:
         self.train_horn.place(relx=0.21, rely=0.30, relwidth=0.1, relheight=0.12)
         tk.Label(main_container, text="Train Horn", font=("Arial", 11, "bold"), 
          bg="white").place(relx=0.22, rely=0.27)
-
-        
-        # Service Brake with Percentage Control
-        #service_brake_container = tk.Frame(main_container, bg="white")
-        #service_brake_container.place(relx=0.20, rely=0.45, relwidth=0.20, relheight=0.22)
         
         # Service Brake Button
-        self.service_brake = Circle_button(main_container, radius=70, color="orange", 
+        self.service_brake = Brake_button(main_container, radius=70, color="orange", 
                                           hover_color="darkorange", active_color="orange4",
                                           text="Service\nBrake", command=self.service_brake_action,
                                           hold_mode=True, canvas_bg="white")
@@ -289,7 +284,7 @@ class Main_Window:
         brake_percent_menu.bind("<<ComboboxSelected>>", self.on_brake_percent_change)
         
         # Emergency Brake
-        self.emergency_brake = Circle_button(main_container, radius=70, color="darkred", 
+        self.emergency_brake = Brake_button(main_container, radius=70, color="darkred", 
                                             hover_color="red", active_color="red4",
                                             text="Emergency\nBrake", 
                                             command=self.emergency_brake_action, canvas_bg="white")
@@ -391,7 +386,7 @@ class Main_Window:
         tk.Label(lights_frame, text="SPF", font=("Arial", 9, "bold"), bg="white", fg="black").grid(row=1, column=1)
 
         # Brake Failure
-        self.brake_failure = FailureIndicator(lights_frame, size=40, color="gray", glow_color="red")
+        self.brake_failure = FailureIndicator(lights_frame, size=40, color="gray", glow_color="yellow")
         self.brake_failure.grid(row=0, column=2, padx=5)
         tk.Label(lights_frame, text="BF", font=("Arial", 9, "bold"), bg="white", fg="black").grid(row=1, column=2)
 
@@ -444,7 +439,10 @@ class Main_Window:
         
         # Update door safety
         self.update_door_safety()
-        
+
+        #check failure modes:
+        self.check_failure_modes()
+
         # Schedule next update
         self.root.after(100, self.update_displays)
     
@@ -547,7 +545,7 @@ class Main_Window:
         if pressed:
             self.emergency_brake_active = True
             self.emergency_light.activate()
-            self.add_to_status_log("🚨 EMERGENCY BRAKE ACTIVATED!")
+            self.add_to_status_log(" EMERGENCY BRAKE ACTIVATED!")
             print("EMERGENCY BRAKE ACTIVATED!")
         else:
             self.emergency_brake_active = False
@@ -624,6 +622,24 @@ class Main_Window:
         self.brake_percent_var.set(f"{percentage}%")
         if self.service_brake_active:
             self.add_to_status_log(f"Service brake percentage set to {percentage}%")
+
+    def check_failure_modes(self):
+        """Activate emergency brake automatically if any failure mode is active"""
+        failure_detected = (
+            self.engine_failure.active or
+            self.signal_failure.active or
+            self.brake_failure.active
+        )
+
+        if failure_detected and not self.emergency_brake_active:
+            # Automatically activate the emergency brake
+            self.add_to_status_log("⚠️ FAILURE DETECTED: Activating emergency brake.")
+            self.emergency_brake_action(True)
+        elif not failure_detected and self.emergency_brake_active:
+            # Automatically release when all failures are cleared
+            self.add_to_status_log("✅ All failures cleared: Releasing emergency brake.")
+            self.emergency_brake_action(False)
+
 
     def open_track_info(self):
         """Opens the Track Information Panel"""
