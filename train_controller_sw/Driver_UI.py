@@ -9,7 +9,11 @@ from speedometer import Speedometer
 from SA_display import StationAnnouncementDisplay
 from SA_window import StationAnnouncementWindow
 from Test_UI import TestPanel
+from SafetyMonitor import SafetyMonitor
 from TC_SW_TrackInfo import TrackInformationPanel
+import os, sys
+sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
+from TrainSocketServer import TrainSocketServer
 
 
 class Mode_Toggle(tk.Frame):
@@ -419,6 +423,10 @@ class Main_Window:
         self.update_displays()
         # Test Panel
         self.test_panel = TestPanel(self.root, self)
+
+        #safety critical design:
+        self.safety_monitor = SafetyMonitor(self)
+
     
     def add_to_status_log(self, message):
         """Add timestamped message to status log"""
@@ -443,8 +451,12 @@ class Main_Window:
         #check failure modes:
         self.check_failure_modes()
 
+        #safety critical implementation
+        #self.safety_monitor.check_vital_conditions()
+
         # Schedule next update
         self.root.after(100, self.update_displays)
+
     
     def apply_brake_effect(self):
         """Apply brake effects to current speed"""
