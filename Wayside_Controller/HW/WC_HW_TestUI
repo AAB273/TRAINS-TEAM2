@@ -437,7 +437,7 @@ switches_track_dropdown = ttk.Combobox(switches_frame, textvariable=switches_tra
 switches_track_dropdown.pack(anchor='w', pady=5)
 
 tk.Label(switches_frame, text="Block #:", font=("Arial", 12), bg='white').pack(anchor='w')
-switches_block_var = tk.StringVar(value="20")
+switches_block_var = tk.StringVar(value="5")
 switches_block_entry = tk.Entry(switches_frame, textvariable=switches_block_var, width=15)
 switches_block_entry.pack(anchor='w', pady=5)
 
@@ -445,9 +445,9 @@ switches_block_entry.pack(anchor='w', pady=5)
 switch_options_frame = tk.Frame(switches_frame, bg='white')
 switch_options_frame.pack(fill='x', pady=10)
 
-switch_var = tk.StringVar(value="57-58")
-tk.Radiobutton(switch_options_frame, text="57-58", variable=switch_var, value="57-58", bg='white').pack(anchor='w')
-tk.Radiobutton(switch_options_frame, text="57-63", variable=switch_var, value="57-63", bg='white').pack(anchor='w')
+switch_var = tk.StringVar(value="5-15")
+tk.Radiobutton(switch_options_frame, text="5-15", variable=switch_var, value="5-15", bg='white').pack(anchor='w')
+tk.Radiobutton(switch_options_frame, text="5-6", variable=switch_var, value="5-6", bg='white').pack(anchor='w')
 
 def set_switches():
     selected_switch = switch_var.get()
