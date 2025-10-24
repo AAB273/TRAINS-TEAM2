@@ -273,7 +273,7 @@ class TestUI:
         ttk.Button(beacon_buttons_frame, text="Send Elevation", width=12,
                   command=lambda: self.send_to_ui('set_elevation', self.elevation_var.get())).pack(side='left', padx=1)
         
-        #Train Horn
+        #Train 
         train_horn = ttk.Button(main_container,text="Train Horn", command=lambda:self.send_to_ui("Train_Model_Passenger_UI", "horn"))
         train_horn.pack(fill='x',padx=5,pady=5)
         # Status label at bottom
