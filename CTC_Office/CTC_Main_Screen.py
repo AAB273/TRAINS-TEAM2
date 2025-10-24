@@ -8,7 +8,6 @@ import CTC_Schedule_Screen
 #necessary to import the clock from the parent directory#
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-sys.path.insert(2, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 import clock
 from TrainSocketServer import TrainSocketServer
 
@@ -48,10 +47,30 @@ class MainScreen:
         self.totalPassengers = 0 
         self.numberOfTrains = 1
 
+        server = TrainSocketServer(port=12345, ui_id="CTC_Main_Screen")
+        server.set_allowed_connections(["CTC_Test_UI", "ui_3"])
+        server.start_server(self._processMessage)
+
         self.createTopRow()
         #print the logo, reference map button, time
         self.createAreas()
         #print the titles of each section to the window 
+
+###############################################################################################################################################################
+
+    def _processMessage(message, source_ui_id):
+        """Process incoming messages and update train state"""
+        try:
+            print(f"Received message from {source_ui_id}: {message}")
+
+            command = message.get('command')
+            value = message.get('value')
+
+            if (command == "test"):
+                print("fuck you alex")
+
+        except Exception as e:
+            print(f"Error processing message: {e}")
 
 ###############################################################################################################################################################
 
@@ -596,3 +615,18 @@ class MainScreen:
                     toTest.write(self.mmArea.item(self.mmArea.parent(rowID), "text").lower())
                     #grab line
                     toTest.close()
+
+###############################################################################################################################################################
+
+def onClosing():
+    """Handle application closing"""
+    print("Closing application...")
+    self.server.running = False
+    if self.server.server_socket:
+        try:
+            self.server.server_socket.close()
+        except:
+            pass
+    self.root.destroy()
+
+    
