@@ -3,6 +3,9 @@ from tkinter import ttk, filedialog, messagebox, simpledialog
 from datetime import datetime
 from PIL import Image, ImageTk
 from plc_controller import PLCController
+import os, sys
+sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
+from TrainSocketServer import TrainSocketServer
 ########################################################################################################################
 # Backend Data Structures (same as before)
 
@@ -38,6 +41,12 @@ station_location = []
 # Enhanced Mock data class for both panels
 class UITestData:
     def __init__(self):
+
+        # SOCKET SERVER
+        server1 = TrainSocketServer(port=12345, ui_id="ui_1")
+        server1.set_allowed_connections(["ui_2", "ui_3"])
+        server1.start_server(update_callback)
+
         # Current line
         self.current_line = "Blue"
         # Maintenance mode
