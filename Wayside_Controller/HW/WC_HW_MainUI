@@ -4,7 +4,7 @@ from datetime import datetime
 from PIL import Image, ImageTk
 from plc_controller import PLCController
 import os, sys
-sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from TrainSocketServer import TrainSocketServer
 ########################################################################################################################
 # Backend Data Structures (same as before)
