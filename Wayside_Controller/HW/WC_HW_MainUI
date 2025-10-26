@@ -43,10 +43,7 @@ station_location = []
 def update_callback(message):
     """Socket server callback function"""
     print(f"Socket message recieved: {message}")
-    if 'message_logger' in globals():
-        message_logger.log(f"Socket {message}", "INFO")
-    else:
-        print(f"Socket: {message}")
+    add_to_message_log(f"Socket: {message}")
 
 
 # Enhanced Mock data class for both panels

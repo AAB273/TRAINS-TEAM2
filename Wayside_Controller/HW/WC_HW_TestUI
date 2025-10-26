@@ -113,6 +113,30 @@ class MessageLogger:
         self.text_widget.config(state="normal")
         self.text_widget.delete(1.0, "end")
         self.text_widget.config(state="disabled")
+    # Message Log (now underneath the map)
+message_frame = tk.Frame(bg="#0b1443", height=150)
+message_frame.pack(fill="x", pady=(10, 0))
+
+tk.Label(message_frame, text="Messages", bg="#0b1443", fg="white", font=("Arial", 12, "bold")).pack(anchor="w", padx=5)
+
+# Create a frame for the text widget with scrollbar
+log_container = tk.Frame(message_frame, bg="#0b1443")
+log_container.pack(fill="x", pady=5)
+
+log_text = tk.Text(log_container, height=6, bg="#111b52", fg="white", font=("Courier", 10))
+scrollbar = tk.Scrollbar(log_container, orient="vertical", command=log_text.yview)
+log_text.configure(yscrollcommand=scrollbar.set)
+
+log_text.pack(side="left", fill="x", expand=True)
+scrollbar.pack(side="right", fill="y")
+
+# Create MessageLogger instance
+message_logger = MessageLogger(log_text)
+
+# Keep this function for backward compatibility with existing code
+def add_to_message_log(message):
+    """Wrapper for backward compatibility"""
+    message_logger.log(message, "INFO")
 
 class PLCManager:
     """
