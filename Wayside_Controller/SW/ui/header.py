@@ -70,7 +70,7 @@ class Header(tk.Frame):
         # Maintenance Call Button
         self.maintenance_button = tk.Button(
             maintenance_frame, 
-            text="🚨 Maintenance Call", 
+            text="Maintenance Call", 
             bg='#ff6b35',  # Orange-red color for urgency
             fg='white',
             font=('Arial', 11, 'bold'),
@@ -132,13 +132,6 @@ class Header(tk.Frame):
             if self.log_callback:
                 self.log_callback(f"{current_time} SYSTEM: Maintenance mode deactivated")
     
-    def toggle_test(self):
-        new_mode = not self.data.test_mode
-        self.data.set_test_mode(new_mode)
-        if new_mode:
-            self.test_led.config(bg='white', fg='black')
-        else:
-            self.test_led.config(bg='#666666', fg='white')
 
     def create_line_tabs(self):
         """Create centralized line tabs that sync across the UI"""

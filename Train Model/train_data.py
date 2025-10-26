@@ -13,9 +13,7 @@ class TrainState:
     NORMAL_OPERATION = "normal_operation"
     ARRIVING_AT_STATION = "arriving_at_station"
     EMERGENCY_BRAKE = "emergency_brake"
-    OUT_OF_SERVICE = "out_of_service"
-    DOOR_OBSTRUCTION = "door_obstruction"
-    WAITING_FOR_CLEARANCE = "waiting_for_clearance"
+    ENGINE_FAILURE = "engine_failure"
 
 class TrainStateMachine:
     """Manages train state transitions and behaviors"""
@@ -24,7 +22,7 @@ class TrainStateMachine:
         self.current_state = TrainState.AT_STATION
         self.previous_state = None
         self.state_entry_time = 0
-        self.station_dwell_time = 15  # seconds at station
+        #self.station_dwell_time = 15  # seconds at station
         
     def transition_to(self, new_state):
         """Handle state transitions with validation"""
@@ -35,12 +33,9 @@ class TrainStateMachine:
         self.previous_state = self.current_state
         self.current_state = new_state
         self.state_entry_time = time.time()
-        self._on_state_enter()
         
     def update_state_based_on_conditions(self):
         """Auto-transition based on train conditions and timers"""
-        current_time = time.time()
-        time_in_state = current_time - self.state_entry_time
         
         # Emergency conditions (highest priority)
         if self.train.emergency_brake_active:
@@ -48,42 +43,36 @@ class TrainStateMachine:
                 self.transition_to(TrainState.EMERGENCY_BRAKE)
             return
             
-        if self.train.engine_failure:
-            if self.current_state != TrainState.OUT_OF_SERVICE:
-                self.transition_to(TrainState.OUT_OF_SERVICE)
-            return
-            
         # State-specific transitions
         if self.current_state == TrainState.AT_STATION:
             # Stay at station for dwell time, then depart
-            if time_in_state >= self.station_dwell_time and not self.train.right_door_open:
+            if self.train.right_door_open == False and self.train.left_door_open == False and self.train.service_brake_active == False and self.train.power_command > 0:
                 self.transition_to(TrainState.LEAVING_STATION)
                 
         elif self.current_state == TrainState.LEAVING_STATION:
             # Transition to normal operation when reaching cruising speed
-            if self.train.speed >= self.train.speed_limit * 0.7:
+            if self.train.speed > (self.train.speed_limit * 0.05):
                 self.transition_to(TrainState.NORMAL_OPERATION)
                 
         elif self.current_state == TrainState.NORMAL_OPERATION:
             # Check if approaching station (simplified - you'd use actual station distance)
-            if self.train.time_to_station <= 2:  # 2 minutes to station
+            if (self.train.service_brake_active and 
+                self.train.power_command == 0 and 
+                self.train.speed < (self.speed_limit * 0.3)):  # Only when slowing down significantly
                 self.transition_to(TrainState.ARRIVING_AT_STATION)
                 
         elif self.current_state == TrainState.ARRIVING_AT_STATION:
             # Transition to at_station when nearly stopped
-            if self.train.speed < 0.5:  # Almost stopped (m/s)
+            if self.train.speed < 0.1:  # Almost stopped (less than 0.1 m/s)
                 self.transition_to(TrainState.AT_STATION)
                 
         elif self.current_state == TrainState.EMERGENCY_BRAKE:
             # Can only leave emergency brake if manually reset
             if not self.train.emergency_brake_active and self.train.speed == 0:
                 # Return to previous state or default to AT_STATION
-                if self.previous_state:
-                    self.transition_to(self.previous_state)
-                else:
-                    self.transition_to(TrainState.AT_STATION)
+                self.transition_to(TrainState.AT_STATION)
                     
-        elif self.current_state == TrainState.OUT_OF_SERVICE:
+        elif self.current_state == TrainState.ENGINE_FAILURE:
             # Can only leave out_of_service if engine failure is fixed
             if not self.train.engine_failure:
                 self.transition_to(TrainState.AT_STATION)
@@ -146,6 +135,7 @@ class Train:
         # Station
         self.station = ""
         self.time_to_station = 0
+        self.emergency_announcement = "EMERGENCY"
         
         # Observers (callbacks for UI updates)
         self._observers = []
