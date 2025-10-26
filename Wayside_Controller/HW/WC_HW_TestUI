@@ -20,6 +20,9 @@ server1 = TrainSocketServer(port=12345, ui_id="ui_1")
 server1.set_allowed_connections(["ui_2", "ui_3"])
 server1.start_server(update_callback)
 
+#connect to other UIs - TEST UI (12347)
+server1.connect_to_ui('localhost', 12347, "ui_3")
+
 # Backend state (for all tracks)
 tracks = ["Green", "Red", "Blue"]
 

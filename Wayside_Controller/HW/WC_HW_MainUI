@@ -45,7 +45,17 @@ def update_callback(message):
     print(f"Socket message recieved: {message}")
     add_to_message_log(f"Socket: {message}")
 
-
+#Example of Process Function:
+def _process_message(self, message, source_ui_id):
+    try:
+        print(f"Received message from {source_ui_id}: {message}")
+        command = message.get('command')
+        value = message.get('value') 
+        if command == 'test':
+            print(f"fuck you SIRA")
+    except Exception as e:
+            print(f"Error processing message: {e}")
+    
 # Enhanced Mock data class for both panels
 class UITestData:
     def __init__(self):
@@ -53,8 +63,21 @@ class UITestData:
         # SOCKET SERVER
         self.server1 = TrainSocketServer(port=12345, ui_id="ui_1")
         self.server1.set_allowed_connections(["ui_2", "ui_3"])
-        self.server1.start_server(update_callback)
+        self.server1.start_server(_process_message)
         
+        # Connect to other UIs
+        self.server1.connect_to_ui('localhost', 12346, "ui_2")
+
+    def on_closing(self):
+        print("Closing application...")
+        self.server.running = False
+        if self.server.server_socket:
+            try:
+                self.server.server_socket.close()
+            except:
+                pass
+        self.root.destroy()
+
         # Current line
         self.current_line = "Blue"
         # Maintenance mode
