@@ -38,6 +38,17 @@ station_location = []
 # active_trains = []
 ######
 ##############
+
+# installing update_callback function
+def update_callback(message):
+    """Socket server callback function"""
+    print(f"Socket message recieved: {message}")
+    if 'message_logger' in globals():
+        message_logger.log(f"Socket {message}", "INFO")
+    else:
+        print(f"Socket: {message}")
+
+
 # Enhanced Mock data class for both panels
 class UITestData:
     def __init__(self):
@@ -46,7 +57,7 @@ class UITestData:
         server1 = TrainSocketServer(port=12345, ui_id="ui_1")
         server1.set_allowed_connections(["ui_2", "ui_3"])
         server1.start_server(update_callback)
-
+        
         # Current line
         self.current_line = "Blue"
         # Maintenance mode

@@ -9,6 +9,12 @@ sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
 ##############################################################################################
 
+# installing update_callback function
+def update_callback(message):
+    """Socket server callback function"""
+    print(f"Socket message recieved: {message}")
+    add_to_message_log(f"Socket: {message}")
+
 # SOCKET SERVER
 server1 = TrainSocketServer(port=12345, ui_id="ui_1")
 server1.set_allowed_connections(["ui_2", "ui_3"])
@@ -77,7 +83,348 @@ root.geometry("1400x900") # Increased width to accommodate PLC upload in header
 # background
 root.configure(bg="#1a1a4d")
 
-# # Sample data for different tracks
+# Test UI Classes (updated to match main UI structure)
+
+class MessageLogger:
+    """
+    Handles logging of system messages with timestamp and color coding.
+    Matches the main UI MessageLogger class.
+    """
+    
+    def __init__(self, text_widget):
+        self.text_widget = text_widget
+       
+    def log(self, message, level="INFO"):
+        """Add timestamped message with color coding"""
+        self.text_widget.config(state="normal")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        color = self.get_color_for_level(level)
+        self.text_widget.insert("end", f"{timestamp} [{level}] {message}\n")
+        self.text_widget.tag_config(level, foreground=color)
+        self.text_widget.see("end")
+        self.text_widget.config(state="disabled")
+   
+    def get_color_for_level(self, level):
+        colors = {"INFO": "white", "WARNING": "yellow", "ERROR": "red", "DEBUG": "cyan"}
+        return colors.get(level, "white")
+   
+    def clear(self):
+        """Clear all messages from the log"""
+        self.text_widget.config(state="normal")
+        self.text_widget.delete(1.0, "end")
+        self.text_widget.config(state="disabled")
+
+class PLCManager:
+    """
+    Manages PLC file loading and execution for the wayside controller.
+    Matches the main UI PLCManager class.
+    """
+    
+    def __init__(self, message_logger):
+        self.message_logger = message_logger
+        self.plc_instance = None
+        self.current_file = None
+       
+    def load_plc_file(self, file_path):
+        """Load a PLC program file for execution"""
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("plc_module", file_path)
+            plc_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(plc_module)
+           
+            self.plc_instance = plc_module.PLCController(self.message_logger.log)
+            self.current_file = file_path
+            self.message_logger.log(f"PLC file loaded: {file_path}", "INFO")
+            return True
+        except Exception as e:
+            self.message_logger.log(f"PLC load error: {e}", "ERROR")
+            return False
+   
+    def run_plc(self):
+        """Execute the loaded PLC program"""
+        if not self.plc_instance:
+            self.message_logger.log("No PLC file loaded", "WARNING")
+            messagebox.showwarning("No PLC File", "Please upload a PLC file first!")
+            return False
+       
+        try:
+            self.plc_instance.main()
+            self.message_logger.log(f"PLC file executed: {self.current_file.split('/')[-1]}", "INFO")
+            return True
+        except Exception as e:
+            self.message_logger.log(f"PLC runtime error: {e}", "ERROR")
+            return False
+   
+    def get_status(self):
+        """Get current PLC status"""
+        return {
+            "loaded": self.plc_instance is not None,
+            "file": self.current_file
+        }
+
+class UITestData:
+    """
+    Mock data management class that provides test data for both UI panels.
+    Matches the main UI UITestData class structure.
+    """
+    
+    def __init__(self):
+        # SOCKET SERVER - Same as main UI
+        server1 = TrainSocketServer(port=12345, ui_id="ui_1")
+        server1.set_allowed_connections(["ui_2", "ui_3"])
+        server1.start_server(self.update_callback)
+
+        # Current line
+        self.current_line = "Blue"
+        # Maintenance mode
+        self.maintenance_mode = False
+        # Callbacks - Same as main UI
+        self.on_line_change = []
+        self.on_block_change = []
+
+        self.maintenance_changes = {
+            "switches": True,
+            "lights": False,
+            "crossing": False,
+            "block_occupancy": False
+        }
+
+        # Sample block data - Same structure as main UI
+        self.block_data = [
+            ["No", "Blue", "1"],
+            ["No", "Blue", "2"],
+            ["Yes", "Blue", "6"],
+            ["No", "Blue", "10"]
+        ]
+        self.filtered_block_data = self.block_data.copy()
+
+        # Sample track data - Same structure as main UI
+        self.track_data = {
+            "crossings": {
+                "Railway Crossing: 3": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
+            },
+            "switches": {
+                "Switch 5-6": {"condition": "Normal", "direction": "Blocks 5-11"},
+                "Switch 5-11": {"condition": "Fault", "direction": "Blocks 5-15"}
+            },
+            "lights": {
+                "Light 6": {"condition": "Fault", "signal": "Red"},
+                "Light 11": {"condition": "Normal", "signal": "Green"}
+            }
+        }
+        self.filtered_track_data = self.track_data.copy()
+
+    def update_callback(self, message):
+        """Socket server callback - matches main UI"""
+        print(f"Socket message received: {message}")
+        # Add to message log
+        add_to_message_log(f"Socket: {message}")
+
+    def get_block_table_data(self):
+        """Return block table data for display - matches main UI"""
+        return self.filtered_block_data
+
+    def update_block_data(self, row_index, col_index, new_value):
+        """Update block data when changed - matches main UI"""
+        if 0 <= row_index < len(self.block_data):
+            self.block_data[row_index][col_index] = new_value
+            print(f"Updated block data: row {row_index} = {self.block_data[row_index]}")
+            for callback in self.on_block_change:
+                callback(row_index, col_index, new_value)
+
+    def filter_block_data(self, search_term):
+        """Filter block data based on search term - matches main UI"""
+        if not search_term:
+            self.filtered_block_data = self.block_data.copy()
+        else:
+            self.filtered_block_data = [
+                row for row in self.block_data
+                if any(search_term in str(cell).lower() for cell in row)
+            ]
+   
+    def is_changeable(self, component_type):
+        """Check if a component type can be edited - matches main UI"""
+        if not self.maintenance_mode:
+            return False
+        return self.maintenance_changes.get(component_type, False)
+
+class LeftPanel(tk.Frame):
+    """
+    Left control panel for track infrastructure management.
+    Matches the main UI LeftPanel class structure.
+    """
+    
+    def __init__(self, parent, data):
+        super().__init__(parent, bg='#1a1a4d', width=250)
+        self.pack_propagate(False)
+        self.data = data
+        self.create_widgets()
+        # Connect line change callback - same as main UI
+        self.data.on_line_change.append(self.on_line_changed)
+   
+    def create_widgets(self):
+        """Create all UI elements - matches main UI structure"""
+        self.create_crossing_section()
+        self.create_switch_section()
+        self.create_light_section()
+   
+    def create_crossing_section(self):
+        """Create railway crossing controls - matches main UI"""
+        crossing_frame = tk.LabelFrame(self, text="Railway Crossing Detail",
+                                      bg='#cccccc', font=('Arial', 9, 'bold'))
+        crossing_frame.pack(fill=tk.X, pady=5)
+       
+        tk.Label(crossing_frame, text="Select Crossing:", bg='#cccccc').pack(pady=2)
+        self.crossing_selector = ttk.Combobox(crossing_frame, width=18, state='readonly')
+        self.crossing_selector.pack(pady=2)
+        self.crossing_selector.bind('<<ComboboxSelected>>', self.update_crossing_display)
+       
+        # ... rest of crossing section matches main UI structure
+
+    def create_switch_section(self):
+        """Create switch controls - matches main UI"""
+        switch_frame = tk.LabelFrame(self, text="Switch Details",
+                                    bg='#cccccc', font=('Arial', 9, 'bold'))
+        switch_frame.pack(fill=tk.X, pady=5)
+       
+        # ... switch controls match main UI structure
+
+    def create_light_section(self):
+        """Create light controls - matches main UI"""
+        light_frame = tk.LabelFrame(self, text="Light Detail",
+                                   bg='#cccccc', font=('Arial', 9, 'bold'))
+        light_frame.pack(fill=tk.X, pady=5)
+       
+        # ... light controls match main UI structure
+
+    def on_line_changed(self):
+        """Update when line changes - matches main UI"""
+        print(f"Left panel: Line changed to {self.data.current_line}")
+        self.update_crossing_options()
+        self.update_switch_options()
+        self.update_light_options()
+
+    def update_crossing_options(self):
+        """Update crossing options - matches main UI"""
+        crossings = list(self.data.filtered_track_data.get("crossings", {}).keys())
+        self.crossing_selector['values'] = crossings
+        if crossings:
+            self.crossing_selector.set(crossings[0])
+            self.update_crossing_display()
+
+    def update_switch_options(self):
+        """Update switch options - matches main UI"""
+        switches = list(self.data.filtered_track_data.get("switches", {}).keys())
+        self.switch_selector['values'] = switches
+        if switches:
+            self.switch_selector.set(switches[0])
+            self.update_switch_display()
+
+    def update_light_options(self):
+        """Update light options - matches main UI"""
+        lights = list(self.data.filtered_track_data.get("lights", {}).keys())
+        self.light_selector['values'] = lights
+        if lights:
+            self.light_selector.set(lights[0])
+            self.update_light_display()
+
+    # ... Additional methods match main UI structure
+
+class RightPanel(tk.Frame):
+    """
+    Right control panel for train command and block management.
+    Matches the main UI RightPanel class structure.
+    """
+    
+    def __init__(self, parent, data):
+        super().__init__(parent, bg='#1a1a4d', width=250)
+        self.pack_propagate(False)
+        self.data = data
+        self.create_widgets()
+
+        # Connect callbacks - same as main UI
+        self.data.on_line_change.append(self.on_line_changed)
+        self.data.on_block_change.append(self.on_block_data_changed)
+
+    def on_block_data_changed(self, row_index, col_index, new_value):
+        """Handle block data changes - matches main UI"""
+        if self.data.maintenance_mode:
+            self.create_block_table()
+        add_to_message_log(f"[Test UI] Block {self.data.block_data[row_index][2]} updated to {new_value}")
+   
+    def create_widgets(self):
+        """Create all UI elements - matches main UI structure"""
+        self.create_block_selector()
+        self.create_suggested_section()
+        self.create_commanded_section()
+        self.create_block_table_section()
+
+    def create_block_selector(self):
+        """Create block selector - matches main UI"""
+        block_frame = tk.Frame(self, bg='#cccccc')
+        block_frame.pack(fill=tk.X, pady=5)
+        tk.Label(block_frame, text="Block", bg='#cccccc').pack(side=tk.LEFT, padx=5)
+       
+        self.block_combo = ttk.Combobox(block_frame, width=10, state='readonly')
+        self.block_combo.pack(side=tk.LEFT, padx=5)
+        self.update_block_options()
+
+    def create_suggested_section(self):
+        """Create suggested values section - matches main UI"""
+        suggested_frame = tk.LabelFrame(self, text="Suggested:",
+                                       bg='#cccccc', font=('Arial', 10, 'bold'))
+        suggested_frame.pack(fill=tk.X, pady=5)
+       
+        # ... suggested values match main UI structure
+
+    def create_commanded_section(self):
+        """Create commanded values section - matches main UI"""
+        commanded_frame = tk.LabelFrame(self, text="Commanded:",
+                                   bg='#cccccc', font=('Arial', 10, 'bold'))
+        commanded_frame.pack(fill=tk.X, pady=5)
+   
+        # ... commanded values match main UI structure
+
+    def create_block_table_section(self):
+        """Create block table with search - matches main UI"""
+        # Search frame
+        search_frame = tk.Frame(self, bg='#1a1a4d')
+        search_frame.pack(fill=tk.X, pady=5)
+        self.block_search_var = tk.StringVar()
+        self.block_search_var.trace('w', self.filter_block_table)
+        block_search = tk.Entry(search_frame, textvariable=self.block_search_var, width=20)
+        block_search.pack(side=tk.LEFT, padx=5)
+        tk.Label(search_frame, text="Search", bg='#1a1a4d', fg='white', font=('Arial', 9)).pack(side=tk.LEFT)
+       
+        # ... block table matches main UI structure
+
+    def update_block_options(self):
+        """Update block selector - matches main UI"""
+        blocks = [row[2] for row in self.data.block_data]
+        self.block_combo['values'] = blocks
+        if blocks:
+            self.block_combo.set(blocks[0])
+   
+    def on_line_changed(self):
+        """Refresh when line changes - matches main UI"""
+        print(f"Right panel: Line changed to {self.data.current_line}")
+        self.update_block_options()
+        self.create_block_table()
+
+    def filter_block_table(self, *args):
+        """Filter block table - matches main UI"""
+        search_term = self.block_search_var.get().lower()
+        self.data.filter_block_data(search_term)
+        self.create_block_table()
+   
+    def update_mode_ui(self):
+        """Refresh block table when mode changes - matches main UI"""
+        self.create_block_table()
+
+    # ... Additional methods match main UI structure
+
+    # # Sample data for different tracks
 # track_data = {
 #     "Green": {
 #         "suggested_speed": "45 mph",
@@ -698,344 +1045,3 @@ root.configure(bg="#1a1a4d")
 
 # # Start the main loop
 # root.mainloop()
-
-# Test UI Classes (updated to match main UI structure)
-
-class MessageLogger:
-    """
-    Handles logging of system messages with timestamp and color coding.
-    Matches the main UI MessageLogger class.
-    """
-    
-    def __init__(self, text_widget):
-        self.text_widget = text_widget
-       
-    def log(self, message, level="INFO"):
-        """Add timestamped message with color coding"""
-        self.text_widget.config(state="normal")
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        color = self.get_color_for_level(level)
-        self.text_widget.insert("end", f"{timestamp} [{level}] {message}\n")
-        self.text_widget.tag_config(level, foreground=color)
-        self.text_widget.see("end")
-        self.text_widget.config(state="disabled")
-   
-    def get_color_for_level(self, level):
-        colors = {"INFO": "white", "WARNING": "yellow", "ERROR": "red", "DEBUG": "cyan"}
-        return colors.get(level, "white")
-   
-    def clear(self):
-        """Clear all messages from the log"""
-        self.text_widget.config(state="normal")
-        self.text_widget.delete(1.0, "end")
-        self.text_widget.config(state="disabled")
-
-class PLCManager:
-    """
-    Manages PLC file loading and execution for the wayside controller.
-    Matches the main UI PLCManager class.
-    """
-    
-    def __init__(self, message_logger):
-        self.message_logger = message_logger
-        self.plc_instance = None
-        self.current_file = None
-       
-    def load_plc_file(self, file_path):
-        """Load a PLC program file for execution"""
-        try:
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("plc_module", file_path)
-            plc_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(plc_module)
-           
-            self.plc_instance = plc_module.PLCController(self.message_logger.log)
-            self.current_file = file_path
-            self.message_logger.log(f"PLC file loaded: {file_path}", "INFO")
-            return True
-        except Exception as e:
-            self.message_logger.log(f"PLC load error: {e}", "ERROR")
-            return False
-   
-    def run_plc(self):
-        """Execute the loaded PLC program"""
-        if not self.plc_instance:
-            self.message_logger.log("No PLC file loaded", "WARNING")
-            messagebox.showwarning("No PLC File", "Please upload a PLC file first!")
-            return False
-       
-        try:
-            self.plc_instance.main()
-            self.message_logger.log(f"PLC file executed: {self.current_file.split('/')[-1]}", "INFO")
-            return True
-        except Exception as e:
-            self.message_logger.log(f"PLC runtime error: {e}", "ERROR")
-            return False
-   
-    def get_status(self):
-        """Get current PLC status"""
-        return {
-            "loaded": self.plc_instance is not None,
-            "file": self.current_file
-        }
-
-class UITestData:
-    """
-    Mock data management class that provides test data for both UI panels.
-    Matches the main UI UITestData class structure.
-    """
-    
-    def __init__(self):
-        # SOCKET SERVER - Same as main UI
-        server1 = TrainSocketServer(port=12345, ui_id="ui_1")
-        server1.set_allowed_connections(["ui_2", "ui_3"])
-        server1.start_server(self.update_callback)
-
-        # Current line
-        self.current_line = "Blue"
-        # Maintenance mode
-        self.maintenance_mode = False
-        # Callbacks - Same as main UI
-        self.on_line_change = []
-        self.on_block_change = []
-
-        self.maintenance_changes = {
-            "switches": True,
-            "lights": False,
-            "crossing": False,
-            "block_occupancy": False
-        }
-
-        # Sample block data - Same structure as main UI
-        self.block_data = [
-            ["No", "Blue", "1"],
-            ["No", "Blue", "2"],
-            ["Yes", "Blue", "6"],
-            ["No", "Blue", "10"]
-        ]
-        self.filtered_block_data = self.block_data.copy()
-
-        # Sample track data - Same structure as main UI
-        self.track_data = {
-            "crossings": {
-                "Railway Crossing: 3": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
-            },
-            "switches": {
-                "Switch 5-6": {"condition": "Normal", "direction": "Blocks 5-11"},
-                "Switch 5-11": {"condition": "Fault", "direction": "Blocks 5-15"}
-            },
-            "lights": {
-                "Light 6": {"condition": "Fault", "signal": "Red"},
-                "Light 11": {"condition": "Normal", "signal": "Green"}
-            }
-        }
-        self.filtered_track_data = self.track_data.copy()
-
-    def update_callback(self, message):
-        """Socket server callback - matches main UI"""
-        print(f"Socket message received: {message}")
-        # Add to message log
-        add_to_message_log(f"Socket: {message}")
-
-    def get_block_table_data(self):
-        """Return block table data for display - matches main UI"""
-        return self.filtered_block_data
-
-    def update_block_data(self, row_index, col_index, new_value):
-        """Update block data when changed - matches main UI"""
-        if 0 <= row_index < len(self.block_data):
-            self.block_data[row_index][col_index] = new_value
-            print(f"Updated block data: row {row_index} = {self.block_data[row_index]}")
-            for callback in self.on_block_change:
-                callback(row_index, col_index, new_value)
-
-    def filter_block_data(self, search_term):
-        """Filter block data based on search term - matches main UI"""
-        if not search_term:
-            self.filtered_block_data = self.block_data.copy()
-        else:
-            self.filtered_block_data = [
-                row for row in self.block_data
-                if any(search_term in str(cell).lower() for cell in row)
-            ]
-   
-    def is_changeable(self, component_type):
-        """Check if a component type can be edited - matches main UI"""
-        if not self.maintenance_mode:
-            return False
-        return self.maintenance_changes.get(component_type, False)
-
-class LeftPanel(tk.Frame):
-    """
-    Left control panel for track infrastructure management.
-    Matches the main UI LeftPanel class structure.
-    """
-    
-    def __init__(self, parent, data):
-        super().__init__(parent, bg='#1a1a4d', width=250)
-        self.pack_propagate(False)
-        self.data = data
-        self.create_widgets()
-        # Connect line change callback - same as main UI
-        self.data.on_line_change.append(self.on_line_changed)
-   
-    def create_widgets(self):
-        """Create all UI elements - matches main UI structure"""
-        self.create_crossing_section()
-        self.create_switch_section()
-        self.create_light_section()
-   
-    def create_crossing_section(self):
-        """Create railway crossing controls - matches main UI"""
-        crossing_frame = tk.LabelFrame(self, text="Railway Crossing Detail",
-                                      bg='#cccccc', font=('Arial', 9, 'bold'))
-        crossing_frame.pack(fill=tk.X, pady=5)
-       
-        tk.Label(crossing_frame, text="Select Crossing:", bg='#cccccc').pack(pady=2)
-        self.crossing_selector = ttk.Combobox(crossing_frame, width=18, state='readonly')
-        self.crossing_selector.pack(pady=2)
-        self.crossing_selector.bind('<<ComboboxSelected>>', self.update_crossing_display)
-       
-        # ... rest of crossing section matches main UI structure
-
-    def create_switch_section(self):
-        """Create switch controls - matches main UI"""
-        switch_frame = tk.LabelFrame(self, text="Switch Details",
-                                    bg='#cccccc', font=('Arial', 9, 'bold'))
-        switch_frame.pack(fill=tk.X, pady=5)
-       
-        # ... switch controls match main UI structure
-
-    def create_light_section(self):
-        """Create light controls - matches main UI"""
-        light_frame = tk.LabelFrame(self, text="Light Detail",
-                                   bg='#cccccc', font=('Arial', 9, 'bold'))
-        light_frame.pack(fill=tk.X, pady=5)
-       
-        # ... light controls match main UI structure
-
-    def on_line_changed(self):
-        """Update when line changes - matches main UI"""
-        print(f"Left panel: Line changed to {self.data.current_line}")
-        self.update_crossing_options()
-        self.update_switch_options()
-        self.update_light_options()
-
-    def update_crossing_options(self):
-        """Update crossing options - matches main UI"""
-        crossings = list(self.data.filtered_track_data.get("crossings", {}).keys())
-        self.crossing_selector['values'] = crossings
-        if crossings:
-            self.crossing_selector.set(crossings[0])
-            self.update_crossing_display()
-
-    def update_switch_options(self):
-        """Update switch options - matches main UI"""
-        switches = list(self.data.filtered_track_data.get("switches", {}).keys())
-        self.switch_selector['values'] = switches
-        if switches:
-            self.switch_selector.set(switches[0])
-            self.update_switch_display()
-
-    def update_light_options(self):
-        """Update light options - matches main UI"""
-        lights = list(self.data.filtered_track_data.get("lights", {}).keys())
-        self.light_selector['values'] = lights
-        if lights:
-            self.light_selector.set(lights[0])
-            self.update_light_display()
-
-    # ... Additional methods match main UI structure
-
-class RightPanel(tk.Frame):
-    """
-    Right control panel for train command and block management.
-    Matches the main UI RightPanel class structure.
-    """
-    
-    def __init__(self, parent, data):
-        super().__init__(parent, bg='#1a1a4d', width=250)
-        self.pack_propagate(False)
-        self.data = data
-        self.create_widgets()
-
-        # Connect callbacks - same as main UI
-        self.data.on_line_change.append(self.on_line_changed)
-        self.data.on_block_change.append(self.on_block_data_changed)
-
-    def on_block_data_changed(self, row_index, col_index, new_value):
-        """Handle block data changes - matches main UI"""
-        if self.data.maintenance_mode:
-            self.create_block_table()
-        add_to_message_log(f"[Test UI] Block {self.data.block_data[row_index][2]} updated to {new_value}")
-   
-    def create_widgets(self):
-        """Create all UI elements - matches main UI structure"""
-        self.create_block_selector()
-        self.create_suggested_section()
-        self.create_commanded_section()
-        self.create_block_table_section()
-
-    def create_block_selector(self):
-        """Create block selector - matches main UI"""
-        block_frame = tk.Frame(self, bg='#cccccc')
-        block_frame.pack(fill=tk.X, pady=5)
-        tk.Label(block_frame, text="Block", bg='#cccccc').pack(side=tk.LEFT, padx=5)
-       
-        self.block_combo = ttk.Combobox(block_frame, width=10, state='readonly')
-        self.block_combo.pack(side=tk.LEFT, padx=5)
-        self.update_block_options()
-
-    def create_suggested_section(self):
-        """Create suggested values section - matches main UI"""
-        suggested_frame = tk.LabelFrame(self, text="Suggested:",
-                                       bg='#cccccc', font=('Arial', 10, 'bold'))
-        suggested_frame.pack(fill=tk.X, pady=5)
-       
-        # ... suggested values match main UI structure
-
-    def create_commanded_section(self):
-        """Create commanded values section - matches main UI"""
-        commanded_frame = tk.LabelFrame(self, text="Commanded:",
-                                   bg='#cccccc', font=('Arial', 10, 'bold'))
-        commanded_frame.pack(fill=tk.X, pady=5)
-   
-        # ... commanded values match main UI structure
-
-    def create_block_table_section(self):
-        """Create block table with search - matches main UI"""
-        # Search frame
-        search_frame = tk.Frame(self, bg='#1a1a4d')
-        search_frame.pack(fill=tk.X, pady=5)
-        self.block_search_var = tk.StringVar()
-        self.block_search_var.trace('w', self.filter_block_table)
-        block_search = tk.Entry(search_frame, textvariable=self.block_search_var, width=20)
-        block_search.pack(side=tk.LEFT, padx=5)
-        tk.Label(search_frame, text="Search", bg='#1a1a4d', fg='white', font=('Arial', 9)).pack(side=tk.LEFT)
-       
-        # ... block table matches main UI structure
-
-    def update_block_options(self):
-        """Update block selector - matches main UI"""
-        blocks = [row[2] for row in self.data.block_data]
-        self.block_combo['values'] = blocks
-        if blocks:
-            self.block_combo.set(blocks[0])
-   
-    def on_line_changed(self):
-        """Refresh when line changes - matches main UI"""
-        print(f"Right panel: Line changed to {self.data.current_line}")
-        self.update_block_options()
-        self.create_block_table()
-
-    def filter_block_table(self, *args):
-        """Filter block table - matches main UI"""
-        search_term = self.block_search_var.get().lower()
-        self.data.filter_block_data(search_term)
-        self.create_block_table()
-   
-    def update_mode_ui(self):
-        """Refresh block table when mode changes - matches main UI"""
-        self.create_block_table()
-
-    # ... Additional methods match main UI structure
