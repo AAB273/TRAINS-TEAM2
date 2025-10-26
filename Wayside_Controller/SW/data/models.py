@@ -49,6 +49,30 @@ class RailwayData:
         # System log reference for broadcasting messages
         self.system_log = None
 
+    def get_data_file_path(self, filename):
+        """Get the correct path to data files - works in both development and Git environments"""
+        # Get the directory where this Python file (models.py) is located
+        current_file_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Try multiple possible locations
+        possible_locations = [
+            os.path.join(current_file_dir, filename),  # Same directory as models.py
+            os.path.join(current_file_dir, '..', filename),  # Parent of current directory
+            os.path.join(current_file_dir, 'data', filename),  # data subdirectory
+            os.path.join(os.getcwd(), 'data', filename),  # data subdirectory of working dir
+            os.path.join(os.getcwd(), filename),  # Directly in working directory
+        ]
+        
+        for path in possible_locations:
+            normalized_path = os.path.normpath(path)
+            if os.path.exists(normalized_path):
+                print(f"✅ Found data file: {normalized_path}")
+                return normalized_path
+        
+        print(f"❌ Data file not found: {filename}")
+        print(f"   Searched in: {possible_locations}")
+        return None
+
     def ensure_faulted_column(self):
         """Ensure all blocks have the Faulted column (index 3) for data consistency"""
         for row in self.block_data:
@@ -100,77 +124,90 @@ class RailwayData:
 
         # Map line names to their data files
         txt_files = {
-            "Blue": "data/blue_line.txt",
-            "Green": "data/green_line.txt", 
-            "Red": "data/red_line.txt"
+            "Blue": "blue_line.txt",
+            "Green": "green_line.txt", 
+            "Red": "red_line.txt"
         }
 
-        for line, file_path in txt_files.items():
-            try:
-                with open(file_path, 'r') as file:
-                    lines = file.readlines()
-                    # Skip header line (index 0) and process data lines
-                    for row_line in lines[1:]:
-                        row = row_line.strip().split(',')
-                        if len(row) >= 3:  # Ensure we have at least block and infrastructure data
-                            block = row[1].strip()
-                            infrastructure = row[2].strip()
+        for line, filename in txt_files.items():
+            file_path = self.get_data_file_path(filename)
+            
+            if file_path and os.path.exists(file_path):
+                try:
+                    with open(file_path, 'r') as file:
+                        lines = file.readlines()
+                        # Skip header line (index 0) and process data lines
+                        for row_line in lines[1:]:
+                            row = row_line.strip().split(',')
+                            if len(row) >= 3:  # Ensure we have at least block and infrastructure data
+                                block = row[1].strip()
+                                infrastructure = row[2].strip()
 
-                            # --- SWITCHES ---
-                            if 'Switch' in infrastructure:
-                                switch_name = f"Switch {block}"
-                                directions = self.extract_switch_directions(infrastructure)
-                                self.switch_positions[switch_name] = {
-                                    "condition": "Normal Operation",
-                                    "direction": directions[0] if directions else "Unknown",
-                                    "options": directions,  # Store all possible directions for UI
-                                    "line": line  # Track which line this switch belongs to
-                                }
+                                # --- SWITCHES ---
+                                if 'Switch' in infrastructure:
+                                    switch_name = f"Switch {block}"
+                                    directions = self.extract_switch_directions(infrastructure)
+                                    self.switch_positions[switch_name] = {
+                                        "condition": "Normal Operation",
+                                        "direction": directions[0] if directions else "Unknown",
+                                        "options": directions,  # Store all possible directions for UI
+                                        "line": line  # Track which line this switch belongs to
+                                    }
 
-                            # --- RAILWAY CROSSINGS ---
-                            if 'RAILWAY CROSSING' in infrastructure:
-                                crossing_name = f"Railway {block}"
-                                self.railway_crossings[crossing_name] = {
-                                    "condition": "Normal Operation",
-                                    "lights": "Off",    # Default state
-                                    "bar": "Opened",    # Default state  
-                                    "line": line        # Track which line this crossing belongs to
-                                }
+                                # --- RAILWAY CROSSINGS ---
+                                if 'RAILWAY CROSSING' in infrastructure:
+                                    crossing_name = f"Railway {block}"
+                                    self.railway_crossings[crossing_name] = {
+                                        "condition": "Normal Operation",
+                                        "lights": "Off",    # Default state
+                                        "bar": "Opened",    # Default state  
+                                        "line": line        # Track which line this crossing belongs to
+                                    }
 
-                            # --- LIGHTS ---
-                            if 'Light' in infrastructure and 'Switch' not in infrastructure:
-                                light_name = f"Light {block}"
-                                self.light_states[light_name] = {
-                                    "condition": "Normal Operation",
-                                    "signal": "Green",  # Default signal state
-                                    "line": line        # Track which line this light belongs to
-                                }
+                                # --- LIGHTS ---
+                                if 'Light' in infrastructure and 'Switch' not in infrastructure:
+                                    light_name = f"Light {block}"
+                                    self.light_states[light_name] = {
+                                        "condition": "Normal Operation",
+                                        "signal": "Green",  # Default signal state
+                                        "line": line        # Track which line this light belongs to
+                                    }
+                    print(f"✅ Loaded {line} line track data from: {file_path}")
 
-            except FileNotFoundError:
-                print(f"⚠️ Warning: {file_path} not found. Skipping {line} line data.")
+                except Exception as e:
+                    print(f"❌ Error reading {file_path}: {e}")
+            else:
+                print(f"⚠️ Warning: Could not find data file for {line} line. Skipping {line} line data.")
 
     def load_all_block_data(self):
         """Load all block data from TXT files - each block starts unoccupied and not faulted"""
         all_block_data = []
         txt_files = {
-            "Blue": "data/blue_line.txt",
-            "Green": "data/green_line.txt", 
-            "Red": "data/red_line.txt"
+            "Blue": "blue_line.txt",
+            "Green": "green_line.txt", 
+            "Red": "red_line.txt"
         }
         
-        for line, file_path in txt_files.items():
-            try:
-                with open(file_path, 'r') as file:
-                    lines = file.readlines()
-                    # Skip header line and process each block
-                    for row_line in lines[1:]:
-                        row = row_line.strip().split(',')
-                        if len(row) >= 2:  # Need at least block number
-                            # Each block starts as unoccupied and not faulted: 
-                            # ["No", line, block_number, "No"]
-                            all_block_data.append(["No", line, row[1], "No"])
-            except FileNotFoundError:
-                print(f"⚠️ Warning: {file_path} not found. Skipping {line} block data.")
+        for line, filename in txt_files.items():
+            file_path = self.get_data_file_path(filename)
+            
+            if file_path and os.path.exists(file_path):
+                try:
+                    with open(file_path, 'r') as file:
+                        lines = file.readlines()
+                        # Skip header line and process each block
+                        for row_line in lines[1:]:
+                            row = row_line.strip().split(',')
+                            if len(row) >= 2:  # Need at least block number
+                                # Each block starts as unoccupied and not faulted: 
+                                # ["No", line, block_number, "No"]
+                                all_block_data.append(["No", line, row[1], "No"])
+                    print(f"✅ Loaded {line} line block data from: {file_path}")
+                    
+                except Exception as e:
+                    print(f"❌ Error reading {file_path}: {e}")
+            else:
+                print(f"⚠️ Warning: Could not find data file for {line} line. Skipping {line} block data.")
         
         return all_block_data
 
