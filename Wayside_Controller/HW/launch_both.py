@@ -5,8 +5,8 @@ import os
 
 def launch_both_guis():
     # Replace these with your exact filepaths
-    MAIN_UI_PATH = r"/home/siram/TRAINS-TEAM2/Wayside_Controller/HW/WC_HW_MainUI"  # Use raw string or forward slashes
-    TEST_UI_PATH = r"/home/siram/TRAINS-TEAM2/Wayside_Controller/HW/WC_HW_TestUI"
+    MAIN_UI_PATH = "/home/siram/TRAINS-TEAM2/Wayside_Controller/HW/WC_HW_MainUI"  # Use raw string or forward slashes
+    TEST_UI_PATH = "/home/siram/TRAINS-TEAM2/Wayside_Controller/HW/WC_HW_TestUI"
     
     # Verify files exist
     if not os.path.exists(MAIN_UI_PATH):
