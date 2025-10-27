@@ -23,7 +23,6 @@ class LeftPanel(tk.Frame):
     def refresh_ui(self):
         self.refresh_current_display()
 
-
     def create_widgets(self):
         # Create a frame for the main content that can scroll if needed
         main_frame = tk.Frame(self, bg='#1a1a4d')
@@ -80,7 +79,7 @@ class LeftPanel(tk.Frame):
             self.plc_instance = PLCProgram(self.data, self.log_callback)
             self.plc_running = False
 
-        # ✅ Make sure a PLC file was uploaded
+        #  Make sure a PLC file was uploaded
         if not hasattr(self, "selected_plc_file") or not self.selected_plc_file:
             messagebox.showwarning("PLC File Missing", "Please upload a PLC program first.")
             return
@@ -132,7 +131,7 @@ class LeftPanel(tk.Frame):
 
     def update_crossing_options(self):
         """Populate crossing dropdowns based on current line"""
-        crossings = list(self.data.filtered_track_data.get("crossings", {}).keys())
+        crossings = list(self.data.filtered_railway_crossings.keys())  # Changed from filtered_track_data
         self.crossing_selector['values'] = crossings
         if crossings:
             self.crossing_selector.set(crossings[0])
@@ -145,7 +144,7 @@ class LeftPanel(tk.Frame):
 
     def update_crossing_display(self, event=None):
         selected = self.crossing_selector.get()
-        crossings = self.data.filtered_track_data.get("crossings", {})
+        crossings = self.data.filtered_railway_crossings  # Changed from filtered_track_data
         if selected in crossings:
             data = crossings[selected]
             self.crossing_condition.config(state='normal')
@@ -161,16 +160,17 @@ class LeftPanel(tk.Frame):
         if selected:
             new_light = self.crossing_lights.get()
             new_bar = self.crossing_bar.get()
-            # Update model
-            self.data.update_track_data("crossings", selected, "lights", new_light)
-            self.data.update_track_data("crossings", selected, "bar", new_bar)
-            self.data.update_track_data("crossings", selected, "condition", f"Lights: {new_light}, Bar: {new_bar}")
+            # Update model - use separate variables
+            self.data.update_track_data("railway_crossings", selected, "lights", new_light)  # Changed category
+            self.data.update_track_data("railway_crossings", selected, "bar", new_bar)  # Changed category
+            self.data.update_track_data("railway_crossings", selected, "condition", f"Lights: {new_light}, Bar: {new_bar}")  # Changed category
             self.update_crossing_display()
 
             # Log the action - use the direct callback - JUST LIKE YOUR TEST PANEL
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             if self.log_callback:
                 self.log_callback(f"{current_time} UPDATE: Crossing {selected} set - Lights: {new_light}, Bar: {new_bar} on {self.data.current_line} track")
+
     # ------------------------------
     # SWITCHES
     # ------------------------------
@@ -200,7 +200,7 @@ class LeftPanel(tk.Frame):
 
     def update_switch_options(self):
         """Populate switch dropdowns based on current line"""
-        switches = list(self.data.filtered_track_data.get("switches", {}).keys())
+        switches = list(self.data.filtered_switch_positions.keys())  # Changed from filtered_track_data
         self.switch_selector['values'] = switches
         if switches:
             self.switch_selector.set(switches[0])
@@ -213,7 +213,7 @@ class LeftPanel(tk.Frame):
 
     def update_switch_display(self, event=None):
         selected = self.switch_selector.get()
-        switches = self.data.filtered_track_data.get("switches", {})
+        switches = self.data.filtered_switch_positions  # Changed from filtered_track_data
         if selected in switches:
             data = switches[selected]
             self.switch_condition.config(state='normal')
@@ -232,8 +232,8 @@ class LeftPanel(tk.Frame):
         selected = self.switch_selector.get()
         if selected:
             new_direction = self.switch_direction.get()
-            self.data.update_track_data("switches", selected, "direction", new_direction)
-            self.data.update_track_data("switches", selected, "condition", f"Set to {new_direction}")
+            self.data.update_track_data("switch_positions", selected, "direction", new_direction)  # Changed category
+            self.data.update_track_data("switch_positions", selected, "condition", f"Set to {new_direction}")  # Changed category
             self.update_switch_display()
 
             # Log the action - use the direct callback - JUST LIKE YOUR TEST PANEL
@@ -271,7 +271,7 @@ class LeftPanel(tk.Frame):
 
     def update_light_options(self):
         """Populate light dropdowns based on current line"""
-        lights = list(self.data.filtered_track_data.get("lights", {}).keys())
+        lights = list(self.data.filtered_light_states.keys())  # Changed from filtered_track_data
         self.light_selector['values'] = lights
         if lights:
             self.light_selector.set(lights[0])
@@ -284,7 +284,7 @@ class LeftPanel(tk.Frame):
 
     def update_light_display(self, event=None):
         selected = self.light_selector.get()
-        lights = self.data.filtered_track_data.get("lights", {})
+        lights = self.data.filtered_light_states  # Changed from filtered_track_data
         if selected in lights:
             data = lights[selected]
             self.light_condition.config(state='normal')
@@ -298,8 +298,8 @@ class LeftPanel(tk.Frame):
         selected = self.light_selector.get()
         if selected:
             new_signal = self.light_signal.get()
-            self.data.update_track_data("lights", selected, "signal", new_signal)
-            self.data.update_track_data("lights", selected, "condition", f"Signal: {new_signal}")
+            self.data.update_track_data("light_states", selected, "signal", new_signal)  # Changed category
+            self.data.update_track_data("light_states", selected, "condition", f"Signal: {new_signal}")  # Changed category
             self.update_light_display()
             
             # Log the action - use the direct callback - JUST LIKE YOUR TEST PANEL
@@ -350,9 +350,9 @@ class LeftPanel(tk.Frame):
                 
                 print(f"Switch update: {track} Block {block} -> {switch_direction}")
                 
-                # Update main UI data model
-                self.update_track_data_cross_line("switches", track, block, "direction", switch_direction)
-                self.update_track_data_cross_line("switches", track, block, "condition", f"Set to {switch_direction}")
+                # Update main UI data model - use new variable names
+                self.update_track_data_cross_line("switch_positions", track, block, "direction", switch_direction)  # Changed category
+                self.update_track_data_cross_line("switch_positions", track, block, "condition", f"Set to {switch_direction}")  # Changed category
                 
                 # FORCE LEFT PANEL REFRESH
                 self.force_left_panel_refresh()
@@ -383,12 +383,16 @@ class LeftPanel(tk.Frame):
                 
                 print(f"Crossing update: {track} Block {block} -> Lights:{lights_setting}, Bar:{crossbar_setting}")
                 
-                # Update main UI data model
-                self.update_track_data_cross_line("crossings", track, block, "lights", lights_setting)
-                self.update_track_data_cross_line("crossings", track, block, "bar", crossbar_setting)
-                self.update_track_data_cross_line("crossings", track, block, "condition", f"Lights: {lights_setting}, Bar: {crossbar_setting}")
+                # Update main UI data model - use new variable names
+                self.update_track_data_cross_line("railway_crossings", track, block, "lights", lights_setting)  # Changed category
+                self.update_track_data_cross_line("railway_crossings", track, block, "bar", crossbar_setting)  # Changed category
+                self.update_track_data_cross_line("railway_crossings", track, block, "condition", f"Lights: {lights_setting}, Bar: {crossbar_setting}")  # Changed category
                 
                 # FORCE LEFT PANEL REFRESH
                 self.force_left_panel_refresh()
         else:
             print(f"Unknown crossing message format: {log_message}")
+
+    def force_left_panel_refresh(self):
+        """Force refresh of left panel displays"""
+        self.refresh_current_display()
