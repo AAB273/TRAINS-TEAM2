@@ -5,6 +5,11 @@ import CTC_Schedule_Screen
 import CTC_Test_UI
 import os
 
+#necessary to import the clock from the parent directory#
+import sys
+sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
+import clock
+
 #full background color = #1a1a4d
 #box color = #4d4d6d
 
@@ -48,24 +53,12 @@ def main():
     mainScreen.schedule_screen = scheduleScreen
     testUI = CTC_Test_UI.TestUI(win)
     #create the ui objects
-    
-    programLoop(root, mainScreen, testUI) 
-    #run the loop the continuously checks the data file
+
+    # root.protocol("WM_DELETE_WINDOW", CTC_Main_Screen.MainScreen.onClosing)
         
     root.mainloop()
-
-
-def programLoop(root: tk.Tk, mainScreen: CTC_Main_Screen, testUI: CTC_Test_UI):
-    #continuously poll the data files to check for data changes
-
-    if (os.stat("CTC_Office/CTC_data.txt").st_size != 0):
-        mainScreen.updateMainScreen()
-    if (os.stat("CTC_Office/to_test_ui.txt").st_size != 0):
-        testUI.updateTestUI()
-    #check if files have data, then run appropriate methods to update the ui appearance
-
-    root.after(500, programLoop, root, mainScreen, testUI)
-    #call function every 0.5 seconds
+    clock.clock.endTimer()
+    #end program by ending mainloop() and ending the clock timer
 
 
 main()

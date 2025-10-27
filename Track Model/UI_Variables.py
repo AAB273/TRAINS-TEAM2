@@ -11,6 +11,13 @@ class TrackDataManager:
         self.commanded_authority = []
         self.environmental_temp = None
 
+        # ADD THIS: Bidirectional block directions
+        self.bidirectional_directions = {
+            "Blocks 1-5": 0,  # 0 = left, 1 = right
+            "Blocks 6-10": 0,
+            "Blocks 11-15": 0
+        }
+
         # ---------------- Default Track Setup ----------------
         self._create_default_blocks()
         num_blocks = len(self.blocks)
@@ -31,17 +38,17 @@ class TrackDataManager:
             self.passengers_boarding[idx] = 0
             self.passengers_disembarking[idx] = 0
 
-        print("Initialized station_location:", self.station_location)
-        print("Initialized ticket_sales:", self.ticket_sales)
-        print("Initialized passengers_boarding:", self.passengers_boarding)
-        print("Initialized passengers_disembarking:", self.passengers_disembarking)
+        # print("Initialized station_location:", self.station_location)
+        # print("Initialized ticket_sales:", self.ticket_sales)
+        # print("Initialized passengers_boarding:", self.passengers_boarding)
+        # print("Initialized passengers_disembarking:", self.passengers_disembarking)
 
 
     # ---------------- Excel Data Loading ----------------
     def load_excel_data(self, track_path=None, train_path=None):
         """Load data from Excel files; fallback to defaults if missing."""
         if not track_path or not train_path:
-            print("No Excel files provided. Using default blank data.")
+            # print("No Excel files provided. Using default blank data.")
             self._create_default_blocks()
             return True
 
@@ -70,11 +77,11 @@ class TrackDataManager:
             self.commanded_speed = train_df["Commanded Speed"].tolist() if "Commanded Speed" in train_df else []
             self.commanded_authority = train_df["Commanded Authority"].tolist() if "Commanded Authority" in train_df else []
 
-            print("Excel data loaded successfully.")
+            # print("Excel data loaded successfully.")
             return True
 
         except Exception as e:
-            print(f"❌ Error loading Excel data: {e}")
+            # print(f"❌ Error loading Excel data: {e}")
             self._create_default_blocks()
             return False
 
@@ -82,10 +89,10 @@ class TrackDataManager:
         """Create 15 default track blocks."""
         from Track_Blocks import Block
         self.blocks = [
-            Block(block_number=i+1, length=50, grade=0, elevation=0, speed_limit=50)
+            Block(block_number=i+1, length=50, grade=0, elevation=0, speed_limit=50, 
+                track_heater=[0, 1], beacon=[0]*128)  # Default 128-bit beacon
             for i in range(15)
         ]
-
 
     # ---------------- Data Access ----------------
     def get_data(self):
@@ -102,6 +109,32 @@ class TrackDataManager:
             "passengers_boarding": self.passengers_boarding,
             "passengers_disembarking": self.passengers_disembarking,
         }
+    
+    # In UI_Variables.py, replace the method:
+    def collect_outputs_to_send(self):
+        """Collect all block data for output transmission."""
+        outputs_to_send = [
+            "ticket_sales", "passengers_disembarking", "occupancy",
+            "commanded_speed", "commanded_authority", "beacon",
+            "failure_mode", "passengers_boarding"
+        ]
+        
+        data_to_send = []
+        for b in self.blocks:  # Fixed: self.blocks instead of self.manager.blocks
+            block_data = {}
+            for attr in outputs_to_send:
+                # Handle attributes stored in manager vs block
+                if attr in ["ticket_sales", "passengers_boarding", "passengers_disembarking"]:
+                    block_idx = b.block_number - 1
+                    if 0 <= block_idx < len(getattr(self, attr, [])):
+                        block_data[attr] = getattr(self, attr)[block_idx]
+                    else:
+                        block_data[attr] = 0
+                else:
+                    block_data[attr] = getattr(b, attr, None)
+            data_to_send.append(block_data)
+        
+        return data_to_send
 
     # ---------------- Helper Accessors ----------------
     def get_active_trains(self):
