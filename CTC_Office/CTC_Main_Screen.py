@@ -47,9 +47,9 @@ class MainScreen:
         self.totalPassengers = 0 
         self.numberOfTrains = 1
 
-        server = TrainSocketServer(port=12345, ui_id="CTC_Main_Screen")
-        server.set_allowed_connections(["CTC_Test_UI", "ui_3"])
-        server.start_server(self._processMessage)
+        self.server = TrainSocketServer(port=12345, ui_id="CTC_Main_Screen")
+        self.server.set_allowed_connections(["CTC_Test_UI", "ui_3"])
+        self.server.start_server(self._processMessage)
 
         self.createTopRow()
         #print the logo, reference map button, time
@@ -58,7 +58,26 @@ class MainScreen:
 
 ###############################################################################################################################################################
 
-    def _processMessage(message, source_ui_id):
+    def send_to_ui(self, command, value=None):
+        """Send command to the target UI (creates dict for socket server)"""
+        message = {'command': command}
+        if value is not None:
+            message['value'] = value
+        
+        # Always send to Train_Model_Passenger_UI
+        target_ui = "CTC_Test_UI"
+        success = self.server.send_to_ui(target_ui, message)
+        
+        if success:
+            print(f"Sent {command} to {target_ui}")
+        else:
+            print(f"Failed to send {command} to {target_ui}")
+
+        return success
+    
+###############################################################################################################################################################
+
+    def _processMessage(self, message, source_ui_id):
         """Process incoming messages and update train state"""
         try:
             print(f"Received message from {source_ui_id}: {message}")
@@ -66,28 +85,30 @@ class MainScreen:
             command = message.get('command')
             value = message.get('value')
 
-            if (command == "test"):
-                print("fuck you alex")
+            self.updateMainScreen(command, value)
 
         except Exception as e:
             print(f"Error processing message: {e}")
 
 ###############################################################################################################################################################
 
-    def updateMainScreen(self):
+    def updateMainScreen(self, code, data):
     #update any data according to the data file
         '''
         Note: Follows formatting rules specified in README.txt.
         '''
 
-        infile = open("CTC_Office/CTC_data.txt", "r")
-        data = infile.readline()
-        #read in first line of data file to grab the data type
-
-        if (data.strip() == "TS"):
+        if (code == "TS"):
         #track state data case
-            location = infile.readline().strip()
-            line = infile.readline().strip()
+            location = ""
+            commaInd = 0
+            #index of the space to allow us to grab other data from the string
+            for i in range(len(data)):
+                if (data[i] == ","):
+                    commaInd = i
+                    break
+                location += data[i]
+            line = data[(commaInd + 2):]
 
             children = self.tsArea.get_children("")
             #get a list of the items in the Treeview
@@ -118,11 +139,29 @@ class MainScreen:
                     level = self.tsArea.insert('', "end", text = line.title())
                     self.tsArea.insert(level, "end", text = "Block " + location, values = ["Send Maintenance"])
 
-        elif (data.strip() == "TP"):
+        elif (code == "TP"):
         #throughput data case
-            tickets = int(infile.readline().strip())
-            disemb = int(infile.readline().strip())
-            line = infile.readline().strip()
+            tickets = ""
+            disemb = ""
+            commaInd = 0
+
+            #grab data from message
+            for i in range(len(data)):
+                if (data[i] == ","):
+                    commaInd = i
+                    break
+                tickets += data[i]
+            data = data[commaInd + 2:]
+            for i in range(len(data)):
+                if (data[i] == ","):
+                    commaInd = i
+                    break
+                disemb += data[i]
+            line = data[commaInd + 2:]
+
+            tickets = int(tickets)
+            disemb = int(disemb)
+
             self.totalPassengers += (tickets - disemb)
             #add new passengers to total
 
@@ -144,11 +183,25 @@ class MainScreen:
                         self.tpArea.insert("", "end", text = line.title(), values = [self.totalPassengers/self.numberOfTrains])
                         break
 
-        elif (data.strip() == "LS"):  
+        elif (code == "LS"):  
         #light switch data case
-            location = infile.readline().strip()
-            state = infile.readline().strip()
-            line = infile.readline().strip()
+            location = ""
+            state = ""
+            commaInd = 0
+
+            #grab data from message
+            for i in range(len(data)):
+                if (data[i] == ","):
+                    commaInd = i
+                    break
+                location += data[i]
+            data = data[commaInd + 2:]
+            for i in range(len(data)):
+                if (data[i] == ","):
+                    commaInd = i
+                    break
+                state += data[i]
+            line = data[commaInd + 2:]
         
             if (state == "00"):
                 state = "red"
@@ -191,11 +244,25 @@ class MainScreen:
                     level = self.lsArea.insert('', "end", text = line.title())
                     self.lsArea.insert(level, "end", text = "Block " + location, values = [state])
 
-        elif (data.strip() == "RC"):
+        elif (code == "RC"):
             #railway crossing data case
-            location = infile.readline().strip()
-            state = infile.readline().strip()
-            line = infile.readline().strip()
+            location = ""
+            state = ""
+            commaInd = 0
+            
+            #grab data from message
+            for i in range(len(data)):
+                if (data[i] == ","):
+                    commaInd = i
+                    break
+                location += data[i]
+            data = data[commaInd + 2:]
+            for i in range(len(data)):
+                if (data[i] == ","):
+                    commaInd = i
+                    break
+                state += data[i]
+            line = data[commaInd + 2:]
            
             if (state == "0"):
                 state = "inactive"
@@ -234,11 +301,6 @@ class MainScreen:
                     level = self.rcArea.insert('', "end", text = line.title())
                     self.rcArea.insert(level, "end", text = "Block " + location, values = [state])
         
-        infile.close()
-        reset = open("CTC_Office/CTC_data.txt", "w")
-        reset.close()
-        #close read-in file, then clear the data file
-
 ###############################################################################################################################################################
 
     def createTopRow(self):
@@ -554,8 +616,6 @@ class MainScreen:
                     Write all data to to_test_ui.txt data file so the test ui can read in data changes
                     Follows formatting rules specified in README.txt
                     '''
-                    toTest = open("CTC_Office/to_test_ui.txt", "w")
-                    toTest.write("TS\n")
 
                     temp = self.tsArea.item(rowID, "text")
                     location = ""
@@ -563,11 +623,8 @@ class MainScreen:
                     #grab block number from row
                         if (char.isdigit()):
                             location += char
-                    
-                    toTest.write(location + "\n")
-                    toTest.write(self.tsArea.item(self.tsArea.parent(rowID), "text").lower())
-                    #grab line
-                    toTest.close()
+
+                    self.send_to_ui("TS", location + ", " + self.tsArea.item(self.tsArea.parent(rowID), "text").lower())
 
 ###############################################################################################################################################################
     
@@ -594,8 +651,6 @@ class MainScreen:
                     Write all data to to_test_ui.txt data file so the test ui can read in data changes
                     Follows formatting rules specified in README.txt
                     '''
-                    toTest = open("CTC_Office/to_test_ui.txt", "w")
-                    toTest.write("MM\n")
 
                     temp = self.mmArea.item(rowID, "text")
                     location = ""
@@ -603,7 +658,6 @@ class MainScreen:
                         if (char.isdigit()):
                             location += char
                     #grab specific block location
-                    toTest.write(location + "\n")
 
                     temp = self.mmArea.item(rowID, "values")[0]
                     direction = ""
@@ -611,22 +665,17 @@ class MainScreen:
                         if (char.isdigit()):
                             direction += char
                     #grab specific block direction
-                    toTest.write(direction + "\n")
-                    toTest.write(self.mmArea.item(self.mmArea.parent(rowID), "text").lower())
-                    #grab line
-                    toTest.close()
+
+                    self.send_to_ui("MM", location + ", " + direction + ", " + self.mmArea.item(self.mmArea.parent(rowID), "text").lower())
 
 ###############################################################################################################################################################
 
-def onClosing():
-    """Handle application closing"""
-    print("Closing application...")
-    self.server.running = False
-    if self.server.server_socket:
-        try:
-            self.server.server_socket.close()
-        except:
-            pass
-    self.root.destroy()
-
-    
+    def onClosing(self):
+        """Handle application closing"""
+        print("Closing application...")
+        self.server.running = False
+        if self.server.server_socket:
+            try:
+                self.server.server_socket.close()
+            except:
+                pass

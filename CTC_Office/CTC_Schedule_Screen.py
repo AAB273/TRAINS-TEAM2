@@ -265,19 +265,13 @@ class ScheduleScreen:
         Write all data to to_test_ui.txt data file so the test ui can read in data changes
         Follows formatting rules specified in README.txt
         '''
-        outfile = open("CTC_Office/to_test_ui.txt", "w")
-        outfile.write("TL\n")
-        outfile.write(str(self.trainNum) + "\n")
 
         distToStation = float(750)
         #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
         arrTime = self.timeToSeconds(time)
         speed = distToStation / arrTime
 
-        outfile.write(f"{speed:.3f}\n")
-        outfile.write("8\n")
-        outfile.write(line + "\n")
-        outfile.close()
+        self.mainScreen.send_to_ui("TL", str(self.trainNum - 1) + ", " + f"{speed:.3f}\n" + ", 8, " + line)
 
 ###############################################################################################################################################################
 
@@ -305,8 +299,6 @@ class ScheduleScreen:
                         Write all data to to_test_ui.txt data file so the test ui can read in data changes
                         Follows formatting rules specified in README.txt
                         '''
-                        outfile = open("CTC_Office/to_test_ui.txt", "w")
-                        outfile.write("TL\n")
 
                         temp = self.meArea.item(rowID, "text")
                         train = ""
@@ -314,17 +306,13 @@ class ScheduleScreen:
                             if (char.isdigit()):
                                 train += char
                         #grab train number
-                        outfile.write(train + "\n")
 
                         distToStation = float(750)
                         #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
                         arrTime = self.timeToSeconds(self.meArea.item(rowID, "values")[2])
                         speed = distToStation / arrTime
-                        outfile.write(f"{speed:.3f}\n")
 
-                        outfile.write("7\n")
-                        outfile.write(self.meArea.item(self.meArea.parent(rowID), "text") + "\n")
-                        outfile.close()
+                        self.mainScreen.send_to_ui("TL", train + ", " + f"{speed:.3f}" + ", 7, " + self.meArea.item(self.meArea.parent(rowID), "text"))
 
             elif (colID == "#3"):
             #check that user clicked in arrival time column
@@ -342,8 +330,6 @@ class ScheduleScreen:
                         Write all data to to_test_ui.txt data file so the test ui can read in data changes
                         Follows formatting rules specified in README.txt
                         '''
-                        outfile = open("CTC_Office/to_test_ui.txt", "w")
-                        outfile.write("TL\n")
 
                         temp = self.meArea.item(rowID, "text")
                         train = ""
@@ -351,18 +337,13 @@ class ScheduleScreen:
                             if (char.isdigit()):
                                 train += char
                         #grab specific train number
-
-                        outfile.write(train + "\n")
                         
                         distToStation = float(750)
                         #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
                         arrTime = self.timeToSeconds(newTime)
                         speed = distToStation / arrTime
-                        outfile.write(f"{speed:.3f}\n")
-                        
-                        outfile.write("9\n")
-                        outfile.write(self.meArea.item(self.meArea.parent(rowID), "text") + "\n")
-                        outfile.close()
+
+                        self.mainScreen.send_to_ui("TL", train + ", " + f"{speed:.3f}" + ", 9, " + self.meArea.item(self.meArea.parent(rowID), "text"))
 
 ###############################################################################################################################################################
 
