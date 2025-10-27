@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Train Control System for Raspberry Pi 5
+Train Control System for Raspberry Pi 5 - WITH SOCKET SERVER
 
 Hardware Setup:
 - Left Door Button: GPIO 17 (with pull-up resistor)
@@ -34,10 +34,12 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # Add parent directory for TrainSocketServer
 
 from TC_HW_AirConditioning_UI import ACSystemPanel
 from TC_HW_Announcement_UI import StationAnnouncementPanel
 from TC_HW_TrackInfo_UI import TrackInformationPanel
+from TrainSocketServer import TrainSocketServer
 
 # GPIO Pin Configuration Constants
 LEFT_DOOR_BUTTON = 17
@@ -64,63 +66,35 @@ SIGNAL_FAILURE_LED = 6
 
 # Global state variables
 leftDoorOpen = False
-# Status of left door (True = open, False = closed).
 rightDoorOpen = False
-# Status of right door (True = open, False = closed).
 headlightsOn = False
-# Status of headlights (True = on, False = off).
 interiorLightsOn = False
-# Status of interior lights (True = on, False = off).
 serviceBrakeActive = False
-# Status of service brake (True = engaged, False = released).
 trainHornActive = False
-# Status of train horn (True = sounding, False = off).
 emergencyBrakeEngaged = False
-# Status of emergency brake (True = engaged, False = released).
 drivetrainManualMode = False
-# Drivetrain mode (False = Automatic, True = Manual).
 speedUpPressed = False
-# Status of speed up button (True = currently pressed, False = not pressed).
 speedDownPressed = False
-# Status of speed down button (True = currently pressed, False = not pressed).
 speedConfirmPressed = False
-# Status of speed confirm button (True = currently pressed, False = not pressed).
 commandedSpeed = 0
-# Commanded speed in MPH - set by Train Model.
 commandedAuthority = 0
-# Commanded authority in blocks - set by Train Model.
 currentSpeed = 0
-# Current actual train speed in MPH.
 manualSetpointSpeed = 0
-# Speed setpoint in manual mode in MPH.
 passengerEmergencySignal = False
-# Passenger emergency signal status.
 brakeFailure = False
-# Brake failure indicator status.
 engineFailure = False
-# Engine failure indicator status.
 signalFailure = False
-# Signal failure indicator status.
 
 h = None
-# GPIO chip handle.
-
 running = True
-# Flag to control the button monitoring loop.
-
 acPanel = None
-# AC System Panel instance.
 announcementPanel = None
-# Station Announcement Panel instance.
 trackInfoPanel = None
-# Track Information Panel instance.
 
 def setup():
-	# Initializes GPIO pins for all buttons and LEDs.
 	global h
 	
 	h = lgpio.gpiochip_open(4)
-	# Pi 5 uses gpiochip4.
 	print(f"GPIO chip handle: {h}")
 	
 	lgpio.gpio_claim_input(h, LEFT_DOOR_BUTTON, lgpio.SET_PULL_UP)
@@ -162,7 +136,6 @@ def setup():
 	print("=" * 50)
 
 def checkButtons():
-	# Monitors all button states and handles toggling and speed control.
 	global leftDoorOpen, rightDoorOpen, headlightsOn, interiorLightsOn
 	global serviceBrakeActive, trainHornActive, emergencyBrakeEngaged
 	global drivetrainManualMode, manualSetpointSpeed
@@ -195,11 +168,8 @@ def checkButtons():
 		speedConfirmState = lgpio.gpio_read(h, SPEED_CONFIRM_BUTTON)
 		
 		speedUpPressed = (speedUpState == 0)
-		# Update speed up button pressed state.
 		speedDownPressed = (speedDownState == 0)
-		# Update speed down button pressed state.
 		speedConfirmPressed = (speedConfirmState == 0)
-		# Update speed confirm button pressed state.
 		
 		if prevLeft == 1 and leftState == 0:
 			leftDoorOpen = not leftDoorOpen
@@ -246,7 +216,7 @@ def checkButtons():
 		if prevEmergencyBrake == 1 and emergencyBrakeState == 0:
 			emergencyBrakeEngaged = not emergencyBrakeEngaged
 			lgpio.gpio_write(h, EMERGENCY_BRAKE_LED, 1 if emergencyBrakeEngaged else 0)
-			status = "ENGAGED" if emergencyBrakeEngaged else "RELEASED"
+			status = "🚨 ENGAGED 🚨" if emergencyBrakeEngaged else "RELEASED"
 			print(f"EMERGENCY BRAKE: {status}")
 			time.sleep(0.3)
 		
@@ -263,19 +233,13 @@ def checkButtons():
 		if drivetrainManualMode:
 			if prevSpeedUp == 1 and speedUpState == 0:
 				manualSetpointSpeed = min(manualSetpointSpeed + 5, 70)
-				# Max 70 MPH.
 				print(f"Manual Speed Setpoint: {manualSetpointSpeed} MPH")
-				time.sleep(0.15)
+				time.sleep(0.2)
 			
 			if prevSpeedDown == 1 and speedDownState == 0:
 				manualSetpointSpeed = max(manualSetpointSpeed - 5, 0)
-				# Min 0 MPH.
 				print(f"Manual Speed Setpoint: {manualSetpointSpeed} MPH")
-				time.sleep(0.15)
-			
-			if prevSpeedConfirm == 1 and speedConfirmState == 0:
-				print(f"✓ SPEED CONFIRMED: {manualSetpointSpeed} MPH")
-				time.sleep(0.3)
+				time.sleep(0.2)
 		
 		prevLeft = leftState
 		prevRight = rightState
@@ -289,140 +253,31 @@ def checkButtons():
 		prevSpeedDown = speedDownState
 		prevSpeedConfirm = speedConfirmState
 		
-		time.sleep(0.01)
+		time.sleep(0.05)
 
-def getServiceBrakeState() -> bool:
-	# Returns the current state of the service brake.
-	return serviceBrakeActive
-
-def getTrainHornState() -> bool:
-	# Returns the current state of the train horn.
-	return trainHornActive
-
-def getEmergencyBrakeState() -> bool:
-	# Returns the current state of the emergency brake.
-	return emergencyBrakeEngaged
-
-def getDrivetrainMode() -> str:
-	# Returns the current drivetrain mode as a string.
-	if drivetrainManualMode:
-		return "MANUAL"
-	else:
-		return "AUTOMATIC"
-
-def isManualMode() -> bool:
-	# Returns whether the drivetrain is in manual mode.
-	return drivetrainManualMode
-
-def setCommandedSpeed(speed: float):
-	# Sets the commanded speed from Train Model.
-	global commandedSpeed
-	commandedSpeed = max(0, min(speed, 70))
-	# Clamp between 0-70 MPH.
-	print(f"Commanded Speed set to: {commandedSpeed} MPH")
-
-def setCommandedAuthority(authority: int):
-	# Sets the commanded authority from Train Model.
-	global commandedAuthority
-	commandedAuthority = max(0, authority)
-	print(f"Commanded Authority set to: {commandedAuthority} blocks")
-
-def setCurrentSpeed(speed: float):
-	# Sets the current actual speed of the train.
-	global currentSpeed
-	currentSpeed = max(0, min(speed, 70))
-
-def getCommandedSpeed() -> float:
-	# Returns the commanded speed from Train Model.
-	return commandedSpeed
-
-def getCommandedAuthority() -> int:
-	# Returns the commanded authority from Train Model.
-	return commandedAuthority
-
-def getCurrentSpeed() -> float:
-	# Returns the current actual speed of the train.
+def getCurrentSpeed():
 	return currentSpeed
 
-def getManualSetpointSpeed() -> float:
-	# Returns the manual mode speed setpoint.
+def getCommandedSpeed():
+	return commandedSpeed
+
+def getCommandedAuthority():
+	return commandedAuthority
+
+def getManualSetpointSpeed():
 	return manualSetpointSpeed
 
-def getTargetSpeed() -> float:
-	# Returns the target speed based on mode.
-	if drivetrainManualMode:
-		return manualSetpointSpeed
-	else:
-		return commandedSpeed
+def getDrivetrainMode():
+	return "MANUAL" if drivetrainManualMode else "AUTOMATIC"
 
-def getLeftDoorState() -> bool:
-	# Returns the state of the left door.
-	return leftDoorOpen
-
-def getRightDoorState() -> bool:
-	# Returns the state of the right door.
-	return rightDoorOpen
-
-def getHeadlightsState() -> bool:
-	# Returns the state of the headlights.
-	return headlightsOn
-
-def getInteriorLightsState() -> bool:
-	# Returns the state of the interior lights.
-	return interiorLightsOn
-
-def getSpeedUpPressed() -> bool:
-	# Returns whether the speed up button is currently pressed.
-	return speedUpPressed
-
-def getSpeedDownPressed() -> bool:
-	# Returns whether the speed down button is currently pressed.
-	return speedDownPressed
-
-def getSpeedConfirmPressed() -> bool:
-	# Returns whether the speed confirm button is currently pressed.
-	return speedConfirmPressed
-
-def setPassengerEmergency(state: bool):
-	# Sets passenger emergency signal state from Train Model.
-	global passengerEmergencySignal
-	passengerEmergencySignal = state
-	value = 1 if state else 0
-	result = lgpio.gpio_write(h, PASSENGER_EMERGENCY_LED, value)
-	status = "ACTIVE ⚠️" if state else "CLEARED"
-	print(f"Passenger Emergency Signal: {status} (GPIO {PASSENGER_EMERGENCY_LED} set to {value}, result: {result})")
-
-def setBrakeFailure(state: bool):
-	# Sets brake failure indicator state from Train Model.
-	global brakeFailure
-	brakeFailure = state
-	lgpio.gpio_write(h, BRAKE_FAILURE_LED, 1 if state else 0)
-	status = "FAILURE ⚠️" if state else "OK"
-	print(f"Brake System: {status}")
-
-def setEngineFailure(state: bool):
-	# Sets engine failure indicator state from Train Model.
-	global engineFailure
-	engineFailure = state
-	lgpio.gpio_write(h, ENGINE_FAILURE_LED, 1 if state else 0)
-	status = "FAILURE ⚠️" if state else "OK"
-	print(f"Engine System: {status}")
-
-def setSignalFailure(state: bool):
-	# Sets signal failure indicator state from Train Model.
-	global signalFailure
-	signalFailure = state
-	lgpio.gpio_write(h, SIGNAL_FAILURE_LED, 1 if state else 0)
-	status = "FAILURE ⚠️" if state else "OK"
-	print(f"Signal System: {status}")
+def isManualMode():
+	return drivetrainManualMode
 
 def cleanup():
-	# Cleans up GPIO on exit and closes all windows.
-	global running
+	global running, h
 	running = False
-	# Stop the button monitoring thread.
-	time.sleep(0.1)
-	# Give thread time to exit.
+	time.sleep(0.2)
+	
 	lgpio.gpio_write(h, LEFT_DOOR_LED, 0)
 	lgpio.gpio_write(h, RIGHT_DOOR_LED, 0)
 	lgpio.gpio_write(h, HEADLIGHTS_LED, 0)
@@ -437,7 +292,6 @@ def cleanup():
 	print("GPIO cleaned up. Goodbye!")
 
 def cleanupAll():
-	# Cleans up all resources and closes all windows.
 	cleanup()
 	try:
 		if acPanel and acPanel.root.winfo_exists():
@@ -456,60 +310,88 @@ def cleanupAll():
 		pass
 
 def main():
-	# Main program with all Tkinter UIs.
 	global acPanel, announcementPanel, trackInfoPanel
 	
 	setup()
 	
 	buttonThread = threading.Thread(target=checkButtons, daemon=True)
-	# Start button monitoring in background thread.
 	buttonThread.start()
 	
 	root = tk.Tk()
-	# Main speed control window.
 	speedDisplay = TrainSpeedDisplayUI(root)
 	
 	acRoot = tk.Toplevel(root)
-	# AC System window.
 	acPanel = ACSystemPanel(acRoot)
 	
 	announcementRoot = tk.Toplevel(root)
-	# Station Announcement window.
 	announcementPanel = StationAnnouncementPanel(announcementRoot)
 	
 	trackInfoRoot = tk.Toplevel(root)
-	# Track Information window.
 	trackInfoPanel = TrackInformationPanel(trackInfoRoot)
 	
 	root.mainloop()
 
 class TrainSpeedDisplayUI:
-	# Speed display UI for train control.
-	
-	"""
-	Attributes:
-		root: The main tkinter window
-		speedLabel: Label displaying current speed
-		cmdSpeedValue: Label displaying commanded speed
-		cmdAuthorityValue: Label displaying commanded authority
-		manualSetpointValue: Label displaying manual setpoint speed
-		modeValue: Label displaying drivetrain mode
-	"""
 	
 	def __init__(self, root):
-		# Initializes the speed display UI.
 		self.root = root
 		self.root.title("TRAIN SPEED CONTROL DISPLAY")
 		self.root.geometry("900x700")
 		self.root.configure(bg='#1e3c72')
+		
+		# Socket Server Setup
+		self.server = TrainSocketServer(port=12345, ui_id="train_control_hw")
+		self.server.start_server(self._process_message)
 		
 		self._createWidgets()
 		self._updateDisplay()
 		
 		self.root.protocol("WM_DELETE_WINDOW", self._onClose)
 	
+	def _process_message(self, message, source_ui_id):
+		"""Process incoming messages from other UIs"""
+		try:
+			print(f"Received from {source_ui_id}: {message}")
+			
+			command = message.get('command')
+			value = message.get('value')
+			
+			if command == 'set_commanded_speed':
+				global commandedSpeed
+				commandedSpeed = value
+			
+			elif command == 'set_commanded_authority':
+				global commandedAuthority
+				commandedAuthority = value
+			
+			elif command == 'set_current_speed':
+				global currentSpeed
+				currentSpeed = value
+			
+			elif command == 'passenger_emergency':
+				global passengerEmergencySignal
+				passengerEmergencySignal = value
+				lgpio.gpio_write(h, PASSENGER_EMERGENCY_LED, 1 if value else 0)
+			
+			elif command == 'brake_failure':
+				global brakeFailure
+				brakeFailure = value
+				lgpio.gpio_write(h, BRAKE_FAILURE_LED, 1 if value else 0)
+			
+			elif command == 'engine_failure':
+				global engineFailure
+				engineFailure = value
+				lgpio.gpio_write(h, ENGINE_FAILURE_LED, 1 if value else 0)
+			
+			elif command == 'signal_failure':
+				global signalFailure
+				signalFailure = value
+				lgpio.gpio_write(h, SIGNAL_FAILURE_LED, 1 if value else 0)
+		
+		except Exception as e:
+			print(f"Error processing message: {e}")
+	
 	def _createWidgets(self):
-		# Creates all UI widgets.
 		headerFrame = tk.Frame(self.root, bg='#0f1e3d')
 		headerFrame.pack(fill='x')
 		
@@ -617,7 +499,6 @@ class TrainSpeedDisplayUI:
 		instructions.pack()
 	
 	def _createInfoBox(self, parent, title: str, valueAttr: str, color: str, defaultText: str):
-		# Creates an info display box.
 		frame = tk.Frame(parent, bg=color, relief='raised', bd=4)
 		frame.pack(fill='both', expand=True, pady=7)
 		
@@ -646,7 +527,6 @@ class TrainSpeedDisplayUI:
 		setattr(self, valueAttr, valueLabel)
 	
 	def _updateDisplay(self):
-		# Updates all display values.
 		currentSpeedValue = getCurrentSpeed()
 		commandedSpeedValue = getCommandedSpeed()
 		commandedAuthorityValue = getCommandedAuthority()
@@ -658,10 +538,8 @@ class TrainSpeedDisplayUI:
 		
 		if isManual:
 			self.speedLabel.config(fg='#ffa500')
-			# Orange for manual.
 		else:
 			self.speedLabel.config(fg='#00ff00')
-			# Green for automatic.
 		
 		self.cmdSpeedValue.config(text=f"{int(commandedSpeedValue)} MPH")
 		
@@ -687,8 +565,8 @@ class TrainSpeedDisplayUI:
 		self.root.after(100, self._updateDisplay)
 	
 	def _onClose(self):
-		# Cleans up GPIO and closes all windows.
-		print("\nCleaning up...")
+		print("\nClosing application...")
+		self.server.stop_server()
 		cleanupAll()
 		self.root.destroy()
 
