@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import json
 import os, sys
-sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
+sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from TrainSocketServer import TrainSocketServer
 from datetime import datetime
 

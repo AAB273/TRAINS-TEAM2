@@ -253,7 +253,7 @@ server1.send_to_ui("ui_2", {"command": "set_power", "value": 0.5})
 #Need to create your own "process_message" function that proccesses the commands other UI's send to so that you can act on those commands.
 Look at Train Model Passenger Ui for an example of what it looks like. 
 
-    Example of Process Function:
+    #Example of Process Function:
         def _process_message(self, message, source_ui_id):
         try:
             print(f"Received message from {source_ui_id}: {message}")
