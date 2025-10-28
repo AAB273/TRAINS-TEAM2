@@ -67,10 +67,6 @@ class Train:
         # Observers (callbacks for UI updates)
         self._observers = []
     
-    def update_physics_continuously(self):
-        """Update train physics based on current state and commands"""
-        self.calculate_force_speed_acceleration_
-    
     def add_observer(self, callback):
         """Register a callback to be notified of changes"""
         self._observers.append(callback)

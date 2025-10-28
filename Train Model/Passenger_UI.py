@@ -96,7 +96,6 @@ class TrainModelPassengerGUI:
             elif command == 'set_service_brake':
                 if value == 'on':
                     self.current_train.set_service_brake(1)
-                    self.current_train.set_acceleration(-1.2)
                 else:
                     self.current_train.set_service_brake(0)
             elif command == 'set_passenger_count':
@@ -160,7 +159,7 @@ class TrainModelPassengerGUI:
     def continuous_physics_update(self):
         """Continuously update train physics for real-time speed changes"""
         if self.current_train and self.current_train.deployed:
-            self.current_train.update_physics_continuously()
+            self.current_train.calculate_force_speed_acceleration_()
             self.update_ui_from_train(self.current_train)
         self.root.after(100, self.continuous_physics_update)
 
@@ -239,9 +238,8 @@ class TrainModelPassengerGUI:
             self.ui_labels['announcement'].config(text=f"Arriving to Station {train.station} in {train.time_to_station}mins")
         
 
-        local_time = clock.getTime()
-        formatted_time = time.strftime("%H:%M\n%p", local_time)
-        self.ui_labels['time'].config(text=f"{formatted_time}")
+        #local_time = clock.getTime()
+        #self.ui_labels['time'].config(text=f"{local_time}")
 
         # Update power command and commanded values
         self.ui_labels['power_command'].config(text=f"{train.power_command:.0f} Watts")
@@ -319,7 +317,7 @@ class TrainModelPassengerGUI:
         self.train_selector_label = tk.Label(train_selector_container, text="Select Train", bg=self.main_color, fg='white', font=('Arial', 10, 'bold'))
         self.train_selector_label.pack(side='left', padx=(8, 3))
 
-        # FIXED: Made dropdown wider to fit "No Trains Deployed" text
+        # Train Selector
         self.train_selector_var = tk.StringVar()
         self.train_selector = tk.OptionMenu(train_selector_container, self.train_selector_var, "Loading...")
         self.train_selector.config(bg=self.main_color, fg='white', font=('Arial', 9), width=20)  # Increased width from 12 to 20
@@ -586,17 +584,12 @@ class TrainModelPassengerGUI:
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+    
     def on_closing(self):
-        """Handle application closing"""
         print("Closing application...")
-        self.server.running = False
-        if self.server.server_socket:
-            try:
-                self.server.server_socket.close()
-            except:
-                pass
         self.root.destroy()
-
+        os._exit(0)  # This will definitely terminate the process
+    
     def run(self):
         """Start the application"""
         # Register observer to update UI when train data changes
