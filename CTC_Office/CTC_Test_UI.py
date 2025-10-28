@@ -1,10 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
 
-import os, sys
-sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-from TrainSocketServer import TrainSocketServer
-
 class TestUI:
 #"Test UI" ui screen appearance and data
 
@@ -49,81 +45,25 @@ class TestUI:
         outText.pack(side = "top")
         #input/output title Labels
 
-        self.server = TrainSocketServer(port=12346, ui_id="CTC_Test_UI")
-        self.server.set_allowed_connections(["CTC_Main_Screen", "ui_3"])
-        
-        self.server.start_server(self._processMessage)
-        self.server.connect_to_ui('localhost', 12345, "CTC_Main_Screen")
-
         self.createInputs()
         self.createOutputs()
 
 ###############################################################################################################################################################
 
-    def send_to_ui(self, command, value=None):
-        """Send command to the target UI (creates dict for socket server)"""
-        message = {'command': command}
-        if value is not None:
-            message['value'] = value
-        
-        # Always send to Train_Model_Passenger_UI
-        target_ui = "CTC_Main_Screen"
-        success = self.server.send_to_ui(target_ui, message)
-        
-        if success:
-            print(f"Sent {command} to {target_ui}")
-        else:
-            print(f"Failed to send {command} to {target_ui}")
-
-        return success
-
-###############################################################################################################################################################
-
-    def _processMessage(self, message, source_ui_id):
-        """Process incoming messages and update train state"""
-        try:
-            print(f"Received message from {source_ui_id}: {message}")
-
-            command = message.get('command')
-            value = message.get('value')
-
-            self.updateTestUI(command, value)
-
-        except Exception as e:
-            print(f"Error processing message: {e}")
-
-###############################################################################################################################################################
-
-    def updateTestUI(self, code, data):
+    def updateTestUI(self):
     #update test ui values to show the user inputs/outputs to/from the system
 
-        if (code == "TL"):
+        infile = open("CTC_Office/to_test_ui.txt", "r")
+        data = infile.readline()
+
+        if (data.strip() == "TL"):
         #train location/deployed train case
-            train = ""
-            speed = ""
-            auth = ""
+            train = infile.readline().strip()
+            speed = float(infile.readline().strip())
+            auth = infile.readline().strip()
+            line = infile.readline().strip()
+            #grab all data
 
-            #grab data from message
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                train += data[i]
-            data = data[commaInd + 2:]
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                speed += data[i]
-            data = data[commaInd + 2:]
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                auth += data[i]
-            line = data[commaInd + 2:]
-
-            speed = float(speed)
             speed *= 2.237 
             #change speed to mph           
 
@@ -132,45 +72,32 @@ class TestUI:
             self.dtAuthOutput.config(text = auth + " blocks")
             #display outputs on screen
 
-        elif (code == "MM"):
+        elif (data.strip() == "MM"):
         #maintenance mode case
-            location = ""
-            direction = ""
-            commaInd = 0
-            
-            #grab data from message
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                location += data[i]
-            data = data[commaInd + 2:]
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                direction += data[i]
-            line = data[commaInd + 2:]
+            location = infile.readline().strip()
+            direction = infile.readline().strip()
+            line = infile.readline().strip()
+            #grab data
 
             self.mmLocOutput.config(text = "Block " + location + ", " + line + " line")
             self.mmSentOutput.config(text = "Yes, pointed at block " + direction)
             #display outputs on screen
 
-        elif (code == "TS"):
+        elif (data.strip() == "TS"):
         #track state case
-            location = ""
-            commaInd = 0
-            #grab data from message
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                location += data[i]
-            line = data[commaInd + 2:]
+            location = infile.readline().strip()
+            line = infile.readline().strip()
+            #grab data
 
             self.tsLocOutput.config(text = "Block " + location + ", " + line + " line")
             self.tsSentOutput.config(text = "Yes")
             #display outputs on screen
+
+        
+        infile.close()
+        reset = open("CTC_Office/to_test_ui.txt", "w")
+        reset.close()
+        #close and wipe the dat file
 
 ###############################################################################################################################################################
     
@@ -204,8 +131,8 @@ class TestUI:
         tsLocEntry.pack(padx = 5, fill = "x")
         #text to describe what to input, and an Entry to grab user data
 
-        getTS = ttk.Button(tsFrame, text = "Submit", style = "normal.TButton", command = lambda: self.send_to_ui('TS', tsLocEntry.get() + ", blue"))
-        getTS.pack(side = "top")
+        getLS = ttk.Button(tsFrame, text = "Submit", style = "normal.TButton", command = lambda: self.sendTSData(errorLocation.get()))
+        getLS.pack(side = "top")
         #button that sends data to data file (error checking needed for text entry)
 
 
@@ -241,7 +168,7 @@ class TestUI:
         leaveEntry.pack(padx = 5, fill = "x")
         #text to describe what to input, and an Entry to grab user data
 
-        getTP = ttk.Button(tpFrame, text = "Submit", style = "normal.TButton", command = lambda: self.send_to_ui("TP", soldValue.get() + ", " + leaveValue.get() + ", blue"))
+        getTP = ttk.Button(tpFrame, text = "Submit", style = "normal.TButton", command = lambda: self.sendTPData(soldValue.get(), leaveValue.get()))
         getTP.pack(side = "top")
         #button that sends data to data file (error checking needed for text entry)
 
@@ -280,7 +207,7 @@ class TestUI:
         lsStateEntry.pack(padx = 5, fill = "x")
         #text to describe what to input, and a Combobox to grab user data
 
-        getLS = ttk.Button(lsFrame, text = "Submit", style = "normal.TButton", command = lambda: self.send_to_ui("LS", lightLocation.get() + ", " + self.getLS(lightState.get()) + ", blue"))
+        getLS = ttk.Button(lsFrame, text = "Submit", style = "normal.TButton", command = lambda: self.sendLSData(lightLocation.get(), lightState.get()))
         getLS.pack(side = "top")
         #button to send data to data file
 
@@ -319,7 +246,7 @@ class TestUI:
         rcStateEntry.pack(padx = 5, fill = "x")
         #text to describe what to input, and a Combobox to grab user data
 
-        getRC = ttk.Button(rcFrame, text = "Submit", style = "normal.TButton", command = lambda: self.send_to_ui("RC", crossingLocation.get() + ", " + self.getRC(crossingState.get()) + ", blue"))
+        getRC = ttk.Button(rcFrame, text = "Submit", style = "normal.TButton", command = lambda: self.sendRCData(crossingLocation.get(), crossingState.get()))
         getRC.pack(side = "top")
         #button to send data to data file
 
@@ -425,30 +352,79 @@ class TestUI:
 
 ###############################################################################################################################################################
 
-    def getLS(self, state: str) -> str:
-    #formatting function that sends light state data to the data file
-        
-        if (state == "red"):
-            return "00"
-        elif (state == "yellow"):
-            return "01"
-        elif (state == "green"):
-            return "10"
-        else:
-            return "11"
-        #write binary code for light state to simulate input from wayside controller
-
-###############################################################################################################################################################
-    
-    def getRC(self, state: str) -> str:
+    def sendTSData(self, location: str):
     #formatting function that sends light state data to the data file
         '''
         Write all data to CTC_data.txt data file so the test ui can read in data changes
         Follows formatting rules specified in README.txt
         '''
 
-        if (state == "inactive"):
-            return "0"
+        outfile = open("CTC_Office/CTC_data.txt", "w")
+        outfile.write("TS\n")
+        outfile.write(location + "\n")
+        outfile.write("blue")
+        outfile.close()
+
+###############################################################################################################################################################
+
+    def sendTPData(self, sold: str, leave: str):
+    #formatting function that sends throughput data to the data file
+        '''
+        Write all data to CTC_data.txt data file so the test ui can read in data changes
+        Follows formatting rules specified in README.txt
+        '''
+
+        outfile = open("CTC_Office/CTC_data.txt", "w")
+        outfile.write("TP\n")
+        outfile.write(sold + "\n")
+        outfile.write(leave + "\n")
+        outfile.write("blue")
+        outfile.close()
+
+###############################################################################################################################################################
+
+    def sendLSData(self, location: str, state: str):
+    #formatting function that sends light state data to the data file
+        '''
+        Write all data to CTC_data.txt data file so the test ui can read in data changes
+        Follows formatting rules specified in README.txt
+        '''
+
+        outfile = open("CTC_Office/CTC_data.txt", "w")
+        outfile.write("LS\n")
+        outfile.write(location + "\n")
+        
+        if (state == "red"):
+            outfile.write("00\n")
+        elif (state == "yellow"):
+            outfile.write("01\n")
+        elif (state == "green"):
+            outfile.write("10\n")
         else:
-            return "1"
+            outfile.write("11\n")  
+        #write binary code for light state to simulate input from wayside controller
+          
+        outfile.write("blue")
+        outfile.close()
+
+###############################################################################################################################################################
+    
+    def sendRCData(self, location: str, state: str):
+    #formatting function that sends light state data to the data file
+        '''
+        Write all data to CTC_data.txt data file so the test ui can read in data changes
+        Follows formatting rules specified in README.txt
+        '''
+
+        outfile = open("CTC_Office/CTC_data.txt", "w")
+        outfile.write("RC\n")
+        outfile.write(location + "\n")
+
+        if (state == "inactive"):
+            outfile.write("0\n")
+        else:
+            outfile.write("1\n")
         #write binary code for railway crossing to simulate input from wayside controller
+
+        outfile.write("blue")
+        outfile.close()

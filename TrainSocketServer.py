@@ -233,13 +233,13 @@ class TrainSocketServer:
                 del self.connected_clients[target_ui_id]
             return False
     
-    #def broadcast_to_allowed(self, message: dict):
+    def broadcast_to_allowed(self, message: dict):
         """Broadcast a message to all allowed and connected UIs"""
-    #    success_count = 0
-      #  for ui_id in list(self.connected_clients.keys()):
-     #       if self.send_to_ui(ui_id, message):
-     #           success_count += 1
-     #   return success_count
+        success_count = 0
+        for ui_id in list(self.connected_clients.keys()):
+            if self.send_to_ui(ui_id, message):
+                success_count += 1
+        return success_count
 
     def stop_server(self):
         """Stop the server and close all connections"""
@@ -280,39 +280,8 @@ server1.connect_to_ui('localhost', 12347, "ui_3")
 # Send a message to UI 2
 server1.send_to_ui("ui_2", {"command": "set_power", "value": 0.5})
 
-
-# REQUIRED AT THE END OF YOUR UI BUILDING
-                self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-
-#REQUIRED AS A FUNCTION IN YOUR OVERALL UI FILE
-
-     def on_closing(self):
-        print("Closing application...")
-        self.server.running = False
-        if self.server.server_socket:
-            try:
-                self.server.server_socket.close()
-            except:
-                pass
-        self.root.destroy()
-
-
-        
 #Need to create your own "process_message" function that proccesses the commands other UI's send to so that you can act on those commands.
 Look at Train Model Passenger Ui for an example of what it looks like. 
-
-    #Example of Process Function:
-        def _process_message(self, message, source_ui_id):
-        try:
-            print(f"Received message from {source_ui_id}: {message}")
-
-            command = message.get('command')
-            value = message.get('value')
-            
-            if command == 'set_power':
-                self.current_train.last_power_command = self.current_train.power_command
-                self.current_train.set_power_command(value)
-
 For Test UI's, put this section of code into your _init_ definition
 
 def empty_handler(message, source_ui_id):

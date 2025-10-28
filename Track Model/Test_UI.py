@@ -1,6 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import UI_Variables
+import os,sys
+sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
+from TrainSocketServer import TrainSocketServer
 
 class TrackModelTestUI(tk.Toplevel):
     def __init__(self, parent, manager: UI_Variables.TrackDataManager):
@@ -8,6 +11,16 @@ class TrackModelTestUI(tk.Toplevel):
         self.title("Track Model Test / Debug UI")
         self.geometry("800x600")
         self.configure(bg="lightgray")
+
+        self.server = TrainSocketServer(port=12346, ui_id="Test_UI")
+        self.server.set_allowed_connections(["UI_Structure","ui_3"])
+
+        def empty_handler(message, source_ui_id):
+            print(f"Test UI received: {message} from {source_ui_id}")
+
+        self.server.start_server(empty_handler)
+        self.server.connect_to_ui('localhost',12345,"UI_Structure")
+
 
         self.manager = manager
         print(f"🔗 Test UI and Main UI sharing same manager: {self.manager is parent.data_manager}")
@@ -49,6 +62,23 @@ class TrackModelTestUI(tk.Toplevel):
         # Periodically refresh UI to reflect backend changes
         self.after(1000, self.refresh_ui)
 
+    def send_to_ui(self, command, value=None):
+            """Send command to the target UI (creates dict for socket server)"""
+            message = {'command': command}
+            if value is not None:
+                message['value'] = value
+            
+            # Always send to Train_Model_Passenger_UI
+            target_ui = "UI_Structure"
+            success = self.server.send_to_ui(target_ui, message)
+            
+            if success:
+                print(f"Sent {command} to {target_ui}")
+                self.status_label.config(text=f"Sent: {command}")
+            else:
+                print(f"Failed to send {command} to {target_ui}")
+                self.status_label.config(text=f"Failed: {command}")
+            return success
     # ---------------- Track/Station Data ----------------
     def build_track_station_tab(self):
         frame = self.track_tab
