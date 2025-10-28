@@ -8,7 +8,6 @@ sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from Test_UI import TrackModelTestUI  # Test/debug UI
 from FileUploadManager import FileUploadManager
 from TrackDiagramDrawer import TrackDiagramDrawer
-from TrackDirectionController import TrackDirectionController
 from HeaterSystemManager import HeaterSystemManager
 from BeaconManager import BeaconManager
 from TrainSocketServer import TrainSocketServer
@@ -56,6 +55,8 @@ class TrackModelUI(tk.Tk):
         self.data_manager = manager
 
         self.file_manager = FileUploadManager(self)
+        self.heater_manager = HeaterSystemManager(self)
+        self.diagram_drawer = TrackDiagramDrawer(self, self.data_manager)
 
         for b in self.data_manager.blocks:
             if not hasattr(b, "traffic_light_state"):
@@ -334,7 +335,7 @@ class TrackModelUI(tk.Tk):
 
             # Insert visible blocks
             if show:
-                heater_display = f"{'On' if self.is_heater_on(b) else 'Off'}/{'Working' if self.is_heater_working(b) else 'Broken'}"
+                heater_display = f"{'On' if self.heater_manager.is_heater_on(b) else 'Off'}/{'Working' if self.heater_manager.is_heater_working(b) else 'Broken'}"
             
                 # Simple beacon display - only show Active/Inactive
                 beacon_active = BeaconManager.is_beacon_active(b)
@@ -557,29 +558,7 @@ class TrackModelUI(tk.Tk):
         }
 
         # Draw initial icons
-        self.draw_track_icons()
-
-    def draw_track_icons(self):
-        """Draw switch, crossing, and traffic light icons on the diagram based on current states."""
-        # Clear previous icons
-        for icons in self.icon_item_ids.values():
-            for item in icons.values():
-                if isinstance(item, list):
-                    for subitem in item:
-                        self.track_canvas.delete(subitem)
-                else:
-                    self.track_canvas.delete(item)
-        self.icon_item_ids = {"switch": {}, "crossing": {}, "traffic": {}}
-
-        # Draw all traffic lights dynamically based on block numbers
-        for b in self.data_manager.blocks:
-            if getattr(b, "block_number", None) in [6, 11]:
-                # Try to get state from either attribute
-                if hasattr(b, "signal") and isinstance(b.signal, list):
-                    state = b.signal  # This will be converted in draw_traffic_light
-                else:
-                    state = getattr(b, "traffic_light_state", 0)
-                self.draw_traffic_light(b.block_number, state)
+        self.diagram_drawer.draw_track_icons()
 
         def load_resized_image(path, size=(32, 32)):
             """Helper to load and resize an image once."""
@@ -765,15 +744,6 @@ class TrackModelUI(tk.Tk):
             send_button.pack(pady=(5, 10), padx=5, anchor="s")
 
             return outer_frame
-
-        # Toggle button (immediate action, no save required)
-        # btn_toggle = tk.Button(control_frame, text="Toggle Direction", 
-        #                     command=lambda gn=group_name: self.toggle_bidirectional_direction(gn),
-        #                     width=15)
-        #btn_toggle.pack(side="left")
-        
-        # Store the status variable for updates
-        #self.bidir_controls[group_name] = status_var
 
     def send_outputs(self):
         """Only refresh terminals when Send Outputs button is clicked"""
@@ -1265,9 +1235,6 @@ class TrackModelUI(tk.Tk):
         # Redraw track icons (switches, crossings, lights)
         self.draw_track_icons()
 
-        # Refresh bidirectional table 
-        self.update_bidirectional_table()
-
         # REMOVED: Automatic terminal refresh - terminal only updates on button click now
 
         # Draw trains on BOTH occupancy canvases:
@@ -1279,18 +1246,6 @@ class TrackModelUI(tk.Tk):
 
         # Refresh again in 1 second
         self.after(1000, self.refresh_ui)
-
-    def is_heater_on(self, block):
-        """Check if heater is on (first bit)"""
-        if hasattr(block, 'track_heater') and isinstance(block.track_heater, list):
-            return block.track_heater[0] == 1
-        return False
-
-    def is_heater_working(self, block):
-        """Check if heater is working (second bit)"""
-        if hasattr(block, 'track_heater') and isinstance(block.track_heater, list):
-            return block.track_heater[1] == 1
-        return False
 
     def set_heater_state(self, block, is_on, is_working):
         """Set heater state with validation"""
