@@ -125,35 +125,18 @@ class TestUI:
                   command=lambda: self.send_to_ui('set_left_door', 'open'), width=5).pack(side='left', padx=1)
         ttk.Button(door_btn_frame2, text="Close", 
                   command=lambda: self.send_to_ui('set_left_door', 'close'), width=5).pack(side='left', padx=1)
-
-        # Light Control - Compact side-by-side layout
-        light_frame = ttk.LabelFrame(main_container, text="Light Control", padding=6)
-        light_frame.pack(fill='x', padx=5, pady=2)
         
-        light_row_frame = tk.Frame(light_frame)
-        light_row_frame.pack(fill='x', pady=2)
+        #State Control
+        states_frame = ttk.LabelFrame(main_container, text="Train State Control", padding=6)
+        states_frame.pack(fill='x', padx=5, pady=2)
         
-        # Headlights
-        headlight_frame = tk.Frame(light_row_frame)
-        headlight_frame.pack(side='left', padx=3)
-        tk.Label(headlight_frame, text="Headlights:").pack()
-        light_btn_frame1 = tk.Frame(headlight_frame)
-        light_btn_frame1.pack()
-        ttk.Button(light_btn_frame1, text="On", 
-                  command=lambda: self.send_to_ui('set_headlights', 'on'), width=5).pack(side='left', padx=1)
-        ttk.Button(light_btn_frame1, text="Off", 
-                  command=lambda: self.send_to_ui('set_headlights', 'off'), width=5).pack(side='left', padx=1)
+        state_leaving_station = tk.Frame(states_frame)
+        state_leaving_station.pack(fill='x', pady=2)
         
-        # Interior Lights
-        interior_frame = tk.Frame(light_row_frame)
-        interior_frame.pack(side='left', padx=3)
-        tk.Label(interior_frame, text="Interior:").pack()
-        light_btn_frame2 = tk.Frame(interior_frame)
-        light_btn_frame2.pack()
-        ttk.Button(light_btn_frame2, text="On", 
-                  command=lambda: self.send_to_ui('set_interior_lights', 'on'), width=5).pack(side='left', padx=1)
-        ttk.Button(light_btn_frame2, text="Off", 
-                  command=lambda: self.send_to_ui('set_interior_lights', 'off'), width=5).pack(side='left', padx=1)
+        ttk.Button(state_leaving_station, text="Leaving Station",
+                   command=lambda:[self.send_to_ui('set_service_brake_off','off'), self.send_to_ui('set_left_door','close'),
+                                   self.send_to_ui('set_right_door','close')
+                   ]).pack(side='left')
         
         # Temp Control - Compact
         temp_frame = ttk.LabelFrame(main_container, text="Temperature Control", padding=6)

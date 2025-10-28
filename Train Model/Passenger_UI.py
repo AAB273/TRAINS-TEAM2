@@ -164,12 +164,6 @@ class TrainModelPassengerGUI:
             self.update_ui_from_train(self.current_train)
         self.root.after(100, self.continuous_physics_update)
 
-    def continuous_state_update(self):
-        """Continuously update train state machine"""
-        if self.current_train and self.current_train.deployed:
-            self.current_train.update_state()
-        self.root.after(100, self.continuous_state_update)
-
     def emergency_brake_activated(self):
         self.current_train.set_emergency_brake(True)
         self.current_train.set_acceleration(-2.73)
@@ -612,7 +606,6 @@ class TrainModelPassengerGUI:
         self.root.after(100, self.refresh_train_selector)
 
         self.root.after(100, self.continuous_physics_update)
-        self.root.after(500, self.continuous_state_update)
 
         self.root.mainloop()
 
