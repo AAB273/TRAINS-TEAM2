@@ -477,7 +477,10 @@ class LeftPanel(tk.Frame):
        
         # Light Detail
         self.create_light_section()
-   
+
+        # Initialize with current line data
+        self.update_crossing_options()
+        
     def create_crossing_section(self):
         crossing_frame = tk.LabelFrame(self, text="Railway Crossing Detail",
                                       bg='#cccccc', font=('Arial', 9, 'bold'))
@@ -502,12 +505,11 @@ class LeftPanel(tk.Frame):
         self.crossing_bar = ttk.Combobox(crossing_frame, width=18, values=["Closed", "Open"], state='readonly')
         self.crossing_bar.pack()
 
-        # Initialize with current line data
-        self.update_crossing_options()
+        
 
     def update_crossing_options(self):
         """Update combobox options based on current line"""
-        crossings = list(self.data.filtered_track_data.get("crossings", {}).keys())
+        crossings = list(self.data.filtered_block_data.get("crossings", {}).keys())
         self.crossing_selector['values'] = crossings
         if crossings:
             self.crossing_selector.set(crossings[0])
