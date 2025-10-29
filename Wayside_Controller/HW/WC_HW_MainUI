@@ -8,6 +8,7 @@ sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 from TrainSocketServer import TrainSocketServer
 ########################################################################################################################
 
+
 # Backend Data Structures (same as before)
 
 commanded_speed = []
@@ -169,7 +170,7 @@ class UITestData:
 
 # Create mock data instance
 test_data = UITestData()
-
+test_data.filtered_track_data = test_data.track_data.copy()
 ########################################################################################################################
 
 # Root window setup
