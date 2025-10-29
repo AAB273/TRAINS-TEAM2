@@ -15,13 +15,10 @@ def update_callback(message):
     print(f"Socket message recieved: {message}")
     add_to_message_log(f"Socket: {message}")
 
-# SOCKET SERVER
-server1 = TrainSocketServer(port=12346, ui_id="ui_2")
-server1.set_allowed_connections(["ui_1", "ui_3"])
-server1.start_server(update_callback)
 
-#connect to other UIs - TEST UI (12346)
-server1.connect_to_ui('localhost', 12345, "ui_1")
+
+# send to ui
+# target ui is main ui
 
 # Backend state (for all tracks)
 tracks = ["Green", "Red", "Blue"]
@@ -197,10 +194,13 @@ class UITestData:
     """
     
     def __init__(self):
-        # SOCKET SERVER - Same as main UI
-        server1 = TrainSocketServer(port=12345, ui_id="ui_1")
-        server1.set_allowed_connections(["ui_2", "ui_3"])
-        server1.start_server(self.update_callback)
+        # SOCKET SERVER
+        server1 = TrainSocketServer(port=12345, ui_id="WC_HW_TestUI")
+        server1.set_allowed_connections(["WC_HW_MainUI", "ui_3"])
+        server1.start_server(update_callback)
+
+        #connect to other UIs - TEST UI (12346)
+        server1.connect_to_ui('localhost', 12346, "WC_HW_MainUI")
 
         # Current line
         self.current_line = "Blue"
@@ -1070,5 +1070,5 @@ class RightPanel(tk.Frame):
 # set_crossing_btn = tk.Button(crossing_frame, text="Set Crossing", command=set_crossing, bg="#4d4d60", fg="white", width=12)
 # set_crossing_btn.pack(anchor='w', pady=10)
 
-# # Start the main loop
-# root.mainloop()
+# Start the main loop
+root.mainloop()

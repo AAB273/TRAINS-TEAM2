@@ -47,6 +47,9 @@ def update_callback(message):
     print(f"Socket message recieved: {message}")
     add_to_message_log(f"Socket: {message}")
 
+# send_to_ui function
+# target ui is test ui
+
 #Example of Process Function:
 def _process_message(self, message, source_ui_id):
     try:
@@ -54,7 +57,7 @@ def _process_message(self, message, source_ui_id):
         command = message.get('command')
         value = message.get('value') 
         if command == 'test':
-            print(f"fuck you SIRA")
+            print(f"Test command received with value: {value}")
     except Exception as e:
             print(f"Error processing message: {e}")
     
@@ -63,12 +66,12 @@ class UITestData:
     def __init__(self):
 
         # SOCKET SERVER
-        self.server1 = TrainSocketServer(port=12345, ui_id="ui_1")
-        self.server1.set_allowed_connections(["ui_2", "ui_3"])
+        self.server1 = TrainSocketServer(port=12346, ui_id="WC_HW_MainUI")
+        self.server1.set_allowed_connections(["WC_HW_TestUI", "ui_3"])
         self.server1.start_server(_process_message)
         
         # Connect to other UIs
-        self.server1.connect_to_ui('localhost', 12346, "ui_2")
+        self.server1.connect_to_ui('localhost', 12345, "WC_HW_TestUI")
 
         # Current line
         self.current_line = "Blue"
@@ -121,6 +124,15 @@ class UITestData:
                     self.server1.server_socket.close()
                 except:
                     pass
+            if hasattr(self, 'root'):
+                self.root.destroy()
+        ###########################################################
+        self.server1.running = False
+        if self.server1.server_socket:
+            try:
+                self.server1.server_socket.close()
+            except:
+                pass
         root.destroy()
 
     # Method to return block table data
@@ -154,7 +166,7 @@ class UITestData:
 
 # Create mock data instance
 test_data = UITestData()
-#test_data.filtered_track_data = test_data.track_data.copy()
+test_data.filtered_track_data = test_data.track_data.copy()
 ########################################################################################################################
 
 # Root window setup
@@ -510,11 +522,9 @@ class LeftPanel(tk.Frame):
         self.crossing_bar = ttk.Combobox(crossing_frame, width=18, values=["Closed", "Open"], state='readonly')
         self.crossing_bar.pack()
 
-        
-
     def update_crossing_options(self):
         """Update combobox options based on current line"""
-        crossings = list(self.data.filtered_block_data.get("crossings", {}).keys())
+        crossings = list(self.data.filtered_track_data.get("crossings", {}).keys())
         self.crossing_selector['values'] = crossings
         if crossings:
             self.crossing_selector.set(crossings[0])
