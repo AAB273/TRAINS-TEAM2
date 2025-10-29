@@ -7,6 +7,7 @@ import os, sys
 sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from TrainSocketServer import TrainSocketServer
 ########################################################################################################################
+
 # Backend Data Structures (same as before)
 
 commanded_speed = []
@@ -68,8 +69,27 @@ class UITestData:
         # Connect to other UIs
         self.server1.connect_to_ui('localhost', 12346, "ui_2")
 
+        self.current_line = "Blue"
+
+        self.maintenance_mode = False
+
+        self.on_line_change = []
+
+        self.on_block_change = []
     def on_closing(self):
         print("Closing application...")
+        ##########################################################
+        # properly stop the socket server
+        if hasattr(self, 'server1') and self.server1:
+            self.server1.running = False
+            if hasattr(self.server1, 'server_socket') and self.server1.server_socket:
+                try:
+                    self.server1.server_socket.close()
+                except:
+                    pass
+            if hasattr(self, 'root'):
+                self.root.destroy()
+        ###########################################################
         self.server1.running = False
         if self.server1.server_socket:
             try:
