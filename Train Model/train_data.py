@@ -194,9 +194,8 @@ class Train:
         EMERGENCY_BRAKE_DECEL = -2.73 
         MAX_FORCE = 25715 
         total_mass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passenger_count + 2))
-
-        # State-based acceleration logic
         
+        # State-based acceleration logic
         if self.emergency_brake_active:
             a = EMERGENCY_BRAKE_DECEL
             
@@ -205,19 +204,24 @@ class Train:
                 a = SERVICE_BRAKE_DECEL
             else:
                 a = 0
-        elif self.service_brake_active == False:
-            if self.speed == 0 and self.left_door_open == False and self.right_door_open == False:
-                if self.power_command > 0:
+                
+        elif not self.service_brake_active:  # Service brake is OFF
+            if not self.left_door_open and not self.right_door_open and self.power_command > 0:
+                # ONLY use max force when completely stopped and starting from rest
+                if self.speed == 0:
                     a = MAX_FORCE / total_mass
                 else:
-                    a = 0
+                    # Normal operation for moving train
+                    if self.speed > 0:
+                        force = self.power_command / self.speed
+                        a = force / total_mass
+                    else:
+                        a = 0
+            else:
+                a = 0  # No power or doors open
                 
-        elif self.speed > 0 and self.power_command > 0:
-            # Normal operation
-            force = self.power_command / self.speed
-            a = force / total_mass
         else:
-            a = self.acceleration
+            a = self.acceleration  # Fallback
         
         # INTEGRATE: Update speed using acceleration
         new_speed = self.speed + (a * dt)
@@ -225,17 +229,17 @@ class Train:
         # Apply speed limits
         if new_speed > self.speed_limit:
             new_speed = self.speed_limit
+            a = 0  # Stop accelerating when at limit
             
         # Ensure speed doesn't go negative
         if new_speed < 0:
             new_speed = 0
-            a = 0  
+            a = 0
         
         # Update state
         self.speed = new_speed
         self.acceleration = a
         self._notify_observers()
-
     # Door controls
     def set_right_door(self, is_open):
         """Set right door state (True=Open, False=Closed)"""
