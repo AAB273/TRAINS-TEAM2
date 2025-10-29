@@ -480,7 +480,7 @@ class LeftPanel(tk.Frame):
 
         # Initialize with current line data
         self.update_crossing_options()
-        
+
     def create_crossing_section(self):
         crossing_frame = tk.LabelFrame(self, text="Railway Crossing Detail",
                                       bg='#cccccc', font=('Arial', 9, 'bold'))
@@ -540,7 +540,7 @@ class LeftPanel(tk.Frame):
 
     def update_switch_options(self):
         """Update combobox options based on current line"""
-        switches = list(self.data.filtered_track_data.get("switches", {}).keys())
+        switches = list(self.data.filter_track_data.get("switches", {}).keys())
         self.switch_selector['values'] = switches
         if switches:
             self.switch_selector.set(switches[0])
