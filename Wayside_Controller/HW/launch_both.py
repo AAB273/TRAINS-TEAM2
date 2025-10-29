@@ -11,14 +11,14 @@ def launch_both_guis():
     
     # Verify files exist
     if not os.path.exists(PASSENGER_UI_PATH):
-        print(f"❌ Passenger UI not found at: {PASSENGER_UI_PATH}")
+        print(f"❌ Main UI not found at: {PASSENGER_UI_PATH}")
         return
         
     if not os.path.exists(TEST_UI_PATH): 
         print(f"❌ Test UI not found at: {TEST_UI_PATH}")
         return
     
-    print(f"✅ Found Passenger UI: {PASSENGER_UI_PATH}")
+    print(f"✅ Found Main UI: {PASSENGER_UI_PATH}")
     print(f"✅ Found Test UI: {TEST_UI_PATH}")
     print()
     
@@ -27,7 +27,7 @@ def launch_both_guis():
         passenger_process = subprocess.Popen([sys.executable, PASSENGER_UI_PATH])
         
         # Wait for socket server to start
-        print("⏳ Waiting for Passenger GUI socket server to start...")
+        print("⏳ Waiting for Main GUI socket server to start...")
      
         
         print("🧪 Launching Test UI...")
