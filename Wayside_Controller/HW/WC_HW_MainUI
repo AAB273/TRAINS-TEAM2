@@ -540,7 +540,7 @@ class LeftPanel(tk.Frame):
 
     def update_switch_options(self):
         """Update combobox options based on current line"""
-        switches = list(self.data.filter_track_data.get("switches", {}).keys())
+        switches = list(self.data.filter_block_data.get("switches", {}).keys())
         self.switch_selector['values'] = switches
         if switches:
             self.switch_selector.set(switches[0])
