@@ -56,8 +56,6 @@ def main():
     
     programLoop(root, mainScreen, testUI) 
     #run the loop the continuously checks the data file
-
-    root.protocol("WM_DELETE_WINDOW", CTC_Main_Screen.onClosing)
         
     root.mainloop()
     clock.clock.endTimer()

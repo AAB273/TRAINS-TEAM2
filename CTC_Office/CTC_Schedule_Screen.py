@@ -6,12 +6,6 @@ from time import strftime
 import CTC_Main_Screen
 import pandas as pd
 
-#necessary to import the clock from the parent directory#
-import os, sys
-sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-import clock
-
-
 class ScheduleScreen:
 #"Schedule" ui screen appearance and data
     '''
