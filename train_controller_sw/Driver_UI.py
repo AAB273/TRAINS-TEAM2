@@ -102,6 +102,12 @@ class Main_Window:
         self.screen_height = self.root.winfo_screenheight()
         self.root.geometry(f"{self.screen_width}x{self.screen_height}")
         self.root.configure(bg="navy")
+
+        # Socket server setup
+        self.server = TrainSocketServer(port=6, ui_id="Train SW")
+        self.server.set_allowed_connections(["Train Model", "Track Model"])
+        self.server.start_server(self._process_message)
+        self.server.connect_to_ui('localhost', 12346, "Train Model", "Track Model")
         
         main_container = tk.Frame(self.root, bg="white", relief=tk.RAISED, bd=5)
         main_container.place(relx=0.02, rely=0.08, relwidth=0.96, relheight=0.9)
@@ -422,10 +428,41 @@ class Main_Window:
         
         self.update_displays()
         # Test Panel
-        self.test_panel = TestPanel(self.root, self)
+        #self.test_panel = TestPanel(self.root, self)
 
         #safety critical design:
         self.safety_monitor = SafetyMonitor(self)
+
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+    def _process_message(self, message, source_ui_id):
+        """Process incoming messages and update train state"""
+        try:
+            print(f"Received message from {source_ui_id}: {message}")
+
+            command = message.get('command')
+            value = message.get('value')
+            
+            if command == 'Commanded Authority':
+                #set authority command
+            if command == 'Commanded Speed': 
+                #set commanded
+            if command == "Passenger Emergency Signal":
+                #set signal light
+            if command == "Actual Velocity":
+                #set speedometer
+            if command == "Cabin Temperature": 
+                #set cabin temp
+            if command == "Failure Modes": 
+                #set failure lights
+            if command == "Beacon Data": 
+                #update beacon information
+            if command == "Preloaded Track Information":
+                #update track information
+            if command == "Light States": 
+                #display lights states
+        except Exception as e:
+            print(f"Error processing message: {e}")
 
     
     def add_to_status_log(self, message):
@@ -465,6 +502,7 @@ class Main_Window:
             if self.current_speed > 0:
                 self.current_speed = max(0, self.current_speed - 20)  # Rapid deceleration
                 self.set_current_speed(self.current_speed)
+                self.se
         elif self.service_brake_active:
             # Service brake: gradual deceleration based on percentage
             deceleration_rate = self.service_brake_percentage * 0.1  # Scale factor
@@ -661,6 +699,17 @@ class Main_Window:
             self.track_info_panel = TrackInformationPanel(self.track_info_window)
         else:
             self.track_info_window.lift()
+
+    def on_closing(self):
+        """Handle application closing"""
+        print("Closing application...")
+        self.server.running = False
+        if self.server.server_socket:
+            try:
+                self.server.server_socket.close()
+            except:
+                pass
+        self.root.destroy()
 
 if __name__ == "__main__":
     root = tk.Tk()
