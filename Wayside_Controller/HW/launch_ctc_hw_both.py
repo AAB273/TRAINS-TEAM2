@@ -31,7 +31,7 @@ def launch_both_guis():
      
         
         print("🧪 Launching Main Screen UI...")
-        test_process = subprocess.Popen([sys.executable, TEST_UI_PATH])
+        test_process = subprocess.Popen([sys.executable, Main_Screen_UI_PATH])
         
         print("✅ Both GUIs launched successfully!")
         print("💡 Close this window to terminate both applications.")
