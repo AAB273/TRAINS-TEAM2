@@ -259,7 +259,7 @@ class StationAnnouncementPanel:
 		
 		stations = self.stations[line]
 		currentIdx = stations.index(station)
-		nextStation = stations[currentIdx + 1] if currentIdx < len(stations) - 1 else "the end of the line."
+		nextStation = stations[currentIdx + 1] if currentIdx < len(stations) - 1 else "the end of the line"
 		doorSide = "both sides"
 		
 		announcement = (
