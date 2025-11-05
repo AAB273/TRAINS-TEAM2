@@ -47,9 +47,11 @@ class MainScreen:
         self.totalPassengers = 0 
         self.numberOfTrains = 1
 
-        self.server = TrainSocketServer(port=12345, ui_id="CTC_Main_Screen")
-        self.server.set_allowed_connections(["CTC_Test_UI", "ui_3"])
+        self.server = TrainSocketServer(port=12341, ui_id="CTC")
+        self.server.set_allowed_connections(["Track SW", "Track HW"])
         self.server.start_server(self._processMessage)
+        self.server.connect_to_ui('localhost', 12342, "Track SW")
+        self.server.connect_to_ui('localhost', 12343, "Track HW")
 
         self.createTopRow()
         #print the logo, reference map button, time
@@ -59,21 +61,22 @@ class MainScreen:
 ###############################################################################################################################################################
 
     def send_to_ui(self, command, value=None):
-        """Send command to the target UI (creates dict for socket server)"""
-        message = {'command': command}
-        if value is not None:
-            message['value'] = value
+        pass
+        # """Send command to the target UI (creates dict for socket server)"""
+        # message = {'command': command}
+        # if value is not None:
+        #     message['value'] = value
         
-        # Always send to Train_Model_Passenger_UI
-        target_ui = "CTC_Test_UI"
-        success = self.server.send_to_ui(target_ui, message)
+        # # Always send to Train_Model_Passenger_UI
+        # target_ui = "CTC_Test_UI"
+        # success = self.server.send_to_ui(target_ui, message)
         
-        if success:
-            print(f"Sent {command} to {target_ui}")
-        else:
-            print(f"Failed to send {command} to {target_ui}")
+        # if success:
+        #     print(f"Sent {command} to {target_ui}")
+        # else:
+        #     print(f"Failed to send {command} to {target_ui}")
 
-        return success
+        # return success
     
 ###############################################################################################################################################################
 
