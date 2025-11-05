@@ -39,7 +39,7 @@ def launch_both_guis():
         print("🧪 Launching Main Screen UI...")
         test_process = subprocess.Popen([sys.executable, Main_Screen_UI_PATH])
         
-         print("🧪 Launching Main Screen UI...")
+        print("🧪 Launching Schedule Screen UI...")
         schedule_process = subprocess.Popen([sys.executable, Schedule_Screen_UI_PATH])
 
         print("✅ Both GUIs launched successfully!")
