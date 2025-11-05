@@ -107,7 +107,8 @@ class Main_Window:
         self.server = TrainSocketServer(port=6, ui_id="Train SW")
         self.server.set_allowed_connections(["Train Model", "Track Model"])
         self.server.start_server(self._process_message)
-        self.server.connect_to_ui('localhost', 12346, "Train Model", "Track Model")
+        self.server.connect_to_ui('localhost', 5, "Train Model")
+        self.server.connect_to_ui('localhost', 4, "Track Model")
         
         main_container = tk.Frame(self.root, bg="white", relief=tk.RAISED, bd=5)
         main_container.place(relx=0.02, rely=0.08, relwidth=0.96, relheight=0.9)
@@ -445,22 +446,31 @@ class Main_Window:
             
             if command == 'Commanded Authority':
                 #set authority command
-            if command == 'Commanded Speed': 
+                print("helloworld")
+            elif command == 'Commanded Speed': 
                 #set commanded
-            if command == "Passenger Emergency Signal":
+                print("helloworld")
+            elif command == "Passenger Emergency Signal":
                 #set signal light
-            if command == "Actual Velocity":
+                print("helloworld")
+            elif command == "Actual Velocity":
                 #set speedometer
-            if command == "Cabin Temperature": 
+                print("helloworld")
+            elif command == "Cabin Temperature": 
                 #set cabin temp
-            if command == "Failure Modes": 
+                print("helloworld")
+            elif command == "Failure Modes": 
                 #set failure lights
-            if command == "Beacon Data": 
+                print("helloworld")
+            elif command == "Beacon Data": 
                 #update beacon information
-            if command == "Preloaded Track Information":
+                print("helloworld")
+            elif command == "Preloaded Track Information":
                 #update track information
-            if command == "Light States": 
+                print("helloworld")
+            elif command == "Light States": 
                 #display lights states
+                print("helloworld")
         except Exception as e:
             print(f"Error processing message: {e}")
 
