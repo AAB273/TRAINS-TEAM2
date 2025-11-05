@@ -340,9 +340,11 @@ class TrainSpeedDisplayUI:
 		self.root.configure(bg='#1e3c72')
 		
 		# Socket Server Setup
-		self.server = TrainSocketServer(port=12345, ui_id="train_control_hw")
+		self.server = TrainSocketServer(port=7, ui_id="Train HW")
+		self.server.set_allowed_connections(["Train HW"])
 		self.server.start_server(self._process_message)
-		
+		self.server.connect_to_ui('localhost', 5, "Train Model")
+
 		self._createWidgets()
 		self._updateDisplay()
 		
@@ -356,34 +358,34 @@ class TrainSpeedDisplayUI:
 			command = message.get('command')
 			value = message.get('value')
 			
-			if command == 'commanded_speed':
+			if command == 'Commanded Speed':
 				global commandedSpeed
 				commandedSpeed = value
 			
-			elif command == 'commanded_authority':
+			elif command == 'Commanded Authority':
 				global commandedAuthority
 				commandedAuthority = value
 			
-			elif command == 'actual_velocity':
+			elif command == 'Actual Velocity':
 				global currentSpeed
 				currentSpeed = value
 			
-			elif command == 'passenger_emergency_signal':
+			elif command == 'Passenger Emergency Signal':
 				global passengerEmergencySignal
 				passengerEmergencySignal = value
 				lgpio.gpio_write(h, PASSENGER_EMERGENCY_LED, 1 if value else 0)
 			
-			elif command == 'brake_failure':
+			elif command == 'Brake Failure':
 				global brakeFailure
 				brakeFailure = value
 				lgpio.gpio_write(h, BRAKE_FAILURE_LED, 1 if value else 0)
 			
-			elif command == 'train_engine_failure':
+			elif command == 'Train Engine Failure':
 				global engineFailure
 				engineFailure = value
 				lgpio.gpio_write(h, ENGINE_FAILURE_LED, 1 if value else 0)
 			
-			elif command == 'signal_pickup_failure':
+			elif command == 'Signal Pickup Failure':
 				global signalFailure
 				signalFailure = value
 				lgpio.gpio_write(h, SIGNAL_FAILURE_LED, 1 if value else 0)
