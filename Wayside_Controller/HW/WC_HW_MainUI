@@ -1,3 +1,13 @@
+import json          # ← ADD
+from pathlib import Path  # ← ADD
+
+def load_socket_config():  # ← ADD
+    config_path = Path("config.json")
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config.get("modules", {})
+
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from datetime import datetime
@@ -41,11 +51,12 @@ station_location = []
 ######
 ##############
 
+# speed data = suggeted and commanded data
 def handle_ctc_suggested_speed(speed_data):
     """
     Handle CTC suggested speed messages and convert to float with 3 decimal places
     Expected formats:
-    - String: "track HW", {"Suggested_speed", "float: new_speed"}
+    - String: "Track HW", {"Suggested_speed", "float: new_speed"}
     - Dictionary: {'Suggested_speed': 'float: 45.5'}
     - Direct string: "float: 45.5"
     """
@@ -112,6 +123,33 @@ def update_callback(message):
     print(f"Socket message recieved: {message}")
     add_to_message_log(f"Socket: {message}")
 
+def send_commanded_speed_directly(speed_value):
+    """Direct function to send commanded speed to Track Model"""
+    # Check if server exists and is available
+    if not hasattr(test_data, 'server1') or not test_data.server1:
+        add_to_message_log("ERROR: Socket server not available for direct send", "ERROR")
+        return False
+    
+    # Validate and format speed
+    try:
+        formatted_speed = round(float(speed_value), 3)
+    except (ValueError, TypeError):
+        add_to_message_log("ERROR: Invalid speed value format", "ERROR")
+        return False
+    
+    # Create message
+    message = {
+        'command': 'commanded_speed',
+        'value': formatted_speed,
+        'source': 'Track HW',
+        'formatted_speed': f"{formatted_speed:.3f} mph"
+    }
+    
+    # Send message
+    test_data.server1.send_to_ui("Track Model", message)
+    add_to_message_log(f"Direct send: Commanded speed {formatted_speed:.3f} mph to Track Model")
+    return True
+
 # send_to_ui function
 # target ui is test ui
 
@@ -131,7 +169,14 @@ class UITestData:
     def __init__(self):
 
         # SOCKET SERVER
-        self.server1 = TrainSocketServer(port=3, ui_id="Track HW")
+        #self.server1 = TrainSocketServer(port=12343, ui_id="Track HW")
+        module_config = load_socket_config()
+        track_hw_config = module_config.get("Track HW", {"port" : 5})
+        self.server = TrainSocketServer(
+            port=track_hw_config["port"],
+            ui_id="Track HW"
+        )
+
         self.server1.set_allowed_connections(["Track Model", "ui_3"])
         self.server1.start_server(_process_message)
         
@@ -833,6 +878,29 @@ class RightPanel(tk.Frame):
         add_to_message_log(f"UI: Suggested speed updated to {formatted_speed}")
 
 
+    def send_commanded_speed_directly(self, speed_value):
+        """Direct method to send commanded speed to Track Model"""
+        try:
+            formatted_speed = round(float(speed_value), 3)
+            message = {
+                'command': 'commanded_speed',
+                'value': formatted_speed,
+                'source': 'Wayside_HW_RightPanel',
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                'formatted_speed': f"{formatted_speed:.3f} mph"
+            }
+            
+            if hasattr(self.data, 'server1') and self.data.server1:
+                self.data.server1.send_to_ui("Track Model", message)
+                add_to_message_log(f"RightPanel direct: Commanded speed {formatted_speed:.3f} mph to Track Model")
+                return True
+            else:
+                add_to_message_log("ERROR: Socket server not available", "ERROR")
+                return False
+        except Exception as e:
+            add_to_message_log(f"ERROR in RightPanel direct send: {e}", "ERROR")
+            return False
+
     def on_block_data_changed(self, row_index, col_index, new_value):
         # Update only the affected row in the table if maintenance mode
         if self.data.maintenance_mode:
@@ -921,9 +989,62 @@ class RightPanel(tk.Frame):
         # commanded_authority.append(new_authority)
 
     def update_speed(self):
-        """Update commanded speed and log the change"""
+    """Update commanded speed and send to Track Model"""
+    try:
         new_speed = self.speed_entry.get()
-        add_to_message_log(f"Commanded Speed updated to: {new_speed}")
+        
+        # Extract numeric value from input (handle "mph", etc.)
+        speed_value = self.extract_speed_value(new_speed)
+        
+        if speed_value is not None:
+            # Format to 3 decimal places
+            formatted_speed = round(speed_value, 3)
+            
+            # Update display
+            self.speed_entry.delete(0, tk.END)
+            self.speed_entry.insert(0, f"{formatted_speed:.3f} mph")
+            
+            # Send to Track Model
+            self.send_commanded_speed_to_track_model(formatted_speed)
+            
+            add_to_message_log(f"Commanded Speed sent to Track Model: {formatted_speed:.3f} mph")
+        else:
+            add_to_message_log("ERROR: Invalid speed format. Please enter a valid number.", "ERROR")
+            
+    except Exception as e:
+        add_to_message_log(f"ERROR updating speed: {e}", "ERROR")
+
+def extract_speed_value(self, speed_input):
+    """Extract numeric speed value from various input formats"""
+    try:
+        # Remove non-numeric characters except decimal point
+        import re
+        clean_speed = re.sub(r'[^\d.]', '', speed_input)
+        return float(clean_speed)
+    except ValueError:
+        return None
+
+def send_commanded_speed_to_track_model(self, speed):
+    """Send commanded speed to Track Model via socket"""
+    try:
+        if hasattr(test_data, 'server1') and test_data.server1:
+            message = {
+                'command': 'commanded_speed',
+                'value': speed,
+                'source': 'Wayside_HW',
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                'formatted_speed': f"{speed:.3f} mph"
+            }
+            
+            # Send to Track Model
+            test_data.server1.send_to_ui("Track Model", message)
+            add_to_message_log(f"✓ Commanded speed {speed:.3f} mph sent to Track Model")
+            
+        else:
+            add_to_message_log("ERROR: Socket server not available", "ERROR")
+            
+    except Exception as e:
+        add_to_message_log(f"ERROR sending speed to Track Model: {e}", "ERROR")
     # Here you would also update the backend data structure
     # commanded_speed.append(new_speed)
    
