@@ -1,3 +1,14 @@
+import json          # ← ADD
+from pathlib import Path  # ← ADD
+
+def load_socket_config():  # ← ADD
+    config_path = Path("config.json")
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config.get("modules", {})
+
+
 import tkinter as tk
 from PIL import Image, ImageTk
 from tkinter import font
@@ -20,14 +31,14 @@ class TrainModelPassengerGUI:
         self.current_train = self.train_manager.get_selected_train()
         
         # Socket server setup
-        self.server = TrainSocketServer(port=5, ui_id="Train Model")
+        self.server = TrainSocketServer(port=12345, ui_id="Train Model")
         #self.server.set_allowed_connections(["Test_UI", "ui_3"])
         self.server.set_allowed_connections(["Train SW","Train HW", "Track Model"])
         self.server.start_server(self._process_message)
         #self.server.connect_to_ui('localhost', 12346, "Test_UI")
-        self.server.connect_to_ui('localhost', 6, "Train SW")
-        self.server.connect_to_ui('localhost', 7, "Train HW")
-        self.server.connect_to_ui('localhost', 4, "Track Model")
+        self.server.connect_to_ui('localhost', 12346, "Train SW")
+        self.server.connect_to_ui('localhost', 12347, "Train HW")
+        self.server.connect_to_ui('localhost', 12344, "Track Model")
         
         self.ui_labels = {}
         self.ui_indicators = {}
