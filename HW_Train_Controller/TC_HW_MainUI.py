@@ -356,19 +356,19 @@ class TrainSpeedDisplayUI:
 			command = message.get('command')
 			value = message.get('value')
 			
-			if command == 'set_commanded_speed':
+			if command == 'commanded_speed':
 				global commandedSpeed
 				commandedSpeed = value
 			
-			elif command == 'set_commanded_authority':
+			elif command == 'commanded_authority':
 				global commandedAuthority
 				commandedAuthority = value
 			
-			elif command == 'set_current_speed':
+			elif command == 'actual_velocity':
 				global currentSpeed
 				currentSpeed = value
 			
-			elif command == 'passenger_emergency':
+			elif command == 'passenger_emergency_signal':
 				global passengerEmergencySignal
 				passengerEmergencySignal = value
 				lgpio.gpio_write(h, PASSENGER_EMERGENCY_LED, 1 if value else 0)
@@ -378,12 +378,12 @@ class TrainSpeedDisplayUI:
 				brakeFailure = value
 				lgpio.gpio_write(h, BRAKE_FAILURE_LED, 1 if value else 0)
 			
-			elif command == 'engine_failure':
+			elif command == 'train_engine_failure':
 				global engineFailure
 				engineFailure = value
 				lgpio.gpio_write(h, ENGINE_FAILURE_LED, 1 if value else 0)
 			
-			elif command == 'signal_failure':
+			elif command == 'signal_pickup_failure':
 				global signalFailure
 				signalFailure = value
 				lgpio.gpio_write(h, SIGNAL_FAILURE_LED, 1 if value else 0)
