@@ -1,15 +1,15 @@
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
-import UI_Variables
 import tkinter.simpledialog as simpledialog
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-from Test_UI import TrackModelTestUI  # Test/debug UI
-from FileUploadManager import FileUploadManager
-from TrackDiagramDrawer import TrackDiagramDrawer
-from HeaterSystemManager import HeaterSystemManager
-from BeaconManager import BeaconManager
+from Track_Model import UI_Variables
+from Track_Model.Test_UI import TrackModelTestUI
+from Track_Model.FileUploadManager import FileUploadManager
+from Track_Model.TrackDiagramDrawer import TrackDiagramDrawer
+from Track_Model.HeaterSystemManager import HeaterSystemManager
+from Track_Model.BeaconManager import BeaconManager
 from TrainSocketServer import TrainSocketServer
 
 
@@ -21,10 +21,10 @@ class TrackModelUI(tk.Tk):
         self.configure(bg="navy")
 
         # UI 1 - Can communicate with UI 2 and UI 3
-        self.server = TrainSocketServer(port=12345, ui_id="UI_Structure")
-        self.server.set_allowed_connections(["Test_UI","ui_3"])
+        self.server = TrainSocketServer(port=4, ui_id="Track Model")
+        self.server.set_allowed_connections(["Wayside_Controller","Train_Model"])
         self.server.start_server(self._process_message)
-        self.server.connect_to_ui('localhost',12346,"Test_UI")
+        self.server.connect_to_ui('localhost', 5,"Train_Model")
 
         self.switch_blocks = {5}
         self.crossing_blocks = {4}
@@ -101,10 +101,12 @@ class TrackModelUI(tk.Tk):
             if command == 'commanded_speed':
                 global commanded_speed
                 commanded_speed = value
+                self.server.send_to_UI("Train Model", {"Commanded Authority", commanded_speed})
             
             elif command == 'commanded_authority':
                 global commanded_authority
                 commanded_authority = value
+                self.server.send_to_UI("Train Model", {"Commanded Authority", commanded_authority})
             
             elif command == 'switch_positions':
                 global switch_positions
@@ -128,6 +130,7 @@ class TrackModelUI(tk.Tk):
         
         except Exception as e:
             print(f"Error processing message: {e}")
+
 
     # ---------------- Helper ----------------
     def make_card(self, parent, title=None):
