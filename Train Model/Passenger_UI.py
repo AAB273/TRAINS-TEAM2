@@ -68,6 +68,10 @@ class TrainModelPassengerGUI:
 
             command = message.get('command')
             value = message.get('value')
+            if(value == "1" or value == "0"):
+                value = bool(value)
+            else:
+                value = float(value)
             
             if command == 'Cabin Interior Temperature Control':
                 target_temp = value
@@ -154,7 +158,7 @@ class TrainModelPassengerGUI:
         else:
             print(f"Signal Pickup Failure Deactivated")
             self.server.send_to_ui("Train SW",{"Signal Pickup Failure",0})
-            self.server.send_to_ui("Train HW",{"Signal Pickup Failure",0s})
+            self.server.send_to_ui("Train HW",{"Signal Pickup Failure",0})
 
     def update_ui_from_train(self, train):
         """Update all UI elements when train data changes"""
