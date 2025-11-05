@@ -3,740 +3,606 @@ from PIL import Image, ImageTk
 from tkinter import font
 from tkinter import ttk
 from train_data import get_train_manager
-import socket
-import threading
-import json  # For structured data exchange
+import os, sys
+sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
+from TrainSocketServer import TrainSocketServer
+import clock
 import time
-# Socket server setup
-class TrainSocketServer:
-    def __init__(self, port=12345):
-        self.port = port
-        self.server_socket = None
-        self.running = False
+from playsound import playsound
+import random
+
+class TrainModelPassengerGUI:
+    def __init__(self):
+        self.main_color = '#1a1a4d'
+        self.off_color = '#4d4d6d'
+        self.current_train = None
+        self.train_manager = get_train_manager()
+        self.current_train = self.train_manager.get_selected_train()
         
-    def start_server(self, update_callback):
-        """Start the socket server in a separate thread"""
-        self.update_callback = update_callback
-        self.running = True
+        # Socket server setup
+        self.server = TrainSocketServer(port=12345, ui_id="Train_Model_Passenger_UI")
+        self.server.set_allowed_connections(["Test_UI", "ui_3"])
+        self.server.start_server(self._process_message)
+        self.server.connect_to_ui('localhost', 12346, "Test_UI")
         
-        try:
-            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.server_socket.bind(('localhost', self.port))
-            self.server_socket.listen(1)
-            print(f"Train GUI Server listening on port {self.port}")
+        self.ui_labels = {}
+        self.ui_indicators = {}
+        self.canvas_frame_circle = None
+        
+        self.setup_gui()
+        
+    def _socket_refresh_train_selector(self):
+        """Refresh the train selector UI to show/hide trains based on deployment status"""
+        print("Socket server requesting train selector refresh")
+        self.root.after(0, self.refresh_train_selector)
+
+    def _animate_temperature_change(self, target_temp):
+        """Gradually change temperature using Tkinter's after()"""
+        if not self.current_train:
+            return
+
+        current_temp = self.current_train.cabin_temp
+        target_temp = float(target_temp)
+        
+        if current_temp < target_temp:
+            new_temp = current_temp + 1
+            self.current_train.set_cabin_temp(new_temp)
+            self.update_ui_from_train(self.current_train)
+            self.root.after(1000, lambda: self._animate_temperature_change(target_temp))
+        elif current_temp > target_temp:
+            new_temp = current_temp - 1
+            self.current_train.set_cabin_temp(new_temp)
+            self.update_ui_from_train(self.current_train)
+            self.root.after(1000, lambda: self._animate_temperature_change(target_temp))
             
-            # Start accepting connections in background thread
-            self.thread = threading.Thread(target=self._accept_connections, daemon=True)
-            self.thread.start()
-        except Exception as e:
-            print(f"Failed to start server: {e}")
-            
-    def _accept_connections(self):
-        """Accept incoming connections"""
-        while self.running:
-            try:
-                client_socket, addr = self.server_socket.accept()
-                print(f"Connection from {addr}")
-                threading.Thread(target=self._handle_client, args=(client_socket,), daemon=True).start()
-            except Exception as e:
-                if self.running:
-                    print(f"Connection error: {e}")
-                    
-    def _handle_client(self, client_socket):
-        """Handle client messages"""
-        while self.running:
-            try:
-                data = client_socket.recv(1024).decode('utf-8')
-                if not data:
-                    break
-                    
-                # Parse JSON message
-                message = json.loads(data)
-                self._process_message(message)
-                
-            except json.JSONDecodeError:
-                print("Invalid JSON received")
-            except Exception as e:
-                print(f"Client handling error: {e}")
-                break
-                
-        client_socket.close()
-        
-    def _process_message(self, message):
+        print(f"Real Cabin Temp: {self.current_train.cabin_temp} Sent!")
+
+    def _process_message(self, message, source_ui_id):
         """Process incoming messages and update train state"""
         try:
+            print(f"Received message from {source_ui_id}: {message}")
+
             command = message.get('command')
             value = message.get('value')
             
             if command == 'set_power':
-                current_train.set_power_command(value)
-                current_train.calculate_force_speed_acceleration_()
+                self.current_train.last_power_command = self.current_train.power_command
+                self.current_train.set_power_command(value)
             elif command == 'set_right_door':
                 if value == 'open':
-                    current_train.set_right_door(1)
+                    self.current_train.set_right_door(1)
                 elif value == 'close':
-                    current_train.set_right_door(0)
+                    self.current_train.set_right_door(0)
             elif command == 'set_left_door':
                 if value == 'open':
-                    current_train.set_left_door(1)
+                    self.current_train.set_left_door(1)
                 elif value == 'close':
-                    current_train.set_left_door(0)
+                    self.current_train.set_left_door(0)
             elif command == 'set_headlights':
                 if value == 'on':
-                    current_train.set_headlights(1)
+                    self.current_train.set_headlights(1)
                 else:
-                    current_train.set_headlights(0)
+                    self.current_train.set_headlights(0)
             elif command == 'set_interior_lights':
                 if value == 'on':
-                    current_train.set_interior_lights(1)
+                    self.current_train.set_interior_lights(1)
                 elif value == 'off':
-                    current_train.set_interior_lights(0)
+                    self.current_train.set_interior_lights(0)
             elif command == 'emergency_brake':
                 if value == 'on':
-                    emergency_brake_activated()
-                    current_train.calculate_force_speed_acceleration_()
+                    self.emergency_brake_activated()
                 else:
-                    current_train.set_emergency_brake(0)
-                    current_train.calculate_force_speed_acceleration_()
-            elif command == 'service_brake':
+                    self.current_train.set_emergency_brake(0)
+            elif command == 'set_service_brake':
                 if value == 'on':
-                    current_train.set_service_brake(1)
-                    current_train.calculate_force_speed_acceleration_()
+                    self.current_train.set_service_brake(1)
                 else:
-                    current_train.set_service_brake(0)
-                    current_train.calculate_force_speed_acceleration_()
+                    self.current_train.set_service_brake(0)
             elif command == 'set_passenger_count':
-                current_train.set_passenger_count(value)
+                self.current_train.set_passenger_count(value)
+          #  elif command == 'horn':
+           #     playsound('C:\Users\wolfm\OneDrive - University of Pittsburgh\Desktop\Trains GIT Location\TRAINS-TEAM2\Train Model\diesel-horn-02-98042.mp3')
+            elif command == 'set_speed_limit':
+                self.current_train.set_speed_limit(value)
+            elif command == 'set_elevation':
+                self.current_train.set_elevation(value)
+            elif command == 'set_grade':
+                self.current_train.set_grade(value)
             elif command == 'select_train':
-                on_train_selected(value)
+                self.on_train_selected(value)
             elif command == 'set_temperature':
                 target_temp = value
                 self._animate_temperature_change(target_temp)
             elif command == 'set_station':
-                current_train.set_station(value)
+                self.current_train.set_station(value)
             elif command == 'set_time_to_station':
-                current_train.set_time_to_station(value)
-            # NEW DEPLOYMENT COMMANDS
+                self.current_train.set_time_to_station(value)
             elif command == 'deploy_train':
                 train_id = value
-                train = train_manager.get_train(train_id)
+                train = self.train_manager.get_train(train_id)
                 if train:
                     train.deployed = True
                     print(f"Deployed train {train_id}")
-                    self._refresh_train_selector()
+                    self._socket_refresh_train_selector()
                     train.calculate_force_speed_acceleration_()
             elif command == 'undeploy_train':
                 train_id = value
-                train = train_manager.get_train(train_id)
+                train = self.train_manager.get_train(train_id)
                 if train:
                     train.deployed = False
                     print(f"Undeployed train {train_id}")
-                    self._refresh_train_selector()
+                    self._socket_refresh_train_selector()
             elif command == 'deploy_all':
                 for train_id in range(1, 15):
-                    train = train_manager.get_train(train_id)
+                    train = self.train_manager.get_train(train_id)
                     if train:
                         train.deployed = True
-                        current_train.calculate_force_speed_acceleration_()
+                        self.current_train.calculate_force_speed_acceleration_()
                 print("Deployed all trains")
-                self._refresh_train_selector()
+                self._socket_refresh_train_selector()
             elif command == 'undeploy_all':
                 for train_id in range(1, 15):
-                    train = train_manager.get_train(train_id)
+                    train = self.train_manager.get_train(train_id)
                     if train:
                         train.deployed = False
                 print("Undeployed all trains")
-                self._refresh_train_selector()
+                self._socket_refresh_train_selector()
             elif command == 'refresh_trains':
-                self._refresh_train_selector()
+                self._socket_refresh_train_selector()
             
-                
             # Force UI update
-            update_ui_from_train(current_train)
+            self.update_ui_from_train(self.current_train)
             
         except Exception as e:
             print(f"Error processing message: {e}")
 
-    def _refresh_train_selector(self):
-        """Refresh the train selector UI to show/hide trains based on deployment status"""
-        print("Socket server requesting train selector refresh")
-        root.after(0, refresh_train_selector)
+    def continuous_physics_update(self):
+        """Continuously update train physics for real-time speed changes"""
+        if self.current_train and self.current_train.deployed:
+            self.current_train.calculate_force_speed_acceleration_()
+            self.update_ui_from_train(self.current_train)
+        self.root.after(100, self.continuous_physics_update)
 
-    def stop_server(self):
-        self.running = False
-        if self.server_socket:
-            try:
-                # Close the server socket to break out of accept() calls
-                self.server_socket.close()
-            except:
-                pass
-        print("Socket server stopped")
+    def emergency_brake_activated(self):
+        self.current_train.set_emergency_brake(True)
+        self.current_train.set_acceleration(-2.73)
+        print(f"EMERGENCY BRAKE ACTIVATED!")
 
-    def _animate_temperature_change(self, target_temp):
-        """Gradually change temperature using Tkinter's after()"""
+    def failure_service_brake_var_changed(self):
+        if self.failure_brake_var.get():
+            self.current_train.set_service_brake(0)
+            self.emergency_brake_activated()
+            print(f"Service Brake Failure Activated")
+        elif self.failure_brake_var.get() == 0:
+            print(f"Service Brake Deactivated")
+            self.current_train.set_emergency_brake(0)
 
-        if not current_train:  # Add this safety check
-            return
-    
-        current_temp = current_train.cabin_temp
-        target_temp = float(target_temp)
+    def failure_train_engine_var_changed(self):
+        if self.failure_train_engine_var.get():
+            self.current_train.set_engine_failure(True)
+            self.current_train.set_power_command(0)
+            self.current_train.set_acceleration(0)
+            print(f"Train Engine Failure Activated")
+        elif self.failure_train_engine_var.get() == 0:
+            self.current_train.set_engine_failure(False)
+            print(f"Train Engine Failure Deactivated")
+
+    def failure_signal_pickup_var_changed(self):
+        if self.failure_signal_pickup_var.get():
+            print(f"Signal Pickup Failure Activated")
+            self.ui_labels['Speed Limit'].config(text=f"Speed Limit: ??? MPH")
+            self.ui_labels['Grade'].config(text=f"Grade: ???")
+            self.ui_labels['Elevation'].config(text=f"Elevation: ???")
+        else:
+            print(f"Signal Pickup Failure Deactivated")
+
+    def update_ui_from_train(self, train):
+        """Update all UI elements when train data changes"""
+        # Update speed
+        imperial_speed = train.speed * 2.23964
+        self.ui_labels['speed'].config(text=f"{imperial_speed:.1f} MPH")
         
-        if current_temp < target_temp:
-            # Increment by 1 degree
-            new_temp = current_temp + 1
-            current_train.set_cabin_temp(new_temp)
-            update_ui_from_train(current_train)
-            
-            # Schedule next increment
-            root.after(1000, lambda: self._animate_temperature_change(target_temp))
+        # Update acceleration
+        imperial_acceleration = train.acceleration * 2.23694
+        self.ui_labels['acceleration'].config(text=f"{imperial_acceleration:.1f} MPH²")
         
-        elif current_temp > target_temp:
-            # Decrement by 1 degree
-            new_temp = current_temp - 1
-            current_train.set_cabin_temp(new_temp)
-            update_ui_from_train(current_train)
-            
-            # Schedule next decrement
-            root.after(1000, lambda: self._animate_temperature_change(target_temp))
+        # Update passenger count
+        self.ui_labels['passenger_count'].config(text=f"Passenger Count: {train.passenger_count}")
+        self.ui_labels['disembarking'].config(text=f"Passengers Disembarking: {train.passengers_disembarking}")
+        self.ui_labels['crew_count'].config(text=f"Crew Count: {train.crew_count}")
+
+        # Update speed limit
+        imperial_speed_limit = train.speed_limit * 0.621371
+        self.ui_labels['Speed Limit'].config(text=f"Speed Limit: {imperial_speed_limit:.1f} MPH")
+
+        # Update Grade and Elevation
+        self.ui_labels['Grade'].config(text=f"Grade: {train.grade}%")
+        self.ui_labels['Elevation'].config(text=f"Elevation: {train.elevation}ft")
         
+        # Update cabin temp
+        if self.canvas_frame_circle and 'cabin_temp' in self.ui_labels:
+            self.canvas_frame_circle.itemconfig(self.ui_labels['cabin_temp'], text=f"{train.cabin_temp:.0f}°F")
         
-def start_ui_heartbeat():
-    """Periodically check and update UI to ensure it stays in sync"""
-    def heartbeat():
-        if current_train:
-            # Just update the UI regardless of changes
-            update_ui_from_train(current_train)
-        # Schedule next heartbeat
-        root.after(2000, heartbeat)  # Check every 2 seconds
-    
-    heartbeat()
+        # Update dimensions
+        imperial_height = train.height * 3.28084
+        imperial_length = train.length * 3.28084
+        imperial_width = train.width * 3.28084
+        self.ui_labels['height'].config(text=f"Height: {imperial_height:.1f}ft")
+        self.ui_labels['length'].config(text=f"Length: {imperial_length:.1f}ft")
+        self.ui_labels['width'].config(text=f"Width: {imperial_width:.1f}ft")
 
-
-
-
-
-# Create and start the socket server
-socket_server = TrainSocketServer()
-
-main_color = '#1a1a4d'
-off_color = '#4d4d6d'
-
-# Get the train manager
-train_manager = get_train_manager()
-current_train = train_manager.get_selected_train()
-
-root = tk.Tk()
-root.title("Passenger Train Model GUI")
-root.configure(bg=main_color)
-root.geometry("1250x910")
-
-# Store label references for updating
-ui_labels = {}
-ui_indicators = {}
-canvas_frame_circle = None  # Will be set when canvas is created
-
-def emergency_brake_activated():
-    current_train.set_emergency_brake(True)
-    current_train.set_acceleration(-2.73)
-    print(f"EMERGENCY BRAKE ACTIVATED!")
-
-def failure_service_brake_var_changed():
-    if failure_brake_var.get():
-        current_train.set_service_brake(0)
-        current_train.set_emergency_brake(1)
-        print(f"Service Brake Failure Activated")
-    else:
-        print(f"Service Brake Deactivated")
-        current_train.set_emergency_brake(0)    
-
-
-
-def failure_train_engine_var_changed():
-    if failure_train_engine_var.get():
-        current_train.set_engine_failure(True)
-        current_train.set_power_command(0)
-        print(f"Train Engine Failure Activated")
-    elif failure_train_engine_var.get():
-        current_train.set_engine_failure(False)
-        print(f"Train Engine Failure Deactivated")
-
-def failure_signal_pickup_var_changed():
-    if failure_signal_pickup_var.get():
-        print(f"Signal Pickup Failure Activated")
-    else:
-        print(f"Signal Pickup Failure Deactivated")
-
-
-def update_ui_from_train(train):
-    """Update all UI elements when train data changes"""
-    # Update speed
-    imperial_speed = train.speed * 2.23964
-    ui_labels['speed'].config(text=f"{imperial_speed:.1f} MPH")
-    
-    # Update acceleration
-    imperial_acceleration = train.acceleration * 2.23694
-    ui_labels['acceleration'].config(text=f"{imperial_acceleration:.1f} MPH²")
-    
-    # Update passenger count
-    ui_labels['passenger_count'].config(text=f"Passenger Count: {train.passenger_count}")
-    
-    # Update crew count
-    ui_labels['crew_count'].config(text=f"Crew Count: {train.crew_count}")
-
-    # Update speed limit
-    imperial_speed_limit = train.speed_limit * 0.621371
-    ui_labels['Speed Limit'].config(text=f"Speed Limit: {imperial_speed_limit:.1f} MPH")
-
-    # Update Grade
-    ui_labels['Grade'].config(text=f"Grade: {train.grade}%")
-
-    # Update Elevation
-    ui_labels['Elevation'].config(text=f"Elevation: {train.elevation}ft")
-    # Update cabin temp (canvas text item)
-    if canvas_frame_circle and 'cabin_temp' in ui_labels:
-        canvas_frame_circle.itemconfig(ui_labels['cabin_temp'], text=f"{train.cabin_temp:.0f}°F")
-    
-    # Update dimensions
-    imperial_height = train.height * 3.28084
-    imperial_length = train.length * 3.28084
-    imperial_width = train.width * 3.28084
-    ui_labels['height'].config(text=f"Height: {imperial_height:.1f}ft")
-    ui_labels['length'].config(text=f"Length: {imperial_length:.1f}ft")
-    ui_labels['width'].config(text=f"Width: {imperial_width:.1f}ft")
-
-    #Update Announcement
-    ui_labels['announcement'].config(text=f"Arriving to Station {train.station} in {train.time_to_station}mins")
-    
-    #Update Time
-    local_time = time.localtime()
-    formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", local_time)
-    #ui_labels['time'].conifg(text=f"{formatted_time}")
-
-    # Update power command
-    ui_labels['power_command'].config(text=f"{train.power_command:.0f} Watts")
-    
-    # Update door indicators (green=closed, red=open)
-    right_door_color = 'green' if train.right_door_open else 'red'
-    ui_indicators['cabin_right_led'].itemconfig(ui_indicators['cabin_right_oval'], fill=right_door_color)
-    
-    left_door_color = 'green' if train.left_door_open else 'red'
-    ui_indicators['cabin_left_led'].itemconfig(ui_indicators['cabin_left_oval'], fill=left_door_color)
-    
-    # Update light indicators (green=on, red=off)
-    headlight_color = 'green' if train.headlights_on else 'red'
-    ui_indicators['headlights_led'].itemconfig(ui_indicators['headlights_oval'], fill=headlight_color)
-    
-    interior_color = 'green' if train.interior_lights_on else 'red'
-    ui_indicators['interior_led'].itemconfig(ui_indicators['interior_oval'], fill=interior_color)
-
-def on_train_selected(train_id):
-    """Handle train selection from selector"""
-    global current_train
-    train = train_manager.select_train(train_id)
-    if train and train.deployed:  # Only select if train is deployed
-        current_train = train
-        update_ui_from_train(train)
+        # Update Announcement and Time
+        if self.current_train.set_emergency_brake:
+            self.ui_labels['announcement'].config(text=f"EMERGENCY")
+        else:
+            self.ui_labels['announcement'].config(text=f"Arriving to Station {train.station} in {train.time_to_station}mins")
         
-        # Update visual selection in train selector
-        for btn_id, button in train_buttons.items():
-            if btn_id == train_id:
-                button.config(bg='#3a3a7d', relief='sunken')
-            else:
-                button.config(bg=main_color, relief='flat')
-    else:
-        print(f"Train {train_id} is not deployed or doesn't exist")
 
-def refresh_train_selector():
-    """Completely rebuild the train selector UI"""
-    global train_buttons
-    
-    print("Refreshing train selector...")
-    
-    # Clear existing widgets from selector frame (except title)
-    for widget in selector_frame.winfo_children():
-        if widget not in [title_label]:  # Only keep the title
-            widget.destroy()
-    
-    # Rebuild headers
-    header_train = tk.Label(selector_frame, text="Train #", bg=main_color, fg='white', font=('Arial', 12, 'bold'))
-    header_status = tk.Label(selector_frame, text="Line", bg=main_color, fg='white', font=('Arial', 12, 'bold'))
-    
-    header_train.grid(row=2, column=0, padx=10, pady=(5, 5), sticky='ew')
-    header_status.grid(row=2, column=2, padx=10, pady=(5, 5), sticky='ew')
-    
-    separator = ttk.Separator(selector_frame, orient='vertical')
-    separator.grid(row=2, column=1, rowspan=32, padx=10, pady=5, sticky='ns')
-    
-    first_separator = ttk.Separator(selector_frame, orient='horizontal')
-    first_separator.grid(row=3, column=0, columnspan=3, sticky='ew', pady=(0, 5))
-    
-    # Rebuild the train selector
-    train_buttons = {}
-    
-    # Get all trains and filter only deployed ones
-    deployed_trains = []
-    for train_id in range(1, 15):
-        train = train_manager.get_train(train_id)
+        #local_time = clock.getTime()
+        #self.ui_labels['time'].config(text=f"{local_time}")
+
+        # Update power command and commanded values
+        self.ui_labels['power_command'].config(text=f"{train.power_command:.0f} Watts")
+        self.ui_labels['Commanded Authority'].config(text=f"Commanded Authority: {train.commanded_authority:.0f} ft")
+        self.ui_labels['Commanded Speed'].config(text=f"Commanded Speed: {train.commanded_speed:.0f} MPH")
+        
+        # Update door and light indicators
+        right_door_color = 'green' if train.right_door_open else 'red'
+        self.ui_indicators['cabin_right_led'].itemconfig(self.ui_indicators['cabin_right_oval'], fill=right_door_color)
+        
+        left_door_color = 'green' if train.left_door_open else 'red'
+        self.ui_indicators['cabin_left_led'].itemconfig(self.ui_indicators['cabin_left_oval'], fill=left_door_color)
+        
+        headlight_color = 'green' if train.headlights_on else 'red'
+        self.ui_indicators['headlights_led'].itemconfig(self.ui_indicators['headlights_oval'], fill=headlight_color)
+        
+        interior_color = 'green' if train.interior_lights_on else 'red'
+        self.ui_indicators['interior_led'].itemconfig(self.ui_indicators['interior_oval'], fill=interior_color)
+
+    def on_train_selected(self, train_id):
+        """Handle train selection from dropdown"""
+        train = self.train_manager.select_train(train_id)
         if train and train.deployed:
-            deployed_trains.append(train_id)
-            print(f"Train {train_id} is deployed: {train.deployed}")
-    
-    print(f"Found {len(deployed_trains)} deployed trains: {deployed_trains}")
-    
-    # Recreate UI elements only for deployed trains
-    for i, train_id in enumerate(deployed_trains):
-        row_num = 4 + (i * 2)
+            self.current_train = train
+            self.update_ui_from_train(train)
+            self.train_selector_var.set(f"Train {train_id}")
+        else:
+            print(f"Train {train_id} is not deployed or doesn't exist")
+
+    def refresh_train_selector(self):
+        """Update the dropdown menu with currently deployed trains"""
+        print("Refreshing train selector dropdown...")
         
-        # Make train label clickable
-        train_btn = tk.Button(
-            selector_frame,
-            text=f"Train {train_id}",
-            bg=main_color,
-            fg='white',
-            font=('Arial', 10),
-            relief='flat',
-            cursor='hand2',
-            command=lambda tid=train_id: on_train_selected(tid)
-        )
-        train_btn.grid(row=row_num, column=0, padx=10, pady=10, sticky='ew')
-        train_buttons[train_id] = train_btn
+        current_selection = self.train_selector_var.get()
+        self.train_selector['menu'].delete(0, 'end')
         
-        # Status indicator
-        status_canvas = tk.Canvas(selector_frame, width=60, height=25, bg=main_color, highlightthickness=2)
-        status_canvas.grid(row=row_num, column=2, padx=10, pady=10)
+        deployed_trains = []
+        for train_id in range(1, 15):
+            train = self.train_manager.get_train(train_id)
+            if train and train.deployed:
+                deployed_trains.append(train_id)
         
-        line_color = 'gray'
-
-        train = train_manager.get_train(train_id)
-        if train.line == 'blue':
-            line_color = 'blue'
-        elif train.line == 'red':
-            line_color = 'red'
-        elif train.line == 'green':
-            line_color = 'green'
-        status_canvas.create_rectangle(2, 2, 58, 23, fill=line_color, outline='white', width=2)
+        print(f"Found {len(deployed_trains)} deployed trains: {deployed_trains}")
         
-        # Add separator between items (except after the last one)
-        if i < len(deployed_trains) - 1:
-            row_separator = ttk.Separator(selector_frame, orient='horizontal')
-            row_separator.grid(row=row_num+1, column=0, columnspan=3, sticky='ew', pady=5)
+        for train_id in deployed_trains:
+            self.train_selector['menu'].add_command(
+                label=f"Train {train_id}", 
+                command=lambda tid=train_id: self.on_train_selected(tid)
+            )
+        
+        self.train_selector_label.config(text=f"Select Train ({len(deployed_trains)} Deployed)")
+        
+        if self.current_train and hasattr(self.current_train, 'train_id') and self.current_train.train_id in deployed_trains:
+            self.train_selector_var.set(f"Train {self.current_train.train_id}")
+        elif deployed_trains:
+            first_train_id = deployed_trains[0]
+            self.train_selector_var.set(f"Train {first_train_id}")
+            self.on_train_selected(first_train_id)
+        else:
+            self.train_selector_var.set("No Trains Deployed")
+
+    def setup_gui(self):
+        """Setup the complete GUI"""
+        # SCALED DOWN WINDOW SIZE
+        self.root = tk.Tk()
+        self.root.title("Passenger Train Model GUI")
+        self.root.configure(bg=self.main_color)
+        self.root.geometry("900x800")  # Reduced from 1050x970
+
+        # Train Selector Dropdown Frame - FIXED WIDTH
+        train_selector_container = tk.Frame(self.root, bg=self.main_color, height=30)
+        train_selector_container.pack(fill='x', padx=8, pady=3)
+        train_selector_container.pack_propagate(False)
+
+        self.train_selector_label = tk.Label(train_selector_container, text="Select Train", bg=self.main_color, fg='white', font=('Arial', 10, 'bold'))
+        self.train_selector_label.pack(side='left', padx=(8, 3))
+
+        # Train Selector
+        self.train_selector_var = tk.StringVar()
+        self.train_selector = tk.OptionMenu(train_selector_container, self.train_selector_var, "Loading...")
+        self.train_selector.config(bg=self.main_color, fg='white', font=('Arial', 9), width=20)  # Increased width from 12 to 20
+        self.train_selector.pack(side='left', padx=(0, 8))
+        self.train_selector['menu'].config(bg=self.main_color, fg='white')
+
+        # Top Container
+        top_container = tk.Frame(self.root, bg=self.main_color, highlightbackground="black", highlightthickness=3)
+        top_container.pack(fill='x', padx=8, pady=3)
+
+        # BLT Logo - Smaller
+        blt_logo_image = Image.open("Train Model/blt logo.png")
+        converted_blt_logo_image = blt_logo_image.resize((60, 60))
+        converted_blt_logo_image = ImageTk.PhotoImage(converted_blt_logo_image)
+        blt_logo_frame = tk.Frame(top_container, bg=self.main_color, height=65, width=65)
+        blt_logo_frame.pack(fill='x', side='left', pady=2, padx=2)
+        blt_logo_frame.pack_propagate(False)
+        tk.Label(blt_logo_frame, image=converted_blt_logo_image, bg=self.main_color).pack(padx=1, pady=1)
+        blt_logo_frame.image = converted_blt_logo_image
+
+        # Time Frame - Smaller
+        time_frame = tk.Frame(top_container, bg=self.off_color, width=150, height=65, highlightbackground="black", highlightthickness=3)
+        time_frame.pack(side='left', padx=2, pady=2)
+        time_frame.pack_propagate(False)
+        self.ui_labels['time'] = tk.Label(time_frame, text="Time", bg=self.off_color, fg='white', font=('Arial', 16, 'bold'))
+        self.ui_labels['time'].pack(padx=3, pady=3)
+
+        # Announcement Frame - Smaller
+        Announcement_frame = tk.Frame(top_container, bg=self.off_color, width=600, height=65, highlightbackground="black", highlightthickness=3)
+        Announcement_frame.pack(side='left', padx=2, pady=2)
+        Announcement_frame.pack_propagate(False)
+        self.ui_labels['announcement'] = tk.Label(Announcement_frame, text="Arriving to Dormount in 5 seconds", bg=self.off_color, fg='white', font=('Arial', 16, 'bold'))
+        self.ui_labels['announcement'].pack(padx=3, pady=3)
+
+        # Main frames
+        left_frame = tk.Frame(self.root, bg=self.main_color)
+        left_frame.pack(side='left', fill='both', padx=8, pady=3)
+
+        right_frame = tk.Frame(self.root, bg=self.main_color)
+        right_frame.pack(side='right', fill='both', expand=True, padx=8, pady=3)
+
+        # Advertisement Frame - Smaller
+        ad_image = Image.open("Train Model/wendy's_AD.jpg")
+        converted_ad_image = ad_image.resize((400, 180))
+        converted_ad_image = ImageTk.PhotoImage(converted_ad_image)
+        Advertisement = tk.Frame(right_frame, height=190, highlightbackground="black", highlightthickness=2, bg=self.off_color)
+        Advertisement.pack(side='top', padx=2, pady=2, fill='x')
+        Advertisement.pack_propagate(False)
+        tk.Label(Advertisement, image=converted_ad_image).pack(padx=1, pady=1)
+        Advertisement.image = converted_ad_image
+
+        # Doors/Lights Frame - Compact
+        doors_and_lights_frame = tk.Frame(right_frame, height=200, highlightbackground="black", highlightthickness=2, bg=self.off_color)
+        doors_and_lights_frame.pack(side='top', padx=2, pady=2, fill='x')
+        doors_and_lights_frame.pack_propagate(False)
+
+        # Cabin Doors - Compact
+        cabin_doors_frame = tk.Frame(doors_and_lights_frame, bg=self.off_color)
+        cabin_doors_frame.pack(side='left', padx=3, pady=2, fill='both', expand=True)
+
+        tk.Label(cabin_doors_frame, text="Right Door", bg=self.off_color, fg='white', font=('Arial', 9, 'bold')).pack(pady=5)
+        cabin_right_led = tk.Canvas(cabin_doors_frame, width=120, height=40, bg=self.off_color, highlightthickness=0)
+        cabin_right_led.pack(pady=3)
+        cabin_right_oval = cabin_right_led.create_oval(2, 2, 118, 38, fill='red', outline='black', width=1)
+        self.ui_indicators['cabin_right_led'] = cabin_right_led
+        self.ui_indicators['cabin_right_oval'] = cabin_right_oval
+
+        thin_line = tk.Frame(cabin_doors_frame, bg='black', height=1)
+        thin_line.pack(pady=8, fill='x', padx=15)
+
+        tk.Label(cabin_doors_frame, text="Left Door", bg=self.off_color, fg='white', font=('Arial', 9, 'bold')).pack(pady=5)
+        cabin_left_led = tk.Canvas(cabin_doors_frame, width=120, height=40, bg=self.off_color, highlightthickness=0)
+        cabin_left_led.pack(pady=3)
+        cabin_left_oval = cabin_left_led.create_oval(2, 2, 118, 38, fill='red', outline='black', width=1)
+        self.ui_indicators['cabin_left_led'] = cabin_left_led
+        self.ui_indicators['cabin_left_oval'] = cabin_left_oval
+
+        # Lights - Compact
+        lights_frame = tk.Frame(doors_and_lights_frame, bg=self.off_color)
+        lights_frame.pack(side='left', padx=3, pady=2, fill='both', expand=True)
+
+        tk.Label(lights_frame, text="Headlights", bg=self.off_color, fg='white', font=('Arial', 9, 'bold')).pack(pady=5)
+        headlights_led = tk.Canvas(lights_frame, width=120, height=40, bg=self.off_color, highlightthickness=0)
+        headlights_led.pack(pady=3)
+        headlights_oval = headlights_led.create_oval(2, 2, 118, 38, fill='red', outline='black', width=1)
+        self.ui_indicators['headlights_led'] = headlights_led
+        self.ui_indicators['headlights_oval'] = headlights_oval
+
+        thin_line = tk.Frame(lights_frame, bg='black', height=1)
+        thin_line.pack(pady=8, fill='x', padx=15)
+
+        tk.Label(lights_frame, text="Interior Lights", bg=self.off_color, fg='white', font=('Arial', 9, 'bold')).pack(pady=5)
+        Interior_led = tk.Canvas(lights_frame, width=120, height=40, bg=self.off_color, highlightthickness=0)
+        Interior_led.pack(pady=3)
+        interior_oval = Interior_led.create_oval(2, 2, 118, 38, fill='red', outline='black', width=1)
+        self.ui_indicators['interior_led'] = Interior_led
+        self.ui_indicators['interior_oval'] = interior_oval
+
+        # Murphy Failure Modes - Compact
+        murphy_frame = tk.Frame(right_frame, height=200, highlightbackground="black", highlightthickness=2, bg=self.off_color)
+        murphy_frame.pack(side='top', padx=2, pady=2, fill='both')
+        murphy_frame.pack_propagate(False)
+        tk.Label(murphy_frame, text="Murphy Failure Modes", bg=self.off_color, fg='white', font=('Arial', 16, 'bold')).pack(pady=3)
+
+        # RESTORED: Separator lines in Murphy frame
+        thin_line = tk.Frame(murphy_frame, bg='black', width=400)
+        thin_line.pack(pady=2)
+
+        self.failure_train_engine_var = tk.BooleanVar(value=False)
+        train_engine_switch = ttk.Checkbutton(murphy_frame, text="Train Engine", variable=self.failure_train_engine_var, 
+                                              command=lambda: self.failure_train_engine_var_changed(),
+                                              style="Medium.TCheckbutton")
+        train_engine_switch.pack(pady=6, padx=3, fill='x', expand=True)
+
+        # RESTORED: Separator line
+        thin_line = tk.Frame(murphy_frame, bg='black', width=400)
+        thin_line.pack(pady=2)
+
+        self.failure_signal_pickup_var = tk.BooleanVar(value=False)
+        signal_pickup_switch = ttk.Checkbutton(murphy_frame, text="Signal Pickup", variable=self.failure_signal_pickup_var,
+                                               command=lambda: self.failure_signal_pickup_var_changed(),
+                                               style="Medium.TCheckbutton")
+        signal_pickup_switch.pack(pady=6, padx=3, fill='x', expand=True)
+
+        # RESTORED: Separator line
+        thin_line = tk.Frame(murphy_frame, bg='black', width=400)
+        thin_line.pack(pady=2)
+
+        self.failure_brake_var = tk.BooleanVar(value=False)
+        brake_switch = ttk.Checkbutton(murphy_frame, text="Brake", variable=self.failure_brake_var,
+                                       command=lambda: self.failure_service_brake_var_changed(),
+                                       style="Medium.TCheckbutton")
+        brake_switch.pack(pady=6, padx=3, fill='x', expand=True)
+
+        # Passenger Disembarking - Compact
+        pass_disembarking_frame = tk.Frame(right_frame, highlightbackground="black", highlightthickness=2, bg=self.off_color, height=50)
+        pass_disembarking_frame.pack(side='top', padx=1, pady=1, fill='both')
+
+        disembarking_content = tk.Frame(pass_disembarking_frame, bg=self.off_color)
+        disembarking_content.pack(expand=True, fill='both', padx=3, pady=3)
+
+        generate_button = tk.Button(disembarking_content, text="Generate", bg=self.main_color, fg='white', font=('Arial', 9, 'bold'), relief='raised', bd=2, width=8, height=1,
+                                    command=lambda: [self.current_train.set_disembarking(random.randint(0,self.current_train.passenger_count)),
+                                                     self.current_train.set_passenger_count(self.current_train.passenger_count - self.current_train.passengers_disembarking)])
+        generate_button.pack(side='left', padx=(0, 8))
+
+        self.ui_labels['disembarking'] = tk.Label(disembarking_content, text="Passengers Disembarking: 0", bg=self.off_color, fg='white', font=('Arial', 10, 'bold'))
+        self.ui_labels['disembarking'].pack(side='left', fill='both', expand=True)
+
+        # Style for smaller checkbuttons
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure("Medium.TCheckbutton", indicatorsize=16, padding=8, font=('Arial', 12, 'bold'), background=self.off_color, foreground='white')
+        style.map("Medium.TCheckbutton", background=[('active', self.main_color)])
+
+        # Train Metrics - Compact
+        train_metrics_frame = tk.Frame(left_frame, width=480, height=580, bg=self.main_color, highlightbackground="black", highlightthickness=3)
+        train_metrics_frame.pack(side='top', padx=2, pady=2)
+        train_metrics_frame.pack_propagate(False)
+        tk.Label(train_metrics_frame, text="Train Metrics", bg=self.off_color, fg='white', highlightbackground='black', highlightthickness=3, 
+                 font=('Arial', 9, 'bold')).pack(padx=3, pady=3)
+
+        # Live Metrics - Compact
+        live_metrics = tk.Frame(train_metrics_frame, width=320, highlightbackground="black", highlightthickness=2, bg=self.off_color)
+        live_metrics.pack(side='right', padx=2, pady=2, fill='y')
+        live_metrics.pack_propagate(False)
+        tk.Label(live_metrics, text="Live Metrics", bg=self.off_color, fg='white', font=('Arial', 16, 'bold')).pack(pady=3)
+
+        tk.Label(live_metrics, text="Speed", bg=self.off_color, fg='white', font=('Arial', 20, 'bold')).pack(pady=6)
+        self.ui_labels['speed'] = tk.Label(live_metrics, text="0.0 MPH", bg=self.off_color, fg='white', font=('Arial', 18, 'bold'))
+        self.ui_labels['speed'].pack(pady=3)
+
+        # RESTORED: Separator line after speed
+        thin_line = tk.Frame(live_metrics, bg='black', width=300)
+        thin_line.pack()
+
+        tk.Label(live_metrics, text="Acceleration", bg=self.off_color, fg='white', font=('Arial', 20, 'bold')).pack(pady=6)
+        self.ui_labels['acceleration'] = tk.Label(live_metrics, text="0.0 MPH²", bg=self.off_color, fg='white', font=('Arial', 18, 'bold'))
+        self.ui_labels['acceleration'].pack(pady=3)
+
+        # RESTORED: Separator line after acceleration
+        thin_line = tk.Frame(live_metrics, bg='black', width=300)
+        thin_line.pack()
+
+        self.ui_labels['passenger_count'] = tk.Label(live_metrics, text="Passenger Count: 0", bg=self.off_color, fg='white', font=('Arial', 14, 'bold'))
+        self.ui_labels['passenger_count'].pack(pady=8)
+        self.ui_labels['crew_count'] = tk.Label(live_metrics, text="Crew Count: 0", bg=self.off_color, fg='white', font=('Arial', 14, 'bold'))
+        self.ui_labels['crew_count'].pack(pady=8)
+
+        # RESTORED: Separator line after crew count
+        thin_line = tk.Frame(live_metrics, bg='black', width=300)
+        thin_line.pack()
+
+        self.ui_labels['Speed Limit'] = tk.Label(live_metrics, text="Speed Limit: 0", bg=self.off_color, fg='white', font=('Arial', 13, 'bold'))
+        self.ui_labels['Speed Limit'].pack(pady=8)
+
+        # RESTORED: Separator line after speed limit
+        thin_line = tk.Frame(live_metrics, bg='black', width=300)
+        thin_line.pack()
+
+        # Bottom metrics - Compact
+        bottom_live_metrics = tk.Frame(live_metrics, width=320, bg=self.off_color)
+        bottom_live_metrics.pack(side='bottom', fill='x', pady=(0, 15))
+
+        grade_elevation_row = tk.Frame(bottom_live_metrics, bg=self.off_color)
+        grade_elevation_row.pack(fill='x', pady=(0, 25))
+
+        self.ui_labels['Grade'] = tk.Label(grade_elevation_row, text="Grade %: 0", bg=self.off_color, fg='white', font=('Arial', 12, 'bold'))
+        self.ui_labels['Grade'].pack(side='left', padx=(12, 3), expand=True)
+
+        self.ui_labels['Elevation'] = tk.Label(grade_elevation_row, text="Elevation (ft): 0", bg=self.off_color, fg='white', font=('Arial', 12, 'bold'))
+        self.ui_labels['Elevation'].pack(side='right', padx=(3, 12), expand=True)
+
+        # RESTORED: Separator line after grade/elevation
+        thin_line_bottom = tk.Frame(bottom_live_metrics, bg='black', width=300)
+        thin_line_bottom.pack()
+
+        self.ui_labels['Commanded Authority'] = tk.Label(bottom_live_metrics, text="Commanded Authority (ft): 0", bg=self.off_color, fg='white', font=('Arial', 11, 'bold'))
+        self.ui_labels['Commanded Authority'].pack(pady=8)
+
+        self.ui_labels['Commanded Speed'] = tk.Label(bottom_live_metrics, text="Commanded Speed (MPH): 0", bg=self.off_color, fg='white', font=('Arial', 11, 'bold'))
+        self.ui_labels['Commanded Speed'].pack(pady=3)
+
+        # Cabin Temp - Smaller
+        cabin_temp_frame = tk.Frame(train_metrics_frame, width=120, height=160, highlightbackground="black", highlightthickness=2, bg=self.off_color)
+        cabin_temp_frame.pack(side='top', padx=2, pady=2)
+        cabin_temp_frame.pack_propagate(False)
+        tk.Label(cabin_temp_frame, text="Cabin Temp", bg=self.off_color, fg='white', font=('Arial', 9, 'bold')).pack(padx=3, pady=(8, 3))
+
+        self.canvas_frame_circle = tk.Canvas(cabin_temp_frame, width=100, height=140, bg=self.off_color, highlightbackground=self.off_color)
+        self.canvas_frame_circle.pack(side='top', expand=True)
+        self.canvas_frame_circle.create_oval(8, 8, 92, 92, fill=self.off_color, outline='black', width=2)
+        self.ui_labels['cabin_temp'] = self.canvas_frame_circle.create_text(50, 50, text="75°F", font=('Arial', 20, 'bold'), fill='white')
+
+        # Train Dimensions - Smaller
+        Train_Dimensions_Frame = tk.Frame(train_metrics_frame, width=120, height=220, highlightbackground="black", highlightthickness=2, bg=self.off_color)
+        Train_Dimensions_Frame.pack(side='top', padx=2, pady=2)
+        Train_Dimensions_Frame.pack_propagate(False)
+        tk.Label(Train_Dimensions_Frame, text="Train Dimensions", bg=self.off_color, fg='white', font=('Arial', 8, 'bold')).pack(padx=3, pady=3)
+
+        self.ui_labels['height'] = tk.Label(Train_Dimensions_Frame, text="Height: 11.0ft", bg=self.off_color, fg='white', font=('Arial', 10))
+        self.ui_labels['height'].pack(padx=1, pady=15)
+        self.ui_labels['length'] = tk.Label(Train_Dimensions_Frame, text="Length: 150.0ft", bg=self.off_color, fg='white', font=('Arial', 10))
+        self.ui_labels['length'].pack(padx=1, pady=15)
+        self.ui_labels['width'] = tk.Label(Train_Dimensions_Frame, text="Width: 10.0ft", bg=self.off_color, fg='white', font=('Arial', 10))
+        self.ui_labels['width'].pack(padx=1, pady=15)
+
+        # Power Command - Smaller
+        Train_Power_Command = tk.Frame(train_metrics_frame, width=120, height=180, highlightbackground="black", highlightthickness=2, bg=self.off_color)
+        Train_Power_Command.pack(side='top', padx=2, pady=2)
+        Train_Power_Command.pack_propagate(False)
+        tk.Label(Train_Power_Command, text="Power Command", bg=self.off_color, fg='white', font=('Arial', 9, 'bold')).pack(padx=3, pady=3)
+        self.ui_labels['power_command'] = tk.Label(Train_Power_Command, text="0 Watts", bg=self.off_color, fg='white', font=('Arial', 13))
+        self.ui_labels['power_command'].pack(padx=1, pady=25)
+
+        # Emergency Brake - Smaller
+        emergency_brake = tk.Frame(left_frame, width=480, height=80, highlightbackground="black", highlightthickness=2, bg=self.off_color)
+        emergency_brake.pack(side='top', padx=2, pady=2)
+        emergency_brake.pack_propagate(False)
+        emergency_brake_button = tk.Button(emergency_brake, text="EMERGENCY BRAKE", bg="red", fg='white', font=('Arial', 20),
+                                           command=self.emergency_brake_activated,
+                                           relief='raised', bd=1, padx=10, pady=2, height=40)
+        emergency_brake_button.pack(fill='both')
+
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
     
-    # Update the header to show count of deployed trains
-    title_label.config(text=f"Train Selector ({len(deployed_trains)} Deployed)")
+    def on_closing(self):
+        print("Closing application...")
+        self.root.destroy()
+        os._exit(0)  # This will definitely terminate the process
     
-    # Highlight current selection if it's still deployed
-    if current_train and hasattr(current_train, 'train_id') and current_train.train_id in deployed_trains:
-        if current_train.train_id in train_buttons:
-            train_buttons[current_train.train_id].config(bg='#3a3a7d', relief='sunken')
-    elif deployed_trains:
-        # Select first deployed train if current selection is no longer deployed
-        first_train_id = deployed_trains[0]
-        if first_train_id in train_buttons:
-            train_buttons[first_train_id].config(bg='#3a3a7d', relief='sunken')
-            on_train_selected(first_train_id)
+    def run(self):
+        """Start the application"""
+        # Register observer to update UI when train data changes
+        self.current_train.add_observer(self.update_ui_from_train)
 
+        # Initialize the train selector dropdown
+        self.root.after(100, self.refresh_train_selector)
 
-            
-#Train Selector
-selector_frame = tk.Frame(root, bg=main_color, highlightbackground="black", highlightthickness=4, width=200)
-selector_frame.pack(side='right', fill='y', padx=3, pady=3)
-selector_frame.pack_propagate(False)
+        self.root.after(100, self.continuous_physics_update)
 
-selector_frame.columnconfigure(0, weight=1)
-selector_frame.columnconfigure(1, weight=0)
-selector_frame.columnconfigure(2, weight=1)
+        self.root.mainloop()
 
-title_label = tk.Label(selector_frame, text="Train Selector", bg=main_color, fg='white', font=('Arial', 14, 'bold'))
-title_label.grid(row=0, column=0, columnspan=3, padx=10, pady=(10, 5), sticky='ew')
-
-# Use the refresh function to build the initial selector
-refresh_train_selector()
-
-
-
-train_buttons = {}
-
-# Get all trains and filter only deployed ones
-deployed_trains = []
-for train_id in range(1, 15):
-    train = train_manager.get_train(train_id)
-    if train.deployed:
-        deployed_trains.append(train_id)
-
-# Create UI elements only for deployed trains
-for i, train_id in enumerate(deployed_trains):
-    row_num = 4 + (i * 2)
-    
-    # Make train label clickable
-    train_btn = tk.Button(
-        selector_frame,
-        text=f"Train {train_id}",
-        bg=main_color,
-        fg='white',
-        font=('Arial', 10),
-        relief='flat',
-        cursor='hand2',
-        command=lambda tid=train_id: on_train_selected(tid)
-    )
-    train_btn.grid(row=row_num, column=0, padx=10, pady=10, sticky='ew')
-    train_buttons[train_id] = train_btn
-    
-   
-    
-    # Add separator between items (except after the last one)
-    if i < len(deployed_trains) - 1:
-        row_separator = ttk.Separator(selector_frame, orient='horizontal')
-        row_separator.grid(row=row_num+1, column=0, columnspan=3, sticky='ew', pady=5)
-
-# Update the header to show count of deployed trains
-title_label.config(text=f"Train Selector ({len(deployed_trains)} Deployed)",font=('Arial',12))
-
-# Highlight initial selection if there are deployed trains
-if deployed_trains:
-    first_train_id = deployed_trains[0]
-    train_buttons[first_train_id].config(bg='#3a3a7d', relief='sunken')
-    # Optionally select the first deployed train automatically
-    on_train_selected(first_train_id)
-
-
-
-# Top Container
-top_container = tk.Frame(root, bg=main_color, highlightbackground="black", highlightthickness=4)
-top_container.pack(fill='x')
-
-#BLT Logo
-blt_logo_image = Image.open("Train Model/blt logo.png")
-converted_blt_logo_image = blt_logo_image.resize((75,75))
-converted_blt_logo_image = ImageTk.PhotoImage(converted_blt_logo_image)
-blt_logo_frame = tk.Frame(top_container, bg=main_color, height=80,width=80)
-blt_logo_frame.pack(fill='x',side='left',pady=3,padx=3)
-blt_logo_frame.pack_propagate(False)
-tk.Label(blt_logo_frame, image=converted_blt_logo_image, bg=main_color).pack(padx=1,pady=1)
-blt_logo_frame.image = converted_blt_logo_image
-
-time_frame = tk.Frame(top_container, bg=off_color, width=200, height=80, highlightbackground="black", highlightthickness=4)
-time_frame.pack(side='left', padx=3, pady=3)
-time_frame.pack_propagate(False)
-ui_labels['time'] = tk.Label(time_frame, text="Time", bg=off_color, fg='white', font=('Arial',10,'bold')).pack(padx=5, pady=5)
-
-Announcement_frame = tk.Frame(top_container, bg=off_color, width=800, height=80, highlightbackground="black", highlightthickness=4)
-Announcement_frame.pack(side='left', padx=3, pady=3)
-Announcement_frame.pack_propagate(False)
-ui_labels['announcement'] = tk.Label(Announcement_frame, text="Arriving to Dormount in 5 seconds", bg=off_color, fg='white', font=('Arial',20,'bold'))
-ui_labels['announcement'].pack(padx=5, pady=5)
-
-left_frame = tk.Frame(root, bg=main_color)
-left_frame.pack(side='left',fill='both')
-
-right_frame = tk.Frame(root, bg=main_color)
-right_frame.pack(side='right',fill='both',expand=True)
-
-# Advertisement Frame
-ad_image = Image.open("Train Model/wendy's_AD.jpg")
-converted_ad_image = ImageTk.PhotoImage(ad_image)
-Advertisement = tk.Frame(right_frame,height=230,highlightbackground="black",highlightthickness=2,bg=off_color)
-Advertisement.pack(side='top',padx=2,pady=2,fill='x')
-Advertisement.pack_propagate(False)
-tk.Label(Advertisement, image=converted_ad_image).pack(padx=1,pady=1)
-Advertisement.image = converted_ad_image
-
-# Doors/Lights Frame
-doors_and_lights_frame = tk.Frame(right_frame,height=300,highlightbackground="black",highlightthickness=2,bg=off_color)
-doors_and_lights_frame.pack(side='top',padx=3,pady=3,fill='x')
-doors_and_lights_frame.pack_propagate(False)
-
-# Cabin Doors
-cabin_doors_frame = tk.Frame(doors_and_lights_frame,bg=off_color)
-cabin_doors_frame.pack(side='left',padx=5,pady=3,fill='both',expand=True)
-cabin_doors_frame.pack_propagate(False)
-
-tk.Label(cabin_doors_frame,text="Right Cabin Door",bg=off_color,fg='white',font=('Arial',10,'bold')).pack(pady=10,padx=5)
-cabin_right_led = tk.Canvas(cabin_doors_frame, width=150, height=50, bg=off_color, highlightthickness=0)
-cabin_right_led.pack(pady=5)
-cabin_right_oval = cabin_right_led.create_oval(2, 2, 148, 48, fill='red', outline='black', width=1)
-ui_indicators['cabin_right_led'] = cabin_right_led
-ui_indicators['cabin_right_oval'] = cabin_right_oval
-
-thin_line = tk.Frame(cabin_doors_frame, bg='black',height=2)
-thin_line.pack(pady=15,fill='x',padx=20)
-
-tk.Label(cabin_doors_frame,text="Left Cabin Door",bg=off_color,fg='white',font=('Arial',10,'bold')).pack(pady=10,padx=5)
-cabin_left_led = tk.Canvas(cabin_doors_frame, width=150, height=50, bg=off_color, highlightthickness=0)
-cabin_left_led.pack(pady=5)
-cabin_left_oval = cabin_left_led.create_oval(2, 2, 148, 48, fill='red', outline='black', width=1)
-ui_indicators['cabin_left_led'] = cabin_left_led
-ui_indicators['cabin_left_oval'] = cabin_left_oval
-
-# Lights
-lights_frame = tk.Frame(doors_and_lights_frame,bg=off_color)
-lights_frame.pack(side='left',padx=5,pady=3,fill='both',expand=True)
-lights_frame.pack_propagate(False)
-
-tk.Label(lights_frame,text="Headlights",bg=off_color,fg='white',font=('Arial',10,'bold')).pack(pady=10,padx=5)
-headlights_led = tk.Canvas(lights_frame, width=150, height=50, bg=off_color, highlightthickness=0)
-headlights_led.pack(pady=5)
-headlights_oval = headlights_led.create_oval(2, 2, 148, 48, fill='red', outline='black', width=1)
-ui_indicators['headlights_led'] = headlights_led
-ui_indicators['headlights_oval'] = headlights_oval
-
-thin_line = tk.Frame(lights_frame, bg='black',height=2)
-thin_line.pack(pady=15,fill='x',padx=20)
-
-tk.Label(lights_frame,text="Interior Cabin Lights",bg=off_color,fg='white',font=('Arial',10,'bold')).pack(pady=10,padx=5)
-Interior_led = tk.Canvas(lights_frame, width=150, height=50, bg=off_color, highlightthickness=0)
-Interior_led.pack(pady=5)
-interior_oval = Interior_led.create_oval(2, 2, 148, 48, fill='red', outline='black', width=1)
-ui_indicators['interior_led'] = Interior_led
-ui_indicators['interior_oval'] = interior_oval
-
-# Murphy Failure Modes
-murphy_frame = tk.Frame(right_frame,height=250,highlightbackground="black",highlightthickness=2,bg=off_color)
-murphy_frame.pack(side='top',padx=3,pady=3,fill='both')
-murphy_frame.pack_propagate(False)
-tk.Label(murphy_frame, text="Murphy Failure Modes", bg=off_color, fg='white', width=120, height=1, anchor='n', font=('Arial',20,'bold')).pack(pady=5,padx=5)
-thin_line = tk.Frame(murphy_frame, bg='black',width=400)
-thin_line.pack(pady=2)
-
-failure_train_engine_var = tk.BooleanVar(value=False)
-train_engine_switch = ttk.Checkbutton(murphy_frame, text="Train Engine", variable=failure_train_engine_var, 
-                                      command=lambda: failure_train_engine_var_changed(),
-                                      style="Large.TCheckbutton")
-train_engine_switch.pack(pady=10,padx=5,fill='x',expand=True)
-thin_line = tk.Frame(murphy_frame,bg='black',width=400)
-thin_line.pack(pady=2)
-
-failure_signal_pickup_var = tk.BooleanVar(value=False)
-signal_pickup_switch = ttk.Checkbutton(murphy_frame, text="Signal Pickup", variable=failure_signal_pickup_var,
-                                       command=lambda: failure_signal_pickup_var_changed(),
-                                       style="Large.TCheckbutton")
-signal_pickup_switch.pack(pady=10,padx=5,fill='x',expand=True)
-thin_line = tk.Frame(murphy_frame,bg='black',width=400)
-thin_line.pack(pady=2)
-
-failure_brake_var = tk.BooleanVar(value=False)
-brake_switch = ttk.Checkbutton(murphy_frame, text="Brake", variable=failure_brake_var,
-                               command=lambda: failure_service_brake_var_changed(),
-                               style="Large.TCheckbutton")
-brake_switch.pack(pady=3,padx=5,fill='x',expand=True)
-
-style = ttk.Style()
-style.theme_use('clam')
-style.configure("Large.TCheckbutton",indicatorsize=20, padding=10,font=('Arial',15,'bold'),background=off_color,foreground='white')
-style.map("Large.TCheckbutton",background=[('active', main_color)])
-
-# Train Metrics
-train_metrics_frame = tk.Frame(left_frame, width=580, height=700, bg=main_color,highlightbackground="black", highlightthickness=4)
-train_metrics_frame.pack(side='top',padx=3, pady=3)
-train_metrics_frame.pack_propagate(False)
-tk.Label(train_metrics_frame, text="Train Metrics", bg=off_color, fg='white', highlightbackground='black', highlightthickness=4, 
-         width=40, height=1, anchor='n', font=('Arial',10,'bold')).pack(padx=5, pady=5)
-
-# Live Metrics
-live_metrics = tk.Frame(train_metrics_frame, width=400, highlightbackground="black", highlightthickness=2,bg=off_color)
-live_metrics.pack(side='right',padx=3,pady=3,fill='y')
-live_metrics.pack_propagate(False)
-tk.Label(live_metrics, text="Live Metrics", bg=off_color, fg='white', width=120, height=1, anchor='n', font=('Arial',18,'bold')).pack(pady=5,padx=5)
-thin_line = tk.Frame(live_metrics, bg='black')
-thin_line.pack(fill='x')
-
-tk.Label(live_metrics,text="Speed",bg=off_color,fg='white',width=120,height=1,font=('Arial',24,'bold')).pack(pady=15,padx=5)
-ui_labels['speed'] = tk.Label(live_metrics,text="0.0 MPH",bg=off_color,fg='white',width=120,height=1,font=('Arial',21,'bold'))
-ui_labels['speed'].pack(pady=10,padx=5)
-thin_line = tk.Frame(live_metrics, bg='black',width=300)
-thin_line.pack()
-
-tk.Label(live_metrics,text="Acceleration",bg=off_color,fg='white',width=120,height=1,font=('Arial',24,'bold')).pack(pady=15,padx=5)
-ui_labels['acceleration'] = tk.Label(live_metrics,text="0.0 MPH²",bg=off_color,fg='white',width=120,height=1,font=('Arial',21,'bold'))
-ui_labels['acceleration'].pack(pady=10,padx=5)
-thin_line = tk.Frame(live_metrics, bg='black',width=300)
-thin_line.pack()
-
-ui_labels['passenger_count'] = tk.Label(live_metrics,text="Passenger Count: 0",bg=off_color,fg='white',width=120,height=1,font=('Arial',20,'bold'))
-ui_labels['passenger_count'].pack(pady=20,padx=5)
-ui_labels['crew_count'] = tk.Label(live_metrics,text="Crew Count: 0",bg=off_color,fg='white',width=120,height=1,font=('Arial',20,'bold'))
-ui_labels['crew_count'].pack(pady=20,padx=5)
-
-thin_line = tk.Frame(live_metrics, bg='black',width=300)
-thin_line.pack()
-
-ui_labels['Speed Limit'] = tk.Label(live_metrics,text="Speed Limit: 0",bg=off_color,fg='white',width=120,height=1,font=('Arial',15,'bold'))
-ui_labels['Speed Limit'].pack(pady=20,padx=5)
-
-thin_line = tk.Frame(live_metrics, bg='black',width=300)
-thin_line.pack()
-
-bottom_live_metrics = tk.Frame(live_metrics, width=400, bg=off_color)
-bottom_live_metrics.pack(side='bottom',fill='x',pady=(0,45))
-ui_labels['Grade'] = tk.Label(bottom_live_metrics,text="Grade %: 0",bg=off_color,fg='white',height=1,font=('Arial',15,'bold'))
-ui_labels['Grade'].pack(pady=(5,5),padx=(15,5),side='left')
-ui_labels['Elevation']  = tk.Label(bottom_live_metrics,text="Elevation: 0",bg=off_color,fg='white',height=1,font=('Arial',15,'bold'))
-ui_labels['Elevation'].pack(pady=(5,5),padx=15,side='right')
-
-# Cabin Temp
-cabin_temp_frame = tk.Frame(train_metrics_frame, width=140,height=200,highlightbackground="black", highlightthickness=2,bg=off_color)
-cabin_temp_frame.pack(side='top',padx=3,pady=3)
-cabin_temp_frame.pack_propagate(False)
-tk.Label(cabin_temp_frame, text="Cabin Temp", bg=off_color, fg='white', width=120, height=1, font=('Arial',10,'bold')).pack(padx=5, pady=(10, 5), side='top')
-
-canvas_frame_circle = tk.Canvas(cabin_temp_frame, width=120, height=180, bg=off_color, highlightbackground=off_color)
-canvas_frame_circle.pack(side='top', expand=True)
-canvas_frame_circle.create_oval(10, 10, 110, 110, fill=off_color, outline='black', width=2)
-ui_labels['cabin_temp'] = canvas_frame_circle.create_text(60, 60, text="75°F", font=('Arial', 25, 'bold'), fill='white')
-
-# Train Dimensions
-Train_Dimensions_Frame = tk.Frame(train_metrics_frame, width=140,height=260,highlightbackground="black", highlightthickness=2,bg=off_color)
-Train_Dimensions_Frame.pack(side='top',padx=3,pady=3)
-Train_Dimensions_Frame.pack_propagate(False)
-tk.Label(Train_Dimensions_Frame, text="Train Dimensions", bg=off_color, fg='white', width=120, height=1, anchor='n', font=('Arial',9,'bold')).pack(padx=5, pady=5)
-
-ui_labels['height'] = tk.Label(Train_Dimensions_Frame, text="Height: 11.0ft", bg=off_color, fg='white', font=('Arial',12))
-ui_labels['height'].pack(padx=1,pady=20)
-ui_labels['length'] = tk.Label(Train_Dimensions_Frame, text="Length: 150.0ft", bg=off_color, fg='white', font=('Arial',12))
-ui_labels['length'].pack(padx=1,pady=20)
-ui_labels['width'] = tk.Label(Train_Dimensions_Frame, text="Width: 10.0ft", bg=off_color, fg='white', font=('Arial',12))
-ui_labels['width'].pack(padx=1,pady=20)
-
-# Power Command
-Train_Power_Command = tk.Frame(train_metrics_frame, width=140,height=225,highlightbackground="black", highlightthickness=2,bg=off_color)
-Train_Power_Command.pack(side='top',padx=3,pady=3)
-Train_Power_Command.pack_propagate(False)
-tk.Label(Train_Power_Command, text="Power Command", bg=off_color, fg='white', width=120, height=1, anchor='n', font=('Arial',10,'bold')).pack(padx=5, pady=5)
-ui_labels['power_command'] = tk.Label(Train_Power_Command, text="0 Watts", bg=off_color, fg='white', font=('Arial',15))
-ui_labels['power_command'].pack(padx=1,pady=35)
-
-# Emergency Brake
-emergency_brake = tk.Frame(left_frame,width=580,height=100, highlightbackground="black",highlightthickness=2,bg=off_color)
-emergency_brake.pack(side='top',padx=3,pady=3)
-emergency_brake.pack_propagate(False)
-emergency_brake_button = tk.Button(emergency_brake, text="EMERGENCY BRAKE", bg="red", fg='white', font=('Arial', 30),
-                                   command=emergency_brake_activated,
-                                   relief='raised', bd=1, padx=15, pady=3, height=50)
-emergency_brake_button.pack(fill='both')
-
-def on_closing():
-    """Handle application closing"""
-    print("Closing application...")
-    socket_server.running = False
-    
-    # Force close the server socket
-    if socket_server.server_socket:
-        try:
-            socket_server.server_socket.close()
-        except:
-            pass
-    
-    # Destroy the root window
-    root.destroy()
-
-
-root.protocol("WM_DELETE_WINDOW", on_closing)
-
-# Start the socket server
-socket_server.start_server(update_ui_from_train)
-
-# Register observer to update UI when train data changes
-current_train.add_observer(update_ui_from_train)
-
-root.after(100, start_ui_heartbeat)
-
-root.mainloop()
+# Create and run the application
+if __name__ == "__main__":
+    app = TrainModelPassengerGUI()
+    app.run()

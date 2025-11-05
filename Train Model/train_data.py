@@ -4,17 +4,19 @@ Handles all train data and state for both Test UI and Passenger UI
 All calculations are done in metric, then converted to imperial when displayed onto the UI, except for temperature which is already in farenheight
 """
 import numpy as np
-from scipy.integrate import cumtrapz
+import time
+
 
 class Train:
     """Represents a single train with all its properties"""
     def __init__(self, train_id):
         self.train_id = train_id
         
-        # Metrics            All Values come from blue line for testing
+        # Metrics - All Values come from blue line for testing
         self.speed = 0.0
         self.acceleration = 0.0
         self.passenger_count = 0
+        self.passengers_disembarking = 0
         self.crew_count = 2
         self.power_command = 0.0
         self.cabin_temp = 72.0
@@ -24,6 +26,10 @@ class Train:
         self.commanded_speed = 0
         self.commanded_authority = 0
 
+        # For physics calculations
+        self.last_power_command = 0.0
+        self.last_service_brake = True
+        self.last_emergency_brake = False
         
         # Dimensions
         self.height = 3.42
@@ -50,12 +56,14 @@ class Train:
         # Deployment status
         self.deployed = False
         
-        #Line assignment
-        self.line = "blue"  #blue for testing
+        # Line assignment
+        self.line = "blue"  # blue for testing
 
-        #Station
+        # Station
         self.station = ""
         self.time_to_station = 0
+        self.emergency_announcement = "EMERGENCY"
+        
         # Observers (callbacks for UI updates)
         self._observers = []
     
@@ -74,9 +82,22 @@ class Train:
             callback(self)
     
     # Metric setters with validation
+    def set_speed_limit(self, value):
+        self.speed_limit = float(value)
+        self._notify_observers()
+    
+    def set_elevation(self, value):
+        self.elevation = float(value)
+        self._notify_observers()
+
+    def set_grade(self, value):
+        self.grade = float(value)
+        self._notify_observers()
+        
     def set_speed(self, value):
         try:
             self.speed = float(value)
+            print(f"Actual Speed Sent to Train Model")
             self._notify_observers()
         except ValueError:
             pass
@@ -91,6 +112,7 @@ class Train:
     def set_passenger_count(self, value):
         try:
             self.passenger_count = max(0, int(value))
+            print(f"Train Occupancy Sent to Track Model")
             self._notify_observers()
         except ValueError:
             pass
@@ -104,6 +126,7 @@ class Train:
     
     def set_power_command(self, value):
         try:
+            self.last_power_command = self.power_command
             self.power_command = float(value)
             self._notify_observers()
         except ValueError:
@@ -138,8 +161,8 @@ class Train:
             pass
 
     def set_station(self, station_name):
-            self.station = str(station_name)
-            self._notify_observers()
+        self.station = str(station_name)
+        self._notify_observers()
         
     def set_time_to_station(self, minutes):
         try:
@@ -148,80 +171,75 @@ class Train:
         except ValueError:
             pass
     
-    def set_service_brake(self,value):
+    def set_service_brake(self, value):
         value = bool(value)
         if value:
             self.service_brake_active = 1
         else:
             self.service_brake_active = 0
+        self._notify_observers()
 
-    def calculate_force_speed_acceleration_(self,dt=1.0):
+    def set_disembarking(self, value):
+        self.passengers_disembarking = int(value)
+        self._notify_observers()
+
+    def calculate_force_speed_acceleration_(self, dt=1.0):
         """
-        When the train's power command is 0, and either the service brake or emergency brake is on,  we must output the Force to max.
-
-        Maximum Force: (51.43 * 1000) * 0.5 = 25715 N   (This is F = ma)
-        With a calculated from the above calculation, you would then get 
-
-        v = integral(a)
-
-        When the train's speed is greater than 0, meaning the train is currently moving, 
-        we simply take the power command and directly calculate the speed and acceleration from it
+        Calculate train physics based on current state and commands
         """
-
         # Constants
         EMPTY_TRAIN_MASS = 40900  
         AVG_PASSENGER_MASS = 65.77 
         SERVICE_BRAKE_DECEL = -1.2  
         EMERGENCY_BRAKE_DECEL = -2.73 
         MAX_FORCE = 25715 
-        total_mass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passenger_count+2)) # +2 to account for the crew
-
-        # CASE 1: Emergency Brake (highest priority)
+        total_mass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passenger_count + 2))
+        
+        # State-based acceleration logic
         if self.emergency_brake_active:
             a = EMERGENCY_BRAKE_DECEL
-        
-        # CASE 2: Service Brake
+            
         elif self.service_brake_active:
             if self.speed > 0:
                 a = SERVICE_BRAKE_DECEL
-            elif self.speed == 0:
-                f = MAX_FORCE
-                a = MAX_FORCE / (total_mass)
-                self.service_brake_active = 0
             else:
-                a = 0 
-        # CASE 3: Power command with existing speed
-        elif self.power_command > 0 and self.speed > 0:
-            # P = F*v, so F = P/v
-            force = self.power_command / self.speed
-            a = force / total_mass
+                a = 0
+                
+        elif not self.service_brake_active:  # Service brake is OFF
+            if not self.left_door_open and not self.right_door_open and self.power_command > 0:
+                # ONLY use max force when completely stopped and starting from rest
+                if self.speed == 0:
+                    a = MAX_FORCE / total_mass
+                else:
+                    # Normal operation for moving train
+                    if self.speed > 0:
+                        force = self.power_command / self.speed
+                        a = force / total_mass
+                    else:
+                        a = 0
+            else:
+                a = 0  # No power or doors open
+                
+        else:
+            a = self.acceleration  # Fallback
         
         # INTEGRATE: Update speed using acceleration
         new_speed = self.speed + (a * dt)
+        
+        # Apply speed limits
         if new_speed > self.speed_limit:
-            new_speed = self.speed_limit             #WIP: still need to see what to do if the speed ends up being greater than the speed limit
+            new_speed = self.speed_limit
+            a = 0  # Stop accelerating when at limit
+            
         # Ensure speed doesn't go negative
         if new_speed < 0:
             new_speed = 0
-            a = 0  # No acceleration when stopped
+            a = 0
         
         # Update state
         self.speed = new_speed
         self.acceleration = a
-    
-                
-
-        
-    """
-    def calculate_temp_change_time(self, temp):
-        t = (m * c_p * ΔT) / Q_AC
-
-        ΔT = temp - self.cabin_temp
-        t = ((11.2*150.642*8.7) * .24 * ΔT) / 6824
-
-        return t, temp
-
-        """ 
+        self._notify_observers()
     # Door controls
     def set_right_door(self, is_open):
         """Set right door state (True=Open, False=Closed)"""
@@ -286,9 +304,8 @@ class Train:
             'signal_pickup_failure': self.signal_pickup_failure,
             'brake_failure': self.brake_failure,
             'emergency_brake_active': self.emergency_brake_active,
-            'deployed': self.deployed
+            'deployed': self.deployed,
         }
-
 
 class TrainManager:
     """Manages all trains in the system"""

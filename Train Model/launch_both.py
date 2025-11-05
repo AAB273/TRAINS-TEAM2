@@ -5,15 +5,15 @@ import os
 
 def launch_both_guis():
     # Replace these with your exact filepaths
-    PASSENGER_UI_PATH = r"/mnt/c/Users/wolfm/OneDrive - University of Pittsburgh/Desktop/Trains GIT Location/TRAINS-TEAM2/Train Model/Passenger_UI.py"  # Use raw string or forward slashes
-    TEST_UI_PATH = r"/mnt/c/Users/wolfm/OneDrive - University of Pittsburgh/Desktop/Trains GIT Location/TRAINS-TEAM2/Train Model/Test_UI.py"
+    PASSENGER_UI_PATH = r"C:\Users\wolfm\OneDrive - University of Pittsburgh\Desktop\Trains GIT Location\TRAINS-TEAM2\Train Model\Passenger_UI.py"  # Use raw string or forward slashes
+    TEST_UI_PATH = r"C:\Users\wolfm\OneDrive - University of Pittsburgh\Desktop\Trains GIT Location\TRAINS-TEAM2\Train Model\Test_UI.py"
     
     # Verify files exist
     if not os.path.exists(PASSENGER_UI_PATH):
         print(f"❌ Passenger UI not found at: {PASSENGER_UI_PATH}")
         return
         
-    if not os.path.exists(TEST_UI_PATH):
+    if not os.path.exists(TEST_UI_PATH): 
         print(f"❌ Test UI not found at: {TEST_UI_PATH}")
         return
     
@@ -27,7 +27,7 @@ def launch_both_guis():
         
         # Wait for socket server to start
         print("⏳ Waiting for Passenger GUI socket server to start...")
-        time.sleep(3)
+     
         
         print("🧪 Launching Test UI...")
         test_process = subprocess.Popen([sys.executable, TEST_UI_PATH])
