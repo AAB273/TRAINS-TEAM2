@@ -91,16 +91,43 @@ class TrackModelUI(tk.Tk):
         self.after(1000, self.refresh_ui)
 
     def _process_message(self,message,source_ui_id):
+        """Process incoming messages from other UIs"""
         try:
-            print(f"Received message from {source_ui_id}: {message}")
-
+            print(f"Received from {source_ui_id}: {message}")
+            
             command = message.get('command')
             value = message.get('value')
             
-            if command == 'test_command':
-                print(f"Message is Processed")
+            if command == 'commanded_speed':
+                global commanded_speed
+                commanded_speed = value
+            
+            elif command == 'commanded_authority':
+                global commanded_authority
+                commanded_authority = value
+            
+            elif command == 'switch_positions':
+                global switch_positions
+                switch_positions = value
+            
+            elif command == 'light_states':
+                global light_states
+                light_states = value
+            
+            elif command == 'block_occupancy':
+                global block_occupancy
+                block_occupancy = value
+            
+            elif command == 'passengers_disembarking':
+                global passengers_disembarking
+                passengers_disembarking = value
+            
+            elif command == 'train_occupancy':
+                global train_occupancy
+                train_occupancy = value
+        
         except Exception as e:
-            print(f"Error Processing Message: {e}")
+            print(f"Error processing message: {e}")
 
     # ---------------- Helper ----------------
     def make_card(self, parent, title=None):
@@ -241,11 +268,11 @@ class TrackModelUI(tk.Tk):
         frame2 = tk.Frame(notebook, bg="white")
         notebook.add(frame2, text="Block and Station Occupancy")
 
-        # --- Add Blue Line image to tab 2 ---
+        # --- Add Red and Green Line image to tab 2 ---
         try:
-            bg_img2 = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
+            bg_img2 = Image.open("Red and Green Line.png").resize((500, 450), Image.LANCZOS)
             self.block_view_bg = ImageTk.PhotoImage(bg_img2)
-            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=900, highlightthickness=0)
+            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=500, highlightthickness=0)
             self.block_canvas.pack(fill="x", padx=10, pady=10)
             self.block_canvas.create_image(0, 0, image=self.block_view_bg, anchor="nw")
             self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
@@ -254,14 +281,31 @@ class TrackModelUI(tk.Tk):
             self.train_items_center = []
             
         except Exception as e:
-            print("⚠️ Could not load Blue Line.png for Block/Station tab:", e)
-            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=900)
+            print("⚠️ Could not load Red and Green Line.png for Block/Station tab:", e)
+            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=500)
             self.block_canvas.pack(fill="x", padx=10, pady=10)
             self.train_items_center = []
+
+        self.block_canvas.create_image(0, 0, image=self.block_view_bg, anchor="nw")
+        self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
 
         # ADD PLC PANEL TO TAB 2 - place it in the top-right corner
         plc_panel2 = self.create_PLCupload_panel(frame2)
         plc_panel2.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
+
+        # --- Coordinate Finder Helper ---
+        def on_canvas_click(event):
+            x, y = event.x, event.y
+            # Draw a small red marker where clicked
+            self.block_canvas.create_oval(x-3, y-3, x+3, y+3, fill="red", outline="")
+            print(f"Clicked at ({x}, {y})")
+            # Optional: Copy the last clicked position to clipboard for convenience
+            self.clipboard_clear()
+            self.clipboard_append(f"({x}, {y})")
+
+        # Bind left-click to coordinate logger
+        self.block_canvas.bind("<Button-1>", on_canvas_click)
+
 
     # ---------------- Bottom Table ----------------
     def create_bottom_table(self, parent):
@@ -357,7 +401,7 @@ class TrackModelUI(tk.Tk):
                 )
 
     def show_station_view(self):
-        """Display station data with Blue Line image and dynamic train positions."""
+        """Display station data with Red and Green Line image and dynamic train positions."""
         
         # --- Configure columns for station view ---
         self.tree.config(columns=self.columns_station)
@@ -390,15 +434,15 @@ class TrackModelUI(tk.Tk):
             self.block_frame.pack(fill="both", expand=True)
 
             try:
-                blue_line_img = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
+                blue_line_img = Image.open("Red and Green Line.png").resize((500, 450), Image.LANCZOS)
                 self.block_bg_img = ImageTk.PhotoImage(blue_line_img)
-                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=900, highlightthickness=0)
+                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=500, highlightthickness=0)
                 self.block_canvas.pack(fill="x", padx=10, pady=10)
                 self.block_canvas.create_image(0, 0, image=self.block_bg_img, anchor="nw")
                 self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
             except Exception as e:
-                print("⚠️ Could not load Blue Line.png for occupancy view:", e)
-                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=900)
+                print("⚠️ Could not load Red and Green Line.png for occupancy view:", e)
+                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=500)
                 self.block_canvas.pack(fill="x", padx=10, pady=10)
 
             # Load Train Image
@@ -515,12 +559,12 @@ class TrackModelUI(tk.Tk):
 
         # Background image
         try:
-            bg_img = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
+            bg_img = Image.open("Red and Green Line.png").resize((500, 450), Image.LANCZOS)
             self.track_bg = ImageTk.PhotoImage(bg_img)
             self.track_canvas.create_image(0, 0, image=self.track_bg, anchor="nw")
             self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
         except Exception as e:
-            print("⚠️ Could not load background Blue Line.png:", e)
+            print("⚠️ Could not load background Red and Green Line.png:", e)
 
         # Load icon images once and store persistently to prevent garbage collection
         def load_icon(path, size=(32, 32)):
@@ -863,7 +907,7 @@ class TrackModelUI(tk.Tk):
         """Handle PNG/JPG upload - replace track diagram background and clear all icons"""
         try:
             # Load and resize the new image
-            new_img = Image.open(filename).resize((900, 450), Image.LANCZOS)
+            new_img = Image.open(filename).resize((500, 450), Image.LANCZOS)
             self.track_bg = ImageTk.PhotoImage(new_img)
             
             # Clear EVERYTHING from the canvas first
@@ -1292,6 +1336,8 @@ class TrackModelUI(tk.Tk):
                 pass
         self.root.destroy()
 
+
+
 # ---------------- Run Application ----------------
 if __name__ == "__main__":
     manager = UI_Variables.TrackDataManager()
@@ -1310,3 +1356,5 @@ if __name__ == "__main__":
     
     tester.lift()
     app.mainloop()
+
+
