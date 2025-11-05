@@ -14,24 +14,7 @@ class FileUploadManager:
         """
         self.data_manager = data_manager
         self.ui_reference = ui_reference  # Optional reference for calling UI refresh methods
-
-    def create_PLCupload_panel(self, parent):
-        """Builds PLC upload panel in the center section"""
-        outer_frame = tk.Frame(parent, bg="white", bd=2, relief="ridge")
-        outer_frame.pack(fill="x", padx=10, pady=5)
-
-        label = tk.Label(outer_frame, text="PLC / Data Upload", bg="white", fg="black", font=("Arial", 11, "bold"))
-        label.pack(pady=5)
-
-        upload_btn = tk.Button(
-            outer_frame,
-            text="Upload Track File",
-            command=self.upload_track_file,  # ✅ fixed line
-            bg="#004080", fg="white", relief="raised", padx=10, pady=5
-        )
-        upload_btn.pack(pady=5)
-
-        return outer_frame
+        self.terminals = []
     
     def upload_track_file(self):
         """Handle track file uploads (e.g., Excel or CSV) and pass to TrackDataManager."""
@@ -54,15 +37,38 @@ class FileUploadManager:
 
     # ---------------- Excel / CSV / Text Upload Handlers ----------------
 
-    def handle_excel_upload(self, filename):
-        """Load and process Excel track data."""
+    def handle_data_upload(self, filename):
+        """Handle Excel/TXT upload - read track data"""
         try:
-            df = pd.read_excel(filename)
-            print(f"📘 Excel file loaded with columns: {list(df.columns)}")
-            self.process_structured_track_data(df)
-            self._log_success(filename, "Excel")
+            file_extension = filename.lower().split('.')[-1]
+            
+            if file_extension in ['xlsx', 'xls']:
+                self.handle_excel_upload(filename)
+            elif file_extension == 'txt':
+                self.handle_text_upload(filename)
+                
         except Exception as e:
-            self._log_error("Excel", e)
+            self.log_to_all_terminals(f"[ERROR] Failed to process data file: {str(e)}")
+            print(f"❌ Error processing data file: {e}")
+
+    def handle_excel_upload(self, filename):
+        """Process Excel file for track data with the specific structure"""
+        try:
+            import pandas as pd
+            
+            # Read Excel file
+            df = pd.read_excel(filename)
+            print(f"📊 Excel file loaded with columns: {list(df.columns)}")
+            print(f"📊 First few rows:\n{df.head()}")
+            
+            # Process the specific structure
+            self.process_structured_track_data(df)
+            
+            self.log_to_all_terminals(f"[SUCCESS] Excel data loaded from: {filename.split('/')[-1]}")
+            
+        except Exception as e:
+            self.log_to_all_terminals(f"[ERROR] Excel processing failed: {str(e)}")
+            print(f"❌ Excel processing error: {e}")
 
     def handle_text_upload(self, filename):
         """Process text file for track data — supports CSV or delimited formats."""
@@ -118,6 +124,24 @@ class FileUploadManager:
         # Refresh UI if linked
         if self.ui_reference and hasattr(self.ui_reference, "refresh_ui"):
             self.ui_reference.refresh_ui()
+
+    # def handle_text_upload(self, filename):
+    #     """Process text file for track data"""
+    #     try:
+    #         with open(filename, 'r') as file:
+    #             lines = file.readlines()
+            
+    #         # Parse text data - look for common track data patterns
+    #         track_data = self.parse_text_track_data(lines)
+            
+    #         # Process the extracted data
+    #         self.process_track_data(track_data)
+            
+    #         self.log_to_all_terminals(f"[SUCCESS] Text data loaded from: {filename.split('/')[-1]}")
+            
+    #     except Exception as e:
+    #         self.log_to_all_terminals(f"[ERROR] Text processing failed: {str(e)}")
+    #         print(f"❌ Text processing error: {e}")
 
     def parse_text_track_data(self, lines):
         """Parse raw text into structured dictionary form."""

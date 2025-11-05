@@ -1,15 +1,17 @@
 import tkinter as tk
-import pandas as pd
 from tkinter import ttk
 from PIL import Image, ImageTk
-import UI_Variables
 import tkinter.simpledialog as simpledialog
-from Test_UI import TrackModelTestUI  # Test/debug UI
-from FileUploadManager import FileUploadManager
-from TrackDiagramDrawer import TrackDiagramDrawer
-from TrackDirectionController import TrackDirectionController
-from HeaterSystemManager import HeaterSystemManager
-from BeaconManager import BeaconManager
+import os, sys
+sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
+from Track_Model import UI_Variables
+from Track_Model.Test_UI import TrackModelTestUI
+from Track_Model.FileUploadManager import FileUploadManager
+from Track_Model.TrackDiagramDrawer import TrackDiagramDrawer
+from Track_Model.HeaterSystemManager import HeaterSystemManager
+from Track_Model.BeaconManager import BeaconManager
+from TrainSocketServer import TrainSocketServer
+
 
 class TrackModelUI(tk.Tk):
     def __init__(self, manager: UI_Variables.TrackDataManager):
@@ -17,6 +19,12 @@ class TrackModelUI(tk.Tk):
         self.title("Track Model UI")
         self.geometry("1300x850")
         self.configure(bg="navy")
+
+        # UI 1 - Can communicate with UI 2 and UI 3
+        self.server = TrainSocketServer(port=4, ui_id="Track Model")
+        self.server.set_allowed_connections(["Wayside_Controller","Train_Model"])
+        self.server.start_server(self._process_message)
+        self.server.connect_to_ui('localhost', 5,"Train_Model")
 
         self.switch_blocks = {5}
         self.crossing_blocks = {4}
@@ -46,6 +54,11 @@ class TrackModelUI(tk.Tk):
         # Use the shared TrackDataManager
         self.data_manager = manager
 
+        self.file_manager = FileUploadManager(self)
+        self.heater_manager = HeaterSystemManager(self)
+        self.diagram_drawer = TrackDiagramDrawer(self, self.data_manager)
+        self.socket_server = TrainSocketServer(self)
+
         for b in self.data_manager.blocks:
             if not hasattr(b, "traffic_light_state"):
                 b.traffic_light_state = 0
@@ -69,22 +82,55 @@ class TrackModelUI(tk.Tk):
         # Initialize filter variables
         self.filter_vars = {}
 
-        # ---------------- Modular System Managers ----------------
-        self.file_manager = FileUploadManager(self)
-        self.diagram_drawer = TrackDiagramDrawer(self, self.data_manager)
-        self.direction_controller = TrackDirectionController(self)
-        self.heater_manager = HeaterSystemManager(self)
-
         # Build UI
         self.create_left_panel(left_frame)
         self.create_center_panel(center_frame)
         self.create_bottom_table(center_frame)
 
-
-        self.after(1000, self.direction_controller.force_bidirectional_table_visible)
-
         # Refresh periodically
         self.after(1000, self.refresh_ui)
+
+    def _process_message(self,message,source_ui_id):
+        """Process incoming messages from other UIs"""
+        try:
+            print(f"Received from {source_ui_id}: {message}")
+            
+            command = message.get('command')
+            value = message.get('value')
+            
+            if command == 'commanded_speed':
+                global commanded_speed
+                commanded_speed = value
+                self.server.send_to_UI("Train Model", {"Commanded Authority", commanded_speed})
+            
+            elif command == 'commanded_authority':
+                global commanded_authority
+                commanded_authority = value
+                self.server.send_to_UI("Train Model", {"Commanded Authority", commanded_authority})
+            
+            elif command == 'switch_positions':
+                global switch_positions
+                switch_positions = value
+            
+            elif command == 'light_states':
+                global light_states
+                light_states = value
+            
+            elif command == 'block_occupancy':
+                global block_occupancy
+                block_occupancy = value
+            
+            elif command == 'passengers_disembarking':
+                global passengers_disembarking
+                passengers_disembarking = value
+            
+            elif command == 'train_occupancy':
+                global train_occupancy
+                train_occupancy = value
+        
+        except Exception as e:
+            print(f"Error processing message: {e}")
+
 
     # ---------------- Helper ----------------
     def make_card(self, parent, title=None):
@@ -179,8 +225,7 @@ class TrackModelUI(tk.Tk):
             if isinstance(widget, tk.Checkbutton):
                 widget.destroy()
 
-        options = ["All Blocks", "Switch Blocks", "Crossing Blocks", "Station Blocks",
-                "Bidirectional Blocks", "Signal Blocks"] if self.view_mode.get() == "track" else \
+        options = ["All Blocks", "Switch Blocks", "Crossing Blocks", "Station Blocks", "Signal Blocks"] if self.view_mode.get() == "track" else \
                 ["All Stations", "Boarding Stations", "Waiting Stations"]
 
         for opt in options:
@@ -219,18 +264,18 @@ class TrackModelUI(tk.Tk):
         self.build_track_diagram()
 
         # ADD PLC PANEL TO TAB 1 - place it in the top-right corner
-        plc_panel1 = self.file_manager.create_PLCupload_panel(frame1)
+        plc_panel1 = self.create_PLCupload_panel(frame1)
         plc_panel1.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
 
         # Tab 2: Block/Station Occupancy
         frame2 = tk.Frame(notebook, bg="white")
         notebook.add(frame2, text="Block and Station Occupancy")
 
-        # --- Add Blue Line image to tab 2 ---
+        # --- Add Red and Green Line image to tab 2 ---
         try:
-            bg_img2 = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
+            bg_img2 = Image.open("Red and Green Line.png").resize((500, 450), Image.LANCZOS)
             self.block_view_bg = ImageTk.PhotoImage(bg_img2)
-            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=900, highlightthickness=0)
+            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=500, highlightthickness=0)
             self.block_canvas.pack(fill="x", padx=10, pady=10)
             self.block_canvas.create_image(0, 0, image=self.block_view_bg, anchor="nw")
             self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
@@ -239,14 +284,31 @@ class TrackModelUI(tk.Tk):
             self.train_items_center = []
             
         except Exception as e:
-            print("⚠️ Could not load Blue Line.png for Block/Station tab:", e)
-            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=900)
+            print("⚠️ Could not load Red and Green Line.png for Block/Station tab:", e)
+            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=500)
             self.block_canvas.pack(fill="x", padx=10, pady=10)
             self.train_items_center = []
 
+        self.block_canvas.create_image(0, 0, image=self.block_view_bg, anchor="nw")
+        self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
+
         # ADD PLC PANEL TO TAB 2 - place it in the top-right corner
-        plc_panel2 = self.file_manager.create_PLCupload_panel(frame2)
+        plc_panel2 = self.create_PLCupload_panel(frame2)
         plc_panel2.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
+
+        # --- Coordinate Finder Helper ---
+        def on_canvas_click(event):
+            x, y = event.x, event.y
+            # Draw a small red marker where clicked
+            self.block_canvas.create_oval(x-3, y-3, x+3, y+3, fill="red", outline="")
+            print(f"Clicked at ({x}, {y})")
+            # Optional: Copy the last clicked position to clipboard for convenience
+            self.clipboard_clear()
+            self.clipboard_append(f"({x}, {y})")
+
+        # Bind left-click to coordinate logger
+        self.block_canvas.bind("<Button-1>", on_canvas_click)
+
 
     # ---------------- Bottom Table ----------------
     def create_bottom_table(self, parent):
@@ -284,7 +346,6 @@ class TrackModelUI(tk.Tk):
         signal_blocks = {6, 11}
         station_blocks = {10, 15}
         # All blocks are bidirectional, so we'll include all block numbers 1-15
-        bidirectional_blocks = set(range(1, 16))  # Blocks 1 through 15
 
         # --- Configure columns ---
         self.tree.config(columns=self.columns_track)
@@ -300,7 +361,6 @@ class TrackModelUI(tk.Tk):
         show_switch = self.filter_vars["Switch Blocks"].get()
         show_crossing = self.filter_vars["Crossing Blocks"].get()
         show_station = self.filter_vars["Station Blocks"].get()
-        show_bidirectional = self.filter_vars["Bidirectional Blocks"].get()  # New filter
         show_signal = self.filter_vars["Signal Blocks"].get()
 
         # --- Insert filtered rows ---
@@ -317,8 +377,6 @@ class TrackModelUI(tk.Tk):
                 elif show_crossing and num in crossing_blocks:
                     show = True
                 elif show_station and num in station_blocks:
-                    show = True
-                elif show_bidirectional and num in bidirectional_blocks:  # New condition
                     show = True
                 elif show_signal and num in signal_blocks:
                     show = True
@@ -337,16 +395,16 @@ class TrackModelUI(tk.Tk):
                     values=(
                         b.block_number,
                         f"{b.grade}%",
-                        f"{b.elevation}m",
-                        f"{b.length}m",
-                        f"{b.speed_limit} km/h",
+                        f"{b.elevation} ft",
+                        f"{b.length} mi",
+                        f"{b.speed_limit} mph",
                         heater_display,
                         beacon_display,
                     ),
                 )
 
     def show_station_view(self):
-        """Display station data with Blue Line image and dynamic train positions."""
+        """Display station data with Red and Green Line image and dynamic train positions."""
         
         # --- Configure columns for station view ---
         self.tree.config(columns=self.columns_station)
@@ -379,15 +437,15 @@ class TrackModelUI(tk.Tk):
             self.block_frame.pack(fill="both", expand=True)
 
             try:
-                blue_line_img = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
+                blue_line_img = Image.open("Red and Green Line.png").resize((500, 450), Image.LANCZOS)
                 self.block_bg_img = ImageTk.PhotoImage(blue_line_img)
-                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=900, highlightthickness=0)
+                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=500, highlightthickness=0)
                 self.block_canvas.pack(fill="x", padx=10, pady=10)
                 self.block_canvas.create_image(0, 0, image=self.block_bg_img, anchor="nw")
                 self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
             except Exception as e:
-                print("⚠️ Could not load Blue Line.png for occupancy view:", e)
-                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=900)
+                print("⚠️ Could not load Red and Green Line.png for occupancy view:", e)
+                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=500)
                 self.block_canvas.pack(fill="x", padx=10, pady=10)
 
             # Load Train Image
@@ -504,12 +562,12 @@ class TrackModelUI(tk.Tk):
 
         # Background image
         try:
-            bg_img = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
+            bg_img = Image.open("Red and Green Line.png").resize((500, 450), Image.LANCZOS)
             self.track_bg = ImageTk.PhotoImage(bg_img)
             self.track_canvas.create_image(0, 0, image=self.track_bg, anchor="nw")
             self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
         except Exception as e:
-            print("⚠️ Could not load background Blue Line.png:", e)
+            print("⚠️ Could not load background Red and Green Line.png:", e)
 
         # Load icon images once and store persistently to prevent garbage collection
         def load_icon(path, size=(32, 32)):
@@ -550,6 +608,190 @@ class TrackModelUI(tk.Tk):
         # Draw initial icons
         self.diagram_drawer.draw_track_icons()
 
+        def load_resized_image(path, size=(32, 32)):
+            """Helper to load and resize an image once."""
+            key = (path, size)
+            if key not in self.icon_images:
+                try:
+                    img = Image.open(path).resize(size, Image.LANCZOS)
+                    self.icon_images[key] = ImageTk.PhotoImage(img)
+                except Exception as e:
+                    print(f"⚠️ Failed to load {path}: {e}")
+                    return None
+            return self.icon_images.get(key)
+
+        # --- Draw Crossing (Block 4) ---
+        block_cross = self.data_manager.blocks[3]  # index 3 → block 4
+        x, y = self.block_positions.get(4, (0, 0))
+        img_path = "Crossing_On.png" if block_cross.crossing else "Crossing_Off.png"
+        img_obj = load_resized_image(img_path, size=(96, 96))  # slightly smaller
+        if img_obj:
+            self.icon_item_ids["crossing"][4] = self.track_canvas.create_image(
+                x, y + 40, image=img_obj, anchor="center"
+            )
+
+        # --- Draw Switch (Block 5) ---
+        block_switch = self.data_manager.blocks[4]  # index 4 → block 5
+        x, y = self.block_positions.get(5, (0, 0))
+        img_path = "Lever_Right.png" if block_switch.switch_state else "Lever_Left.png"
+        img_obj = load_resized_image(img_path, size=(64, 64))  # keep doubled size
+        if img_obj:
+            self.icon_item_ids["switch"][5] = self.track_canvas.create_image(
+                x, y, image=img_obj, anchor="center"
+            )
+
+        # Draw all traffic lights dynamically based on block numbers
+        for b in self.data_manager.blocks:
+            if getattr(b, "block_number", None) in [6, 11]:
+                self.draw_traffic_light(b.block_number, b.traffic_light_state)
+
+    def draw_traffic_light(self, block_num, state, light_size=16):
+        """Draw a traffic light with 4 positions. Handle both traffic_light_state and signal attributes."""
+        
+        # Convert 2-bit signal to single state if needed
+        if isinstance(state, list) and len(state) == 2:
+            # Convert [bit1, bit2] to integer 0-3
+            state = (state[0] << 1) | state[1]
+        
+        x, y = self.block_positions.get(block_num, (0,0))
+        spacing = 4
+        num_lights = 4
+        padding = 4
+
+        # Clear previous if exists
+        if "traffic" not in self.icon_item_ids:
+            self.icon_item_ids["traffic"] = {}
+        if block_num in self.icon_item_ids["traffic"]:
+            for item in self.icon_item_ids["traffic"][block_num]:
+                self.track_canvas.delete(item)
+
+        items = []
+
+        # Rectangle height covers all lights + spacing + padding
+        rect_height = num_lights * light_size + (num_lights - 1) * spacing + 2*padding
+        rect_width = light_size + 2*padding
+        rect_top = y - rect_height//2
+        rect_bottom = y + rect_height//2
+        rect_left = x - rect_width//2
+        rect_right = x + rect_width//2
+
+        # Draw black background
+        rect = self.track_canvas.create_rectangle(rect_left, rect_top, rect_right, rect_bottom,
+                                                fill="black", outline="black")
+        items.append(rect)
+
+        # Draw lights
+        lights = ["red", "yellow", "green", "lime"]  # top → bottom
+        for i, color in enumerate(lights):
+            fill_color = color if state == i else "gray"
+            cx1 = x - light_size//2
+            cy1 = rect_top + padding + i*(light_size + spacing)
+            cx2 = x + light_size//2
+            cy2 = cy1 + light_size
+            circle = self.track_canvas.create_oval(cx1, cy1, cx2, cy2, fill=fill_color, outline="white")
+            items.append(circle)
+
+        self.icon_item_ids["traffic"][block_num] = items
+
+    def draw_signal(self, block_num, state):
+        # state is 0-3 representing 00, 01, 10, 11
+        colors = ["gray", "yellow", "green", "lime"]  # map 0-3
+        color = colors[state]
+        x, y = self.block_positions.get(block_num, (0,0))
+        size = 10
+        self.track_canvas.create_oval(x-size, y-size, x+size, y+size, fill=color)
+
+    def create_PLCupload_panel(self, parent):
+            """Creates separate PLC upload and terminal panels to the right of the track diagram."""
+            outer_frame = tk.Frame(parent, bg="white")
+
+            # --- PLC UPLOAD SECTION ---
+            plc_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
+            plc_frame.pack(fill="x", padx=5, pady=(0, 8))
+
+            tk.Label(
+                plc_frame,
+                text="Upload your Track Data file (.png, .csv, .txt, .xlsx)",
+                font=("Arial", 9),
+                bg='white',
+                fg='gray',
+                wraplength=200,
+                justify="center"
+            ).pack(pady=3)
+
+            ttk.Button(
+                plc_frame,
+                text="Choose File",
+                command=self.file_manager.upload_track_file,
+                width=18
+            ).pack(pady=5)
+
+            file_status = tk.Label(
+                plc_frame,
+                text="No file selected",
+                font=("Arial", 9),
+                bg='white',
+                fg='gray'
+            )
+            file_status.pack(pady=3)
+
+            history_label = tk.Label(
+                plc_frame,
+                text="Last upload: Never",
+                font=("Arial", 8),
+                bg='white',
+                fg='darkgray'
+            )
+            history_label.pack(pady=3)
+
+            # --- BIDIRECTIONAL BLOCK CONTROLS (WITH BUTTONS LIKE TEST UI) ---
+            bidir_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
+            bidir_frame.pack(fill="x", padx=5, pady=(0, 8))
+        
+
+            # --- TERMINAL / EVENT LOG SECTION ---
+            terminal_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
+            terminal_frame.pack(fill="both", expand=True, padx=5, pady=(0, 5))
+
+            tk.Label(
+                terminal_frame,
+                text="Event Log / Terminal",
+                font=("Arial", 9, "bold"),
+                bg="white",
+                fg="black"
+            ).pack(anchor="w", padx=5, pady=(3, 3))
+
+            term_inner = tk.Frame(terminal_frame, bg="white")
+            term_inner.pack(fill="both", expand=True, padx=5, pady=(0, 5))
+
+            # Create terminal widget
+            terminal = tk.Text(
+                term_inner,
+                height=8,
+                width=30,
+                bg="#f5f5f5",
+                fg="black",
+                font=("Consolas", 9),
+                state="disabled",
+                wrap="word"
+            )
+            terminal.pack(side="left", fill="both", expand=True)
+            
+            # STORE THIS TERMINAL REFERENCE
+            self.terminals.append(terminal)
+
+            scrollbar = ttk.Scrollbar(term_inner, command=terminal.yview)
+            scrollbar.pack(side="right", fill="y")
+            terminal.config(yscrollcommand=scrollbar.set)
+
+            # --- SEND OUTPUTS BUTTON ---
+            send_button = ttk.Button(outer_frame, text="Send Outputs", command=self.send_outputs)
+            send_button.pack(pady=(5, 10), padx=5, anchor="s")
+
+            send_button = ttk.Button(outer_frame, text="Send Beacon Data", command=self.send_outputs)
+            send_button.pack(pady=(5, 10), padx=5, anchor="s")
+
+            return outer_frame
 
     def send_outputs(self):
         """Only refresh terminals when Send Outputs button is clicked"""
@@ -617,15 +859,6 @@ class TrackModelUI(tk.Tk):
 #                    terminal.insert("end", f"Block {block.block_number}: {status} / {working}\n")
 #        terminal.insert("end", "\n")
 
-        terminal.insert("end", "=== BIDIRECTIONAL BLOCK DIRECTIONS ===\n")
-        for group, direction in self.data_manager.bidirectional_directions.items():
-            direction_text = "← Left" if direction == 0 else "Right →"
-            terminal.insert("end", f"{group}: {direction_text}\n")
-        terminal.insert("end", "\n")
-            
-        terminal.see("end")
-        terminal.config(state="disabled")
-        print("✅ Terminal update complete")
 
 #        
 #        terminal.see("end")
@@ -644,6 +877,84 @@ class TrackModelUI(tk.Tk):
         self.terminal.insert("end", f"{msg}\n")
         self.terminal.see("end")
         self.terminal.config(state="disabled")
+
+    def PLCupload_file(self):
+        from tkinter import filedialog
+        filetypes = [
+            ("Image files", "*.png *.jpg *.jpeg"),
+            ("Excel files", "*.xlsx *.xls"),
+            ("CSV files", "*.csv"),  # Add CSV support
+            ("Text files", "*.txt"),
+            ("All files", "*.*")
+        ]
+        filename = filedialog.askopenfilename(title="Select Track Data File", filetypes=filetypes)
+        
+        if filename:
+            file_extension = filename.lower().split('.')[-1]
+            
+            # Handle image files
+            if file_extension in ['png', 'jpg', 'jpeg']:
+                self.handle_image_upload(filename)
+            
+            # Handle data files (including CSV)
+            elif file_extension in ['xlsx', 'xls', 'csv', 'txt']:
+                self.handle_data_upload(filename)
+            
+            else:
+                self.log_to_all_terminals(f"[ERROR] Unsupported file type: {file_extension}")
+                
+        else:
+            self.log_to_all_terminals("[WARN] File selection canceled.")
+
+    def handle_image_upload(self, filename):
+        """Handle PNG/JPG upload - replace track diagram background and clear all icons"""
+        try:
+            # Load and resize the new image
+            new_img = Image.open(filename).resize((500, 450), Image.LANCZOS)
+            self.track_bg = ImageTk.PhotoImage(new_img)
+            
+            # Clear EVERYTHING from the canvas first
+            self.track_canvas.delete("all")  # This removes all canvas items
+            
+            # Add the new background image
+            self.track_canvas.create_image(0, 0, image=self.track_bg, anchor="nw")
+            self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
+            
+            # Clear all track icons from tracking
+            self.clear_all_track_icons()
+            
+            # Clear train items from track diagram
+            if hasattr(self, "train_items"):
+                self.train_items.clear()  # Clear the list, items already deleted by delete("all")
+            
+            # Clear any other canvas item lists
+            if hasattr(self, "train_items_center"):
+                self.train_items_center.clear()
+            if hasattr(self, "train_items_block_canvas"):
+                self.train_items_block_canvas.clear()
+            
+            self.log_to_all_terminals(f"[SUCCESS] Track diagram updated with: {filename.split('/')[-1]}")
+            print(f"✅ Track diagram background updated with: {filename}")
+            print("🧹 ALL track icons, trains, and canvas items cleared from diagram")
+            
+        except Exception as e:
+            self.log_to_all_terminals(f"[ERROR] Failed to load image: {str(e)}")
+            print(f"❌ Error loading image: {e}")
+
+    def clear_all_track_icons(self):
+        """Completely clear all track icons and reset all tracking"""
+        # Reset icon tracking dictionaries
+        self.icon_item_ids = {"crossing": {}, "switch": {}, "traffic": {}}
+        
+        # Clear any stored icon images to free memory
+        if hasattr(self, 'icons'):
+            self.icons.clear()
+        
+        # Clear any icon images from the image cache
+        if hasattr(self, 'icon_images'):
+            self.icon_images.clear()
+        
+        print("🧹 Completely cleared all track icons and reset all tracking data")
 
     def process_structured_track_data(self, df):
         """Process the specific CSV/Excel structure and REPLACE default data"""
@@ -749,8 +1060,6 @@ class TrackModelUI(tk.Tk):
                     
                     blocks_updated += 1
                     print(f"✅ UPDATED block {block_num}")
-                else:
-                    print(f"❌ Block number {block_num} out of range (1-{len(self.data_manager.blocks)})")
             
             print(f"🎯 Successfully updated {blocks_updated} blocks")
             
@@ -767,6 +1076,20 @@ class TrackModelUI(tk.Tk):
             import traceback
             traceback.print_exc()
             self.log_to_all_terminals(f"[ERROR] Data replacement failed: {str(e)}")
+
+    def reset_all_blocks(self):
+        """Reset all blocks to default state before loading new data"""
+        for block in self.data_manager.blocks:
+            # Reset to default values
+            block.length = 0.0
+            block.grade = 0.0
+            block.elevation = 0.0
+            block.speed_limit = 0.0
+            block.switch_state = False
+            block.crossing = False
+            # Keep beacon and heater states as they are hardware-specific
+            # block.track_heater = [0, 1]  # Optional: reset heaters too
+            # block.beacon = [0] * 128     # Optional: reset beacons too
 
     def reset_station_data_arrays(self):
         """Reset station data arrays to match the new station configuration"""
@@ -792,7 +1115,6 @@ class TrackModelUI(tk.Tk):
         
         # Force update all tables and displays
         self.update_bottom_table()
-        self.update_bidirectional_table()
         
         # Force redraw track icons
         self.draw_track_icons()
@@ -875,6 +1197,25 @@ class TrackModelUI(tk.Tk):
             print(f"❌ Error extracting station name: {e}")
             return f"Station {block.block_number}"
 
+    def extract_station_name(self, infrastructure_text):
+        """Extract station name from infrastructure text"""
+        try:
+            # Example: "STATION; PIONEER" -> "PIONEER"
+            parts = infrastructure_text.split(';')
+            for part in parts:
+                if 'STATION' in part.upper():
+                    continue  # Skip the station keyword
+                station_name = part.strip()
+                if station_name and station_name != 'STATION':
+                    return station_name
+            
+            # If no clear name, generate one
+            return f"Station {self.data_manager.blocks.index(block) + 1}"
+        
+        except Exception as e:
+            print(f"❌ Error extracting station name: {e}")
+            return f"Station {self.data_manager.blocks.index(block) + 1}"
+
     def clear_all_track_icons(self):
         """Clear all switches, signals, and crossing icons from track diagram"""
         if hasattr(self, 'icon_item_ids'):
@@ -942,9 +1283,6 @@ class TrackModelUI(tk.Tk):
         # Redraw track icons (switches, crossings, lights)
         self.draw_track_icons()
 
-        # Refresh bidirectional table 
-        self.update_bidirectional_table()
-
         # REMOVED: Automatic terminal refresh - terminal only updates on button click now
 
         # Draw trains on BOTH occupancy canvases:
@@ -956,6 +1294,52 @@ class TrackModelUI(tk.Tk):
 
         # Refresh again in 1 second
         self.after(1000, self.refresh_ui)
+
+    def set_heater_state(self, block, is_on, is_working):
+        """Set heater state with validation"""
+        if not is_working and is_on:
+            print(f"⚠️ Cannot turn on heater for block {block.block_number} - heater is not working")
+            return False  # Can't turn on a non-working heater
+        
+        block.track_heater = [1 if is_on else 0, 1 if is_working else 0]
+        print(f"🔧 Block {block.block_number} heater: {'ON' if is_on else 'OFF'}, {'WORKING' if is_working else 'BROKEN'}")
+        return True
+
+    def toggle_heater(self, block_num):
+        """Toggle heater on/off if it's working"""
+        block = self.data_manager.blocks[block_num - 1]
+        if self.is_heater_working(block):
+            new_state = not self.is_heater_on(block)
+            self.set_heater_state(block, new_state, True)
+        else:
+            print(f"❌ Cannot toggle heater for block {block_num} - heater is not working")
+
+    def break_heater(self, block_num):
+        """Break the heater (turns it off if it was on)"""
+        block = self.data_manager.blocks[block_num - 1]
+        was_on = self.is_heater_on(block)
+        self.set_heater_state(block, False, False)  # Turn off and break
+        if was_on:
+            print(f"🔧 Heater broken and turned off for block {block_num}")
+
+    def fix_heater(self, block_num):
+        """Fix the heater (doesn't change on/off state)"""
+        block = self.data_manager.blocks[block_num - 1]
+        is_on = self.is_heater_on(block)
+        self.set_heater_state(block, is_on, True)  # Keep current on/off state, set working
+    
+    def on_closing():
+        """Handle application closing"""
+        print("Closing application...")
+        self.server.running = False
+        if self.server.server_socket:
+            try:
+                self.server.server_socket.close()
+            except:
+                pass
+        self.root.destroy()
+
+
 
 # ---------------- Run Application ----------------
 if __name__ == "__main__":
@@ -975,3 +1359,5 @@ if __name__ == "__main__":
     
     tester.lift()
     app.mainloop()
+
+

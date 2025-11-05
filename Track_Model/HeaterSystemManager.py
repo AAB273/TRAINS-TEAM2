@@ -33,66 +33,38 @@ class HeaterSystemManager:
     # -------------------------------------------------------------------------
     # HEATER STATE CONTROL
     # -------------------------------------------------------------------------
-    def set_heater_state(self, block, is_on: bool, is_working: bool) -> bool:
-        """
-        Set the heater state for a block with safety validation.
-
-        Args:
-            block: The Block object.
-            is_on (bool): Whether heater should be ON.
-            is_working (bool): Whether heater is functional.
-
-        Returns:
-            bool: True if state change succeeded, False otherwise.
-        """
-        # Prevent turning ON a broken heater
+    def set_heater_state(self, block, is_on, is_working):
+        """Set heater state with validation"""
         if not is_working and is_on:
-            print(f"⚠️ Cannot turn on heater for block {block.block_number} - heater is broken.")
-            return False
-
+            print(f"⚠️ Cannot turn on heater for block {block.block_number} - heater is not working")
+            return False  # Can't turn on a non-working heater
+        
         block.track_heater = [1 if is_on else 0, 1 if is_working else 0]
-        print(f"🔥 Heater update: Block {block.block_number} → {'ON' if is_on else 'OFF'} | "
-              f"{'WORKING' if is_working else 'BROKEN'}")
+        print(f"🔧 Block {block.block_number} heater: {'ON' if is_on else 'OFF'}, {'WORKING' if is_working else 'BROKEN'}")
         return True
 
-    def toggle_heater(self, block_num: int):
-        """
-        Toggle the heater ON/OFF if it is functional.
-
-        Args:
-            block_num (int): Block number.
-        """
+    def toggle_heater(self, block_num):
+        """Toggle heater on/off if it's working"""
         block = self.data_manager.blocks[block_num - 1]
         if self.is_heater_working(block):
             new_state = not self.is_heater_on(block)
             self.set_heater_state(block, new_state, True)
-            print(f"🔄 Toggled heater for block {block_num}: {'ON' if new_state else 'OFF'}")
         else:
-            print(f"❌ Cannot toggle heater for block {block_num} - heater not functional.")
+            print(f"❌ Cannot toggle heater for block {block_num} - heater is not working")
 
-    def break_heater(self, block_num: int):
-        """
-        Mark heater as broken and ensure it’s OFF.
-
-        Args:
-            block_num (int): Block number.
-        """
+    def break_heater(self, block_num):
+        """Break the heater (turns it off if it was on)"""
         block = self.data_manager.blocks[block_num - 1]
         was_on = self.is_heater_on(block)
-        self.set_heater_state(block, False, False)
-        print(f"💥 Heater broken for block {block_num} (was {'ON' if was_on else 'OFF'})")
+        self.set_heater_state(block, False, False)  # Turn off and break
+        if was_on:
+            print(f"🔧 Heater broken and turned off for block {block_num}")
 
-    def fix_heater(self, block_num: int):
-        """
-        Repair heater while keeping current ON/OFF state.
-
-        Args:
-            block_num (int): Block number.
-        """
+    def fix_heater(self, block_num):
+        """Fix the heater (doesn't change on/off state)"""
         block = self.data_manager.blocks[block_num - 1]
         is_on = self.is_heater_on(block)
-        self.set_heater_state(block, is_on, True)
-        print(f"🧰 Heater repaired for block {block_num} (state preserved: {'ON' if is_on else 'OFF'})")
+        self.set_heater_state(block, is_on, True)  # Keep current on/off state, set working
 
     # -------------------------------------------------------------------------
     # BULK OPERATIONS
