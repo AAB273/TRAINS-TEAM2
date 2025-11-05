@@ -1,12 +1,12 @@
-import json          # ← ADD
-from pathlib import Path  # ← ADD
+# import json          # ← ADD
+# from pathlib import Path  # ← ADD
 
-def load_socket_config():  # ← ADD
-    config_path = Path("config.json")
-    if config_path.exists():
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-    return config.get("modules", {})
+# def load_socket_config():  # ← ADD
+#     config_path = Path("config.json")
+#     if config_path.exists():
+#         with open(config_path, 'r') as f:
+#             config = json.load(f)
+#     return config.get("modules", {})
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
@@ -989,7 +989,7 @@ class RightPanel(tk.Frame):
         # commanded_authority.append(new_authority)
 
     def update_speed(self):
-    """Update commanded speed and send to Track Model"""
+        """Update commanded speed and send to Track Model"""
     try:
         new_speed = self.speed_entry.get()
         
