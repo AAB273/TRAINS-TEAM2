@@ -104,11 +104,11 @@ class Main_Window:
         self.root.configure(bg="navy")
 
         # Socket server setup
-        self.server = TrainSocketServer(port=6, ui_id="Train SW")
+        self.server = TrainSocketServer(port=12346, ui_id="Train SW")
         self.server.set_allowed_connections(["Train Model", "Track Model"])
         self.server.start_server(self._process_message)
-        self.server.connect_to_ui('localhost', 5, "Train Model")
-        self.server.connect_to_ui('localhost', 4, "Track Model")
+        self.server.connect_to_ui('localhost', 12345, "Train Model")
+        self.server.connect_to_ui('localhost', 12344, "Track Model")
         
         main_container = tk.Frame(self.root, bg="white", relief=tk.RAISED, bd=5)
         main_container.place(relx=0.02, rely=0.08, relwidth=0.96, relheight=0.9)
