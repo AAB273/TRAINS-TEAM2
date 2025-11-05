@@ -15,7 +15,7 @@ def launch_both_guis():
         return
         
     if not os.path.exists(Main_Screen_UI_PATH): 
-        print(f"❌ Test UI not found at: {TEST_UI_PATH}")
+        print(f"❌ Main Screen UI not found at: {Main_Screen_UI_PATH}")
         return
     
     print(f"✅ Found Main UI: {PASSENGER_UI_PATH}")
@@ -30,7 +30,7 @@ def launch_both_guis():
         print("⏳ Waiting for Main GUI socket server to start...")
      
         
-        print("🧪 Launching Test UI...")
+        print("🧪 Launching Main Screen UI...")
         test_process = subprocess.Popen([sys.executable, TEST_UI_PATH])
         
         print("✅ Both GUIs launched successfully!")
