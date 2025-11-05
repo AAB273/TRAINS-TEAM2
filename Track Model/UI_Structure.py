@@ -57,6 +57,7 @@ class TrackModelUI(tk.Tk):
         self.file_manager = FileUploadManager(self)
         self.heater_manager = HeaterSystemManager(self)
         self.diagram_drawer = TrackDiagramDrawer(self, self.data_manager)
+        self.socket_server = TrainSocketServer(self)
 
         for b in self.data_manager.blocks:
             if not hasattr(b, "traffic_light_state"):
@@ -740,7 +741,7 @@ class TrackModelUI(tk.Tk):
             send_button = ttk.Button(outer_frame, text="Send Outputs", command=self.send_outputs)
             send_button.pack(pady=(5, 10), padx=5, anchor="s")
 
-            send_button = ttk.Button(outer_frame, text="Set Beacon Data", command=self.send_outputs)
+            send_button = ttk.Button(outer_frame, text="Send Beacon Data", command=self.send_outputs)
             send_button.pack(pady=(5, 10), padx=5, anchor="s")
 
             return outer_frame
