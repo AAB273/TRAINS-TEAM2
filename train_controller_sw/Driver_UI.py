@@ -1,3 +1,14 @@
+import json          # ← ADD
+from pathlib import Path  # ← ADD
+
+def load_socket_config():  # ← ADD
+    config_path = Path("config.json")
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config.get("modules", {})
+
+
 import tkinter as tk
 from tkinter import ttk
 import math
@@ -104,7 +115,11 @@ class Main_Window:
         self.root.configure(bg="navy")
 
         # Socket server setup
-        self.server = TrainSocketServer(port=12346, ui_id="Train SW")
+        #added socket server 
+        module_config = load_socket_config()
+        train_model_config = module_config.get("Train SW", {"port: 12346"})
+        self.server = TrainSocketServer(port=train_model_config["port"], ui_id="Train SW")
+        
         self.server.set_allowed_connections(["Train Model", "Track Model"])
         self.server.start_server(self._process_message)
         self.server.connect_to_ui('localhost', 12345, "Train Model")
