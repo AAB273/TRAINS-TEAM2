@@ -45,6 +45,15 @@ class TestUI:
         outText.pack(side = "top")
         #input/output title Labels
 
+<<<<<<< HEAD
+        self.server = TrainSocketServer(port=12346, ui_id="CTC_Test_UI")
+        self.server.set_allowed_connections(["CTC", "ui_3"])
+        
+        self.server.start_server(self._processMessage)
+        self.server.connect_to_ui('localhost', 12341, "CTC")
+
+=======
+>>>>>>> 0d69757afe4fe792bba55350b87eb9053cd2ce81
         self.createInputs()
         self.createOutputs()
 
