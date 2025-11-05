@@ -51,6 +51,7 @@ station_location = []
 ######
 ##############
 
+# speed data = suggeted and commanded data
 def handle_ctc_suggested_speed(speed_data):
     """
     Handle CTC suggested speed messages and convert to float with 3 decimal places
@@ -175,7 +176,7 @@ class UITestData:
             port=track_hw_config["port"],
             ui_id="Track HW"
         )
-        
+
         self.server1.set_allowed_connections(["Track Model", "ui_3"])
         self.server1.start_server(_process_message)
         
