@@ -8,9 +8,34 @@ class TrackConfig:
         self.tracks = {}
         self.load_all_tracks()
         
+    def get_data_file_path(self, filename):
+        """Get the correct path to data files - works in both development and Git environments"""
+        # Get the directory where this Python file (track_config.py) is located
+        current_file_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Try multiple possible locations
+        possible_locations = [
+            os.path.join(current_file_dir, filename),  # Same directory as track_config.py
+            os.path.join(current_file_dir, 'data', filename),  # data subdirectory
+            os.path.join(current_file_dir, '..', 'data', filename),  # Parent's data directory
+            os.path.join(current_file_dir, '..', '..', 'data', filename),  # Wayside_Controller/SW/data
+            os.path.join(os.getcwd(), 'data', filename),  # data subdirectory of working dir
+            os.path.join(os.getcwd(), 'Wayside_Controller', 'SW', 'data', filename),  # Your specific structure
+            os.path.join(os.getcwd(), filename),  # Directly in working directory
+        ]
+        
+        for path in possible_locations:
+            normalized_path = os.path.normpath(path)
+            if os.path.exists(normalized_path):
+                print(f"✅ TrackConfig found data file: {normalized_path}")
+                return normalized_path
+        
+        print(f"❌ TrackConfig: Data file not found: {filename}")
+        print(f"   Searched in: {possible_locations}")
+        return None
+        
     def load_all_tracks(self):
         """Load all track configurations from TXT files in data folder"""
-        data_folder = "data"
         track_files = {
             "Green": "green_line.txt",
             "Red": "red_line.txt", 
@@ -18,8 +43,23 @@ class TrackConfig:
         }
         
         for track_name, filename in track_files.items():
-            file_path = os.path.join(data_folder, filename)
-            self.tracks[track_name] = self.load_track_from_txt(file_path)
+            file_path = self.get_data_file_path(filename)
+            
+            if file_path and os.path.exists(file_path):
+                self.tracks[track_name] = self.load_track_from_txt(file_path)
+            else:
+                print(f"⚠️ TrackConfig: Could not find data file for {track_name} line")
+                # Create empty track data as fallback
+                self.tracks[track_name] = {
+                    "suggested_speed": "0 mph",
+                    "suggested_authority": "0 blocks", 
+                    "commanded_speed": "0 mph",
+                    "commanded_authority": "0 blocks",
+                    "switches": {},
+                    "lights": {},
+                    "railway": {},
+                    "blocks": []
+                }
     
     def load_track_from_txt(self, file_path):
         """Load track configuration from TXT file - COMPLETELY DYNAMIC"""
@@ -66,6 +106,12 @@ class TrackConfig:
                         
                         if 'RAILWAY CROSSING' in infra_upper or 'RAILWAY' in infra_upper:
                             track_data["railway"][block] = ["Off", "On"]
+                            
+            print(f"✅ Loaded track data from: {file_path}")
+            print(f"   Blocks: {len(track_data['blocks'])}")
+            print(f"   Switches: {len(track_data['switches'])}")
+            print(f"   Lights: {len(track_data['lights'])}")
+            print(f"   Crossings: {len(track_data['railway'])}")
                             
         except FileNotFoundError:
             print(f"Warning: {file_path} not found. Track will be empty.")

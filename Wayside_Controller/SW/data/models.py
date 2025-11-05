@@ -49,30 +49,6 @@ class RailwayData:
         # System log reference for broadcasting messages
         self.system_log = None
 
-    def get_data_file_path(self, filename):
-        """Get the correct path to data files - works in both development and Git environments"""
-        # Get the directory where this Python file (models.py) is located
-        current_file_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        # Try multiple possible locations
-        possible_locations = [
-            os.path.join(current_file_dir, filename),  # Same directory as models.py
-            os.path.join(current_file_dir, '..', filename),  # Parent of current directory
-            os.path.join(current_file_dir, 'data', filename),  # data subdirectory
-            os.path.join(os.getcwd(), 'data', filename),  # data subdirectory of working dir
-            os.path.join(os.getcwd(), filename),  # Directly in working directory
-        ]
-        
-        for path in possible_locations:
-            normalized_path = os.path.normpath(path)
-            if os.path.exists(normalized_path):
-                print(f"✅ Found data file: {normalized_path}")
-                return normalized_path
-        
-        print(f"❌ Data file not found: {filename}")
-        print(f"   Searched in: {possible_locations}")
-        return None
-
     def ensure_faulted_column(self):
         """Ensure all blocks have the Faulted column (index 3) for data consistency"""
         for row in self.block_data:
@@ -124,90 +100,77 @@ class RailwayData:
 
         # Map line names to their data files
         txt_files = {
-            "Blue": "blue_line.txt",
-            "Green": "green_line.txt", 
-            "Red": "red_line.txt"
+            "Blue": "data/blue_line.txt",
+            "Green": "data/green_line.txt", 
+            "Red": "data/red_line.txt"
         }
 
-        for line, filename in txt_files.items():
-            file_path = self.get_data_file_path(filename)
-            
-            if file_path and os.path.exists(file_path):
-                try:
-                    with open(file_path, 'r') as file:
-                        lines = file.readlines()
-                        # Skip header line (index 0) and process data lines
-                        for row_line in lines[1:]:
-                            row = row_line.strip().split(',')
-                            if len(row) >= 3:  # Ensure we have at least block and infrastructure data
-                                block = row[1].strip()
-                                infrastructure = row[2].strip()
+        for line, file_path in txt_files.items():
+            try:
+                with open(file_path, 'r') as file:
+                    lines = file.readlines()
+                    # Skip header line (index 0) and process data lines
+                    for row_line in lines[1:]:
+                        row = row_line.strip().split(',')
+                        if len(row) >= 3:  # Ensure we have at least block and infrastructure data
+                            block = row[1].strip()
+                            infrastructure = row[2].strip()
 
-                                # --- SWITCHES ---
-                                if 'Switch' in infrastructure:
-                                    switch_name = f"Switch {block}"
-                                    directions = self.extract_switch_directions(infrastructure)
-                                    self.switch_positions[switch_name] = {
-                                        "condition": "Normal Operation",
-                                        "direction": directions[0] if directions else "Unknown",
-                                        "options": directions,  # Store all possible directions for UI
-                                        "line": line  # Track which line this switch belongs to
-                                    }
+                            # --- SWITCHES ---
+                            if 'Switch' in infrastructure:
+                                switch_name = f"Switch {block}"
+                                directions = self.extract_switch_directions(infrastructure)
+                                self.switch_positions[switch_name] = {
+                                    "condition": "Normal Operation",
+                                    "direction": directions[0] if directions else "Unknown",
+                                    "options": directions,  # Store all possible directions for UI
+                                    "line": line  # Track which line this switch belongs to
+                                }
 
-                                # --- RAILWAY CROSSINGS ---
-                                if 'RAILWAY CROSSING' in infrastructure:
-                                    crossing_name = f"Railway {block}"
-                                    self.railway_crossings[crossing_name] = {
-                                        "condition": "Normal Operation",
-                                        "lights": "Off",    # Default state
-                                        "bar": "Opened",    # Default state  
-                                        "line": line        # Track which line this crossing belongs to
-                                    }
+                            # --- RAILWAY CROSSINGS ---
+                            if 'RAILWAY CROSSING' in infrastructure:
+                                crossing_name = f"Railway {block}"
+                                self.railway_crossings[crossing_name] = {
+                                    "condition": "Normal Operation",
+                                    "lights": "Off",    # Default state
+                                    "bar": "Opened",    # Default state  
+                                    "line": line        # Track which line this crossing belongs to
+                                }
 
-                                # --- LIGHTS ---
-                                if 'Light' in infrastructure and 'Switch' not in infrastructure:
-                                    light_name = f"Light {block}"
-                                    self.light_states[light_name] = {
-                                        "condition": "Normal Operation",
-                                        "signal": "Green",  # Default signal state
-                                        "line": line        # Track which line this light belongs to
-                                    }
-                    print(f"✅ Loaded {line} line track data from: {file_path}")
+                            # --- LIGHTS ---
+                            if 'Light' in infrastructure and 'Switch' not in infrastructure:
+                                light_name = f"Light {block}"
+                                self.light_states[light_name] = {
+                                    "condition": "Normal Operation",
+                                    "signal": "Green",  # Default signal state
+                                    "line": line        # Track which line this light belongs to
+                                }
 
-                except Exception as e:
-                    print(f"❌ Error reading {file_path}: {e}")
-            else:
-                print(f"⚠️ Warning: Could not find data file for {line} line. Skipping {line} line data.")
+            except FileNotFoundError:
+                print(f"⚠️ Warning: {file_path} not found. Skipping {line} line data.")
 
     def load_all_block_data(self):
         """Load all block data from TXT files - each block starts unoccupied and not faulted"""
         all_block_data = []
         txt_files = {
-            "Blue": "blue_line.txt",
-            "Green": "green_line.txt", 
-            "Red": "red_line.txt"
+            "Blue": "data/blue_line.txt",
+            "Green": "data/green_line.txt", 
+            "Red": "data/red_line.txt"
         }
         
-        for line, filename in txt_files.items():
-            file_path = self.get_data_file_path(filename)
-            
-            if file_path and os.path.exists(file_path):
-                try:
-                    with open(file_path, 'r') as file:
-                        lines = file.readlines()
-                        # Skip header line and process each block
-                        for row_line in lines[1:]:
-                            row = row_line.strip().split(',')
-                            if len(row) >= 2:  # Need at least block number
-                                # Each block starts as unoccupied and not faulted: 
-                                # ["No", line, block_number, "No"]
-                                all_block_data.append(["No", line, row[1], "No"])
-                    print(f"✅ Loaded {line} line block data from: {file_path}")
-                    
-                except Exception as e:
-                    print(f"❌ Error reading {file_path}: {e}")
-            else:
-                print(f"⚠️ Warning: Could not find data file for {line} line. Skipping {line} block data.")
+        for line, file_path in txt_files.items():
+            try:
+                with open(file_path, 'r') as file:
+                    lines = file.readlines()
+                    # Skip header line and process each block
+                    for row_line in lines[1:]:
+                        row = row_line.strip().split(',')
+                        if len(row) >= 2:  # Need at least block number
+                            # Each block starts as unoccupied and not faulted: 
+                            # ["No", line, block_number, "No"]
+                            all_block_data.append(["No", line, row[1], "No"])
+            except FileNotFoundError:
+                print(f"⚠️ Warning: {file_path} not found. Skipping {line} block data.")
         
         return all_block_data
 
@@ -246,37 +209,57 @@ class RailwayData:
 
     
     def update_block_data(self, row_index, col_index, new_value):
-        """Update block data and keep original data in sync"""
-        if 0 <= row_index < len(self.block_data):
+        """Update block data and keep original data in sync - FIXED VERSION"""
+        if 0 <= row_index < len(self.block_data_original):
             # Ensure row has 4 columns (occupied, line, block, faulted)
-            if len(self.block_data[row_index]) < 4:
-                self.block_data[row_index].append("No")
+            if len(self.block_data_original[row_index]) < 4:
+                self.block_data_original[row_index].append("No")
             
-            # Update the value in the main data
-            self.block_data[row_index][col_index] = new_value
+            # Store the old value for comparison
+            old_value = self.block_data_original[row_index][col_index]
             
-            # Keep original data in sync for filtering
-            if 0 <= row_index < len(self.block_data_original):
-                if len(self.block_data_original[row_index]) < 4:
-                    self.block_data_original[row_index].append("No")
-                self.block_data_original[row_index][col_index] = new_value
+            # Only update if the value is actually changing
+            if old_value == new_value:
+                print(f"🔄 DEBUG: No change needed - block_data_original[{row_index}][{col_index}] already '{new_value}'")
+                return
             
-            # Sync to filtered_track_data blocks for PLC processing
-            block_num = str(self.block_data[row_index][2])
-            line = self.block_data[row_index][1]
+            # Update the value in the original data (source of truth)
+            self.block_data_original[row_index][col_index] = new_value
+            print(f"📝 DEBUG: Updated block_data_original[{row_index}][{col_index}] from '{old_value}' to '{new_value}'")
+            
+            # Also update the filtered data if we're currently viewing that line
+            current_line = self.block_data_original[row_index][1]
+            if current_line == self.current_line:
+                # Find the corresponding row in block_data and update it
+                for idx, filtered_row in enumerate(self.block_data):
+                    if (filtered_row[1] == current_line and 
+                        str(filtered_row[2]) == str(self.block_data_original[row_index][2])):
+                        if len(filtered_row) < 4:
+                            filtered_row.append("No")
+                        filtered_row[col_index] = new_value
+                        print(f"📝 DEBUG: Also updated block_data[{idx}][{col_index}] to '{new_value}'")
+                        break
+            else:
+                print(f"📝 DEBUG: Not updating block_data (current: {self.current_line}, target: {current_line})")
+            
+            # Sync to filtered_blocks for PLC processing
+            block_num = str(self.block_data_original[row_index][2])
+            line = self.block_data_original[row_index][1]
             block_key = f"Block {block_num}"
             
-            if self.current_line == line and "blocks" in self.filtered_track_data:
-                if block_key in self.filtered_track_data["blocks"]:
+            if self.current_line == line and hasattr(self, 'filtered_blocks'):
+                if block_key in self.filtered_blocks:
                     # If occupancy changed (col 0)
                     if col_index == 0:
                         is_occupied = (new_value == "Yes")
-                        self.filtered_track_data["blocks"][block_key]["occupied"] = is_occupied
+                        self.filtered_blocks[block_key]["occupied"] = is_occupied
+                        print(f"📝 DEBUG: Updated filtered_blocks['{block_key}']['occupied'] to {is_occupied}")
                     
                     # If faulted changed (col 3)
                     elif col_index == 3:
                         is_faulted = (new_value == "Yes")
-                        self.filtered_track_data["blocks"][block_key]["faulted"] = is_faulted
+                        self.filtered_blocks[block_key]["faulted"] = is_faulted
+                        print(f"📝 DEBUG: Updated filtered_blocks['{block_key}']['faulted'] to {is_faulted}")
             
             # Trigger callbacks to update UI components
             for callback in self.on_data_update:
@@ -334,10 +317,10 @@ class RailwayData:
 
     def sync_block_occupancy_from_track(self):
         """Sync occupancy from track_data back to block_data - ensures consistency"""
-        if "blocks" not in self.filtered_track_data:
+        if not hasattr(self, 'filtered_blocks'):
             return
             
-        for block_key, block_info in self.filtered_track_data["blocks"].items():
+        for block_key, block_info in self.filtered_blocks.items():
             block_num = block_info.get("number")
             track_occupied = block_info.get("occupied", False)
             
@@ -394,12 +377,23 @@ class RailwayData:
                 callback()
     
     def filter_data_by_line(self, line):
-        """Filter all data to show only the current line"""
+        """Filter all data to show only the current line - FIXED VERSION"""
         self.current_line = line
         
+        # Debug: Check what's in block_data_original for this line
+        green_blocks = [row for row in self.block_data_original if row[1] == "Green"]
+        print(f"📊 DEBUG: block_data_original has {len(green_blocks)} Green blocks")
+        for row in green_blocks[:3]:  # Show first 3 blocks
+            print(f"📊 DEBUG:   Block {row[2]}: {row}")
+        
         # Filter block data to show only current line blocks  
-        self.block_data = [row for row in self.block_data_original 
-                        if row[1] == line]
+        # This creates a COPY of the original data for the current line
+        self.block_data = [row.copy() for row in self.block_data_original if row[1] == line]
+        print(f"📊 DEBUG: Filtered {len(self.block_data)} blocks for {line} line from block_data_original")
+        
+        # Show what we filtered
+        for row in self.block_data[:3]:  # Show first 3 blocks
+            print(f"📊 DEBUG:   Filtered Block {row[2]}: {row}")
         
         # Filter track infrastructure data into separate filtered variables
         self.filtered_light_states = {k: v for k, v in self.light_states.items() 

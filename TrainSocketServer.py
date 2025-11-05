@@ -95,23 +95,34 @@ class TrainSocketServer:
             client_socket.close()
                     
     def _handle_client(self, client_socket, client_ui_id):
-        """Handle client messages"""
+        """Handle client messages - with multiple JSON support"""
+        buffer = ""
         while self.running:
             try:
                 data = client_socket.recv(1024).decode('utf-8')
                 if not data:
                     break
                     
-                # Parse JSON message
-                message = json.loads(data)
+                buffer += data
                 
-                # Skip handshake messages in normal processing
-                if message.get('type') != 'handshake':
-                    if self.update_callback:
-                        self.update_callback(message, client_ui_id)
-                
-            except json.JSONDecodeError:
-                print("Invalid JSON received")
+                # Try to parse complete JSON objects from buffer
+                while buffer:
+                    try:
+                        # Find complete JSON object
+                        message, idx = self._extract_json(buffer)
+                        if message:
+                            if message.get('type') != 'handshake':
+                                if self.update_callback:
+                                    self.update_callback(message, client_ui_id)
+                            buffer = buffer[idx:]  # Remove processed part
+                        else:
+                            break  # Incomplete JSON, wait for more data
+                    except json.JSONDecodeError:
+                        # If we can't parse, clear buffer to prevent buildup
+                        print("JSON decode error, clearing buffer")
+                        buffer = ""
+                        break
+                        
             except Exception as e:
                 print(f"Client handling error: {e}")
                 break
@@ -121,6 +132,43 @@ class TrainSocketServer:
             del self.connected_clients[client_ui_id]
         client_socket.close()
         print(f"Client {client_ui_id} disconnected")
+
+    def _extract_json(self, buffer):
+        """Extract first complete JSON object from buffer"""
+        try:
+            # Try to parse the entire buffer
+            message = json.loads(buffer)
+            return message, len(buffer)
+        except json.JSONDecodeError:
+            # If that fails, try to find where the JSON ends
+            # This is a simple approach - look for balanced braces
+            brace_count = 0
+            in_string = False
+            escape = False
+            
+            for i, char in enumerate(buffer):
+                if escape:
+                    escape = False
+                    continue
+                    
+                if char == '\\':
+                    escape = True
+                elif char == '"' and not escape:
+                    in_string = not in_string
+                elif not in_string:
+                    if char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            # Found complete JSON object
+                            try:
+                                message = json.loads(buffer[:i+1])
+                                return message, i+1
+                            except json.JSONDecodeError:
+                                continue
+            
+            return None, 0  # No complete JSON found
         
     def connect_to_ui(self, host: str, port: int, target_ui_id: str):
         """Connect to another UI server"""

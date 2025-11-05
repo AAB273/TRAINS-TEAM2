@@ -134,9 +134,8 @@ class TestUI:
         state_leaving_station.pack(fill='x', pady=2)
         
         ttk.Button(state_leaving_station, text="Leaving Station",
-                   command=lambda:[self.send_to_ui('set_service_brake_off','off'), self.send_to_ui('set_left_door','close'),
-                                   self.send_to_ui('set_right_door','close')
-                   ]).pack(side='left')
+                   command=lambda:[self.send_to_ui('set_headlights','on'), self.send_to_ui('set_left_door','close'),
+                                   self.send_to_ui('set_right_door','close')]).pack(side='left')
         
         # Temp Control - Compact
         temp_frame = ttk.LabelFrame(main_container, text="Temperature Control", padding=6)
