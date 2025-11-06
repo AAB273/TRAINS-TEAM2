@@ -17,7 +17,7 @@ def launch_all():
         ("Train SW", "train_controller_sw/Driver_UI.py"),
         ("Track SW", "Wayside_Controller/SW/main.py"),
         ("CTC", "CTC_Office/CTC_UI.py"),
-        ("Track Model", "UI_Structure.py"),
+        ("Track Model", "Track_Model/UI_Structure.py"),
     ]
     
     processes = []

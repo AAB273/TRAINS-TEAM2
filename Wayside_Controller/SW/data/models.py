@@ -100,9 +100,9 @@ class RailwayData:
 
         # Map line names to their data files
         txt_files = {
-            "Blue": "data/blue_line.txt",
-            "Green": "data/green_line.txt", 
-            "Red": "data/red_line.txt"
+            "Blue": "Wayside_Controller/SW/data/blue_line.txt",
+            "Green": "Wayside_Controller/SW/data/green_line.txt", 
+            "Red": "Wayside_Controller/SW/data/red_line.txt"
         }
 
         for line, file_path in txt_files.items():
@@ -153,9 +153,9 @@ class RailwayData:
         """Load all block data from TXT files - each block starts unoccupied and not faulted"""
         all_block_data = []
         txt_files = {
-            "Blue": "data/blue_line.txt",
-            "Green": "data/green_line.txt", 
-            "Red": "data/red_line.txt"
+            "Blue": "Wayside_Controller/SW/data/blue_line.txt",
+            "Green": "Wayside_Controller/SW/data/green_line.txt", 
+            "Red": "Wayside_Controller/SW/data/red_line.txt"
         }
         
         for line, file_path in txt_files.items():
