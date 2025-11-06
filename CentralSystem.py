@@ -6,15 +6,23 @@ import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
 
+
+
+# # CTC Files
 # from CTC_Office import CTC_Main_Screen
 # from CTC_Office import CTC_Schedule_Screen
 # from CTC_Office import CTC_Test_UI
 
 # #necessary to import the clock from the parent directory#
 # import clock
-
-# # CTC Files
 # from CTC_Office import CTC_UI
+
+
+# Wayside SW Files
+
+
+#Wayside HW Files
+
 
 
 # Track Model Files
