@@ -21,7 +21,7 @@ class RailwayControlSystem:
         self.track_config = TrackConfig()
         
         # Initialize socket server for test UI
-        self.server = TrainSocketServer(port=21, ui_id="test_ui")
+        self.server = TrainSocketServer(port=123421, ui_id="test_ui")
         self.server.set_allowed_connections(["Track SW"])
         
         # Store shared data reference (if any)
@@ -92,7 +92,7 @@ class RailwayControlSystem:
 
     def _connect_to_main_ui(self):
         """Connect to Main UI server"""
-        if self.server.connect_to_ui('localhost', 2, "Track SW"):
+        if self.server.connect_to_ui('localhost', 12342, "Track SW"):
             print("✅ Connected to Main UI")
         else:
             print("❌ Failed to connect to Main UI - make sure Main UI is running")
