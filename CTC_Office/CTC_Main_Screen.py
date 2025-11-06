@@ -1,3 +1,13 @@
+import json    
+from pathlib import Path 
+
+def load_socket_config():
+    config_path = Path("config.json")
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config.get("modules", {})
+
 import tkinter as tk
 from tkinter import ttk
 from tkinter.messagebox import askyesno
@@ -47,7 +57,10 @@ class MainScreen:
         self.totalPassengers = 0 
         self.numberOfTrains = 1
 
-        self.server = TrainSocketServer(port=12341, ui_id="CTC")
+        # Socket server setup
+        module_config = load_socket_config()
+        ctc_config = module_config.get("Train Model", {"port": 5})
+        self.server = TrainSocketServer(port = ctc_config["port"], ui_id = "CTC")
         self.server.set_allowed_connections(["Track SW", "Track HW"])
         self.server.start_server(self._processMessage)
         self.server.connect_to_ui('localhost', 12342, "Track SW")
