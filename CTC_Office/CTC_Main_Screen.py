@@ -59,12 +59,15 @@ class MainScreen:
 
         # Socket server setup
         module_config = load_socket_config()
-        ctc_config = module_config.get("Train Model", {"port": 5})
+        ctc_config = module_config.get("CTC", {"port": 1})
         self.server = TrainSocketServer(port = ctc_config["port"], ui_id = "CTC")
-        self.server.set_allowed_connections(["Track SW", "Track HW"])
+        self.server.set_allowed_connections(["Track SW", "Track HW", "CTC_Test_UI"])
         self.server.start_server(self._processMessage)
-        self.server.connect_to_ui('localhost', 12342, "Track SW")
-        self.server.connect_to_ui('localhost', 12343, "Track HW")
+        #self.server.connect_to_ui('localhost', 12342, "Track SW")
+        #self.server.connect_to_ui('localhost', 12343, "Track HW")
+
+        #for test ui
+        self.server.connect_to_ui('localhost', 12349, "CTC_Test_UI")
 
         self.createTopRow()
         #print the logo, reference map button, time

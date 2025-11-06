@@ -49,7 +49,7 @@ class TestUI:
         outText.pack(side = "top")
         #input/output title Labels
 
-        self.server = TrainSocketServer(port=12346, ui_id="CTC_Test_UI")
+        self.server = TrainSocketServer(port=12349, ui_id="CTC_Test_UI")
         self.server.set_allowed_connections(["CTC", "ui_3"])
         
         self.server.start_server(self._processMessage)
@@ -67,7 +67,7 @@ class TestUI:
             message['value'] = value
         
         # Always send to Train_Model_Passenger_UI
-        target_ui = "CTC_Main_Screen"
+        target_ui = "CTC"
         success = self.server.send_to_ui(target_ui, message)
         
         if success:
