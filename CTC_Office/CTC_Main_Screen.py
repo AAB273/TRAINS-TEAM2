@@ -456,9 +456,10 @@ class MainScreen:
         self.mmArea.column("Switch", width = 100)
         #create and format the Treeview holding maintenance mode data
 
-        blueLineLevel = self.mmArea.insert("", "end", text = "Blue")
-        self.mmArea.insert(blueLineLevel, "end", text = "Block 5", values = ["Block 6", "Switch"])
-        #switches for blue line only (WILL BE EDITED WHEN DOING RED/GREEN LINES)
+        greenLineLevel = self.mmArea.insert("", "end", text = "Blue")
+        self.mmArea.insert(greenLineLevel, "end", text = "Block 13", values = ["Block 12", "Switch"])
+        self.mmArea.insert(greenLineLevel, "end", text = "Block  ", values = ["Block  ", "Switch"])
+        #switches for green line only (maybe change to add red and green at the same time?)
 
         self.mmArea.bind("<Button-1>", self.switchTrack)
         self.mmArea.pack(side = "left")
