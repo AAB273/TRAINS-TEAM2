@@ -1281,7 +1281,7 @@ class TrackModelUI(tk.Tk):
         self.update_bottom_table()
 
         # Redraw track icons (switches, crossings, lights)
-        self.draw_track_icons()
+        # self.draw_track_icons()
 
         # REMOVED: Automatic terminal refresh - terminal only updates on button click now
 
@@ -1345,19 +1345,19 @@ class TrackModelUI(tk.Tk):
 if __name__ == "__main__":
     manager = UI_Variables.TrackDataManager()
     app = TrackModelUI(manager)
-    tester = TrackModelTestUI(app, manager)
+    # tester = TrackModelTestUI(app, manager)
     
     # Store reference to test UI for refreshing
-    app.tester_reference = tester
+    # app.tester_reference = tester
     
     # Verify integration
     print("=== SYSTEM INTEGRATION CHECK ===")
     print(f"Main UI manager: {app.data_manager}")
-    print(f"Test UI manager: {tester.manager}") 
-    print(f"Same instance: {app.data_manager is tester.manager}")
+    # print(f"Test UI manager: {tester.manager}") 
+    # print(f"Same instance: {app.data_manager is tester.manager}")
     print(f"Bidirectional data shared: {hasattr(manager, 'bidirectional_directions')}")
     
-    tester.lift()
+    # dtester.lift()
     app.mainloop()
 
 

@@ -1,3 +1,12 @@
+import json          
+from pathlib import Path  
+def load_socket_config():  
+    config_path = Path("config.json")
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config.get("modules", {})
+
 import tkinter as tk
 import sys
 import os
@@ -19,14 +28,19 @@ class RailwayControlSystem:
         self.data = RailwayData()
         
         # Initialize socket server for main UI
-        self.server = TrainSocketServer(port=2, ui_id="Track SW")
+        self.server = TrainSocketServer(port=12342, ui_id="Track SW")
+        #module_config = module_config.get("Track SW", {"port": 12342})
+        #self.server = TrainSocketServer(
+        #    port=Track_SW_config["port"],
+        #    ui_id="Track SW"
+        #)
 
         # FIX: Set ALL allowed connections in ONE call
         self.server.set_allowed_connections(["test_ui", "Track Model", "CTC"])
         self.server.start_server(self._process_message)
         
         # FIX: Connect with correct parameters
-        self.server.connect_to_ui('localhost', 21, "test_ui")
+        self.server.connect_to_ui('localhost', 123421, "test_ui")
 
         self.create_ui()
         self.setup_logging()
