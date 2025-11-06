@@ -1,3 +1,13 @@
+import json          # ← ADD
+from pathlib import Path  # ← ADD
+
+def load_socket_config():  # ← ADD
+    config_path = Path("config.json")
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config.get("modules", {})
+
 import tkinter as tk
 from tkinter import ttk
 from tkinter.messagebox import askyesno
@@ -46,6 +56,14 @@ class MainScreen:
         self.totalPassengers = 0 
         self.numberOfTrains = 1
 
+        module_config = load_socket_config()
+        ctc_config = module_config.get("CTC", {"port": 12341})
+        self.server = TrainSocketServer(port = ctc_config["port"], ui_id = "CTC")
+        self.server.set_allowed_connections(["Track SW", "Track HW"])
+        self.server.start_server(self._processMessage)
+        self.server.connect_to_ui('localhost', 12342, "Track SW")
+        self.server.connect_to_ui('localhost', 12343, "Track HW")
+
         self.createTopRow()
         #print the logo, reference map button, time
         self.createAreas()
@@ -53,7 +71,42 @@ class MainScreen:
 
 ###############################################################################################################################################################
 
-    def updateMainScreen(self):
+    def send_to_ui(self, command, value=None):
+        pass
+        # """Send command to the target UI (creates dict for socket server)"""
+        # message = {'command': command}
+        # if value is not None:
+        #     message['value'] = value
+        
+        # # Always send to Train_Model_Passenger_UI
+        # target_ui = "CTC_Test_UI"
+        # success = self.server.send_to_ui(target_ui, message)
+        
+        # if success:
+        #     print(f"Sent {command} to {target_ui}")
+        # else:
+        #     print(f"Failed to send {command} to {target_ui}")
+
+        # return success
+    
+###############################################################################################################################################################
+
+    def _processMessage(self, message, source_ui_id):
+        """Process incoming messages and update train state"""
+        try:
+            print(f"Received message from {source_ui_id}: {message}")
+
+            command = message.get('command')
+            value = message.get('value')
+
+            self.updateMainScreen(command, value)
+
+        except Exception as e:
+            print(f"Error processing message: {e}")
+
+###############################################################################################################################################################
+
+    def updateMainScreen(self, code, data):
     #update any data according to the data file
         '''
         Note: Follows formatting rules specified in README.txt.

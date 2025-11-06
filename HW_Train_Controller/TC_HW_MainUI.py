@@ -25,6 +25,15 @@ Hardware Setup:
 - Engine Failure LED: GPIO 5 (output only - controlled by Train Model)
 - Signal Failure LED: GPIO 6 (output only - controlled by Train Model)
 """
+import json          # ← ADD
+from pathlib import Path  # ← ADD
+
+def load_socket_config():  # ← ADD
+    config_path = Path("config.json")
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config.get("modules", {})
 
 import lgpio
 import time
@@ -340,10 +349,12 @@ class TrainSpeedDisplayUI:
 		self.root.configure(bg='#1e3c72')
 		
 		# Socket Server Setup
-		self.server = TrainSocketServer(port=7, ui_id="Train HW")
+		module_config = load_socket_config()  # ← LOAD CONFIG
+		train_controller_hw_config = module_config.get("Train Controller HW", {"port": 12347})
+		self.server = TrainSocketServer(port=train_controller_hw_config["port"], ui_id="Train HW")
 		self.server.set_allowed_connections(["Train HW"])
 		self.server.start_server(self._process_message)
-		self.server.connect_to_ui('localhost', 5, "Train Model")
+		self.server.connect_to_ui('localhost', 12345, "Train Model")
 
 		self._createWidgets()
 		self._updateDisplay()
