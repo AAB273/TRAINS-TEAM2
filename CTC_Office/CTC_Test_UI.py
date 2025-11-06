@@ -49,11 +49,11 @@ class TestUI:
         outText.pack(side = "top")
         #input/output title Labels
 
-        self.server = TrainSocketServer(port=12349, ui_id="CTC_Test_UI")
-        self.server.set_allowed_connections(["CTC", "ui_3"])
+        # self.server = TrainSocketServer(port=12349, ui_id="CTC_Test_UI")
+        # self.server.set_allowed_connections(["CTC", "ui_3"])
         
-        self.server.start_server(self._processMessage)
-        self.server.connect_to_ui('localhost', 12341, "CTC")
+        # self.server.start_server(self._processMessage)
+        # self.server.connect_to_ui('localhost', 12341, "CTC")
 
         self.createInputs()
         self.createOutputs()
