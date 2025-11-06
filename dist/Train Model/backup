@@ -1,0 +1,418 @@
+import tkinter as tk
+import time
+from datetime import datetime
+from PIL import Image, ImageTk
+from tkinter import font
+from tkinter import ttk
+
+# Key Inputs
+Velocity = 20
+Acceleration = 14
+Passenger_Count = 0
+Crew_Count = 0
+main_color = '#1a1a4d'
+off_color = '#4d4d6d'
+######################
+root = tk.Tk()
+root.title("Passenger Train Model GUI")
+root.configure(bg=main_color)
+root.geometry("1250x910")
+###########################################
+#Temporary Functions
+def failure_train_engine_var_changed():
+    print(f"Train Engine Failure {'Activated' if failure_train_engine_var.get() else 'Deactivated'}")
+
+def failure_signal_pickup_var_changed():
+    print(f"Signal Pickup Failure {'Activated' if failure_signal_pickup_var.get() else 'Deactivated'}")
+
+def failure_brake_var_changed():
+    print(f"Brake Failure {'Activated' if failure_brake_var.get() else 'Deactivated'}")
+
+##################################################
+
+
+
+
+#Train Selector
+selector_frame = tk.Frame(root, bg=main_color, highlightbackground="black", highlightthickness=4, width=200)
+selector_frame.pack(side='right', fill='y', padx=3, pady=3)
+selector_frame.pack_propagate(False)
+
+selector_frame.columnconfigure(0, weight=1)  # Train column expands
+selector_frame.columnconfigure(1, weight=0)  # Separator column doesn't expand
+selector_frame.columnconfigure(2, weight=1)  # Status column expands
+
+# Main Title
+title_label = tk.Label(selector_frame, text="Train Selector", bg=main_color, fg='white', font=('Arial', 14, 'bold'))
+title_label.grid(row=0, column=0, columnspan=3, padx=10, pady=(10, 5), sticky='ew')
+
+# Separator under title
+title_separator = ttk.Separator(selector_frame, orient='horizontal')
+title_separator.grid(row=1, column=0, columnspan=3, sticky='ew', pady=(0, 10))
+
+# Headers
+header_train = tk.Label(selector_frame, text="Train #", bg=main_color, fg='white', font=('Arial', 12, 'bold'))
+header_status = tk.Label(selector_frame, text="Deployed?", bg=main_color, fg='white', font=('Arial', 12, 'bold'))
+
+header_train.grid(row=2, column=0, padx=10, pady=(5, 5), sticky='ew')
+header_status.grid(row=2, column=2, padx=10, pady=(5, 5), sticky='ew')
+
+# Vertical separator between columns
+separator = ttk.Separator(selector_frame, orient='vertical')
+separator.grid(row=2, column=1, rowspan=32, padx=10, pady=5, sticky='ns')
+
+# First horizontal separator (right under headers)
+first_separator = ttk.Separator(selector_frame, orient='horizontal')
+first_separator.grid(row=3, column=0, columnspan=3, sticky='ew', pady=(0, 5))
+
+# Create 10 rows for trains
+for i in range(14):
+    row_num = 4 + (i * 2)  # Rows 4, 6, 8, 10... for content
+    
+    # Train number label
+    train_label = tk.Label(selector_frame, text=f"Train {i+1}", bg=main_color, fg='white', font=('Arial', 10))
+    train_label.grid(row=row_num, column=0, padx=10, pady=10, sticky='ew')
+    
+    # Canvas for status indicator (rectangle that fits the row)
+    status_canvas = tk.Canvas(selector_frame, width=60, height=25, bg=main_color, highlightthickness=0)
+    status_canvas.grid(row=row_num, column=2, padx=10, pady=10)
+    
+    # Draw rectangle - change fill color based on deployment status
+    is_deployed = i % 2 == 0  # Example: alternating deployed status
+    fill_color = 'green' if is_deployed else 'red'
+    status_canvas.create_rectangle(2, 2, 58, 23, fill=fill_color, outline='white', width=2)
+    
+    # Horizontal separator after each row (except the last one)
+    if i < 14:
+        row_separator = ttk.Separator(selector_frame, orient='horizontal')
+        row_separator.grid(row=row_num+1, column=0, columnspan=3, sticky='ew', pady=5)
+
+
+
+
+# Top Container for time and announcement frames
+top_container = tk.Frame(root, bg=main_color, highlightbackground="black", highlightthickness=4)
+top_container.pack(fill='x')  # Only fill horizontally, not vertically
+
+#BLT Logo
+blt_logo_image = Image.open("Train Model/blt logo.png")
+converted_blt_logo_image = blt_logo_image.resize((75,75))
+converted_blt_logo_image = ImageTk.PhotoImage(converted_blt_logo_image)
+blt_logo_frame = tk.Frame(top_container, bg=main_color, height=80,width=80)
+blt_logo_frame.pack(fill='x',side='left',pady=3,padx=3)
+blt_logo_frame.pack_propagate(False)
+tk.Label(
+    blt_logo_frame,
+    image=converted_blt_logo_image,
+    bg=main_color
+).pack(padx=1,pady=1)
+blt_logo_frame.image = converted_blt_logo_image
+
+# Time Frame (left side of middle container)
+time_frame = tk.Frame(top_container, bg=off_color, width=200, height=80, highlightbackground="black", highlightthickness=4)
+time_frame.pack(side='left', padx=3, pady=3)
+time_frame.pack_propagate(False)
+tk.Label(
+    time_frame,
+    text="Time",
+    bg=off_color,
+    fg='white',
+    font=('Arial',10,'bold')
+).pack(padx=5, pady=5)
+
+# Announcement Frame (right side of middle container)
+Announcement_frame = tk.Frame(top_container, bg=off_color, width=800, height=80, highlightbackground="black", highlightthickness=4)
+Announcement_frame.pack(side='left', padx=3, pady=3)
+Announcement_frame.pack_propagate(False)
+tk.Label(
+    Announcement_frame,
+    text="Arriving to Dormount in 5 seconds",
+    bg=off_color,
+    fg='white',
+    font=('Arial',10,'bold')
+).pack(padx=5, pady=5)
+########################################################
+left_frame = tk.Frame(root, bg=main_color)
+left_frame.pack(side='left',fill='both')
+
+right_frame = tk.Frame(root, bg=main_color)
+right_frame.pack(side='right',fill='both',expand=True)
+
+####################################
+#Advertisement Frame
+ad_image = Image.open("Train Model/wendy's_AD.jpg")
+converted_ad_image = ImageTk.PhotoImage(ad_image)
+Advertisement = tk.Frame(right_frame,height=230,highlightbackground="black",highlightthickness=2,bg=off_color)
+Advertisement.pack(side='top',padx=2,pady=2,fill='x')
+Advertisement.pack_propagate(False)
+tk.Label(
+    Advertisement,
+    image=converted_ad_image,
+
+).pack(padx=1,pady=1)
+Advertisement.image = converted_ad_image
+
+#Doors/Lights
+doors_and_lights_frame = tk.Frame(right_frame,height=300,highlightbackground="black",highlightthickness=2,bg=off_color)
+doors_and_lights_frame.pack(side='top',padx=3,pady=3,fill='x')
+doors_and_lights_frame.pack_propagate(False)
+
+#Cabin Doors
+cabin_doors_frame = tk.Frame(doors_and_lights_frame,bg=off_color)
+cabin_doors_frame.pack(side = 'left',padx=1,pady=3,fill='both',expand=True)
+cabin_doors_frame.pack_propagate(False)
+
+tk.Label(cabin_doors_frame,text="Right Cabin Door",bg=off_color,fg='white',width=120,height=1,font=('Arial',12,'bold')).pack(pady=20,padx=5)
+cabin_right_led = tk.Canvas(cabin_doors_frame, width=150, height=50, bg=off_color, highlightthickness=0)
+cabin_right_led.pack(pady=5)
+cabin_right_led.create_oval(2, 2, 148, 48, fill='green', outline='black', width=1)
+
+thin_line = tk.Frame(cabin_doors_frame, bg='black',width = 200 )
+thin_line.pack(pady=20)
+
+tk.Label(cabin_doors_frame,text="Left Cabin Door",bg=off_color,fg='white',width=120,height=1,font=('Arial',12,'bold')).pack(pady=20,padx=5)
+cabin_left_led = tk.Canvas(cabin_doors_frame, width=150, height=50, bg=off_color, highlightthickness=0)
+cabin_left_led.pack(pady=5)
+cabin_left_led.create_oval(2, 2, 148, 48, fill='green', outline='black', width=1)
+
+
+#Lights
+lights_frame = tk.Frame(doors_and_lights_frame,bg=off_color)
+lights_frame.pack(side = 'left',padx=1,pady=3,fill='both',expand=True)
+lights_frame.pack_propagate(False)
+
+tk.Label(lights_frame,text="Headlights",bg=off_color,fg='white',width=120,height=1,font=('Arial',12,'bold')).pack(pady=20,padx=5)
+headlights_led = tk.Canvas(lights_frame, width=150, height=50, bg=off_color, highlightthickness=0)
+headlights_led.pack(pady=5)  
+headlights_led.create_oval(2, 2, 148, 48, fill='green', outline='black', width=1)
+
+thin_line = tk.Frame(lights_frame, bg='black',width = 200 )
+thin_line.pack(pady=20)
+
+tk.Label(lights_frame,text="Interior Cabin Lights",bg=off_color,fg='white',width=120,height=1,font=('Arial',12,'bold')).pack(pady=20,padx=5)
+Interior_led = tk.Canvas(lights_frame, width=150, height=50, bg=off_color, highlightthickness=0)
+Interior_led.pack(pady=5)
+Interior_led.create_oval(2, 2, 148, 48, fill='green', outline='black', width=1)
+
+#Murphy Failure Modes
+murphy_frame= tk.Frame(right_frame,height=250,highlightbackground="black",highlightthickness=2,bg=off_color)
+murphy_frame.pack(side='top',padx=3,pady=3,fill='both')
+murphy_frame.pack_propagate(False)
+tk.Label(
+    murphy_frame,
+    text="Murhy Failure Modes",
+    bg=off_color,
+    fg='white',
+    width=120,
+    height=1,
+    anchor='n',
+    font=('Arial',20,'bold')
+).pack(pady=5,padx=5)
+thin_line = tk.Frame(murphy_frame, bg='black',width = 400 )
+thin_line.pack(pady=2)
+
+#Train Enginer Failure
+failure_train_engine_var = tk.BooleanVar(value=False)
+train_engine_switch = ttk.Checkbutton(
+    murphy_frame,
+    text="Train Engine",
+    variable=failure_train_engine_var,
+    command=failure_train_engine_var_changed,
+    style="Large.TCheckbutton"
+).pack(pady=10,padx=5,fill='x',expand=True)
+thin_line = tk.Frame(murphy_frame,bg='black',width = 400 )
+thin_line.pack(pady=2)
+
+#Signal Pickup Failure
+failure_signal_pickup_var = tk.BooleanVar(value=False)
+signal_pickup_switch = ttk.Checkbutton(
+    murphy_frame,
+    text="Signal Pickup",
+    variable=failure_signal_pickup_var,
+    command=failure_signal_pickup_var_changed,
+    style="Large.TCheckbutton",
+).pack(pady=10,padx=5,fill='x',expand=True)
+thin_line = tk.Frame(murphy_frame,bg='black',width = 400 )
+thin_line.pack(pady=2)
+
+#Brake Failure
+failure_brake_var = tk.BooleanVar(value=False)
+brake_switch = ttk.Checkbutton(
+    murphy_frame,
+    text="Brake",
+    variable=failure_brake_var,
+    command=failure_brake_var_changed,
+    style="Large.TCheckbutton"
+).pack(pady=3,padx=5,fill='x',expand=True)
+
+style = ttk.Style()
+style.theme_use('clam')
+style.configure("Large.TCheckbutton",indicatorsize=20, padding=10,font=('Arial',15,'bold'),background = off_color,foreground='white')
+style.map("Large.TCheckbutton",background=[('active', main_color)])
+
+################################################################
+
+# Train Metrics (bottom - takes remaining space)
+train_metrics_frame = tk.Frame(left_frame, width=580, height=700, bg=main_color,highlightbackground="black", highlightthickness=4)
+train_metrics_frame.pack(side='top',padx=3, pady=3)
+train_metrics_frame.pack_propagate(False)
+tk.Label(train_metrics_frame,
+    text="Train Metrics",
+    bg=off_color,
+    fg='white',
+    highlightbackground='black',
+    highlightthickness=4,
+    width=40,
+    height=1,
+    anchor='n',
+    font=('Arial',10,'bold')
+).pack(padx=5, pady=5)
+
+
+
+#Right side of Train Metrics
+live_metrics = tk.Frame(train_metrics_frame, width=400, highlightbackground="black", highlightthickness=2,bg=off_color)
+live_metrics.pack(side='right',padx=3,pady=3,fill='y')
+live_metrics.pack_propagate(False)
+tk.Label(
+    live_metrics,
+    text="Live Metrics",
+    bg=off_color,
+    fg='white',
+    width=120,
+    height=1,
+    anchor='n',
+    font=('Arial',20,'bold')
+).pack(pady=5,padx=5)
+thin_line = tk.Frame(live_metrics, bg='black')
+thin_line.pack(fill='x')
+#Speed Metric, Acceleration Metric, Passenger and Crew Count Frames
+tk.Label(live_metrics,text="Speed",bg=off_color,fg='white',width=120,height=1,font=('Arial',30,'bold')).pack(pady=20,padx=5)
+tk.Label(live_metrics,text="20 MPH",bg=off_color,fg='white',width=120,height=1,font=('Arial',27,'bold')).pack(pady=15,padx=5)
+thin_line = tk.Frame(live_metrics, bg='black',width = 300 )
+thin_line.pack()
+
+tk.Label(live_metrics,text="Acceleration",bg=off_color,fg='white',width=120,height=1,font=('Arial',30,'bold')).pack(pady=20,padx=5)
+tk.Label(live_metrics,text="5 MPH^2",bg=off_color,fg='white',width=120,height=1,font=('Arial',27,'bold')).pack(pady=20,padx=5)
+thin_line = tk.Frame(live_metrics, bg='black',width = 300 )
+thin_line.pack()
+
+tk.Label(live_metrics,text="Pasenger Count: 45",bg=off_color,fg='white',width=120,height=1,font=('Arial',25,'bold')).pack(pady=40,padx=5)
+tk.Label(live_metrics,text="Crew Count: 3",bg=off_color,fg='white',width=120,height=1,font=('Arial',25,'bold')).pack(pady=40,padx=5)
+
+#############################################################################
+
+# Left Side of Train Metrics (Cabin Temp, Train Dimensions, Power Command)
+cabin_temp_frame = tk.Frame(train_metrics_frame, width=140,height=200,highlightbackground="black", highlightthickness=2,bg=off_color)
+cabin_temp_frame.pack(side='top',padx=3,pady=3)
+cabin_temp_frame.pack_propagate(False)
+tk.Label(
+    cabin_temp_frame,
+    text="Cabin Temp",
+    bg=off_color,
+    fg='white',
+    width=120,
+    height=1,
+    font=('Arial',10,'bold')
+).pack(padx=5, pady=(10, 5), side='top')
+
+canvas_frame_circle = tk.Canvas(cabin_temp_frame, width=120, height=180, bg=off_color, highlightbackground=off_color)
+canvas_frame_circle.pack(side='top', expand=True)
+canvas_frame_circle.create_oval(10, 10, 110, 110, fill=off_color, outline='black', width=2)
+canvas_frame_circle.create_text(60, 60, text="75°F", font=('Arial', 25, 'bold'), fill='white')
+
+
+Train_Dimensions_Frame = tk.Frame(train_metrics_frame, width=140,height=260,highlightbackground="black", highlightthickness=2,bg=off_color)
+Train_Dimensions_Frame.pack(side='top',padx=3,pady=3)
+Train_Dimensions_Frame.pack_propagate(False)
+tk.Label(
+    Train_Dimensions_Frame,
+    text="Train Dimensions",
+    bg=off_color,
+    fg='white',
+    width=120,
+    height=1,
+    anchor='n',
+    font=('Arial',9,'bold')
+).pack(padx=5, pady=5)
+
+#Height, Lenght, and Width Frames
+height_frame = tk.Frame(Train_Dimensions_Frame,bg=off_color)
+height_frame.pack(side='top',padx=1,pady=5)
+tk.Label(
+    height_frame,
+    text="Height: 11ft",
+    bg=off_color,
+    fg='white',
+    font=('Arial',12)
+).pack(padx=1,pady=25)
+
+length_frame = tk.Frame(Train_Dimensions_Frame, bg=off_color)
+length_frame.pack(side='top',padx=1,pady=5)
+tk.Label(
+    height_frame,
+    text="Length: 11ft",
+    bg=off_color,
+    fg='white',
+    font=('Arial',12)
+).pack(padx=1,pady=25)
+
+width_frame = tk.Frame(Train_Dimensions_Frame, bg=off_color)
+width_frame.pack(side='top',padx=1,pady=5)
+tk.Label(
+    height_frame,
+    text="Width: 11ft",
+    bg=off_color,
+    fg='white',
+    font=('Arial',12)
+).pack(padx=1,pady=25)
+###############################################################
+
+
+
+Train_Power_Command = tk.Frame(train_metrics_frame, width=140,height=225,highlightbackground="black", highlightthickness=2,bg=off_color)
+Train_Power_Command.pack(side='top',padx=3,pady=3)
+Train_Power_Command.pack_propagate(False)
+tk.Label(
+    Train_Power_Command,
+    text="Power Command",
+    bg=off_color,
+    fg='white',
+    width=120,
+    height=1,
+    anchor='n',
+    font=('Arial',10,'bold')
+).pack(padx=5, pady=5)
+power_value_frame = tk.Frame(Train_Power_Command,bg=off_color)
+power_value_frame.pack(side='top',padx=3,pady=3)
+tk.Label(
+    power_value_frame,
+    text="45 Watts",
+    bg=off_color,
+    fg='white',
+    font=('Arial',15)
+).pack(padx=1,pady=35)
+
+
+#Emergency Brake
+emergency_brake = tk.Frame(left_frame,width=580,height=100, highlightbackground="black",highlightthickness=2,bg=off_color)
+emergency_brake.pack(side='top',padx=3,pady=3)
+emergency_brake.pack_propagate(False)
+emergency_brake_button = tk.Button(
+    emergency_brake,
+    text="EMERGENCY BRAKE", 
+    bg="red", 
+    fg='white', 
+    font=('Arial', 30),  
+    relief='raised', 
+    bd=1, 
+    padx=15, 
+    pady=3, 
+    height=50
+)
+emergency_brake_button.pack(fill='both')
+
+
+
+
+root.mainloop()
