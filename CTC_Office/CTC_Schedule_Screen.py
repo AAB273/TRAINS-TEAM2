@@ -268,10 +268,9 @@ class ScheduleScreen:
         arrTime = self.timeToSeconds(time)
         speed = distToStation / arrTime
 
-        outfile.write(f"{speed:.3f}\n")
-        outfile.write("8\n")
-        outfile.write(line + "\n")
-        outfile.close()
+        #self.mainScreen.send_to_ui("TL", str(self.trainNum - 1) + ", " + f"{speed:.3f}\n" + ", 8, " + line)
+        self.server.send_to_ui("Track HW", {"suggested_speed", f"{speed:.3f}\n"})
+        self.server.send_to_ui("Track SW", {})
 
 ###############################################################################################################################################################
 
