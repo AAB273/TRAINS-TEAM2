@@ -4,6 +4,10 @@ import time
 import os
 from pathlib import Path
 
+if os.environ.get('TRAINS_LAUNCHER_RUNNING') == '1':
+    print("ERROR: Recursive launch detected!")
+    sys.exit(1)
+
 def launch_all():
     exe_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
     
@@ -52,26 +56,6 @@ def launch_all():
     
     time.sleep(3)
     
-    control_panel_file = os.path.join(exe_dir, "client", "main_control_panel.py")
-    if os.path.exists(control_panel_file):
-        print(f"  > Launching Control Panel")
-        try:
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = subprocess.SW_HIDE
-            
-            process = subprocess.Popen(
-                [sys.executable, control_panel_file],
-                cwd=exe_dir,
-                env=env,  # ← Pass the modified environment
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                startupinfo=startupinfo
-            )
-            processes.append(("Control Panel", process))
-            print(f"    SUCCESS: Control Panel started")
-        except Exception as e:
-            print(f"  ! Failed to launch Control Panel: {e}")
     
     print("\n" + "="*60)
     print(f"SUCCESS: {len(processes)} modules launched!")

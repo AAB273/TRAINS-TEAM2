@@ -1,0 +1,1165 @@
+# import json          # ← ADD
+# from pathlib import Path  # ← ADD
+
+# def load_socket_config():  # ← ADD
+#     config_path = Path("config.json")
+#     if config_path.exists():
+#         with open(config_path, 'r') as f:
+#             config = json.load(f)
+#     return config.get("modules", {})
+
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox, simpledialog
+from datetime import datetime
+from PIL import Image, ImageTk
+from plc_controller import PLCController
+import os, sys
+sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+from TrainSocketServer import TrainSocketServer
+########################################################################################################################
+
+
+# Backend Data Structures (same as before)
+
+commanded_speed = []
+commanded_authority = []
+switch_positions = []
+light_states = []
+block_occupancy = []
+
+blocks = []
+track_direction = []
+railway_crossing = []
+# heaters_work = []
+
+switch_locations = []
+light_location = []
+railway_location = []
+station_location = []
+
+# environmental_temp: float
+# failure_modes = []
+# track_circuit_fail: bool
+# railway_crossing_fail: bool
+# power_fail: bool
+
+# ticket_sales = []
+# passengers_boarding = []
+# passengers_disembarking = []
+# train_occupancy = []
+# active_trains = []
+######
+##############
+
+# speed data = suggeted and commanded data
+def handle_ctc_suggested_speed(speed_data):
+    """
+    Handle CTC suggested speed messages and convert to float with 3 decimal places
+    Expected formats:
+    - String: "Track HW", {"Suggested_speed", "float: new_speed"}
+    - Dictionary: {'Suggested_speed': 'float: 45.5'}
+    - Direct string: "float: 45.5"
+    """
+    try:
+        suggested_speed = None
+        
+        # Handle different input formats
+        if isinstance(speed_data, str):
+            # Extract float value from string format
+            if "float:" in speed_data:
+                # Find the float value in the string
+                import re
+                float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_data)
+                if float_match:
+                    speed_str = float_match.group(1)
+                    suggested_speed = float(speed_str)
+            else:
+                # Try direct conversion if it's just a number string
+                suggested_speed = float(speed_data)
+                
+        elif isinstance(speed_data, dict):
+            # Handle dictionary format
+            if 'Suggested_speed' in speed_data:
+                speed_value = speed_data['Suggested_speed']
+                if isinstance(speed_value, str) and "float:" in speed_value:
+                    speed_str = speed_value.split("float:")[1].strip()
+                    suggested_speed = float(speed_str)
+                else:
+                    suggested_speed = float(speed_value)
+            elif 'value' in speed_data:
+                # Alternative dictionary format
+                suggested_speed = float(speed_data['value'])
+        
+        # Format to 3 decimal places if conversion was successful
+        if suggested_speed is not None:
+            formatted_speed = round(suggested_speed, 3)
+            add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.3f} mph")
+            return formatted_speed
+        else:
+            add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
+            
+    except ValueError as e:
+        add_to_message_log(f"ERROR: Invalid speed format - {e}", "ERROR")
+    except Exception as e:
+        add_to_message_log(f"ERROR: Processing CTC speed message - {e}", "ERROR")
+    
+    return None
+
+def update_suggested_speed_display(speed):
+    """Update the suggested speed display in the right panel"""
+    try:
+        if hasattr(right_panel, 'update_suggested_speed'):
+            right_panel.update_suggested_speed(speed)
+        else:
+            # Fallback: try to find and update the label directly
+            formatted_speed = f"{speed:.3f} mph"
+            add_to_message_log(f"CTC Speed received (UI update pending): {formatted_speed}")
+    except Exception as e:
+        add_to_message_log(f"ERROR updating speed display: {e}", "ERROR")
+
+# installing update_callback function
+def update_callback(message):
+    """Socket server callback function"""
+    print(f"Socket message recieved: {message}")
+    add_to_message_log(f"Socket: {message}")
+
+def send_commanded_speed_directly(speed_value):
+    """Direct function to send commanded speed to Track Model"""
+    # Check if server exists and is available
+    if not hasattr(test_data, 'server1') or not test_data.server1:
+        add_to_message_log("ERROR: Socket server not available for direct send", "ERROR")
+        return False
+    
+    # Validate and format speed
+    try:
+        formatted_speed = round(float(speed_value), 3)
+    except (ValueError, TypeError):
+        add_to_message_log("ERROR: Invalid speed value format", "ERROR")
+        return False
+    
+    # Create message
+    message = {
+        'command': 'commanded_speed',
+        'value': formatted_speed,
+        'source': 'Track HW',
+        'formatted_speed': f"{formatted_speed:.3f} mph"
+    }
+    
+    # Send message
+    test_data.server1.send_to_ui("Track Model", message)
+    add_to_message_log(f"Direct send: Commanded speed {formatted_speed:.3f} mph to Track Model")
+    return True
+
+# send_to_ui function
+# target ui is test ui
+
+#Example of Process Function:
+def _process_message(self, message, source_ui_id):
+    try:
+        print(f"Received message from {source_ui_id}: {message}")
+        command = message.get('command')
+        value = message.get('value') 
+        if command == 'test':
+            print(f"Test command received with value: {value}")
+    except Exception as e:
+            print(f"Error processing message: {e}")
+    
+# Enhanced Mock data class for both panels
+class UITestData:
+    def __init__(self):
+
+        # SOCKET SERVER
+        self.server1 = TrainSocketServer(port=12343, ui_id="Track HW")
+        # module_config = load_socket_config()
+        # track_hw_config = module_config.get("Track HW", {"port" : 5})
+        # self.server = TrainSocketServer(
+        #     port=track_hw_config["port"],
+        #     ui_id="Track HW"
+        # )
+
+        self.server1.set_allowed_connections(["Track Model", "ui_3"])
+        self.server1.start_server(_process_message)
+        
+        # Connect to other UIs
+        self.server1.connect_to_ui('localhost', 4, "Track Model")
+
+        # Current line
+        self.current_line = "Blue"
+        # Maintenance mode
+        self.maintenance_mode = False
+        # Callbacks
+        self.on_line_change = []
+        self.on_block_change = []  # For block updates
+
+        self.maintenance_changes = {
+            "switches" : True,          # only switches chan be changed
+            "lights" : False,           # lights cannot be changed
+            "crossing" : False,         # crossing cannot be changed
+            "block_occupancy" : False   # block occupancy cannot be changed
+        }
+
+        # Sample block data: [Occupied, Line, Block]
+        self.block_data = [
+            ["No", "Blue", "1"],
+            ["No", "Blue", "2"],
+            ["Yes", "Blue", "6"],
+            ["No", "Blue", "10"]
+        ]
+        self.filtered_block_data = self.block_data.copy()
+
+        # Sample track data for left panel
+        self.track_data = {
+            "crossings": {
+                "Railway Crossing: 3": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
+            },
+            "switches": {
+                "Switch 5-6": {"condition": "Normal", "direction": "Blocks 5-11"},
+                "Switch 5-11": {"condition": "Fault", "direction": "Blocks 5-15"}
+            },
+            "lights": {
+                "Light 6": {"condition": "Fault", "signal": "Red"},
+                "Light 11": {"condition": "Normal", "signal": "Green"}
+            }
+        }
+        self.filtered_track_data = self.track_data.copy()
+
+    def on_closing(self):
+        print("Closing application...")
+        ##########################################################
+        # properly stop the socket server
+        if hasattr(self, 'server1') and self.server1:
+            self.server1.running = False
+            if hasattr(self.server1, 'server_socket') and self.server1.server_socket:
+                try:
+                    self.server1.server_socket.close()
+                except:
+                    pass
+            if hasattr(self, 'root'):
+                self.root.destroy()
+        ###########################################################
+        self.server1.running = False
+        if self.server1.server_socket:
+            try:
+                self.server1.server_socket.close()
+            except:
+                pass
+        root.destroy()
+
+    # Method to return block table data
+    def get_block_table_data(self):
+        return self.filtered_block_data
+
+    # Update block data when changed in maintenance mode
+    def update_block_data(self, row_index, col_index, new_value):
+        if 0 <= row_index < len(self.block_data):
+            self.block_data[row_index][col_index] = new_value
+            print(f"Updated block data: row {row_index} = {self.block_data[row_index]}")
+            # Trigger callbacks
+            for callback in self.on_block_change:
+                callback(row_index, col_index, new_value)
+
+    # Filter block data based on search term
+    def filter_block_data(self, search_term):
+        if not search_term:
+            self.filtered_block_data = self.block_data.copy()
+        else:
+            self.filtered_block_data = [
+                row for row in self.block_data
+                if any(search_term in str(cell).lower() for cell in row)
+            ]
+   
+    def is_changeable(self, component_type):
+        """Check if a compnenet type can be edited in current mode"""
+        if not self.maintenace_mode:
+            return False    #nothing can be edided in main mode
+        return self.maintenance_changes.get(component_type, False)
+
+# Create mock data instance
+test_data = UITestData()
+test_data.filtered_track_data = test_data.track_data.copy()
+########################################################################################################################
+
+# Root window setup
+root = tk.Tk()
+root.title("Wayside Controller Hardware UI")
+root.geometry("1400x900")
+root.configure(bg="#0b1443")
+
+# ========== HEADER ========== #
+header_frame = tk.Frame(root, bg="#0b1443")
+header_frame.pack(fill="x", pady=10)
+
+# Load and display the BLT logo
+try:
+    # Load the image and resize it appropriately
+    logo_image = Image.open("/home/siram/TRAINS-TEAM2/blt logo.png")
+    logo_image = logo_image.resize((60, 60), Image.Resampling.LANCZOS)  # Adjust size as needed
+    logo_photo = ImageTk.PhotoImage(logo_image)
+   
+    # Create label with image
+    logo = tk.Label(header_frame, image=logo_photo, bg="#0b1443")
+    logo.image = logo_photo  # Keep a reference to prevent garbage collection
+    logo.pack(side="left", padx=15)
+except Exception as e:
+    # Fallback to text if image loading fails
+    print(f"Error loading logo: {e}")
+    logo = tk.Label(header_frame, text="🚉", bg="#0b1443", fg="white", font=("Arial", 20))
+    logo.pack(side="left", padx=15)
+
+# Fault LED indicator
+fault_led = tk.Label(header_frame, text="Fault LED", bg="gray", fg="white", width=10, font=("Arial", 10, "bold"))
+fault_led.pack(side="right", padx=30)
+
+# Maintenance Mode LED indicator:
+maint_led = tk.Label(header_frame, text="MM OFF", bg="gray", fg="white", width=10, font=("Arial", 10, "bold"))
+maint_led.pack(side="right", padx=10)
+
+#PLC Upload LED indicator:
+plc_LED = tk.Label(header_frame, text="PLC Ready", bg="gray", fg="black", font=("Arial", 10, "bold"))
+plc_LED.pack(side="left", padx=0)
+
+# PLC upload and run buttons
+def trigger_plc_fault():
+    """Simulate a railroad crossing fault (PLC triggered)."""
+    plc_instance.set_crossing_fault(True)
+    fault_led.config(bg="red", text="FAULT")  # Turn LED red
+
+def clear_plc_fault():
+    """Clear the railroad crossing fault."""
+    plc_instance.set_crossing_fault(False)
+    fault_led.config(bg="green", text="OK")  # Turn LED green
+
+selected_plc_file = None
+plc_instance = None
+
+#creating a frame to contain buttons and status of PLC
+plc_upload_btn = tk.Button(header_frame, text="Select PLC File", font=("Arial", 11, "bold"),
+    width=16, height=2, command=lambda: select_plc_file())
+plc_upload_btn.pack(side="left", padx=20)
+
+run_plc_btn = tk.Button(
+    header_frame,
+    text="Run PLC",
+    font=("Arial", 11, "bold"),
+    width=16,
+    height=2,
+    bg="#008000",
+    fg="white",
+    command=lambda: run_plc_file()
+)
+run_plc_btn.pack(side="left", padx=10)
+
+#######################################################################################
+#######################################################################################
+# ========== BODY ========== #
+body_frame = tk.Frame(root, bg="#0b1443")
+body_frame.pack(fill="both", expand=True, padx=15, pady=10)
+
+# Two main pages (stacked)
+main_frame = tk.Frame(body_frame, bg="#0b1443")
+maintenance_frame = tk.Frame(body_frame, bg="#0b1443")
+
+for frame in (main_frame, maintenance_frame):
+    frame.place(relwidth=1, relheight=1)
+
+#######################################################################################
+#######################################################################################
+# ---------- CENTER AREA (Map + Message Log) ---------- #
+center_container = tk.Frame(main_frame, bg="#0b1443")
+center_container.pack(side="left", fill="both", expand=True, padx=5, pady=5)
+
+# Map Display
+map_frame = tk.Frame(center_container, bg="white", relief="ridge", borderwidth=3, width=700, height=450)
+map_frame.pack(fill="none", expand=False)  # Don't expand, use fixed size
+map_frame.pack_propagate(False)  # Prevent frame from shrinking to fit contents
+##
+# Create canvas for displaying the track image
+canvas = tk.Canvas(map_frame, bg="white")
+canvas.pack(fill="both", expand=True)
+
+# Load and display the Blue Linge track image
+try:
+    track_image = Image.open("/home/siram/TRAINS-TEAM2/Blue Line.png")
+    # Resize image to fit the canvas while maintaining aspect ratio
+    track_image = track_image.resize((700, 400), Image.Resampling.LANCZOS)
+    track_photo = ImageTk.PhotoImage(track_image)
+   
+    # Display image on canvas
+    canvas.create_image(360, 215, image=track_photo)
+    canvas.image = track_photo  # Keep a reference to prevent garbage collection
+   
+except Exception as e:
+    # Fallback if image loading fails
+    print(f"Error loading track image: {e}")
+    canvas.create_text(400, 250, text="TRACK MAP DISPLAY\n(Blue Linge.png not found)",
+                      fill="black", font=("Arial", 14, "bold"), justify="center")
+
+# Add the MessageLogger class definition right after your imports
+class MessageLogger:
+    def __init__(self, text_widget):
+        self.text_widget = text_widget
+       
+    def log(self, message, level="INFO"):
+        """Add timestamped message with color coding"""
+        self.text_widget.config(state="normal")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        color = self.get_color_for_level(level)
+        self.text_widget.insert("end", f"{timestamp} [{level}] {message}\n")
+        self.text_widget.tag_config(level, foreground=color)
+        self.text_widget.see("end")
+        self.text_widget.config(state="disabled")
+   
+    def get_color_for_level(self, level):
+        colors = {"INFO": "white", "WARNING": "yellow", "ERROR": "red", "DEBUG": "cyan"}
+        return colors.get(level, "white")
+   
+    def clear(self):
+        self.text_widget.config(state="normal")
+        self.text_widget.delete(1.0, "end")
+        self.text_widget.config(state="disabled")
+
+# Message Log (now underneath the map)
+message_frame = tk.Frame(center_container, bg="#0b1443", height=150)
+message_frame.pack(fill="x", pady=(10, 0))
+
+tk.Label(message_frame, text="Messages", bg="#0b1443", fg="white", font=("Arial", 12, "bold")).pack(anchor="w", padx=5)
+
+# Create a frame for the text widget with scrollbar
+log_container = tk.Frame(message_frame, bg="#0b1443")
+log_container.pack(fill="x", pady=5)
+
+log_text = tk.Text(log_container, height=6, bg="#111b52", fg="white", font=("Courier", 10))
+scrollbar = tk.Scrollbar(log_container, orient="vertical", command=log_text.yview)
+log_text.configure(yscrollcommand=scrollbar.set)
+
+log_text.pack(side="left", fill="x", expand=True)
+scrollbar.pack(side="right", fill="y")
+
+# Create MessageLogger instance
+message_logger = MessageLogger(log_text)
+
+# Keep this function for backward compatibility with existing code
+def add_to_message_log(message):
+    """Wrapper for backward compatibility"""
+    message_logger.log(message, "INFO")
+
+# plc = PLCController(add_to_message_log)
+# plc_instance = PLCController(add_to_message_log)
+# plc_instance.main()  # Runs PLC logic
+#
+# Initialize with some messages
+add_to_message_log("INFO: UI initialized.")
+add_to_message_log("INFO: Map display loaded.")
+add_to_message_log("INFO: Control panels ready.")
+###########################################################################################
+############################      PLC MANAGER  ############################################
+
+# Add PLCManager class definition after MessageLogger
+class PLCManager:
+    def __init__(self, message_logger):
+        self.message_logger = message_logger
+        self.plc_instance = None
+        self.current_file = None
+       
+    def load_plc_file(self, file_path):
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("plc_module", file_path)
+            plc_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(plc_module)
+           
+            self.plc_instance = plc_module.PLCController(self.message_logger.log)
+            self.current_file = file_path
+            self.message_logger.log(f"PLC file loaded: {file_path}", "INFO")
+            return True
+        except Exception as e:
+            self.message_logger.log(f"PLC load error: {e}", "ERROR")
+            return False
+   
+    def run_plc(self):
+        if not self.plc_instance:
+            self.message_logger.log("No PLC file loaded", "WARNING")
+            messagebox.showwarning("No PLC File", "Please upload a PLC file first!")
+            return False
+       
+        try:
+            self.plc_instance.main()
+            self.message_logger.log(f"PLC file executed: {self.current_file.split('/')[-1]}", "INFO")
+            return True
+        except Exception as e:
+            self.message_logger.log(f"PLC runtime error: {e}", "ERROR")
+            return False
+   
+    def get_status(self):
+        return {
+            "loaded": self.plc_instance is not None,
+            "file": self.current_file
+        }
+   
+#creating mock data instance
+test_data = UITestData()  
+
+# Creating MessageLogger
+message_logger = MessageLogger(log_text)
+
+# Create PLCManager instance (after message_logger is created)
+plc_manager = PLCManager(message_logger)
+
+# Update the button functions:
+def select_plc_file():
+    """Open a file dialog to select a PLC file"""
+    file_path = filedialog.askopenfilename(
+        title ="Select PLC File",
+        filetypes=[("Python Files", "*.py")]
+    )
+    if file_path:
+        if plc_manager.load_plc_file(file_path):
+            # Update LED or other UI elements if needed
+            plc_LED.config(bg="white", text="PLC LOADED")
+
+def run_plc_file():
+    """Run the PLC logic using the selected file."""
+    if plc_manager.run_plc():
+        plc_LED.config(bg="green", text="PLC RUNNING")
+    else:
+        plc_LED.config(bg="red", text="FAULT")
+
+# Keep global plc_instance for backward compatibility
+plc_instance = None  # This will be set by PLCManager internally
+
+# Update buttons
+plc_upload_btn.config(command=select_plc_file)
+run_plc_btn.config(command=run_plc_file)
+
+#########################################################################################
+#########################################################################################
+
+# Screen toggle checkboxes
+toggle_frame = tk.Frame(header_frame, bg="#0b1443")
+toggle_frame.pack(side="right", padx=30)
+
+view_var_main = tk.BooleanVar(value=True)
+view_var_maint = tk.BooleanVar(value=False)
+
+def update_screen_view():
+    if view_var_main.get():
+        main_frame.tkraise()
+        # When switching to main screen, update maintenance mode based on maint_check
+        test_data.maintenance_mode = view_var_maint.get()
+        if hasattr(right_panel, 'update_mode_ui'):
+            right_panel.update_mode_ui()
+    elif view_var_maint.get():
+        maintenance_frame.tkraise()
+
+main_check = tk.Checkbutton(toggle_frame, text="Main Screen", variable=view_var_main,
+                            command=lambda: [view_var_maint.set(False), update_screen_view()],
+                            bg="#0b1443", fg="white", selectcolor="#333", font=("Arial", 10))
+main_check.grid(row=0, column=0, padx=10)
+
+def toggle_maintenance_mode():
+    """Toggle maintenance mode when Maintenance checkbox is clicked"""
+    test_data.maintenance_mode = view_var_maint.get()
+
+    # Update the maintenance LED color/text
+    if test_data.maintenance_mode:
+        maint_led.config(bg="orange", text="MM ON")
+    else:
+        maint_led.config(bg="gray", text="MM OFF")
+
+    # Update the right panel UI
+    if hasattr(right_panel, 'update_mode_ui'):
+        right_panel.update_mode_ui()
+
+    # Keep the main screen visible regardless of maintenance mode
+    if view_var_main.get():
+        main_frame.tkraise()
+
+
+maint_check = tk.Checkbutton(toggle_frame, text="Maintenance", variable=view_var_maint,
+                             command=lambda: [view_var_main.set(True), toggle_maintenance_mode(), update_screen_view()],
+                             bg="#0b1443", fg="white", selectcolor="#333", font=("Arial", 10))
+maint_check.grid(row=0, column=1, padx=10)
+
+
+#######################################################################################
+#######################################################################################
+# ---------- LEFT PANEL ---------- #
+class LeftPanel(tk.Frame):
+    def __init__(self, parent, data):
+        super().__init__(parent, bg='#1a1a4d', width=250)
+        self.pack_propagate(False)
+        self.data = data
+        self.create_widgets()
+        # Connect line change callback:
+        self.data.on_line_change.append(self.on_line_changed)
+   
+    def create_widgets(self):
+        #Tabs are now controlled by header
+       
+        # Railway Crossing Detail
+        self.create_crossing_section()
+       
+        # Switch Details
+        self.create_switch_section()
+       
+        # Light Detail
+        self.create_light_section()
+
+        # Initialize with current line data
+        self.update_crossing_options()
+
+    def create_crossing_section(self):
+        crossing_frame = tk.LabelFrame(self, text="Railway Crossing Detail",
+                                      bg='#cccccc', font=('Arial', 9, 'bold'))
+        crossing_frame.pack(fill=tk.X, pady=5)
+       
+        tk.Label(crossing_frame, text="Select Crossing:", bg='#cccccc').pack(pady=2)
+        self.crossing_selector = ttk.Combobox(crossing_frame, width=18, state='readonly')
+        self.crossing_selector.pack(pady=2)
+        self.crossing_selector.bind('<<ComboboxSelected>>', self.update_crossing_display)
+       
+        tk.Label(crossing_frame, text="Condition:", bg='#cccccc').pack()
+        self.crossing_condition = tk.Entry(crossing_frame, width=20, state='readonly')
+        self.crossing_condition.pack()
+       
+        tk.Label(crossing_frame, text="Lights:", bg='#cccccc').pack()
+        self.crossing_lights = ttk.Combobox(crossing_frame, width=18,
+                                           values=["On", "Off"], state='readonly')
+        self.crossing_lights.pack()
+        self.crossing_lights.bind('<<ComboboxSelected>>', self.update_crossing_lights)
+       
+        tk.Label(crossing_frame, text="Bar:", bg='#cccccc').pack()
+        self.crossing_bar = ttk.Combobox(crossing_frame, width=18, values=["Closed", "Open"], state='readonly')
+        self.crossing_bar.pack()
+
+    def update_crossing_options(self):
+        """Update combobox options based on current line"""
+        crossings = list(self.data.filtered_track_data.get("crossings", {}).keys())
+        self.crossing_selector['values'] = crossings
+        if crossings:
+            self.crossing_selector.set(crossings[0])
+            self.update_crossing_display()
+   
+    def create_switch_section(self):
+        switch_frame = tk.LabelFrame(self, text="Switch Details",
+                                    bg='#cccccc', font=('Arial', 9, 'bold'))
+        switch_frame.pack(fill=tk.X, pady=5)
+       
+        tk.Label(switch_frame, text="Select Switch:", bg='#cccccc').pack(pady=2)
+        self.switch_selector = ttk.Combobox(switch_frame, width=18, state='readonly')
+        self.switch_selector.pack(pady=2)
+        self.switch_selector.bind('<<ComboboxSelected>>', self.update_switch_display)
+       
+        tk.Label(switch_frame, text="Condition:", bg='#cccccc').pack()
+        self.switch_condition = tk.Entry(switch_frame, width=20, state='readonly')
+        self.switch_condition.pack()
+       
+        tk.Label(switch_frame, text="Direction:", bg='#cccccc').pack()
+        self.switch_direction = ttk.Combobox(switch_frame, width=18,
+                                            values=["Blocks 5-11", "Blocks 5-15"])
+        self.switch_direction.pack()
+        self.switch_direction.bind('<<ComboboxSelected>>', self.update_switch_direction)
+
+        # Initialize with current line data
+        self.update_switch_options()
+
+    def update_switch_options(self):
+        """Update combobox options based on current line"""
+        switches = list(self.data.filtered_track_data.get("switches", {}).keys())
+        self.switch_selector['values'] = switches
+        if switches:
+            self.switch_selector.set(switches[0])
+            self.update_switch_display()
+   
+    def create_light_section(self):
+        light_frame = tk.LabelFrame(self, text="Light Detail",
+                                   bg='#cccccc', font=('Arial', 9, 'bold'))
+        light_frame.pack(fill=tk.X, pady=5)
+       
+        tk.Label(light_frame, text="Select Light:", bg='#cccccc').pack(pady=2)
+        self.light_selector = ttk.Combobox(light_frame, width=18, state='readonly')
+        self.light_selector.pack(pady=2)
+        self.light_selector.bind('<<ComboboxSelected>>', self.update_light_display)
+       
+        tk.Label(light_frame, text="Condition:", bg='#cccccc').pack()
+        self.light_condition = tk.Entry(light_frame, width=20, state='readonly')
+        self.light_condition.pack()
+       
+        tk.Label(light_frame, text="Signal:", bg='#cccccc').pack()
+        self.light_signal = ttk.Combobox(light_frame, width=18,
+                                        values=["Red", "Yellow", "Green", "Super Green" ],
+                                        state='readonly')
+        self.light_signal.pack()
+        self.light_signal.bind('<<ComboboxSelected>>', self.update_light_signal)
+
+        # Initialize with current line data
+        self.update_light_options()
+   
+    def update_light_options(self):
+        """Update combobox options based on current line"""
+        lights = list(self.data.filtered_track_data.get("lights", {}).keys())
+        self.light_selector['values'] = lights
+        if lights:
+            self.light_selector.set(lights[0])
+            self.update_light_display()
+           
+    def on_line_changed(self):
+        """Update all left panel components when line changes"""
+        print(f"Left panel: Line changed to {self.data.current_line}")  # Debug
+        self.update_crossing_options()
+        self.update_switch_options()
+        self.update_light_options()
+   
+    def update_crossing_display(self, event=None):
+        selected = self.crossing_selector.get()
+        crossings = self.data.filtered_track_data.get("crossings", {})
+        if selected in crossings:
+            data = crossings[selected]
+            self.crossing_condition.config(state='normal')
+            self.crossing_condition.delete(0, tk.END)
+            self.crossing_condition.insert(0, data["condition"])
+            self.crossing_condition.config(state='readonly')
+            self.crossing_lights.set(data["lights"])
+            self.crossing_bar.set(data["bar"])
+   
+    def update_crossing_lights(self, event=None):
+        selected = self.crossing_selector.get()
+        if selected in self.data.track_data["crossings"]:
+            old_value = self.data.track_data["crossings"][selected]["lights"]
+            new_value = self.crossing_lights.get()
+            self.data.track_data["crossings"][selected]["lights"] = self.crossing_lights.get()
+            message_logger.log(f"Crossing {selected}: Lights changed from {old_value} to {new_value}", "INFO")
+
+    def update_switch_display(self, event=None):
+        selected = self.switch_selector.get()
+        switches = self.data.filtered_track_data.get("switches", {})
+        if selected in switches:
+            data = switches[selected]
+            self.switch_condition.config(state='normal')
+            self.switch_condition.delete(0, tk.END)
+            self.switch_condition.insert(0, data["condition"])
+            self.switch_condition.config(state='readonly')
+            self.switch_direction.set(data["direction"])
+   
+    def update_switch_direction(self, event=None):
+        selected = self.switch_selector.get()
+        if selected in self.data.track_data["switches"]:
+            old_value = self.data.track_data["switches"][selected]["direction"]
+            new_value = self.switch_direction.get()
+            self.data.track_data["switches"][selected]["direction"] = new_value
+            message_logger.log(f"Switch {selected}: Direction changed from {old_value} to {new_value}")
+   
+    def update_light_display(self, event=None):
+        selected = self.light_selector.get()
+        lights = self.data.filtered_track_data.get("lights", {})
+        if selected in lights:
+            data = lights[selected]
+            self.light_condition.config(state='normal')
+            self.light_condition.delete(0, tk.END)
+            self.light_condition.insert(0, data["condition"])
+            self.light_condition.config(state='readonly')
+            self.light_signal.set(data["signal"])
+   
+    def update_light_signal(self, event=None):
+        selected = self.light_selector.get()
+        if selected in self.data.track_data["lights"]:
+            old_value = self.data.track_data["lights"][selected]["signal"]
+            new_value = self.light_signal.get()
+            self.data.track_data["lights"][selected]["signal"] = new_value
+            message_logger.log(f"Light {selected}: Signal changed from {old_value} to {new_value}")
+   
+    def update_mode_ui(self):
+        # Refresh UI based on maintenance mode
+        # pass
+        """Update UI elements based on maintenance mode"""
+        # enable/diable comoboxes based on mainteneance mode and specific edits
+        switch_changes = self.data.is_changeable("switches")
+        light_changes = self.data.is_changeable("lights")
+        crossing_changes = self.data.is_changeable("crossing")
+
+        # update switch controls
+        if switch_changes:
+            self.switch_direction.config(state='readonly')
+            add_to_message_log("switch controls enabled for maintenance")
+        else:
+            self.switch_direction.config(state='disabled')
+       
+        #update light controls
+        self.light_signal.config(state='disabled')
+
+        # Update crossing controls (always disabled in this design)
+        self.crossing_lights.config(state='disabled')
+        self.crossing_bar.config(state='disabled')
+
+        # Visual feedback - change background colors to show editable state
+        self.update_visual_feedback()
+
+    def update_visual_feedback(self):
+        """Change background colors to indicate editable fields"""
+        switch_editable = self.data.is_changeable("switches")
+       
+        if switch_editable:
+            # Make editable fields stand out
+            self.switch_direction.config(background='#ffffcc')  # Light yellow for editable
+        else:
+            self.switch_direction.config(background='white')    # Normal white for read-only
+           
+        # Keep non-editable fields with normal background
+        self.light_signal.config(background='#f0f0f0')          # Grayed out
+        self.crossing_lights.config(background='#f0f0f0')
+        self.crossing_bar.config(background='#f0f0f0')
+   
+    def update_switch_direction(self, event=None):
+        """Only allow switch direction changes if editable"""
+        if not self.data.is_changeable("switches"):
+            add_to_message_log("WARNING: Switch changes not allowed in current mode", "WARNING")
+            return
+           
+        selected = self.switch_selector.get()
+        if selected in self.data.track_data["switches"]:
+            old_value = self.data.track_data["switches"][selected]["direction"]
+            new_value = self.switch_direction.get()
+            self.data.track_data["switches"][selected]["direction"] = new_value
+            add_to_message_log(f"Switch {selected}: Direction changed from {old_value} to {new_value}")
+   
+    def update_crossing_lights(self, event=None):
+        """Prevent crossing light changes"""
+        if self.data.maintenance_mode:
+            add_to_message_log("WARNING: Crossing light changes not permitted in maintenance mode", "WARNING")
+            # Revert to original value
+            self.update_crossing_display()
+   
+    def update_light_signal(self, event=None):
+        """Prevent light signal changes"""
+        if self.data.maintenance_mode:
+            add_to_message_log("WARNING: Light signal changes not permitted in maintenance mode", "WARNING")
+            # Revert to original value
+            self.update_light_display()
+
+
+# Create the left panel with mock data
+left_panel = LeftPanel(main_frame, test_data)
+left_panel.pack(side="left", fill="y", padx=5, pady=5)
+
+#######################################################################################
+#######################################################################################
+# ---------- RIGHT PANEL ---------- #
+class RightPanel(tk.Frame):
+    def __init__(self, parent, data):
+        super().__init__(parent, bg='#1a1a4d', width=250)
+        self.pack_propagate(False)
+        self.data = data
+        self.suggested_speed_label = None 
+        self.create_widgets()
+
+        # Connect line change callback
+        self.data.on_line_change.append(self.on_line_changed)
+        self.data.on_block_change.append(self.on_block_data_changed)
+
+    def create_suggested_section(self):
+        suggested_frame = tk.LabelFrame(self, text="Suggested:",
+                                       bg='#cccccc', font=('Arial', 10, 'bold'))
+        suggested_frame.pack(fill=tk.X, pady=5)
+       
+        tk.Label(suggested_frame, text="Authority:", bg='#cccccc').pack(anchor='w', padx=5)
+        tk.Label(suggested_frame, text="2 blocks", bg='white',
+                relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
+        tk.Label(suggested_frame, text="Speed:", bg='#cccccc').pack(anchor='w', padx=5)
+        
+        # Store reference to speed label for updates (initialize with default)
+        self.suggested_speed_label = tk.Label(suggested_frame, text="38.000 mph", bg='white',
+                relief=tk.SUNKEN)
+        self.suggested_speed_label.pack(fill=tk.X, padx=5, pady=2)
+
+    def update_suggested_speed(self, speed):
+        """Update the suggested speed display with formatted value"""
+        formatted_speed = f"{speed:.3f} mph"
+        self.suggested_speed_label.config(text=formatted_speed)
+        add_to_message_log(f"UI: Suggested speed updated to {formatted_speed}")
+
+
+    def send_commanded_speed_directly(self, speed_value):
+        """Direct method to send commanded speed to Track Model"""
+        try:
+            formatted_speed = round(float(speed_value), 3)
+            message = {
+                'command': 'commanded_speed',
+                'value': formatted_speed,
+                'source': 'Wayside_HW_RightPanel',
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                'formatted_speed': f"{formatted_speed:.3f} mph"
+            }
+            
+            if hasattr(self.data, 'server1') and self.data.server1:
+                self.data.server1.send_to_ui("Track Model", message)
+                add_to_message_log(f"RightPanel direct: Commanded speed {formatted_speed:.3f} mph to Track Model")
+                return True
+            else:
+                add_to_message_log("ERROR: Socket server not available", "ERROR")
+                return False
+        except Exception as e:
+            add_to_message_log(f"ERROR in RightPanel direct send: {e}", "ERROR")
+            return False
+
+    def on_block_data_changed(self, row_index, col_index, new_value):
+        # Update only the affected row in the table if maintenance mode
+        if self.data.maintenance_mode:
+            self.create_block_table()  # Simple approach: rebuild table
+        add_to_message_log(f"[Main UI] Block {self.data.block_data[row_index][2]} updated to {new_value}")
+   
+    def create_widgets(self):
+        # Block selector
+        block_frame = tk.Frame(self, bg='#cccccc')
+        block_frame.pack(fill=tk.X, pady=5)
+        tk.Label(block_frame, text="Block", bg='#cccccc').pack(side=tk.LEFT, padx=5)
+       
+        # Update block combo based on current line
+        self.block_combo = ttk.Combobox(block_frame, width=10, state='readonly')
+        self.block_combo.pack(side=tk.LEFT, padx=5)
+        self.update_block_options()
+
+        # Suggested section
+        self.create_suggested_section()
+       
+        # Commanded section
+        self.create_commanded_section()
+       
+        # Search and block table
+        self.create_block_table_section()
+
+    def update_block_options(self):
+        """Update block selector based on current line"""
+        blocks = [row[2] for row in self.data.block_data]
+        self.block_combo['values'] = blocks
+        if blocks:
+            self.block_combo.set(blocks[0])
+   
+    def on_line_changed(self):
+        """Refresh right panel when line changes"""
+        print(f"Right panel: Line changed to {self.data.current_line}")
+        self.update_block_options()
+        self.create_block_table()
+   
+    def create_suggested_section(self):
+        suggested_frame = tk.LabelFrame(self, text="Suggested:",
+                                       bg='#cccccc', font=('Arial', 10, 'bold'))
+        suggested_frame.pack(fill=tk.X, pady=5)
+       
+        tk.Label(suggested_frame, text="Authority:", bg='#cccccc').pack(anchor='w', padx=5)
+        tk.Label(suggested_frame, text="2 blocks", bg='white',
+                relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
+        tk.Label(suggested_frame, text="Speed:", bg='#cccccc').pack(anchor='w', padx=5)
+        tk.Label(suggested_frame, text="38 mph", bg='white',
+                relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
+   
+    def create_commanded_section(self):
+        commanded_frame = tk.LabelFrame(self, text="Commanded:",
+                                   bg='#cccccc', font=('Arial', 10, 'bold'))
+        commanded_frame.pack(fill=tk.X, pady=5)
+   
+    # Authority section
+        auth_frame = tk.Frame(commanded_frame, bg='#cccccc')
+        auth_frame.pack(fill=tk.X, padx=5, pady=2)
+        tk.Label(auth_frame, text="Authority:", bg='#cccccc').pack(side=tk.LEFT)
+   
+        self.auth_entry = tk.Entry(auth_frame, width=10)
+        self.auth_entry.insert(0, "2 blocks")  # Default value
+        self.auth_entry.pack(side=tk.LEFT, padx=2)
+   
+        auth_button = tk.Button(auth_frame, text="Send", width=5, command=self.update_authority)
+        auth_button.pack(side=tk.LEFT)
+   
+    # Speed section
+        speed_frame = tk.Frame(commanded_frame, bg='#cccccc')
+        speed_frame.pack(fill=tk.X, padx=5, pady=2)
+        tk.Label(speed_frame, text="Speed:", bg='#cccccc').pack(side=tk.LEFT)
+   
+        self.speed_entry = tk.Entry(speed_frame, width=10)
+        self.speed_entry.insert(0, "38 mph")  # Default value
+        self.speed_entry.pack(side=tk.LEFT, padx=2)
+   
+        speed_button = tk.Button(speed_frame, text="Send", width=5, command=self.update_speed)
+        speed_button.pack(side=tk.LEFT)
+
+    def update_authority(self):
+        """Update commanded authority and log the change"""
+        new_authority = self.auth_entry.get()
+        add_to_message_log(f"Commanded Authority updated to: {new_authority}")
+        # Here you would also update the backend data structure
+        # commanded_authority.append(new_authority)
+
+    def update_speed(self):
+        """Update commanded speed and send to Track Model"""
+    try:
+        new_speed = self.speed_entry.get()
+        
+        # Extract numeric value from input (handle "mph", etc.)
+        speed_value = self.extract_speed_value(new_speed)
+        
+        if speed_value is not None:
+            # Format to 3 decimal places
+            formatted_speed = round(speed_value, 3)
+            
+            # Update display
+            self.speed_entry.delete(0, tk.END)
+            self.speed_entry.insert(0, f"{formatted_speed:.3f} mph")
+            
+            # Send to Track Model
+            self.send_commanded_speed_to_track_model(formatted_speed)
+            
+            add_to_message_log(f"Commanded Speed sent to Track Model: {formatted_speed:.3f} mph")
+        else:
+            add_to_message_log("ERROR: Invalid speed format. Please enter a valid number.", "ERROR")
+            
+    except Exception as e:
+        add_to_message_log(f"ERROR updating speed: {e}", "ERROR")
+
+def extract_speed_value(self, speed_input):
+    """Extract numeric speed value from various input formats"""
+    try:
+        # Remove non-numeric characters except decimal point
+        import re
+        clean_speed = re.sub(r'[^\d.]', '', speed_input)
+        return float(clean_speed)
+    except ValueError:
+        return None
+
+def send_commanded_speed_to_track_model(self, speed):
+    """Send commanded speed to Track Model via socket"""
+    try:
+        if hasattr(test_data, 'server1') and test_data.server1:
+            message = {
+                'command': 'commanded_speed',
+                'value': speed,
+                'source': 'Wayside_HW',
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                'formatted_speed': f"{speed:.3f} mph"
+            }
+            
+            # Send to Track Model
+            test_data.server1.send_to_ui("Track Model", message)
+            add_to_message_log(f"✓ Commanded speed {speed:.3f} mph sent to Track Model")
+            
+        else:
+            add_to_message_log("ERROR: Socket server not available", "ERROR")
+            
+    except Exception as e:
+        add_to_message_log(f"ERROR sending speed to Track Model: {e}", "ERROR")
+    # Here you would also update the backend data structure
+    # commanded_speed.append(new_speed)
+   
+    def create_block_table_section(self):
+        # Search
+        search_frame = tk.Frame(self, bg='#1a1a4d')
+        search_frame.pack(fill=tk.X, pady=5)
+        self.block_search_var = tk.StringVar()
+        self.block_search_var.trace('w', self.filter_block_table)
+        block_search = tk.Entry(search_frame, textvariable=self.block_search_var, width=20)
+        block_search.pack(side=tk.LEFT, padx=5)
+        tk.Label(search_frame, text="Search", bg='#1a1a4d', fg='white', font=('Arial', 9)).pack(side=tk.LEFT)
+       
+        # Create scrollable table
+        table_container = tk.Frame(self, bg='white', relief=tk.SUNKEN, borderwidth=2)
+        table_container.pack(fill=tk.BOTH, expand=True, pady=5)
+       
+        # Canvas for scrolling
+        canvas = tk.Canvas(table_container, bg='white')
+        scrollbar = tk.Scrollbar(table_container, orient="vertical", command=canvas.yview)
+        self.block_table_frame = tk.Frame(canvas, bg='white')
+       
+        self.block_table_frame.bind("<Configure>",
+                                   lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+       
+        canvas.create_window((0, 0), window=self.block_table_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+       
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+       
+        self.create_block_table()
+   
+    def create_block_table(self):
+        # Clear existing widgets
+        for widget in self.block_table_frame.winfo_children():
+            widget.destroy()
+       
+        # Headers
+        headers_frame = tk.Frame(self.block_table_frame, bg='#cccccc')
+        headers_frame.pack(fill=tk.X)
+       
+        tk.Label(headers_frame, text="Occupied", bg='#cccccc',
+                font=('Arial', 8, 'bold'), width=10).pack(side=tk.LEFT)
+        tk.Label(headers_frame, text="Line", bg='#cccccc',
+                font=('Arial', 8, 'bold'), width=8).pack(side=tk.LEFT)
+        tk.Label(headers_frame, text="Block", bg='#cccccc',
+                font=('Arial', 8, 'bold'), width=8).pack(side=tk.LEFT)
+       
+        # Data rows
+        self.block_combos = []  # Store references to comboboxes
+       
+        # Use filtered data for display
+        display_data = self.data.filtered_block_data if hasattr(self.data, 'filtered_block_data') else self.data.block_data
+       
+        for row_index, row in enumerate(display_data):
+            row_frame = tk.Frame(self.block_table_frame, bg='white')
+            row_frame.pack(fill=tk.X)
+           
+            if self.data.maintenance_mode:
+                # Editable in maintenance mode - OCCUPIED COMBO
+                occ_combo = ttk.Combobox(row_frame, values=["Yes", "No"], width=9)
+                occ_combo.set(row[0])
+                occ_combo.pack(side=tk.LEFT)
+
+                # Bind the change event to update data model
+                occ_combo.bind('<<ComboboxSelected>>',
+                    lambda event, idx=row_index, combo=occ_combo:
+                    self.on_block_data_change(idx, 0, combo.get()))
+               
+                # LINE - READ ONLY (track color should not change)
+                bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
+                tk.Label(row_frame, text=row[1], bg=bg_color, width=8,
+                        borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT)
+               
+                # Block number (read-only)
+                tk.Label(row_frame, text=row[2], bg='white', width=8,
+                        borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT)
+               
+                # Store combos for potential access
+                self.block_combos.append(occ_combo)
+               
+            else:
+                # Read-only in normal mode
+                tk.Label(row_frame, text=row[0], bg='white', width=10,
+                        borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT)
+                bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
+                tk.Label(row_frame, text=row[1], bg=bg_color, width=8,
+                        borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT)
+                tk.Label(row_frame, text=row[2], bg='white', width=8,
+                        borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT)
+
+    def on_block_data_change(self, row_index, col_index, new_value):
+        """Callback when any block data is changed in maintenance mode"""
+        print(f"Block data changed: row {row_index}, col {col_index}, value '{new_value}'")
+        self.data.update_block_data(row_index, col_index, new_value)
+       
+    def filter_block_table(self, *args):
+        search_term = self.block_search_var.get().lower()
+        self.data.filter_block_data(search_term)
+        self.create_block_table()
+   
+    def update_mode_ui(self):
+        """Refresh block table when mode changes"""
+        self.create_block_table()
+
+# Create the right panel with mock data
+right_panel = RightPanel(main_frame, test_data)
+right_panel.pack(side="right", fill="y", padx=5, pady=5)
+
+# ---------- MAINTENANCE SCREEN (simple placeholder) ---------- #
+maint_label = tk.Label(maintenance_frame, text="Maintenance Mode Active", bg="#0b1443", fg="white", font=("Arial", 24))
+maint_label.place(relx=0.3, rely=0.4)
+
+# Raise main screen by default
+main_frame.tkraise()
+
+root.mainloop()
