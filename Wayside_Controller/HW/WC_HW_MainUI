@@ -169,35 +169,22 @@ class UITestData:
     def __init__(self):
 
         # SOCKET SERVER
-<<<<<<< HEAD
-        self.server1 = TrainSocketServer(port=12344, ui_id="Track HW")
-        self.server1.set_allowed_connections(["Track HW", "ui_3"])
-        self.server1.start_server(update_callback)
-=======
-        self.server1 = TrainSocketServer(port=12343, ui_id="Track HW")
-        # module_config = load_socket_config()
-        # track_hw_config = module_config.get("Track HW", {"port" : 5})
-        # self.server = TrainSocketServer(
-        #     port=track_hw_config["port"],
-        #     ui_id="Track HW"
-        # )
-
-        self.server1.set_allowed_connections(["Track Model", "ui_3"])
-        self.server1.start_server(_process_message)
->>>>>>> 09f4a698902dcc15d6b314b09928ccacf98436fa
+            self.server1 = TrainSocketServer(port=12344, ui_id="Track HW")
+            self.server1.set_allowed_connections(["Track HW", "ui_3"])
+            self.server1.start_server(update_callback)
         
         # Connect to other UIs
-        self.server1.connect_to_ui('localhost', 4, "Track Model")
+            self.server1.connect_to_ui('localhost', 4, "Track Model")
 
         # Current line
-        self.current_line = "Blue"
+            self.current_line = "Blue"
         # Maintenance mode
-        self.maintenance_mode = False
+            self.maintenance_mode = False
         # Callbacks
-        self.on_line_change = []
-        self.on_block_change = []  # For block updates
+            self.on_line_change = []
+            self.on_block_change = []  # For block updates
 
-        self.maintenance_changes = {
+            self.maintenance_changes = {
             "switches" : True,          # only switches chan be changed
             "lights" : False,           # lights cannot be changed
             "crossing" : False,         # crossing cannot be changed
@@ -205,16 +192,16 @@ class UITestData:
         }
 
         # Sample block data: [Occupied, Line, Block]
-        self.block_data = [
+            self.block_data = [
             ["No", "Blue", "1"],
             ["No", "Blue", "2"],
             ["Yes", "Blue", "6"],
             ["No", "Blue", "10"]
         ]
-        self.filtered_block_data = self.block_data.copy()
+            self.filtered_block_data = self.block_data.copy()
 
         # Sample track data for left panel
-        self.track_data = {
+            self.track_data = {
             "crossings": {
                 "Railway Crossing: 3": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
             },
@@ -227,7 +214,7 @@ class UITestData:
                 "Light 11": {"condition": "Normal", "signal": "Green"}
             }
         }
-        self.filtered_track_data = self.track_data.copy()
+            self.filtered_track_data = self.track_data.copy()
 
     def on_closing(self):
         print("Closing application...")
