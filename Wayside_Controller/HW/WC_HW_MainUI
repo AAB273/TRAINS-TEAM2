@@ -169,6 +169,11 @@ class UITestData:
     def __init__(self):
 
         # SOCKET SERVER
+<<<<<<< HEAD
+        self.server1 = TrainSocketServer(port=12344, ui_id="Track HW")
+        self.server1.set_allowed_connections(["Track HW", "ui_3"])
+        self.server1.start_server(update_callback)
+=======
         self.server1 = TrainSocketServer(port=12343, ui_id="Track HW")
         # module_config = load_socket_config()
         # track_hw_config = module_config.get("Track HW", {"port" : 5})
@@ -179,6 +184,7 @@ class UITestData:
 
         self.server1.set_allowed_connections(["Track Model", "ui_3"])
         self.server1.start_server(_process_message)
+>>>>>>> 09f4a698902dcc15d6b314b09928ccacf98436fa
         
         # Connect to other UIs
         self.server1.connect_to_ui('localhost', 4, "Track Model")
