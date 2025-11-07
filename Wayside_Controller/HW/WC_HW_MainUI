@@ -169,7 +169,7 @@ class UITestData:
     def __init__(self):
 
         # SOCKET SERVER
-            self.server1 = TrainSocketServer(port=12344, ui_id="Track HW")
+            self.server1 = TrainSocketServer(port=12343, ui_id="Track HW")
             self.server1.set_allowed_connections(["Track HW", "ui_3"])
             self.server1.start_server(update_callback)
         
