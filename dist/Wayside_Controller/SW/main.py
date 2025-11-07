@@ -28,19 +28,19 @@ class RailwayControlSystem:
         self.data = RailwayData()
         
         # Initialize socket server for main UI
-        self.server = TrainSocketServer(port=12342, ui_id="Track SW")
-        #module_config = module_config.get("Track SW", {"port": 12342})
-        #self.server = TrainSocketServer(
-        #    port=Track_SW_config["port"],
-        #    ui_id="Track SW"
-        #)
-
-        # FIX: Set ALL allowed connections in ONE call
-        self.server.set_allowed_connections(["test_ui", "Track Model", "CTC"])
+        module_config = load_socket_config()
+        track_sw_config = module_config.get("Track SW", {"port": 12342})
+        self.server = TrainSocketServer(port=track_sw_config["port"], ui_id="Track SW")
+        self.server.set_allowed_connections(["Track Model", "CTC"])
         self.server.start_server(self._process_message)
+
         
-        # FIX: Connect with correct parameters
-        self.server.connect_to_ui('localhost', 123421, "test_ui")
+        # Connect using ports from config
+        track_model_config = module_config.get("Track Model", {"port": 12344})
+        ctc_config = module_config.get("CTC", {"port": 12341})
+
+        self.server.connect_to_ui('localhost', track_model_config["port"], "Track Model")
+        self.server.connect_to_ui('localhost', ctc_config["port"], "CTC")
 
         self.create_ui()
         self.setup_logging()
@@ -51,10 +51,10 @@ class RailwayControlSystem:
     def _process_message(self, message, source_ui_id):
         """Process incoming messages from Test UI"""
         try:
-            print(f"Main UI received from {source_ui_id}: {message}")
+            print(f"Track SW UI received from {source_ui_id}: {message}")
             
             command = message.get('command')
-            data = message.get('data', {})
+            data = message.get('value')
             
             if command == 'update_switch':
                 self._handle_switch_update(data)
@@ -66,6 +66,8 @@ class RailwayControlSystem:
                 self._handle_speed_auth_update(data)
             elif command == 'update_occupancy':
                 self._handle_occupancy_update(data)
+            elif command == 'Suggested Speed':
+                self.server.send_to_ui("Track Model",{"command": "Commanded Speed","value": data})
                 
         except Exception as e:
             print(f"Error processing message: {e}")

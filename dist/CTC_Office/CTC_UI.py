@@ -49,12 +49,12 @@ def main():
 
     
     mainScreen = CTC_Main_Screen.MainScreen(root, 0, systemFrame, mainNotebook, refMap)
-    scheduleScreen = CTC_Schedule_Screen.ScheduleScreen(root, mainScreen, scheduleFrame, mainNotebook, refMap)
+    scheduleScreen = CTC_Schedule_Screen.ScheduleScreen(root, mainScreen, scheduleFrame, mainNotebook, refMap, mainScreen.server)
     mainScreen.schedule_screen = scheduleScreen
     testUI = CTC_Test_UI.TestUI(win)
     #create the ui objects
     
-    programLoop(root, mainScreen, testUI) 
+    programLoop(root, mainScreen)#, testUI) 
     #run the loop the continuously checks the data file
         
     root.mainloop()
@@ -62,16 +62,16 @@ def main():
     #end program by ending mainloop() and ending the clock timer
 
 
-def programLoop(root: tk.Tk, mainScreen: CTC_Main_Screen, testUI: CTC_Test_UI):
+def programLoop(root: tk.Tk, mainScreen: CTC_Main_Screen):#, testUI: CTC_Test_UI):
     #continuously poll the data files to check for data changes
 
     if (os.stat("CTC_Office/CTC_data.txt").st_size != 0):
         mainScreen.updateMainScreen()
-    if (os.stat("CTC_Office/to_test_ui.txt").st_size != 0):
-        testUI.updateTestUI()
+    #if (os.stat("CTC_Office/to_test_ui.txt").st_size != 0):
+    #    testUI.updateTestUI()
     #check if files have data, then run appropriate methods to update the ui appearance
 
-    root.after(500, programLoop, root, mainScreen, testUI)
+    root.after(500, programLoop, root, mainScreen)#, testUI)
     #call function every 0.5 seconds
 
 

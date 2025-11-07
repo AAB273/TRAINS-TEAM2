@@ -71,7 +71,7 @@ def programLoop(root: tk.Tk, mainScreen: CTC_Main_Screen, testUI: CTC_Test_UI):
         testUI.updateTestUI()
     #check if files have data, then run appropriate methods to update the ui appearance
 
-    root.after(500, programLoop, root, mainScreen, testUI)
+    root.after(500, programLoop, root, mainScreen)#, testUI)
     #call function every 0.5 seconds
 
 

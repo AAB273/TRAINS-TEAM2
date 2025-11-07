@@ -1,3 +1,13 @@
+import json    
+from pathlib import Path 
+
+def load_socket_config():
+    config_path = Path("config.json")
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config.get("modules", {})
+
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
@@ -20,11 +30,21 @@ class TrackModelUI(tk.Tk):
         self.geometry("1300x850")
         self.configure(bg="navy")
 
-        # UI 1 - Can communicate with UI 2 and UI 3
-        self.server = TrainSocketServer(port=4, ui_id="Track Model")
-        self.server.set_allowed_connections(["Wayside_Controller","Train_Model"])
+
+        module_config = load_socket_config()
+        config = module_config.get("Track Model", {"port": 12344})
+        self.server = TrainSocketServer(port=config["port"], ui_id="Track Model")
+        print(f"DEBUG: Track Model config = {config}")
+        print(f"DEBUG: Port being used = {config['port']}")
+        self.server.set_allowed_connections(["Track SW", "Train Model"])
         self.server.start_server(self._process_message)
-        self.server.connect_to_ui('localhost', 5,"Train_Model")
+
+        # Connect using ports from config
+        track_sw_config = module_config.get("Track SW", {"port": 12342})
+        train_model_config = module_config.get("Train Model", {"port": 12345})
+
+        self.server.connect_to_ui('localhost', track_sw_config["port"], "Track SW")
+        self.server.connect_to_ui('localhost', train_model_config["port"], "Train Model")
 
         self.switch_blocks = {5}
         self.crossing_blocks = {4}
@@ -57,7 +77,6 @@ class TrackModelUI(tk.Tk):
         self.file_manager = FileUploadManager(self)
         self.heater_manager = HeaterSystemManager(self)
         self.diagram_drawer = TrackDiagramDrawer(self, self.data_manager)
-        self.socket_server = TrainSocketServer(self)
 
         for b in self.data_manager.blocks:
             if not hasattr(b, "traffic_light_state"):
@@ -98,15 +117,15 @@ class TrackModelUI(tk.Tk):
             command = message.get('command')
             value = message.get('value')
             
-            if command == 'commanded_speed':
+            if command == 'Commanded Speed':
                 global commanded_speed
                 commanded_speed = value
-                self.server.send_to_UI("Train Model", {"Commanded Authority", commanded_speed})
+                self.server.send_to_ui("Train Model", {"Commanded Speed", commanded_speed})
             
-            elif command == 'commanded_authority':
+            elif command == 'Commanded Authority':
                 global commanded_authority
                 commanded_authority = value
-                self.server.send_to_UI("Train Model", {"Commanded Authority", commanded_authority})
+                self.server.send_to_ui("Train Model", {"Commanded Authority", commanded_authority})
             
             elif command == 'switch_positions':
                 global switch_positions
@@ -521,12 +540,12 @@ class TrackModelUI(tk.Tk):
                 item = canvas.create_image(x, y, image=self.train_icon, anchor="center")
                 items_list.append(item)
                 trains_drawn += 1
-                print(f"   🚂 Drawing train at block {block_num}, coordinates: {coords}")
+                #print(f"   🚂 Drawing train at block {block_num}, coordinates: {coords}")
             else:
                 print(f"   ❌ Block {block_num} occupied but no coordinates available")
 
-        print(f"🎯 Total trains drawn: {trains_drawn}")
-        print("=====================================")
+        #print(f"🎯 Total trains drawn: {trains_drawn}")
+        #print("=====================================")
 
     def on_view_tab_change(self, event):
         tab = self.view_tabs.tab(self.view_tabs.select(), "text")
@@ -1328,7 +1347,7 @@ class TrackModelUI(tk.Tk):
         is_on = self.is_heater_on(block)
         self.set_heater_state(block, is_on, True)  # Keep current on/off state, set working
     
-    def on_closing():
+    def on_closing(self):
         """Handle application closing"""
         print("Closing application...")
         self.server.running = False

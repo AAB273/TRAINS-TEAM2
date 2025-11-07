@@ -21,7 +21,7 @@ class ScheduleScreen:
     self.clockTimer: contains the call to updateTime, allowing the program to cancel the timer when switching tabs
     '''
 
-    def __init__(self, root: tk.Tk, main: CTC_Main_Screen, frame: ttk.Frame, notebook: ttk.Notebook, refMap: tk.Tk):
+    def __init__(self, root: tk.Tk, main: CTC_Main_Screen, frame: ttk.Frame, notebook: ttk.Notebook, refMap: tk.Tk, server):
     #initialize class variables and create backdrop for schedule screen
 
         self.root = root  #main variable for the window
@@ -30,6 +30,7 @@ class ScheduleScreen:
         self.refMap = refMap
         self.notebook = notebook  #variable to hold data about the tab buttons
         self.trainNum = 1;  #number of trains that have been sent to the system
+        self.server = server
 
         self.createTopRow()
         #print to top row of the UI to the window
@@ -269,8 +270,8 @@ class ScheduleScreen:
         speed = distToStation / arrTime
 
         #self.mainScreen.send_to_ui("TL", str(self.trainNum - 1) + ", " + f"{speed:.3f}\n" + ", 8, " + line)
-        self.server.send_to_ui("Track HW", {"suggested_speed", f"{speed:.3f}\n"})
-        self.server.send_to_ui("Track SW", {})
+        self.server.send_to_ui("Track SW", {"command": "Suggested Speed","value": f"{speed:.3f}"})
+        self.server.send_to_ui("Track HW", {})
 
 ###############################################################################################################################################################
 

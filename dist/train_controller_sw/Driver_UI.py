@@ -117,13 +117,19 @@ class Main_Window:
         # Socket server setup
         #added socket server 
         module_config = load_socket_config()
-        train_model_config = module_config.get("Train SW", {"port: 12346"})
-        self.server = TrainSocketServer(port=train_model_config["port"], ui_id="Train SW")
-        
+        train_sw_config = module_config.get("Train SW", {"port": 12346})
+        self.server = TrainSocketServer(port=train_sw_config["port"], ui_id="Train SW")
         self.server.set_allowed_connections(["Train Model", "Track Model"])
         self.server.start_server(self._process_message)
-        self.server.connect_to_ui('localhost', 12345, "Train Model")
-        self.server.connect_to_ui('localhost', 12344, "Track Model")
+
+        
+
+        # Connect using ports from config
+        train_model_config = module_config.get("Train Model", {"port": 12345})
+
+
+        self.server.connect_to_ui('localhost', train_model_config["port"], "Train Model")
+ 
         
         main_container = tk.Frame(self.root, bg="white", relief=tk.RAISED, bd=5)
         main_container.place(relx=0.02, rely=0.08, relwidth=0.96, relheight=0.9)
@@ -454,7 +460,7 @@ class Main_Window:
     def _process_message(self, message, source_ui_id):
         """Process incoming messages and update train state"""
         try:
-            print(f"Received message from {source_ui_id}: {message}")
+            print(f"Train Controller received message from {source_ui_id}: {message}")
 
             command = message.get('command')
             value = message.get('value')

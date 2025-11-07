@@ -32,18 +32,21 @@ class TrainModelPassengerGUI:
         
         # Socket server setup
         module_config = load_socket_config()
-        train_model_config = module_config.get("Train Model", {"port": 5})
-        self.server = TrainSocketServer(
-            port=train_model_config["port"],
-            ui_id="Train Model"
-        )
-        #self.server.set_allowed_connections(["Test_UI", "ui_3"])
-        self.server.set_allowed_connections(["Train SW","Train HW", "Track Model"])
+        train_model_config = module_config.get("Train Model", {"port": 12345})
+        self.server = TrainSocketServer(port=train_model_config["port"], ui_id="Train Model")
+        self.server.set_allowed_connections(["Train SW", "Train HW", "Track Model"])
         self.server.start_server(self._process_message)
-        #self.server.connect_to_ui('localhost', 12346, "Test_UI")
-        self.server.connect_to_ui('localhost', 12346, "Train SW")
-        self.server.connect_to_ui('localhost', 12347, "Train HW")
-        self.server.connect_to_ui('localhost', 12344, "Track Model")
+        
+        
+
+        # Connect using ports from config
+        train_sw_config = module_config.get("Train SW", {"port": 12346})
+        train_hw_config = module_config.get("Train HW", {"port": 12347})
+        track_model_config = module_config.get("Track Model", {"port": 12344})
+
+        self.server.connect_to_ui('localhost', train_sw_config["port"], "Train SW")
+        self.server.connect_to_ui('localhost', train_hw_config["port"], "Train HW")
+        self.server.connect_to_ui('localhost', track_model_config["port"], "Track Model")
         
         self.ui_labels = {}
         self.ui_indicators = {}
@@ -80,7 +83,7 @@ class TrainModelPassengerGUI:
     def _process_message(self, message, source_ui_id):
         """Process incoming messages and update train state"""
         try:
-            print(f"Received message from {source_ui_id}: {message}")
+            print(f"Train Model received message from {source_ui_id}: {message}")
 
             command = message.get('command')
             value = message.get('value')
@@ -112,12 +115,12 @@ class TrainModelPassengerGUI:
                 print("placeholder")
             elif command == 'Commanded Authority':
                 self.current_train.set_commanded_authority(value)
-                self.server.send_to_ui("Train SW",{"Commanded Authority",value})
-                self.server.send_to_ui("Train HW",{"Commanded Authority",value})
+                self.server.send_to_ui("Train SW",{"Commanded Authority":value})
+                self.server.send_to_ui("Train HW",{"Commanded Authority":value})
             elif command == 'Commanded Speed':
                 self.current_train.set_commanded_speed(value)
-                self.server.send_to_ui("Train SW",{"Commanded Speed",value})
-                self.server.send_to_ui("Train HW",{"Commanded Speed",value})
+                self.server.send_to_ui("Train SW", {"command": "Commanded Speed","value": value})
+                self.server.send_to_ui("Train HW",{"Commanded Speed":value})
         except Exception as e:
             print(f"Error processing message: {e}")
 

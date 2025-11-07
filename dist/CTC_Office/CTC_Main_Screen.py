@@ -59,15 +59,20 @@ class MainScreen:
 
         # Socket server setup
         module_config = load_socket_config()
-        ctc_config = module_config.get("CTC", {"port": 1})
-        self.server = TrainSocketServer(port = ctc_config["port"], ui_id = "CTC")
-        self.server.set_allowed_connections(["Track SW", "Track HW", "CTC_Test_UI"])
+        ctc_config = module_config.get("CTC", {"port": 12341})
+        self.server = TrainSocketServer(port=ctc_config["port"], ui_id="CTC")
+        self.server.set_allowed_connections(["Track SW", "Track HW"])
         self.server.start_server(self._processMessage)
-        #self.server.connect_to_ui('localhost', 12342, "Track SW")
-        #self.server.connect_to_ui('localhost', 12343, "Track HW")
+        
+        # Connect using ports from config
+        track_sw_config = module_config.get("Track SW", {"port": 12342})
+        track_hw_config = module_config.get("Track HW", {"port": 12343})
+
+        self.server.connect_to_ui('localhost', track_sw_config["port"], "Track SW")
+        self.server.connect_to_ui('localhost', track_hw_config["port"], "Track HW")
 
         #for test ui
-        self.server.connect_to_ui('localhost', 12349, "CTC_Test_UI")
+        #self.server.connect_to_ui('localhost', 12349, "CTC_Test_UI")
 
         self.createTopRow()
         #print the logo, reference map button, time
@@ -76,8 +81,8 @@ class MainScreen:
 
 ###############################################################################################################################################################
 
-    def send_to_ui(self, command, value=None):
-        pass
+   # def send_to_ui(self, command, value=None):
+     #   pass
         # """Send command to the target UI (creates dict for socket server)"""
         # message = {'command': command}
         # if value is not None:

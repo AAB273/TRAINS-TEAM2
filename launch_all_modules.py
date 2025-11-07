@@ -13,11 +13,11 @@ def launch_all():
     print("="*60 + "\n")
     
     modules = [
+        ("CTC", "CTC_Office/CTC_UI.py"),
+        ("Track SW", "Wayside_Controller/SW/main.py"),
+        ("Track Model", "Track_Model/UI_Structure.py"),
         ("Train Model", "Train Model/Passenger_UI.py"),
         ("Train SW", "train_controller_sw/Driver_UI.py"),
-        ("Track SW", "Wayside_Controller/SW/main.py"),
-        ("CTC", "CTC_Office/CTC_UI.py"),
-        ("Track Model", "Track_Model/UI_Structure.py"),
     ]
     
     processes = []
@@ -38,12 +38,9 @@ def launch_all():
                 startupinfo.wShowWindow = subprocess.SW_HIDE
                 
                 process = subprocess.Popen(
-                    [sys.executable, file_path],
-                    cwd=exe_dir,
-                    env=env,  # ← Pass the modified environment
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    startupinfo=startupinfo
+                [sys.executable, file_path],
+                cwd=exe_dir,
+                env=env
                 )
                 processes.append((module_name, process))
                 print(f"    SUCCESS: {module_name} started")
@@ -97,7 +94,6 @@ def launch_all():
             except Exception as e:
                 print(f"    Error stopping {name}: {e}")
         print("SUCCESS: All modules stopped")
-
 
 if __name__ == "__main__":
     try:

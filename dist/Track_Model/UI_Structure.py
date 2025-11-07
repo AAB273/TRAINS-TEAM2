@@ -1,3 +1,14 @@
+import json    
+from pathlib import Path 
+
+def load_socket_config():
+    config_path = Path("config.json")
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config.get("modules", {})
+
+
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
@@ -21,10 +32,20 @@ class TrackModelUI(tk.Tk):
         self.configure(bg="navy")
 
         # UI 1 - Can communicate with UI 2 and UI 3
-        self.server = TrainSocketServer(port=4, ui_id="Track Model")
-        self.server.set_allowed_connections(["Wayside_Controller","Train_Model"])
+        module_config = load_socket_config()
+        config = module_config.get("Track Model", {"port": 12344})
+        self.server = TrainSocketServer(port=config["port"], ui_id="Track Model")
+        self.server.set_allowed_connections(["Track SW", "Train Model"])
         self.server.start_server(self._process_message)
-        self.server.connect_to_ui('localhost', 5,"Train_Model")
+
+        
+        # Connect using ports from config
+        track_sw_config = module_config.get("Track SW", {"port": 12342})
+        train_model_config = module_config.get("Train Model", {"port": 12345})
+
+        self.server.connect_to_ui('localhost', track_sw_config["port"], "Track SW")
+        self.server.connect_to_ui('localhost', train_model_config["port"], "Train Model")
+
 
         self.switch_blocks = {5}
         self.crossing_blocks = {4}
@@ -93,20 +114,20 @@ class TrackModelUI(tk.Tk):
     def _process_message(self,message,source_ui_id):
         """Process incoming messages from other UIs"""
         try:
-            print(f"Received from {source_ui_id}: {message}")
+            print(f"Track Model received from {source_ui_id}: {message}")
             
             command = message.get('command')
             value = message.get('value')
             
-            if command == 'commanded_speed':
+            if command == 'Commanded Speed':
                 global commanded_speed
                 commanded_speed = value
-                self.server.send_to_UI("Train Model", {"Commanded Authority", commanded_speed})
+                self.server.send_to_ui("Train Model", {"command": "Commanded Speed","value": value})
             
             elif command == 'commanded_authority':
                 global commanded_authority
                 commanded_authority = value
-                self.server.send_to_UI("Train Model", {"Commanded Authority", commanded_authority})
+                self.server.send_to_ui("Train Model", {"Commanded Authority": commanded_authority})
             
             elif command == 'switch_positions':
                 global switch_positions
@@ -499,7 +520,7 @@ class TrackModelUI(tk.Tk):
             canvas.delete(item)
         items_list.clear()
 
-        print("🔍 === Checking Block Occupancy ===")
+       # print("🔍 === Checking Block Occupancy ===")
         occupied_blocks = []
         
         # Check all blocks for occupancy
@@ -508,9 +529,9 @@ class TrackModelUI(tk.Tk):
             occupancy_value = getattr(block, 'occupancy', 0)
             if occupancy_value != 0:
                 occupied_blocks.append(block_num)
-                print(f"   Block {block_num}: OCCUPIED (value: {occupancy_value})")
+                #print(f"   Block {block_num}: OCCUPIED (value: {occupancy_value})")
         
-        print(f"   Found {len(occupied_blocks)} occupied blocks: {occupied_blocks}")
+        #print(f"   Found {len(occupied_blocks)} occupied blocks: {occupied_blocks}")
         
         trains_drawn = 0
         # Draw trains for occupied blocks
@@ -525,8 +546,8 @@ class TrackModelUI(tk.Tk):
             else:
                 print(f"   ❌ Block {block_num} occupied but no coordinates available")
 
-        print(f"🎯 Total trains drawn: {trains_drawn}")
-        print("=====================================")
+        #print(f"🎯 Total trains drawn: {trains_drawn}")
+        #print("=====================================")
 
     def on_view_tab_change(self, event):
         tab = self.view_tabs.tab(self.view_tabs.select(), "text")
