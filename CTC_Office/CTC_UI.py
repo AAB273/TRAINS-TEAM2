@@ -59,5 +59,21 @@ def main():
     #end program by ending mainloop() and ending the clock timer
 
 
+<<<<<<< HEAD
+def programLoop(root: tk.Tk, mainScreen: CTC_Main_Screen, testUI: CTC_Test_UI):
+    #continuously poll the data files to check for data changes
+
+    if (os.stat("CTC_Office/CTC_data.txt").st_size != 0):
+        mainScreen.updateMainScreen()
+    if (os.stat("CTC_Office/to_test_ui.txt").st_size != 0):
+        testUI.updateTestUI()
+    #check if files have data, then run appropriate methods to update the ui appearance
+
+    root.after(500, programLoop, root, mainScreen)#, testUI)
+    #call function every 0.5 seconds
+
+
+=======
+>>>>>>> f5f65456b84725a5d3ead0ab63aeac91837ede13
 main()
 #main function call

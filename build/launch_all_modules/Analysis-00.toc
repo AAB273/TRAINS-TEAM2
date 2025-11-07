@@ -16,7 +16,633 @@
  {},
  0,
  [],
- [],
+ [('CTC_Office\\Book1.csv',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\Book1.csv',
+   'DATA'),
+  ('CTC_Office\\CTC_Main_Screen.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\CTC_Main_Screen.py',
+   'DATA'),
+  ('CTC_Office\\CTC_Schedule_Screen.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\CTC_Schedule_Screen.py',
+   'DATA'),
+  ('CTC_Office\\CTC_Test_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\CTC_Test_UI.py',
+   'DATA'),
+  ('CTC_Office\\CTC_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\CTC_UI.py',
+   'DATA'),
+  ('CTC_Office\\CTC_data.txt',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\CTC_data.txt',
+   'DATA'),
+  ('CTC_Office\\README.txt',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\README.txt',
+   'DATA'),
+  ('CTC_Office\\__pycache__\\CTC_Main_Screen.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\__pycache__\\CTC_Main_Screen.cpython-313.pyc',
+   'DATA'),
+  ('CTC_Office\\__pycache__\\CTC_Schedule_Screen.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\__pycache__\\CTC_Schedule_Screen.cpython-313.pyc',
+   'DATA'),
+  ('CTC_Office\\__pycache__\\CTC_Test_UI.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\__pycache__\\CTC_Test_UI.cpython-313.pyc',
+   'DATA'),
+  ('CTC_Office\\__pycache__\\CTC_UI.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\__pycache__\\CTC_UI.cpython-313.pyc',
+   'DATA'),
+  ('CTC_Office\\__pycache__\\__init__.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\__pycache__\\__init__.cpython-313.pyc',
+   'DATA'),
+  ('CTC_Office\\blt logo.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\blt logo.png',
+   'DATA'),
+  ('CTC_Office\\blue_line.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\blue_line.png',
+   'DATA'),
+  ('CTC_Office\\to_test_ui.txt',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\to_test_ui.txt',
+   'DATA'),
+  ('Track_Model\\BeaconManager.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\BeaconManager.py',
+   'DATA'),
+  ('Track_Model\\FileUploadManager.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\FileUploadManager.py',
+   'DATA'),
+  ('Track_Model\\HeaterSystemManager.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\HeaterSystemManager.py',
+   'DATA'),
+  ('Track_Model\\Test_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\Test_UI.py',
+   'DATA'),
+  ('Track_Model\\Track Data.xlsx',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\Track Data.xlsx',
+   'DATA'),
+  ('Track_Model\\TrackDiagramDrawer.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\TrackDiagramDrawer.py',
+   'DATA'),
+  ('Track_Model\\Track_Blocks.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\Track_Blocks.py',
+   'DATA'),
+  ('Track_Model\\UI_Structure.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\UI_Structure.py',
+   'DATA'),
+  ('Track_Model\\UI_Variables.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\UI_Variables.py',
+   'DATA'),
+  ('Track_Model\\__pycache__\\BeaconManager.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\BeaconManager.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\FileUploadManager.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\FileUploadManager.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\HeaterSystemManager.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\HeaterSystemManager.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\Test_UI.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\Test_UI.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\TrackDiagramDrawer.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\TrackDiagramDrawer.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\TrackDirectionController.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\TrackDirectionController.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\Track_Blocks.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\Track_Blocks.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\UI_Structure.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\UI_Structure.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\UI_Test.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\UI_Test.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\UI_Variables.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\UI_Variables.cpython-313.pyc',
+   'DATA'),
+  ('Train Model\\OldStuff.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\OldStuff.py',
+   'DATA'),
+  ('Train Model\\Passenger_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\Passenger_UI.py',
+   'DATA'),
+  ('Train Model\\Test_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\Test_UI.py',
+   'DATA'),
+  ('Train Model\\__pycache__\\train_data.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train '
+   'Model\\__pycache__\\train_data.cpython-310.pyc',
+   'DATA'),
+  ('Train Model\\__pycache__\\train_data.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train '
+   'Model\\__pycache__\\train_data.cpython-313.pyc',
+   'DATA'),
+  ('Train Model\\backup',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\backup',
+   'DATA'),
+  ('Train Model\\blt logo.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\blt logo.png',
+   'DATA'),
+  ('Train Model\\diesel-horn-02-98042.mp3',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\diesel-horn-02-98042.mp3',
+   'DATA'),
+  ('Train Model\\launch_both.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\launch_both.py',
+   'DATA'),
+  ('Train Model\\old_Test_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\old_Test_UI.py',
+   'DATA'),
+  ('Train Model\\test_clock.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\test_clock.py',
+   'DATA'),
+  ('Train Model\\train_data.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\train_data.py',
+   'DATA'),
+  ("Train Model\\wendy's_AD.jpg",
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   "Location\\TRAINS-TEAM2\\Train Model\\wendy's_AD.jpg",
+   'DATA'),
+  ('Wayside_Controller\\HW\\WC_HW_MainUI',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\WC_HW_MainUI',
+   'DATA'),
+  ('Wayside_Controller\\HW\\WC_HW_TestUI',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\WC_HW_TestUI',
+   'DATA'),
+  ('Wayside_Controller\\HW\\__pycache__\\plc_controller.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\__pycache__\\plc_controller.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\HW\\background.jpg',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\background.jpg',
+   'DATA'),
+  ('Wayside_Controller\\HW\\background2.jpg',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\background2.jpg',
+   'DATA'),
+  ('Wayside_Controller\\HW\\blt logo.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\blt logo.png',
+   'DATA'),
+  ('Wayside_Controller\\HW\\launch_both.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\launch_both.py',
+   'DATA'),
+  ('Wayside_Controller\\HW\\launch_ctc_hw_both.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\launch_ctc_hw_both.py',
+   'DATA'),
+  ('Wayside_Controller\\HW\\plc_controller.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\plc_controller.py',
+   'DATA'),
+  ('Wayside_Controller\\HW\\togglepicOFF.jpg',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\togglepicOFF.jpg',
+   'DATA'),
+  ('Wayside_Controller\\HW\\togglepic_ON.jpg',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\togglepic_ON.jpg',
+   'DATA'),
+  ('Wayside_Controller\\SW\\Wayside_Test_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\Wayside_Test_UI.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\Wayside_UI\\data\\__pycache__\\__init__.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\Wayside_UI\\data\\__pycache__\\__init__.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\Wayside_UI\\data\\__pycache__\\models.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\Wayside_UI\\data\\__pycache__\\models.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\__pycache__\\TrainSocketServer.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\__pycache__\\TrainSocketServer.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\__pycache__\\Wayside_Test_UI.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\__pycache__\\Wayside_Test_UI.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\__pycache__\\auto_plc_logic.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\__pycache__\\auto_plc_logic.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\__pycache__\\main.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\__pycache__\\main.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\__pycache__\\shared_data.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\__pycache__\\shared_data.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\__pycache__\\ui_communicator.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\__pycache__\\ui_communicator.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\auto_plc_logic.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\auto_plc_logic.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\config\\__pycache__\\track_config.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\config\\__pycache__\\track_config.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\config\\init.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\config\\init.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\config\\track_config.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\config\\track_config.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\Blue Line.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\Blue Line.png',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\Red and Green Line.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\Red and Green '
+   'Line.png',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\__init__.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\__init__.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\__pycache__\\__init__.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\__pycache__\\__init__.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\__pycache__\\__init__.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\__pycache__\\__init__.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\__pycache__\\models.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\__pycache__\\models.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\__pycache__\\models.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\__pycache__\\models.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\blue_line.txt',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\blue_line.txt',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\green_line.txt',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\green_line.txt',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\models.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\models.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\red_line.txt',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\red_line.txt',
+   'DATA'),
+  ('Wayside_Controller\\SW\\launcher.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\launcher.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\main.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\main.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\shared_data.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\shared_data.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__init__.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__init__.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\__init__.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\__init__.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\__init__.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\__init__.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\center_panel.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\center_panel.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\center_panel.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\center_panel.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\header.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\header.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\header.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\header.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\left_panel.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\left_panel.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\left_panel.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\left_panel.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\plc_dialog.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\plc_dialog.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\plc_dialog.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\plc_dialog.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\plc_engine.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\plc_engine.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\right_panel.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\right_panel.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\right_panel.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\right_panel.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\center_panel.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\center_panel.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\header.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\header.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\left_panel.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\left_panel.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\plc_dialog.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\plc_dialog.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\plc_engine.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\plc_engine.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\right_panel.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\right_panel.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\__pycache__\\header.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\__pycache__\\header.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\__pycache__\\plc_controls.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\__pycache__\\plc_controls.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\__pycache__\\speed_authority.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\__pycache__\\speed_authority.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\__pycache__\\system_log.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\__pycache__\\system_log.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\__pycache__\\system_log.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\__pycache__\\system_log.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\__pycache__\\system_monitoring.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\__pycache__\\system_monitoring.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\__pycache__\\track_controls.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\__pycache__\\track_controls.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\header.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\header.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\init.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\init.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\speed_authority.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\speed_authority.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\system_log.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\system_log.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\system_monitoring.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\system_monitoring.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\track_controls.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\track_controls.py',
+   'DATA'),
+  ('train_controller_sw\\BrakeButton.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\BrakeButton.py',
+   'DATA'),
+  ('train_controller_sw\\ClockDisplay.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\ClockDisplay.py',
+   'DATA'),
+  ('train_controller_sw\\Driver_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\Driver_UI.py',
+   'DATA'),
+  ('train_controller_sw\\Emlight.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\Emlight.py',
+   'DATA'),
+  ('train_controller_sw\\SA_display.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\SA_display.py',
+   'DATA'),
+  ('train_controller_sw\\SA_window.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\SA_window.py',
+   'DATA'),
+  ('train_controller_sw\\SafetyMonitor.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\SafetyMonitor.py',
+   'DATA'),
+  ('train_controller_sw\\TC_SW_TrackInfo.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\TC_SW_TrackInfo.py',
+   'DATA'),
+  ('train_controller_sw\\Test_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\Test_UI.py',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\BrakeButton.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\BrakeButton.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\BrakeButton.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\BrakeButton.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\CircleButton.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\CircleButton.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\ClockDisplay.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\ClockDisplay.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\ClockDisplay.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\ClockDisplay.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\Emlight.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\Emlight.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\Emlight.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\Emlight.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\SA_display.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\SA_display.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\SA_display.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\SA_display.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\SA_window.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\SA_window.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\SA_window.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\SA_window.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\SafetyMonitor.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\SafetyMonitor.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\SafetyMonitor.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\SafetyMonitor.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\TC_SW_TrackInfo.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\TC_SW_TrackInfo.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\TC_SW_TrackInfo.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\TC_SW_TrackInfo.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\Test_UI.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\Test_UI.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\Test_UI.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\Test_UI.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\TrainSocketServer.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\TrainSocketServer.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\speedometer.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\speedometer.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\speedometer.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\speedometer.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\bltlogo.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\bltlogo.png',
+   'DATA'),
+  ('train_controller_sw\\blue_line.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\blue_line.png',
+   'DATA'),
+  ('train_controller_sw\\bulb.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\bulb.png',
+   'DATA'),
+  ('train_controller_sw\\headlight.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\headlight.png',
+   'DATA'),
+  ('train_controller_sw\\leftdoor.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\leftdoor.png',
+   'DATA'),
+  ('train_controller_sw\\right.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\right.png',
+   'DATA'),
+  ('train_controller_sw\\right_door.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\right_door.png',
+   'DATA'),
+  ('train_controller_sw\\speedometer.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\speedometer.py',
+   'DATA'),
+  ('train_controller_sw\\trainhorn.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\trainhorn.png',
+   'DATA')],
  '3.13.7 (tags/v3.13.7:bcee1c3, Aug 14 2025, 14:15:11) [MSC v.1944 64 bit '
  '(AMD64)]',
  [('pyi_rth_inspect',
@@ -341,11 +967,11 @@
   ('stringprep',
    'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\stringprep.py',
    'PYMODULE'),
-  ('tracemalloc',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\tracemalloc.py',
-   'PYMODULE'),
   ('_py_abc',
    'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\_py_abc.py',
+   'PYMODULE'),
+  ('tracemalloc',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\tracemalloc.py',
    'PYMODULE'),
   ('pathlib',
    'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\pathlib\\__init__.py',
@@ -397,39 +1023,651 @@
    'BINARY')],
  [],
  [],
- [('base_library.zip',
+ [('CTC_Office\\Book1.csv',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\Book1.csv',
+   'DATA'),
+  ('CTC_Office\\CTC_Main_Screen.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\CTC_Main_Screen.py',
+   'DATA'),
+  ('CTC_Office\\CTC_Schedule_Screen.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\CTC_Schedule_Screen.py',
+   'DATA'),
+  ('CTC_Office\\CTC_Test_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\CTC_Test_UI.py',
+   'DATA'),
+  ('CTC_Office\\CTC_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\CTC_UI.py',
+   'DATA'),
+  ('CTC_Office\\CTC_data.txt',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\CTC_data.txt',
+   'DATA'),
+  ('CTC_Office\\README.txt',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\README.txt',
+   'DATA'),
+  ('CTC_Office\\__pycache__\\CTC_Main_Screen.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\__pycache__\\CTC_Main_Screen.cpython-313.pyc',
+   'DATA'),
+  ('CTC_Office\\__pycache__\\CTC_Schedule_Screen.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\__pycache__\\CTC_Schedule_Screen.cpython-313.pyc',
+   'DATA'),
+  ('CTC_Office\\__pycache__\\CTC_Test_UI.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\__pycache__\\CTC_Test_UI.cpython-313.pyc',
+   'DATA'),
+  ('CTC_Office\\__pycache__\\CTC_UI.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\__pycache__\\CTC_UI.cpython-313.pyc',
+   'DATA'),
+  ('CTC_Office\\__pycache__\\__init__.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\__pycache__\\__init__.cpython-313.pyc',
+   'DATA'),
+  ('CTC_Office\\blt logo.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\blt logo.png',
+   'DATA'),
+  ('CTC_Office\\blue_line.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\blue_line.png',
+   'DATA'),
+  ('CTC_Office\\to_test_ui.txt',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\CTC_Office\\to_test_ui.txt',
+   'DATA'),
+  ('Track_Model\\BeaconManager.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\BeaconManager.py',
+   'DATA'),
+  ('Track_Model\\FileUploadManager.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\FileUploadManager.py',
+   'DATA'),
+  ('Track_Model\\HeaterSystemManager.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\HeaterSystemManager.py',
+   'DATA'),
+  ('Track_Model\\Test_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\Test_UI.py',
+   'DATA'),
+  ('Track_Model\\Track Data.xlsx',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\Track Data.xlsx',
+   'DATA'),
+  ('Track_Model\\TrackDiagramDrawer.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\TrackDiagramDrawer.py',
+   'DATA'),
+  ('Track_Model\\Track_Blocks.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\Track_Blocks.py',
+   'DATA'),
+  ('Track_Model\\UI_Structure.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\UI_Structure.py',
+   'DATA'),
+  ('Track_Model\\UI_Variables.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\UI_Variables.py',
+   'DATA'),
+  ('Track_Model\\__pycache__\\BeaconManager.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\BeaconManager.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\FileUploadManager.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\FileUploadManager.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\HeaterSystemManager.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\HeaterSystemManager.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\Test_UI.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\Test_UI.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\TrackDiagramDrawer.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\TrackDiagramDrawer.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\TrackDirectionController.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\TrackDirectionController.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\Track_Blocks.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\Track_Blocks.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\UI_Structure.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\UI_Structure.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\UI_Test.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\UI_Test.cpython-313.pyc',
+   'DATA'),
+  ('Track_Model\\__pycache__\\UI_Variables.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Track_Model\\__pycache__\\UI_Variables.cpython-313.pyc',
+   'DATA'),
+  ('Train Model\\OldStuff.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\OldStuff.py',
+   'DATA'),
+  ('Train Model\\Passenger_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\Passenger_UI.py',
+   'DATA'),
+  ('Train Model\\Test_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\Test_UI.py',
+   'DATA'),
+  ('Train Model\\__pycache__\\train_data.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train '
+   'Model\\__pycache__\\train_data.cpython-310.pyc',
+   'DATA'),
+  ('Train Model\\__pycache__\\train_data.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train '
+   'Model\\__pycache__\\train_data.cpython-313.pyc',
+   'DATA'),
+  ('Train Model\\backup',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\backup',
+   'DATA'),
+  ('Train Model\\blt logo.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\blt logo.png',
+   'DATA'),
+  ('Train Model\\diesel-horn-02-98042.mp3',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\diesel-horn-02-98042.mp3',
+   'DATA'),
+  ('Train Model\\launch_both.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\launch_both.py',
+   'DATA'),
+  ('Train Model\\old_Test_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\old_Test_UI.py',
+   'DATA'),
+  ('Train Model\\test_clock.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\test_clock.py',
+   'DATA'),
+  ('Train Model\\train_data.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Train Model\\train_data.py',
+   'DATA'),
+  ("Train Model\\wendy's_AD.jpg",
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   "Location\\TRAINS-TEAM2\\Train Model\\wendy's_AD.jpg",
+   'DATA'),
+  ('Wayside_Controller\\HW\\WC_HW_MainUI',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\WC_HW_MainUI',
+   'DATA'),
+  ('Wayside_Controller\\HW\\WC_HW_TestUI',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\WC_HW_TestUI',
+   'DATA'),
+  ('Wayside_Controller\\HW\\__pycache__\\plc_controller.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\__pycache__\\plc_controller.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\HW\\background.jpg',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\background.jpg',
+   'DATA'),
+  ('Wayside_Controller\\HW\\background2.jpg',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\background2.jpg',
+   'DATA'),
+  ('Wayside_Controller\\HW\\blt logo.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\blt logo.png',
+   'DATA'),
+  ('Wayside_Controller\\HW\\launch_both.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\launch_both.py',
+   'DATA'),
+  ('Wayside_Controller\\HW\\launch_ctc_hw_both.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\launch_ctc_hw_both.py',
+   'DATA'),
+  ('Wayside_Controller\\HW\\plc_controller.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\plc_controller.py',
+   'DATA'),
+  ('Wayside_Controller\\HW\\togglepicOFF.jpg',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\togglepicOFF.jpg',
+   'DATA'),
+  ('Wayside_Controller\\HW\\togglepic_ON.jpg',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\HW\\togglepic_ON.jpg',
+   'DATA'),
+  ('Wayside_Controller\\SW\\Wayside_Test_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\Wayside_Test_UI.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\Wayside_UI\\data\\__pycache__\\__init__.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\Wayside_UI\\data\\__pycache__\\__init__.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\Wayside_UI\\data\\__pycache__\\models.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\Wayside_UI\\data\\__pycache__\\models.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\__pycache__\\TrainSocketServer.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\__pycache__\\TrainSocketServer.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\__pycache__\\Wayside_Test_UI.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\__pycache__\\Wayside_Test_UI.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\__pycache__\\auto_plc_logic.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\__pycache__\\auto_plc_logic.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\__pycache__\\main.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\__pycache__\\main.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\__pycache__\\shared_data.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\__pycache__\\shared_data.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\__pycache__\\ui_communicator.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\__pycache__\\ui_communicator.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\auto_plc_logic.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\auto_plc_logic.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\config\\__pycache__\\track_config.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\config\\__pycache__\\track_config.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\config\\init.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\config\\init.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\config\\track_config.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\config\\track_config.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\Blue Line.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\Blue Line.png',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\Red and Green Line.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\Red and Green '
+   'Line.png',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\__init__.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\__init__.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\__pycache__\\__init__.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\__pycache__\\__init__.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\__pycache__\\__init__.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\__pycache__\\__init__.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\__pycache__\\models.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\__pycache__\\models.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\__pycache__\\models.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\__pycache__\\models.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\blue_line.txt',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\blue_line.txt',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\green_line.txt',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\green_line.txt',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\models.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\models.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\data\\red_line.txt',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\data\\red_line.txt',
+   'DATA'),
+  ('Wayside_Controller\\SW\\launcher.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\launcher.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\main.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\main.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\shared_data.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\shared_data.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__init__.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__init__.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\__init__.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\__init__.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\__init__.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\__init__.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\center_panel.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\center_panel.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\center_panel.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\center_panel.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\header.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\header.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\header.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\header.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\left_panel.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\left_panel.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\left_panel.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\left_panel.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\plc_dialog.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\plc_dialog.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\plc_dialog.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\plc_dialog.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\plc_engine.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\plc_engine.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\right_panel.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\right_panel.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\__pycache__\\right_panel.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\__pycache__\\right_panel.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\center_panel.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\center_panel.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\header.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\header.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\left_panel.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\left_panel.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\plc_dialog.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\plc_dialog.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\plc_engine.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\plc_engine.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui\\right_panel.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui\\right_panel.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\__pycache__\\header.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\__pycache__\\header.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\__pycache__\\plc_controls.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\__pycache__\\plc_controls.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\__pycache__\\speed_authority.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\__pycache__\\speed_authority.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\__pycache__\\system_log.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\__pycache__\\system_log.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\__pycache__\\system_log.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\__pycache__\\system_log.cpython-313.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\__pycache__\\system_monitoring.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\__pycache__\\system_monitoring.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\__pycache__\\track_controls.cpython-312.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\__pycache__\\track_controls.cpython-312.pyc',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\header.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\header.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\init.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\init.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\speed_authority.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\speed_authority.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\system_log.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\system_log.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\system_monitoring.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\system_monitoring.py',
+   'DATA'),
+  ('Wayside_Controller\\SW\\ui_test\\track_controls.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\Wayside_Controller\\SW\\ui_test\\track_controls.py',
+   'DATA'),
+  ('train_controller_sw\\BrakeButton.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\BrakeButton.py',
+   'DATA'),
+  ('train_controller_sw\\ClockDisplay.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\ClockDisplay.py',
+   'DATA'),
+  ('train_controller_sw\\Driver_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\Driver_UI.py',
+   'DATA'),
+  ('train_controller_sw\\Emlight.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\Emlight.py',
+   'DATA'),
+  ('train_controller_sw\\SA_display.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\SA_display.py',
+   'DATA'),
+  ('train_controller_sw\\SA_window.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\SA_window.py',
+   'DATA'),
+  ('train_controller_sw\\SafetyMonitor.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\SafetyMonitor.py',
+   'DATA'),
+  ('train_controller_sw\\TC_SW_TrackInfo.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\TC_SW_TrackInfo.py',
+   'DATA'),
+  ('train_controller_sw\\Test_UI.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\Test_UI.py',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\BrakeButton.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\BrakeButton.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\BrakeButton.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\BrakeButton.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\CircleButton.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\CircleButton.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\ClockDisplay.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\ClockDisplay.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\ClockDisplay.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\ClockDisplay.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\Emlight.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\Emlight.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\Emlight.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\Emlight.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\SA_display.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\SA_display.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\SA_display.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\SA_display.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\SA_window.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\SA_window.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\SA_window.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\SA_window.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\SafetyMonitor.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\SafetyMonitor.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\SafetyMonitor.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\SafetyMonitor.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\TC_SW_TrackInfo.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\TC_SW_TrackInfo.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\TC_SW_TrackInfo.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\TC_SW_TrackInfo.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\Test_UI.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\Test_UI.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\Test_UI.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\Test_UI.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\TrainSocketServer.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\TrainSocketServer.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\speedometer.cpython-310.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\speedometer.cpython-310.pyc',
+   'DATA'),
+  ('train_controller_sw\\__pycache__\\speedometer.cpython-313.pyc',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\__pycache__\\speedometer.cpython-313.pyc',
+   'DATA'),
+  ('train_controller_sw\\bltlogo.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\bltlogo.png',
+   'DATA'),
+  ('train_controller_sw\\blue_line.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\blue_line.png',
+   'DATA'),
+  ('train_controller_sw\\bulb.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\bulb.png',
+   'DATA'),
+  ('train_controller_sw\\headlight.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\headlight.png',
+   'DATA'),
+  ('train_controller_sw\\leftdoor.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\leftdoor.png',
+   'DATA'),
+  ('train_controller_sw\\right.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\right.png',
+   'DATA'),
+  ('train_controller_sw\\right_door.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\right_door.png',
+   'DATA'),
+  ('train_controller_sw\\speedometer.py',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\speedometer.py',
+   'DATA'),
+  ('train_controller_sw\\trainhorn.png',
+   'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
+   'Location\\TRAINS-TEAM2\\train_controller_sw\\trainhorn.png',
+   'DATA'),
+  ('base_library.zip',
    'C:\\Users\\wolfm\\OneDrive - University of Pittsburgh\\Desktop\\Trains GIT '
    'Location\\TRAINS-TEAM2\\build\\launch_all_modules\\base_library.zip',
    'DATA')],
- [('codecs',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\codecs.py',
-   'PYMODULE'),
-  ('enum',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\enum.py',
-   'PYMODULE'),
-  ('types',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\types.py',
-   'PYMODULE'),
-  ('traceback',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\traceback.py',
-   'PYMODULE'),
-  ('_collections_abc',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\_collections_abc.py',
-   'PYMODULE'),
-  ('io',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\io.py',
-   'PYMODULE'),
-  ('reprlib',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\reprlib.py',
-   'PYMODULE'),
-  ('weakref',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\weakref.py',
+ [('posixpath',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\posixpath.py',
    'PYMODULE'),
   ('ntpath',
    'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\ntpath.py',
    'PYMODULE'),
-  ('operator',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\operator.py',
+  ('genericpath',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\genericpath.py',
+   'PYMODULE'),
+  ('heapq',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\heapq.py',
+   'PYMODULE'),
+  ('collections',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\collections\\__init__.py',
    'PYMODULE'),
   ('functools',
    'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\functools.py',
@@ -437,38 +1675,17 @@
   ('keyword',
    'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\keyword.py',
    'PYMODULE'),
-  ('sre_parse',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\sre_parse.py',
+  ('_weakrefset',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\_weakrefset.py',
    'PYMODULE'),
-  ('posixpath',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\posixpath.py',
+  ('traceback',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\traceback.py',
    'PYMODULE'),
-  ('heapq',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\heapq.py',
+  ('stat',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\stat.py',
    'PYMODULE'),
-  ('re._parser',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\re\\_parser.py',
-   'PYMODULE'),
-  ('re._constants',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\re\\_constants.py',
-   'PYMODULE'),
-  ('re._compiler',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\re\\_compiler.py',
-   'PYMODULE'),
-  ('re._casefix',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\re\\_casefix.py',
-   'PYMODULE'),
-  ('re',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\re\\__init__.py',
-   'PYMODULE'),
-  ('copyreg',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\copyreg.py',
-   'PYMODULE'),
-  ('collections',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\collections\\__init__.py',
-   'PYMODULE'),
-  ('locale',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\locale.py',
+  ('sre_compile',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\sre_compile.py',
    'PYMODULE'),
   ('encodings.zlib_codec',
    'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\encodings\\zlib_codec.py',
@@ -836,29 +2053,65 @@
   ('encodings',
    'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\encodings\\__init__.py',
    'PYMODULE'),
-  ('warnings',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\warnings.py',
+  ('linecache',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\linecache.py',
+   'PYMODULE'),
+  ('types',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\types.py',
+   'PYMODULE'),
+  ('locale',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\locale.py',
    'PYMODULE'),
   ('abc',
    'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\abc.py',
    'PYMODULE'),
-  ('stat',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\stat.py',
+  ('operator',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\operator.py',
    'PYMODULE'),
   ('sre_constants',
    'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\sre_constants.py',
    'PYMODULE'),
-  ('genericpath',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\genericpath.py',
+  ('_collections_abc',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\_collections_abc.py',
    'PYMODULE'),
-  ('linecache',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\linecache.py',
+  ('copyreg',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\copyreg.py',
    'PYMODULE'),
-  ('sre_compile',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\sre_compile.py',
+  ('sre_parse',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\sre_parse.py',
    'PYMODULE'),
-  ('_weakrefset',
-   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\_weakrefset.py',
+  ('re._parser',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\re\\_parser.py',
+   'PYMODULE'),
+  ('re._constants',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\re\\_constants.py',
+   'PYMODULE'),
+  ('re._compiler',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\re\\_compiler.py',
+   'PYMODULE'),
+  ('re._casefix',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\re\\_casefix.py',
+   'PYMODULE'),
+  ('re',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\re\\__init__.py',
+   'PYMODULE'),
+  ('io',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\io.py',
+   'PYMODULE'),
+  ('warnings',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\warnings.py',
+   'PYMODULE'),
+  ('codecs',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\codecs.py',
+   'PYMODULE'),
+  ('enum',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\enum.py',
+   'PYMODULE'),
+  ('reprlib',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\reprlib.py',
+   'PYMODULE'),
+  ('weakref',
+   'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\weakref.py',
    'PYMODULE'),
   ('os',
    'C:\\Users\\wolfm\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\os.py',

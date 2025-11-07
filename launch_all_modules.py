@@ -4,6 +4,10 @@ import time
 import os
 from pathlib import Path
 
+if os.environ.get('TRAINS_LAUNCHER_RUNNING') == '1':
+    print("ERROR: Recursive launch detected!")
+    sys.exit(1)
+
 def launch_all():
     exe_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
     
@@ -13,11 +17,11 @@ def launch_all():
     print("="*60 + "\n")
     
     modules = [
+        ("CTC", "CTC_Office/CTC_UI.py"),
+        ("Track SW", "Wayside_Controller/SW/main.py"),
+        ("Track Model", "Track_Model/UI_Structure.py"),
         ("Train Model", "Train Model/Passenger_UI.py"),
         ("Train SW", "train_controller_sw/Driver_UI.py"),
-        ("Track SW", "Wayside_Controller/SW/main.py"),
-        ("CTC", "CTC_Office/CTC_UI.py"),
-        ("Track Model", "Track_Model/UI_Structure.py"),
     ]
     
     processes = []
@@ -38,12 +42,9 @@ def launch_all():
                 startupinfo.wShowWindow = subprocess.SW_HIDE
                 
                 process = subprocess.Popen(
-                    [sys.executable, file_path],
-                    cwd=exe_dir,
-                    env=env,  # ← Pass the modified environment
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    startupinfo=startupinfo
+                [sys.executable, file_path],
+                cwd=exe_dir,
+                env=env
                 )
                 processes.append((module_name, process))
                 print(f"    SUCCESS: {module_name} started")
@@ -55,26 +56,6 @@ def launch_all():
     
     time.sleep(3)
     
-    control_panel_file = os.path.join(exe_dir, "client", "main_control_panel.py")
-    if os.path.exists(control_panel_file):
-        print(f"  > Launching Control Panel")
-        try:
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = subprocess.SW_HIDE
-            
-            process = subprocess.Popen(
-                [sys.executable, control_panel_file],
-                cwd=exe_dir,
-                env=env,  # ← Pass the modified environment
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                startupinfo=startupinfo
-            )
-            processes.append(("Control Panel", process))
-            print(f"    SUCCESS: Control Panel started")
-        except Exception as e:
-            print(f"  ! Failed to launch Control Panel: {e}")
     
     print("\n" + "="*60)
     print(f"SUCCESS: {len(processes)} modules launched!")
@@ -97,7 +78,6 @@ def launch_all():
             except Exception as e:
                 print(f"    Error stopping {name}: {e}")
         print("SUCCESS: All modules stopped")
-
 
 if __name__ == "__main__":
     try:
