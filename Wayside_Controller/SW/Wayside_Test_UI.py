@@ -39,7 +39,7 @@ class RailwayControlSystem:
         # Set up window close protocol
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
-        print("🧪 Test UI ready with socket communication")
+        print("Test UI ready with socket communication")
         
     def _process_message(self, message, source_ui_id):
         """Process incoming messages from Main UI"""
@@ -93,9 +93,9 @@ class RailwayControlSystem:
     def _connect_to_main_ui(self):
         """Connect to Main UI server"""
         if self.server.connect_to_ui('localhost', 12342, "Track SW"):
-            print("✅ Connected to Main UI")
+            print("Connected to Main UI")
         else:
-            print("❌ Failed to connect to Main UI - make sure Main UI is running")
+            print("Failed to connect to Main UI - make sure Main UI is running")
 
     def setup_logging(self):
         pass

@@ -77,13 +77,13 @@ class RailwayControlSystem:
         direction = data.get('direction')
         
         if track and block and direction:
-            print(f"🔄 Processing switch update: {track} Block {block} -> {direction}")
+            print(f"Processing switch update: {track} Block {block} -> {direction}")
             
             switch_name = f"Switch {block}"
             self.data.update_track_data("switch_positions", switch_name, "direction", direction)
             self.data.update_track_data("switch_positions", switch_name, "condition", f"Set to {direction}")
             
-            print(f"✅ Switch updated successfully")
+            print(f"Switch updated successfully")
 
     def _handle_light_update(self, data):
         """Handle light updates from Test UI"""
@@ -98,7 +98,7 @@ class RailwayControlSystem:
             self.data.update_track_data("light_states", light_name, "signal", color)
             self.data.update_track_data("light_states", light_name, "condition", f"Signal: {color}")
             
-            print(f"✅ Light updated successfully")
+            print(f"Light updated successfully")
 
     def _handle_crossing_update(self, data):
         """Handle crossing updates from Test UI"""
@@ -108,14 +108,14 @@ class RailwayControlSystem:
         crossbar = data.get('crossbar')
         
         if track and block and lights and crossbar:
-            print(f"🚧 Processing crossing update: {track} Block {block} -> Lights:{lights}, Bar:{crossbar}")
+            print(f" Processing crossing update: {track} Block {block} -> Lights:{lights}, Bar:{crossbar}")
             
             crossing_name = f"Railway {block}"
             self.data.update_track_data("railway_crossings", crossing_name, "lights", lights)
             self.data.update_track_data("railway_crossings", crossing_name, "bar", crossbar)
             self.data.update_track_data("railway_crossings", crossing_name, "condition", f"Lights: {lights}, Bar: {crossbar}")
             
-            print(f"✅ Crossing updated successfully")
+            print(f" Crossing updated successfully")
 
     def _handle_speed_auth_update(self, data):
         """Handle speed/authority updates from Test UI"""
@@ -126,7 +126,7 @@ class RailwayControlSystem:
         value_type = data.get('value_type')  # 'commanded' or 'suggested'
         
         if track and block and value_type:
-            print(f"🎯 Processing {value_type} update: {track} Block {block} -> Speed:{speed}, Auth:{authority}")
+            print(f"Processing {value_type} update: {track} Block {block} -> Speed:{speed}, Auth:{authority}")
             
             if value_type == 'commanded':
                 if speed is not None:
@@ -149,7 +149,7 @@ class RailwayControlSystem:
                     self.right_panel.update_commanded_display()
                     self.right_panel.update_suggested_display()
             
-            print(f"✅ {value_type.capitalize()} values updated successfully")
+            print(f"{value_type.capitalize()} values updated successfully")
 
     def _handle_occupancy_update(self, data):
         """Handle occupancy updates from Test UI"""
@@ -158,7 +158,7 @@ class RailwayControlSystem:
         occupied = data.get('occupied')
         
         if track and block and occupied is not None:
-            print(f"📍 Processing occupancy update: {track} Block {block} -> {occupied}")
+            print(f"Processing occupancy update: {track} Block {block} -> {occupied}")
             
             # Find the block in the original data and update it
             found = False
@@ -170,9 +170,9 @@ class RailwayControlSystem:
                     break
             
             if not found:
-                print(f"❌ Block {block} not found on {track} track")
+                print(f"Block {block} not found on {track} track")
             else:
-                print(f"✅ Occupancy update initiated")
+                print(f"Occupancy update initiated")
 
     def send_to_test_ui(self, message):
         """Send message to Test UI"""

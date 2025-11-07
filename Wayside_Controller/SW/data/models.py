@@ -25,17 +25,17 @@ class RailwayData:
         
         # Initialize data from TXT files
         self.load_all_track_data()  # This will populate the separate variables
-        print("📊 Track data loaded from files")
+        print("Track data loaded from files")
         
         # Initialize block data (contains occupancy AND fault status)
         self.block_data = self.load_all_block_data()
-        print("🔧 Block data loaded from files")
+        print("Block data loaded from files")
         
         # Keep original data for filtering
         self.block_data_original = self.block_data.copy()
 
         self.ensure_faulted_column()  # Ensure all blocks have faulted status
-        print("✅ Faulted column ensured for all blocks")
+        print("Faulted column ensured for all blocks")
 
         # Initialize filtered data structures for current line
         self.filtered_light_states = {}
@@ -44,7 +44,7 @@ class RailwayData:
         self.filtered_blocks = {}
         
         self.filter_data_by_line(self.current_line)
-        print("🎯 Track data filtered for current line")
+        print("Track data filtered for current line")
 
         # System log reference for broadcasting messages
         self.system_log = None
@@ -89,7 +89,7 @@ class RailwayData:
     def set_system_log(self, system_log):
         """Set reference to system log for message broadcasting"""
         self.system_log = system_log
-        print("📝 System log reference set")
+        print("System log reference set")
 
     def load_all_track_data(self):
         """Load track infrastructure data from TXT files into separate variables."""
@@ -147,7 +147,7 @@ class RailwayData:
                                 }
 
             except FileNotFoundError:
-                print(f"⚠️ Warning: {file_path} not found. Skipping {line} line data.")
+                print(f"Warning: {file_path} not found. Skipping {line} line data.")
 
     def load_all_block_data(self):
         """Load all block data from TXT files - each block starts unoccupied and not faulted"""
@@ -170,7 +170,7 @@ class RailwayData:
                             # ["No", line, block_number, "No"]
                             all_block_data.append(["No", line, row[1], "No"])
             except FileNotFoundError:
-                print(f"⚠️ Warning: {file_path} not found. Skipping {line} block data.")
+                print(f"Warning: {file_path} not found. Skipping {line} block data.")
         
         return all_block_data
 
@@ -220,12 +220,12 @@ class RailwayData:
             
             # Only update if the value is actually changing
             if old_value == new_value:
-                print(f"🔄 DEBUG: No change needed - block_data_original[{row_index}][{col_index}] already '{new_value}'")
+                print(f"DEBUG: No change needed - block_data_original[{row_index}][{col_index}] already '{new_value}'")
                 return
             
             # Update the value in the original data (source of truth)
             self.block_data_original[row_index][col_index] = new_value
-            print(f"📝 DEBUG: Updated block_data_original[{row_index}][{col_index}] from '{old_value}' to '{new_value}'")
+            print(f"DEBUG: Updated block_data_original[{row_index}][{col_index}] from '{old_value}' to '{new_value}'")
             
             # Also update the filtered data if we're currently viewing that line
             current_line = self.block_data_original[row_index][1]
@@ -237,10 +237,10 @@ class RailwayData:
                         if len(filtered_row) < 4:
                             filtered_row.append("No")
                         filtered_row[col_index] = new_value
-                        print(f"📝 DEBUG: Also updated block_data[{idx}][{col_index}] to '{new_value}'")
+                        print(f"DEBUG: Also updated block_data[{idx}][{col_index}] to '{new_value}'")
                         break
             else:
-                print(f"📝 DEBUG: Not updating block_data (current: {self.current_line}, target: {current_line})")
+                print(f"DEBUG: Not updating block_data (current: {self.current_line}, target: {current_line})")
             
             # Sync to filtered_blocks for PLC processing
             block_num = str(self.block_data_original[row_index][2])
@@ -253,20 +253,20 @@ class RailwayData:
                     if col_index == 0:
                         is_occupied = (new_value == "Yes")
                         self.filtered_blocks[block_key]["occupied"] = is_occupied
-                        print(f"📝 DEBUG: Updated filtered_blocks['{block_key}']['occupied'] to {is_occupied}")
+                        print(f"DEBUG: Updated filtered_blocks['{block_key}']['occupied'] to {is_occupied}")
                     
                     # If faulted changed (col 3)
                     elif col_index == 3:
                         is_faulted = (new_value == "Yes")
                         self.filtered_blocks[block_key]["faulted"] = is_faulted
-                        print(f"📝 DEBUG: Updated filtered_blocks['{block_key}']['faulted'] to {is_faulted}")
+                        print(f"DEBUG: Updated filtered_blocks['{block_key}']['faulted'] to {is_faulted}")
             
             # Trigger callbacks to update UI components
             for callback in self.on_data_update:
                 try:
                     callback()
                 except Exception as e:
-                    print(f"❌ Callback error in update_block_data: {e}")
+                    print(f"Callback error in update_block_data: {e}")
     
     def update_track_data(self, category, name, field, new_value):
         """Update track data and notify callbacks - used for switches, crossings, lights"""
@@ -300,7 +300,7 @@ class RailwayData:
                     try:
                         callback()
                     except Exception as e:
-                        print(f"❌ Callback error: {e}")
+                        print(f"Callback error: {e}")
     
     def update_block_in_track_data(self, block_num, field, value):
         """Update a specific block in track_data - used by PLC"""
@@ -313,7 +313,7 @@ class RailwayData:
                 try:
                     callback()
                 except Exception as e:
-                    print(f"❌ Callback error: {e}")
+                    print(f"Callback error: {e}")
 
     def sync_block_occupancy_from_track(self):
         """Sync occupancy from track_data back to block_data - ensures consistency"""
@@ -364,13 +364,13 @@ class RailwayData:
                     try:
                         callback()
                     except Exception as e:
-                        print(f"❌ Callback error: {e}")
+                        print(f"Callback error: {e}")
 
     def set_current_line(self, line):
         """Set the current active track and filter data to show only that line"""
         if line != self.current_line:
             self.current_line = line
-            print(f"🔄 Switching to {line} line")
+            print(f"Switching to {line} line")
             self.filter_data_by_line(line)  # Filter all data for new line
             # Notify all listeners that line changed
             for callback in self.on_line_change:
@@ -382,18 +382,18 @@ class RailwayData:
         
         # Debug: Check what's in block_data_original for this line
         green_blocks = [row for row in self.block_data_original if row[1] == "Green"]
-        print(f"📊 DEBUG: block_data_original has {len(green_blocks)} Green blocks")
+        print(f"DEBUG: block_data_original has {len(green_blocks)} Green blocks")
         for row in green_blocks[:3]:  # Show first 3 blocks
-            print(f"📊 DEBUG:   Block {row[2]}: {row}")
+            print(f"DEBUG:   Block {row[2]}: {row}")
         
         # Filter block data to show only current line blocks  
         # This creates a COPY of the original data for the current line
         self.block_data = [row.copy() for row in self.block_data_original if row[1] == line]
-        print(f"📊 DEBUG: Filtered {len(self.block_data)} blocks for {line} line from block_data_original")
+        print(f"DEBUG: Filtered {len(self.block_data)} blocks for {line} line from block_data_original")
         
         # Show what we filtered
         for row in self.block_data[:3]:  # Show first 3 blocks
-            print(f"📊 DEBUG:   Filtered Block {row[2]}: {row}")
+            print(f"DEBUG:   Filtered Block {row[2]}: {row}")
         
         # Filter track infrastructure data into separate filtered variables
         self.filtered_light_states = {k: v for k, v in self.light_states.items() 
@@ -406,7 +406,7 @@ class RailwayData:
         # Reinitialize blocks for the new line
         self.filtered_blocks = {}
         self.initialize_track_blocks()
-        print(f"✅ Data filtered for {line} line")
+        print(f"Data filtered for {line} line")
 
     def set_maintenance_mode(self, mode):
         """Set maintenance mode and notify all UI components"""

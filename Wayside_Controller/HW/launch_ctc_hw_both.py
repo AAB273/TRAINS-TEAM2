@@ -43,7 +43,7 @@ manager = UI_Variables.TrackDataManager()
 
 # CTC_UI.main()
 # WaysideControllerSoftware = 
- WaysideControllerHardware = WC_HW_MainUI(manager)
+WaysideControllerHardware = WC_HW_MainUI(manager)
 # TrackModel = UI_Structure.TrackModelUI(manager)
 # TrainModel = 
 # TrainControllerSoftware = 
