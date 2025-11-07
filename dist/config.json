@@ -1,0 +1,12 @@
+{
+  "modules": {
+    "Train Model": {"ip": "localhost", "port": 12345}, 
+    "Train SW": {"ip": "localhost", "port": 12346},
+    "Train HW": {"ip": "localhost", "port": 12347},
+    "Track Model": {"ip": "localhost", "port": 12344},
+    "CTC": {"ip": "localhost", "port": 12341},
+    "Track SW": {"ip": "localhost", "port": 12342},
+    "Track HW": {"ip": "localhost", "port": 12343}
+  }
+}
+

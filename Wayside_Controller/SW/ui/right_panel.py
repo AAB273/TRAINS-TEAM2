@@ -45,6 +45,7 @@ class RightPanel(tk.Frame):
     
     def refresh_ui(self):
         """Refresh all UI elements when data changes externally"""
+        print("DEBUG: RightPanel refresh_ui called")
         self.update_block_options()        # Update dropdown
         self.create_block_table()          # Refresh status table
         self.update_current_block_info()   # Update block details
@@ -280,61 +281,43 @@ class RightPanel(tk.Frame):
                  command=self.send_command).pack(fill=tk.X, padx=5, pady=5)
 
     def update_commanded_display(self):
-        """Update commanded display with values for current block"""
+        """Update commanded display with values for current block - FIXED VERSION"""
         selected_block = self.block_combo.get()
         current_line = self.data.current_line
         
         if selected_block and current_line:
-            # FIRST priority: Check if we have manually commanded values
-            local_auth = self.commanded_authority[current_line].get(selected_block)
-            local_speed = self.commanded_speed[current_line].get(selected_block)
+            # ALWAYS use the shared data from RailwayData - don't use local storage
+            data_auth = self.data.commanded_authority.get(current_line, {}).get(selected_block)
+            data_speed = self.data.commanded_speed.get(current_line, {}).get(selected_block)
             
-            if local_auth is not None:
-                # Use manually commanded values (these should override everything)
-                self.commanded_auth_label.config(text=f"{local_auth} blocks")
-                self.commanded_speed_label.config(text=f"{local_speed} mph")
+            if data_auth is not None or data_speed is not None:
+                # Use values from RailwayData (this allows Test UI to override)
+                auth_text = f"{data_auth} blocks" if data_auth is not None else "0 blocks"
+                speed_text = f"{data_speed} mph" if data_speed is not None else "0 mph"
                 
-                # Also ensure these values are in the track_data for PLC
-                block_key = f"Block {selected_block}"
-                # CHANGED: Use filtered_blocks instead of filtered_track_data
-                if hasattr(self.data, 'filtered_blocks') and block_key in self.data.filtered_blocks:
-                    try:
-                        # Update track data with integer values for PLC processing
-                        self.data.filtered_blocks[block_key]["authority"] = int(local_auth)
-                        self.data.filtered_blocks[block_key]["speed"] = int(local_speed)
-                    except ValueError:
-                        # If conversion fails, keep the string values
-                        print(f"Warning: Could not convert commanded values to integers: {local_auth}, {local_speed}")
+                self.commanded_auth_label.config(text=auth_text)
+                self.commanded_speed_label.config(text=speed_text)
+                
+                # Also update our local commanded dictionaries to stay in sync
+                if data_auth is not None:
+                    self.commanded_authority[current_line][selected_block] = data_auth
+                if data_speed is not None:
+                    self.commanded_speed[current_line][selected_block] = data_speed
                 
             else:
-                # SECOND priority: Check RailwayData commanded values
-                data_auth = self.data.commanded_authority.get(current_line, {}).get(selected_block, 0)
-                data_speed = self.data.commanded_speed.get(current_line, {}).get(selected_block, 0)
-                
-                if data_auth or data_speed:
-                    # Use values from RailwayData
-                    self.commanded_auth_label.config(text=f"{data_auth} blocks")
-                    self.commanded_speed_label.config(text=f"{data_speed} mph")
+                # Fallback to PLC-calculated values from track data
+                block_key = f"Block {selected_block}"
+                if hasattr(self.data, 'filtered_blocks') and block_key in self.data.filtered_blocks:
+                    block_data = self.data.filtered_blocks[block_key]
+                    authority = block_data.get("authority", 0)
+                    speed = block_data.get("speed", 0)
                     
-                    # Also update our local commanded dictionaries to stay in sync
-                    self.commanded_authority[current_line][selected_block] = data_auth
-                    self.commanded_speed[current_line][selected_block] = data_speed
-                    
+                    self.commanded_auth_label.config(text=f"{authority} blocks")
+                    self.commanded_speed_label.config(text=f"{speed} mph")
                 else:
-                    # THIRD priority: Fallback to PLC-calculated values from track data
-                    block_key = f"Block {selected_block}"
-                    # CHANGED: Use filtered_blocks instead of filtered_track_data
-                    if hasattr(self.data, 'filtered_blocks') and block_key in self.data.filtered_blocks:
-                        block_data = self.data.filtered_blocks[block_key]
-                        authority = block_data.get("authority", 0)
-                        speed = block_data.get("speed", 0)
-                        
-                        self.commanded_auth_label.config(text=f"{authority} blocks")
-                        self.commanded_speed_label.config(text=f"{speed} mph")
-                    else:
-                        # No values found anywhere - show defaults
-                        self.commanded_auth_label.config(text="0 blocks")
-                        self.commanded_speed_label.config(text="0 mph")
+                    # No values found anywhere - show defaults
+                    self.commanded_auth_label.config(text="0 blocks")
+                    self.commanded_speed_label.config(text="0 mph")
 
     def increment_auth(self, delta):
         """Increment/decrement authority value in the input field"""
@@ -361,24 +344,23 @@ class RightPanel(tk.Frame):
             self.speed_entry.insert(0, "0")
 
     def send_command(self):
-        """Send commanded speed and authority to train and update data models"""
+        """Send commanded speed and authority to train and update data models - FIXED VERSION"""
         authority = self.auth_entry.get()
         speed = self.speed_entry.get()
         block = self.block_combo.get()
         current_line = self.data.current_line
         
-        # Store in BOTH locations for consistency
+        # Store in BOTH locations for consistency, but RailwayData is the source of truth
         # Local storage for this panel
         self.commanded_authority[current_line][block] = authority
         self.commanded_speed[current_line][block] = speed
         
-        # Shared data storage for other components
+        # SHARED data storage is the source of truth (this allows Test UI to override)
         self.data.commanded_authority[current_line][block] = authority
         self.data.commanded_speed[current_line][block] = speed
         
         # Update track_data immediately so PLC can work with it
         block_key = f"Block {block}"
-        # CHANGED: Use filtered_blocks instead of filtered_track_data
         if hasattr(self.data, 'filtered_blocks') and block_key in self.data.filtered_blocks:
             try:
                 # Convert to integers for PLC processing
@@ -386,7 +368,7 @@ class RightPanel(tk.Frame):
                 self.data.filtered_blocks[block_key]["speed"] = int(speed)
             except ValueError:
                 # Handle conversion errors gracefully
-                print(f"Error converting authority/speed to integer: {authority}, {speed}")
+                print(f"Warning: Could not convert commanded values to integers: {authority}, {speed}")
         
         # Log the command action
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -602,3 +584,29 @@ class RightPanel(tk.Frame):
     def on_line_changed(self):
         """Refresh right panel when line changes"""
         self.refresh_ui()  # Refresh all UI elements for new line
+
+    # Add this method to your right_panel.py class
+
+    def update_commanded_from_external(self, track, block, speed, authority):
+        """Update commanded values from external source (Test UI) without conflict"""
+        # Store in both locations for consistency
+        self.commanded_authority[track][block] = authority
+        self.commanded_speed[track][block] = speed
+        
+        # Shared data storage for other components
+        self.data.commanded_authority[track][block] = authority
+        self.data.commanded_speed[track][block] = speed
+        
+        # Update track_data immediately so PLC can work with it
+        block_key = f"Block {block}"
+        if hasattr(self.data, 'filtered_blocks') and block_key in self.data.filtered_blocks:
+            try:
+                # Convert to integers for PLC processing
+                self.data.filtered_blocks[block_key]["authority"] = int(authority)
+                self.data.filtered_blocks[block_key]["speed"] = int(speed)
+            except ValueError:
+                # Handle conversion errors gracefully
+                print(f"Warning: Could not convert commanded values to integers: {authority}, {speed}")
+        
+        # Update the display
+        self.update_commanded_display()

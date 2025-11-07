@@ -1,0 +1,9 @@
+DATASHEET: Train weight empty: 40.9 metric tons
+DATASHEET: Train weight fully loaded: 56.7 metric tons
+Train weight 2/3 load: 56.7-40.9 = 15.8,    (2/3) * 15.8 = 10.53,   10.53 + 40.9 = 51.43 metric tons
+DATASHEET: Acceleration 2/3 load: 0.5 m/s^2
+
+Maximum Force: (51.43 * 1000) * 0.5 = 25715 N   (This is F = ma)
+
+This 25715N will be the force that is used to generate a velocity when Train Controller outputs a zero velocity.
+

@@ -11,7 +11,7 @@ class TrainSocketServer:
         self.running = False
         self.connected_clients: Dict[str, socket.socket] = {}
         self.allowed_connections: Set[str] = set()  # IDs of UIs this UI can communicate with
-        self.max_connections = 2
+        self.max_connections = 3
         self.update_callback: Optional[Callable] = None
         
     def set_allowed_connections(self, ui_ids: list):
@@ -95,23 +95,34 @@ class TrainSocketServer:
             client_socket.close()
                     
     def _handle_client(self, client_socket, client_ui_id):
-        """Handle client messages"""
+        """Handle client messages - with multiple JSON support"""
+        buffer = ""
         while self.running:
             try:
                 data = client_socket.recv(1024).decode('utf-8')
                 if not data:
                     break
                     
-                # Parse JSON message
-                message = json.loads(data)
+                buffer += data
                 
-                # Skip handshake messages in normal processing
-                if message.get('type') != 'handshake':
-                    if self.update_callback:
-                        self.update_callback(message, client_ui_id)
-                
-            except json.JSONDecodeError:
-                print("Invalid JSON received")
+                # Try to parse complete JSON objects from buffer
+                while buffer:
+                    try:
+                        # Find complete JSON object
+                        message, idx = self._extract_json(buffer)
+                        if message:
+                            if message.get('type') != 'handshake':
+                                if self.update_callback:
+                                    self.update_callback(message, client_ui_id)
+                            buffer = buffer[idx:]  # Remove processed part
+                        else:
+                            break  # Incomplete JSON, wait for more data
+                    except json.JSONDecodeError:
+                        # If we can't parse, clear buffer to prevent buildup
+                        print("JSON decode error, clearing buffer")
+                        buffer = ""
+                        break
+                        
             except Exception as e:
                 print(f"Client handling error: {e}")
                 break
@@ -121,6 +132,43 @@ class TrainSocketServer:
             del self.connected_clients[client_ui_id]
         client_socket.close()
         print(f"Client {client_ui_id} disconnected")
+
+    def _extract_json(self, buffer):
+        """Extract first complete JSON object from buffer"""
+        try:
+            # Try to parse the entire buffer
+            message = json.loads(buffer)
+            return message, len(buffer)
+        except json.JSONDecodeError:
+            # If that fails, try to find where the JSON ends
+            # This is a simple approach - look for balanced braces
+            brace_count = 0
+            in_string = False
+            escape = False
+            
+            for i, char in enumerate(buffer):
+                if escape:
+                    escape = False
+                    continue
+                    
+                if char == '\\':
+                    escape = True
+                elif char == '"' and not escape:
+                    in_string = not in_string
+                elif not in_string:
+                    if char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            # Found complete JSON object
+                            try:
+                                message = json.loads(buffer[:i+1])
+                                return message, i+1
+                            except json.JSONDecodeError:
+                                continue
+            
+            return None, 0  # No complete JSON found
         
     def connect_to_ui(self, host: str, port: int, target_ui_id: str):
         """Connect to another UI server"""
@@ -185,13 +233,13 @@ class TrainSocketServer:
                 del self.connected_clients[target_ui_id]
             return False
     
-    #def broadcast_to_allowed(self, message: dict):
+    def broadcast_to_allowed(self, message: dict):
         """Broadcast a message to all allowed and connected UIs"""
-    #    success_count = 0
-      #  for ui_id in list(self.connected_clients.keys()):
-     #       if self.send_to_ui(ui_id, message):
-     #           success_count += 1
-     #   return success_count
+        success_count = 0
+        for ui_id in list(self.connected_clients.keys()):
+            if self.send_to_ui(ui_id, message):
+                success_count += 1
+        return success_count
 
     def stop_server(self):
         """Stop the server and close all connections"""
@@ -232,39 +280,8 @@ server1.connect_to_ui('localhost', 12347, "ui_3")
 # Send a message to UI 2
 server1.send_to_ui("ui_2", {"command": "set_power", "value": 0.5})
 
-
-# REQUIRED AT THE END OF YOUR UI BUILDING
-                self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-
-#REQUIRED AS A FUNCTION IN YOUR OVERALL UI FILE
-
-     def on_closing(self):
-        print("Closing application...")
-        self.server.running = False
-        if self.server.server_socket:
-            try:
-                self.server.server_socket.close()
-            except:
-                pass
-        self.root.destroy()
-
-
-        
 #Need to create your own "process_message" function that proccesses the commands other UI's send to so that you can act on those commands.
 Look at Train Model Passenger Ui for an example of what it looks like. 
-
-    Example of Process Function:
-        def _process_message(self, message, source_ui_id):
-        try:
-            print(f"Received message from {source_ui_id}: {message}")
-
-            command = message.get('command')
-            value = message.get('value')
-            
-            if command == 'set_power':
-                self.current_train.last_power_command = self.current_train.power_command
-                self.current_train.set_power_command(value)
-
 For Test UI's, put this section of code into your _init_ definition
 
 def empty_handler(message, source_ui_id):
