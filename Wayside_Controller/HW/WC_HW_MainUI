@@ -919,7 +919,7 @@ class RightPanel(tk.Frame):
         self.create_commanded_section()
        
         # Search and block table
-        self.create_block_table_section()
+        #self.create_block_table_section()
         self.update_speed()
 
     def update_block_options(self):
