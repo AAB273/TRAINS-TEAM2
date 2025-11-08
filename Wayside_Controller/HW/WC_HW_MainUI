@@ -282,7 +282,10 @@ root.configure(bg="#0b1443")
 header_frame = tk.Frame(root, bg="#0b1443")
 header_frame.pack(fill="x", pady=10)
 
-# Load and display the BLT logo
+## creating bit logo
+
+# 
+def create_blt_logo(header)
 try:
     # Load the image and resize it appropriately
     logo_image = Image.open("blt logo.png")
@@ -293,11 +296,13 @@ try:
     logo = tk.Label(header_frame, image=logo_photo, bg="#0b1443")
     logo.image = logo_photo  # Keep a reference to prevent garbage collection
     logo.pack(side="left", padx=15)
+
 except Exception as e:
     # Fallback to text if image loading fails
     print(f"Error loading logo: {e}")
     logo = tk.Label(header_frame, text="🚉", bg="#0b1443", fg="white", font=("Arial", 20))
     logo.pack(side="left", padx=15)
+return logo
 
 # Fault LED indicator
 fault_led = tk.Label(header_frame, text="Fault LED", bg="gray", fg="white", width=10, font=("Arial", 10, "bold"))
