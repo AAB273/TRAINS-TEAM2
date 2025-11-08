@@ -838,6 +838,7 @@ left_panel.pack(side="left", fill="y", padx=5, pady=5)
 #######################################################################################
 # ---------- RIGHT PANEL ---------- #
 class RightPanel(tk.Frame):
+
     def __init__(self, parent, data):
         super().__init__(parent, bg='#1a1a4d', width=250)
         self.pack_propagate(False)
@@ -919,6 +920,7 @@ class RightPanel(tk.Frame):
        
         # Search and block table
         self.create_block_table_section()
+        self.update_speed()
 
     def update_block_options(self):
         """Update block selector based on current line"""
@@ -1005,7 +1007,12 @@ class RightPanel(tk.Frame):
             add_to_message_log("ERROR: Invalid speed format. Please enter a valid number.", "ERROR")
             
     except Exception as e:
-        add_to_message_log(f"ERROR updating speed: {e}", "ERROR")
+        add_to_message_log(f"ERROR updating speed: {e}")
+
+# Create the right panel with mock data
+right_panel = RightPanel(main_frame, test_data)
+right_panel.pack(side="right", fill="y", padx=5, pady=5)
+
 
 def extract_speed_value(self, speed_input):
     """Extract numeric speed value from various input formats"""
@@ -1144,9 +1151,6 @@ def send_commanded_speed_to_track_model(self, speed):
         """Refresh block table when mode changes"""
         self.create_block_table()
 
-# Create the right panel with mock data
-right_panel = RightPanel(main_frame, test_data)
-right_panel.pack(side="right", fill="y", padx=5, pady=5)
 
 # ---------- MAINTENANCE SCREEN (simple placeholder) ---------- #
 maint_label = tk.Label(maintenance_frame, text="Maintenance Mode Active", bg="#0b1443", fg="white", font=("Arial", 24))
