@@ -285,7 +285,7 @@ header_frame.pack(fill="x", pady=10)
 # Load and display the BLT logo
 try:
     # Load the image and resize it appropriately
-    logo_image = Image.open("/home/siram/TRAINS-TEAM2/blt logo.png")
+    logo_image = Image.open("blt logo.png")
     logo_image = logo_image.resize((60, 60), Image.Resampling.LANCZOS)  # Adjust size as needed
     logo_photo = ImageTk.PhotoImage(logo_image)
    
@@ -372,7 +372,7 @@ canvas.pack(fill="both", expand=True)
 
 # Load and display the Blue Linge track image
 try:
-    track_image = Image.open("/home/siram/TRAINS-TEAM2/Blue Line.png")
+    track_image = Image.ope("Blue Line.png")
     # Resize image to fit the canvas while maintaining aspect ratio
     track_image = track_image.resize((700, 400), Image.Resampling.LANCZOS)
     track_photo = ImageTk.PhotoImage(track_image)
