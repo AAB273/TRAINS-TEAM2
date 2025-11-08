@@ -9,7 +9,11 @@ if os.environ.get('TRAINS_LAUNCHER_RUNNING') == '1':
     sys.exit(1)
 
 def launch_all():
-    exe_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+    # Handle both PyInstaller onedir and regular Python execution
+    if getattr(sys, 'frozen', False):
+        exe_dir = sys._MEIPASS  # PyInstaller onedir mode
+    else:
+        exe_dir = os.path.dirname(os.path.abspath(__file__))
     
     print("\n" + "="*60)
     print("TRAINS TEAM 2 - UNIFIED CONTROL SYSTEM")
@@ -29,6 +33,7 @@ def launch_all():
     # Set PYTHONPATH to include exe_dir so imports work
     env = os.environ.copy()
     env['PYTHONPATH'] = exe_dir + os.pathsep + env.get('PYTHONPATH', '')
+    env['TRAINS_LAUNCHER_RUNNING'] = '1'
     
     print("Starting modules...\n")
     for module_name, module_file in modules:
@@ -39,12 +44,13 @@ def launch_all():
             try:
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                startupinfo.wShowWindow = subprocess.SW_HIDE
+                startupinfo.wShowWindow = subprocess.SW_SHOW
                 
                 process = subprocess.Popen(
-                [sys.executable, file_path],
-                cwd=exe_dir,
-                env=env
+                    [sys.executable, file_path],
+                    cwd=exe_dir,
+                    env=env,
+                    startupinfo=startupinfo
                 )
                 processes.append((module_name, process))
                 print(f"    SUCCESS: {module_name} started")
