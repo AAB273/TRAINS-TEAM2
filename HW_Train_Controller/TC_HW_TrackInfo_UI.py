@@ -15,6 +15,7 @@ class TrackInformationPanel:
 		blockData: Dictionary containing track information for each line and block
 		notebook: ttk Notebook widget for tabs
 		timeLabels: Dict of time labels for each tab
+		testLine: StringVar holding the selected line in test mode
 	"""
 	
 	def __init__(self, root):
@@ -26,6 +27,7 @@ class TrackInformationPanel:
 		
 		self.currentBlock = tk.IntVar(value=1)
 		self.currentLine = tk.StringVar(value='Blue Line')
+		self.testLine = tk.StringVar(value='Blue Line')
 		self.trackMap = None
 		self.timeLabels = {}
 		self.infoLabels = {}
@@ -103,9 +105,13 @@ class TrackInformationPanel:
 		self.notebook = ttk.Notebook(self.root)
 		self.notebook.pack(fill='both', expand=True)
 		
+		# Create info tabs for each line
 		self._createTrackInfoTab('Blue Line', '#1a5490')
 		self._createTrackInfoTab('Green Line', '#2d7a2d')
 		self._createTrackInfoTab('Red Line', '#c0392b')
+		
+		# Create single test mode tab
+		self._createTestModeTab()
 		
 	def _createTrackInfoTab(self, line_name, line_color):
 		# Creates the Track Information display tab for a specific line.
@@ -143,16 +149,215 @@ class TrackInformationPanel:
 		mainFrame = tk.Frame(frame, bg='#7cb9e8')
 		mainFrame.pack(fill='both', expand=True, padx=20, pady=20)
 		
-		# Info Section (no map for now)
+		# Info Section only
 		self._createInfoSection(mainFrame, line_name, line_color)
 		
-		# Test Mode Section
-		self._createTestModeSection(mainFrame, line_name, line_color)
+	def _createTestModeTab(self):
+		# Creates a single test mode tab with line selector.
+		frame = tk.Frame(self.notebook, bg='#7cb9e8')
+		self.notebook.add(frame, text='Test Mode')
+		
+		headerFrame = tk.Frame(frame, bg='#1e5a8e')
+		headerFrame.pack(fill='x')
+		
+		headerLabel = tk.Label(
+			headerFrame,
+			text="TEST MODE\nALL LINES",
+			font=('Arial', 24, 'bold'),
+			bg='#1e5a8e',
+			fg='white',
+			pady=15
+		)
+		headerLabel.pack()
+		
+		timeFrame = tk.Frame(headerFrame, bg='#15406b', relief='raised', bd=3)
+		timeFrame.pack(pady=(0, 10))
+		
+		timeLabel = tk.Label(
+			timeFrame,
+			text="",
+			font=('Arial', 16, 'bold'),
+			bg='#15406b',
+			fg='white',
+			padx=20,
+			pady=8
+		)
+		timeLabel.pack()
+		self.timeLabels['Test Mode'] = timeLabel
+		
+		mainFrame = tk.Frame(frame, bg='#7cb9e8')
+		mainFrame.pack(fill='both', expand=True, padx=20, pady=20)
+		
+		# Line Selector
+		selectorFrame = tk.Frame(mainFrame, bg='#34495e', relief='raised', bd=4)
+		selectorFrame.pack(fill='x', pady=(0, 20))
+		
+		selectorTitle = tk.Label(
+			selectorFrame,
+			text="SELECT LINE",
+			font=('Arial', 16, 'bold'),
+			bg='#34495e',
+			fg='white',
+			pady=10
+		)
+		selectorTitle.pack()
+		
+		buttonFrame = tk.Frame(selectorFrame, bg='#2c3e50')
+		buttonFrame.pack(fill='x', padx=20, pady=15)
+		
+		# Line buttons
+		blueBtn = tk.Button(
+			buttonFrame,
+			text="Blue Line",
+			font=('Arial', 14, 'bold'),
+			bg='#1a5490',
+			fg='white',
+			activebackground='#0d3a6b',
+			relief='raised',
+			bd=4,
+			padx=30,
+			pady=15,
+			command=lambda: self._switchTestLine('Blue Line')
+		)
+		blueBtn.pack(side='left', expand=True, padx=5)
+		
+		greenBtn = tk.Button(
+			buttonFrame,
+			text="Green Line",
+			font=('Arial', 14, 'bold'),
+			bg='#2d7a2d',
+			fg='white',
+			activebackground='#1e5a1e',
+			relief='raised',
+			bd=4,
+			padx=30,
+			pady=15,
+			command=lambda: self._switchTestLine('Green Line')
+		)
+		greenBtn.pack(side='left', expand=True, padx=5)
+		
+		redBtn = tk.Button(
+			buttonFrame,
+			text="Red Line",
+			font=('Arial', 14, 'bold'),
+			bg='#c0392b',
+			fg='white',
+			activebackground='#922b21',
+			relief='raised',
+			bd=4,
+			padx=30,
+			pady=15,
+			command=lambda: self._switchTestLine('Red Line')
+		)
+		redBtn.pack(side='left', expand=True, padx=5)
+		
+		# Test controls frame
+		testFrame = tk.Frame(mainFrame, bg='#e8f4f8', relief='raised', bd=4)
+		testFrame.pack(fill='both', expand=True)
+		
+		self.testTitleLabel = tk.Label(
+			testFrame,
+			text="TEST MODE\nBLUE LINE",
+			font=('Arial', 16, 'bold'),
+			bg='#1a5490',
+			fg='white',
+			relief='raised',
+			bd=4,
+			padx=40,
+			pady=15
+		)
+		self.testTitleLabel.pack(pady=20)
+		
+		controlFrame = tk.Frame(testFrame, bg='#5dade2', relief='raised', bd=4)
+		controlFrame.pack(fill='x', padx=40, pady=20)
+		
+		controlTitle = tk.Label(
+			controlFrame,
+			text="BLOCK SELECTOR",
+			font=('Arial', 16, 'bold'),
+			bg='#5dade2',
+			fg='white',
+			pady=15
+		)
+		controlTitle.pack()
+		
+		sliderFrame = tk.Frame(controlFrame, bg='#aed6f1')
+		sliderFrame.pack(fill='x', padx=30, pady=20)
+		
+		# Get initial block range
+		blocks = list(self.blockData['Blue Line'].keys())
+		min_block = min(blocks) if blocks else 1
+		max_block = max(blocks) if blocks else 15
+		
+		self.blockSlider = tk.Scale(
+			sliderFrame,
+			from_=min_block,
+			to=max_block,
+			orient='horizontal',
+			command=self._onTestBlockChange,
+			font=('Arial', 14, 'bold'),
+			bg='#3498db',
+			fg='white',
+			activebackground='#2980b9',
+			troughcolor='#1e5a8e',
+			relief='raised',
+			bd=3,
+			length=350,
+			width=35,
+			sliderlength=50
+		)
+		self.blockSlider.pack()
+		self.blockSlider.set(min_block)
+		
+		infoDisplay = tk.Frame(testFrame, bg='#d6eaf8', relief='raised', bd=4)
+		infoDisplay.pack(fill='both', expand=True, padx=40, pady=(20, 40))
+		
+		infoTitle = tk.Label(
+			infoDisplay,
+			text="CURRENT BLOCK INFORMATION",
+			font=('Arial', 16, 'bold'),
+			bg='#d6eaf8',
+			fg='#1e5a8e',
+			pady=15
+		)
+		infoTitle.pack()
+		
+		self._createTestInfoLabels(infoDisplay)
+		
+		# Initialize test display
+		self._updateTestInfo(min_block, 'Blue Line')
+		
+	def _switchTestLine(self, line_name):
+		# Switches the active line in test mode.
+		self.testLine.set(line_name)
+		
+		# Update title with line-specific color
+		colors = {
+			'Blue Line': '#1a5490',
+			'Green Line': '#2d7a2d',
+			'Red Line': '#c0392b'
+		}
+		
+		self.testTitleLabel.config(
+			text=f"TEST MODE\n{line_name.upper()}",
+			bg=colors[line_name]
+		)
+		
+		# Update slider range
+		blocks = list(self.blockData[line_name].keys())
+		min_block = min(blocks) if blocks else 1
+		max_block = max(blocks) if blocks else 15
+		
+		self.blockSlider.config(from_=min_block, to=max_block)
+		self.blockSlider.set(min_block)
+		
+		# Update display
+		self._updateTestInfo(min_block, line_name)
 		
 	def _createInfoSection(self, parent, line_name, line_color):
 		# Creates the track information display section.
-		infoFrame = tk.Frame(parent, bg='#34495e', relief='raised', bd=4, width=500)
-		infoFrame.pack(side='left', fill='both', padx=(0, 10), expand=True)
+		infoFrame = tk.Frame(parent, bg='#34495e', relief='raised', bd=4)
+		infoFrame.pack(fill='both', expand=True)
 		
 		infoTitle = tk.Label(
 			infoFrame,
@@ -177,96 +382,16 @@ class TrackInformationPanel:
 		self.infoLabels[line_name]['switch'] = self._createInfoLabel(infoContainer, "SWITCH STATUS:", "None")
 		self.infoLabels[line_name]['station'] = self._createInfoLabel(infoContainer, "NEAREST STATION:", "Unknown")
 		
-	def _createTestModeSection(self, parent, line_name, line_color):
-		# Creates test mode with block selector.
-		testFrame = tk.Frame(parent, bg='#e8f4f8', relief='raised', bd=4, width=500)
-		testFrame.pack(side='right', fill='both', padx=(10, 0), expand=True)
-		
-		testTitle = tk.Label(
-			testFrame,
-			text=f"TEST MODE\n{line_name}",
-			font=('Arial', 16, 'bold'),
-			bg=line_color,
-			fg='white',
-			relief='raised',
-			bd=4,
-			padx=40,
-			pady=15
-		)
-		testTitle.pack(pady=20)
-		
-		controlFrame = tk.Frame(testFrame, bg='#5dade2', relief='raised', bd=4)
-		controlFrame.pack(fill='x', padx=40, pady=20)
-		
-		controlTitle = tk.Label(
-			controlFrame,
-			text="BLOCK SELECTOR",
-			font=('Arial', 16, 'bold'),
-			bg='#5dade2',
-			fg='white',
-			pady=15
-		)
-		controlTitle.pack()
-		
-		sliderFrame = tk.Frame(controlFrame, bg='#aed6f1')
-		sliderFrame.pack(fill='x', padx=30, pady=20)
-		
-		# Get block range for this line
-		blocks = list(self.blockData[line_name].keys())
-		min_block = min(blocks) if blocks else 1
-		max_block = max(blocks) if blocks else 15
-		
-		blockSlider = tk.Scale(
-			sliderFrame,
-			from_=min_block,
-			to=max_block,
-			orient='horizontal',
-			command=lambda v: self._onBlockChange(v, line_name),
-			font=('Arial', 14, 'bold'),
-			bg='#3498db',
-			fg='white',
-			activebackground='#2980b9',
-			troughcolor='#1e5a8e',
-			relief='raised',
-			bd=3,
-			length=350,
-			width=35,
-			sliderlength=50
-		)
-		blockSlider.pack()
-		blockSlider.set(min_block)
-		
-		infoDisplay = tk.Frame(testFrame, bg='#d6eaf8', relief='raised', bd=4)
-		infoDisplay.pack(fill='both', expand=True, padx=40, pady=(20, 40))
-		
-		infoTitle = tk.Label(
-			infoDisplay,
-			text="CURRENT BLOCK INFORMATION",
-			font=('Arial', 16, 'bold'),
-			bg='#d6eaf8',
-			fg='#1e5a8e',
-			pady=15
-		)
-		infoTitle.pack()
-		
-		self._createTestInfoLabels(infoDisplay, line_name)
-		
-	def _createTestInfoLabels(self, parent, line_name):
+	def _createTestInfoLabels(self, parent):
 		# Creates info labels for test mode display.
 		infoContainer = tk.Frame(parent, bg='#d6eaf8')
 		infoContainer.pack(fill='both', expand=True, padx=30, pady=(0, 20))
 		
-		if line_name not in self.testInfoLabels:
-			self.testInfoLabels[line_name] = {}
-		
-		blocks = list(self.blockData[line_name].keys())
-		min_block = min(blocks) if blocks else 1
-		
-		self.testInfoLabels[line_name]['block'] = self._createTestLabel(infoContainer, "BLOCK:", str(min_block))
-		self.testInfoLabels[line_name]['slope'] = self._createTestLabel(infoContainer, "SLOPE:", "0.0%")
-		self.testInfoLabels[line_name]['speed'] = self._createTestLabel(infoContainer, "SPEED LIMIT:", "40 mph")
-		self.testInfoLabels[line_name]['switch'] = self._createTestLabel(infoContainer, "SWITCH STATUS:", "None")
-		self.testInfoLabels[line_name]['station'] = self._createTestLabel(infoContainer, "NEAREST STATION:", "Unknown")
+		self.testInfoLabels['block'] = self._createTestLabel(infoContainer, "BLOCK:", "1")
+		self.testInfoLabels['slope'] = self._createTestLabel(infoContainer, "SLOPE:", "0.0%")
+		self.testInfoLabels['speed'] = self._createTestLabel(infoContainer, "SPEED LIMIT:", "40 mph")
+		self.testInfoLabels['switch'] = self._createTestLabel(infoContainer, "SWITCH STATUS:", "None")
+		self.testInfoLabels['station'] = self._createTestLabel(infoContainer, "NEAREST STATION:", "Unknown")
 		
 	def _createTestLabel(self, parent, labelText, valueText):
 		# Creates a formatted test info label.
@@ -330,10 +455,11 @@ class TrackInformationPanel:
 		
 		return value
 		
-	def _onBlockChange(self, value, line_name):
+	def _onTestBlockChange(self, value):
 		# Updates track information when block selection changes in test mode.
 		block = int(float(value))
-		self._updateTestInfo(block, line_name)
+		line = self.testLine.get()
+		self._updateTestInfo(block, line)
 		
 	def _updateTrackInfo(self):
 		# Updates all track information labels based on current block.
@@ -372,25 +498,24 @@ class TrackInformationPanel:
 		
 		data = self.blockData[line_name].get(block, {})
 		
-		if line_name in self.testInfoLabels:
-			labels = self.testInfoLabels[line_name]
+		labels = self.testInfoLabels
+		
+		labels['block'].config(text=str(block))
+		
+		slope = data.get('slope', 0.0)
+		labels['slope'].config(text=f"{slope:+.1f}%")
+		
+		speed = data.get('speed', 0)
+		labels['speed'].config(text=f"{speed:.1f} mph")
+		
+		switch = data.get('switch')
+		if switch:
+			labels['switch'].config(text=f"To: {switch}")
+		else:
+			labels['switch'].config(text="None")
 			
-			labels['block'].config(text=str(block))
-			
-			slope = data.get('slope', 0.0)
-			labels['slope'].config(text=f"{slope:+.1f}%")
-			
-			speed = data.get('speed', 0)
-			labels['speed'].config(text=f"{speed:.1f} mph")
-			
-			switch = data.get('switch')
-			if switch:
-				labels['switch'].config(text=f"To: {switch}")
-			else:
-				labels['switch'].config(text="None")
-				
-			station = data.get('station', 'Unknown')
-			labels['station'].config(text=station)
+		station = data.get('station', 'Unknown')
+		labels['station'].config(text=station)
 		
 	def _updateTime(self):
 		# Updates the time display on all tabs.
