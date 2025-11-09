@@ -41,71 +41,6 @@ station_location = []
 ######
 ##############
 
-def handle_ctc_suggested_speed(speed_data):
-    """
-    Handle CTC suggested speed messages and convert to float with 3 decimal places
-    Expected formats:
-    - String: "track HW", {"Suggested_speed", "float: new_speed"}
-    - Dictionary: {'Suggested_speed': 'float: 45.5'}
-    - Direct string: "float: 45.5"
-    """
-    try:
-        suggested_speed = None
-        
-        # Handle different input formats
-        if isinstance(speed_data, str):
-            # Extract float value from string format
-            if "float:" in speed_data:
-                # Find the float value in the string
-                import re
-                float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_data)
-                if float_match:
-                    speed_str = float_match.group(1)
-                    suggested_speed = float(speed_str)
-            else:
-                # Try direct conversion if it's just a number string
-                suggested_speed = float(speed_data)
-                
-        elif isinstance(speed_data, dict):
-            # Handle dictionary format
-            if 'Suggested_speed' in speed_data:
-                speed_value = speed_data['Suggested_speed']
-                if isinstance(speed_value, str) and "float:" in speed_value:
-                    speed_str = speed_value.split("float:")[1].strip()
-                    suggested_speed = float(speed_str)
-                else:
-                    suggested_speed = float(speed_value)
-            elif 'value' in speed_data:
-                # Alternative dictionary format
-                suggested_speed = float(speed_data['value'])
-        
-        # Format to 3 decimal places if conversion was successful
-        if suggested_speed is not None:
-            formatted_speed = round(suggested_speed, 3)
-            add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.3f} mph")
-            return formatted_speed
-        else:
-            add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
-            
-    except ValueError as e:
-        add_to_message_log(f"ERROR: Invalid speed format - {e}", "ERROR")
-    except Exception as e:
-        add_to_message_log(f"ERROR: Processing CTC speed message - {e}", "ERROR")
-    
-    return None
-
-def update_suggested_speed_display(speed):
-    """Update the suggested speed display in the right panel"""
-    try:
-        if hasattr(right_panel, 'update_suggested_speed'):
-            right_panel.update_suggested_speed(speed)
-        else:
-            # Fallback: try to find and update the label directly
-            formatted_speed = f"{speed:.3f} mph"
-            add_to_message_log(f"CTC Speed received (UI update pending): {formatted_speed}")
-    except Exception as e:
-        add_to_message_log(f"ERROR updating speed display: {e}", "ERROR")
-
 # installing update_callback function
 def update_callback(message):
     """Socket server callback function"""
@@ -131,12 +66,12 @@ class UITestData:
     def __init__(self):
 
         # SOCKET SERVER
-        self.server1 = TrainSocketServer(port=3, ui_id="Track HW")
-        self.server1.set_allowed_connections(["Track Model", "ui_3"])
+        self.server1 = TrainSocketServer(port=12346, ui_id="WC_HW_MainUI")
+        self.server1.set_allowed_connections(["WC_HW_TestUI", "ui_3"])
         self.server1.start_server(_process_message)
         
         # Connect to other UIs
-        self.server1.connect_to_ui('localhost', 4, "Track Model")
+        self.server1.connect_to_ui('localhost', 12345, "WC_HW_TestUI")
 
         # Current line
         self.current_line = "Blue"
@@ -804,34 +739,11 @@ class RightPanel(tk.Frame):
         super().__init__(parent, bg='#1a1a4d', width=250)
         self.pack_propagate(False)
         self.data = data
-        self.suggested_speed_label = None 
         self.create_widgets()
 
         # Connect line change callback
         self.data.on_line_change.append(self.on_line_changed)
         self.data.on_block_change.append(self.on_block_data_changed)
-
-    def create_suggested_section(self):
-        suggested_frame = tk.LabelFrame(self, text="Suggested:",
-                                       bg='#cccccc', font=('Arial', 10, 'bold'))
-        suggested_frame.pack(fill=tk.X, pady=5)
-       
-        tk.Label(suggested_frame, text="Authority:", bg='#cccccc').pack(anchor='w', padx=5)
-        tk.Label(suggested_frame, text="2 blocks", bg='white',
-                relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
-        tk.Label(suggested_frame, text="Speed:", bg='#cccccc').pack(anchor='w', padx=5)
-        
-        # Store reference to speed label for updates (initialize with default)
-        self.suggested_speed_label = tk.Label(suggested_frame, text="38.000 mph", bg='white',
-                relief=tk.SUNKEN)
-        self.suggested_speed_label.pack(fill=tk.X, padx=5, pady=2)
-
-    def update_suggested_speed(self, speed):
-        """Update the suggested speed display with formatted value"""
-        formatted_speed = f"{speed:.3f} mph"
-        self.suggested_speed_label.config(text=formatted_speed)
-        add_to_message_log(f"UI: Suggested speed updated to {formatted_speed}")
-
 
     def on_block_data_changed(self, row_index, col_index, new_value):
         # Update only the affected row in the table if maintenance mode

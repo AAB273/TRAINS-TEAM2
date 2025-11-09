@@ -48,22 +48,6 @@ class TrackDiagramDrawer:
             # Store positions for icon placement
             self.icon_refs[i + 1] = {"x": (x_start + x_end) / 2, "y": y}
 
-        def on_click(event):
-            """
-            Helper: print and mark the coordinates of a click for easy placement.
-            Useful for determining where to draw or position new icons.
-            """
-            x, y = event.x, event.y
-            # Draw a small red marker
-            event.widget.create_oval(x-3, y-3, x+3, y+3, fill="red", outline="")
-            # Print and copy the coordinates
-            print(f"Clicked at ({x}, {y})")
-            self.canvas.clipboard_clear()
-            self.canvas.clipboard_append(f"({x}, {y})")
-
-        # Bind left mouse click for coordinate logging
-        self.canvas.bind("<Button-1>", on_click)
-
         # Draw all icons after layout
         self.draw_track_icons()
 

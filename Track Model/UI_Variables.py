@@ -1,6 +1,5 @@
 import pandas as pd
-from Track_Model.Track_Blocks import Block
-
+from Track_Blocks import Block
 
 class TrackDataManager:
     def __init__(self):
@@ -88,7 +87,7 @@ class TrackDataManager:
 
     def _create_default_blocks(self):
         """Create 15 default track blocks."""
-        from Track_Model.Track_Blocks import Block
+        from Track_Blocks import Block
         self.blocks = [
             Block(block_number=i+1, length=50, grade=0, elevation=0, speed_limit=50, 
                 track_heater=[0, 1], beacon=[0]*128)  # Default 128-bit beacon
