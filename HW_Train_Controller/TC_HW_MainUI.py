@@ -6,7 +6,7 @@ This version runs on WINDOWS and connects to the Raspberry Pi GPIO Server remote
 The Pi runs TC_GPIO_Server.py which handles all the actual GPIO hardware.
 
 Connection Architecture:
-    Windows (This File)  ←→  Raspberry Pi (TC_GPIO_Server.py)
+    Windows (This File)  ↔  Raspberry Pi (TC_GPIO_Server.py)
           ↕
     Train Model (Windows)
 """
@@ -26,6 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from TC_HW_AirConditioning_UI import ACSystemPanel
 from TC_HW_Announcement_UI import StationAnnouncementPanel
 from TC_HW_TrackInfo_UI import TrackInformationPanel
+from TC_HW_SystemLogUI import SystemLogViewer
 from TrainSocketServer import TrainSocketServer
 
 # CONFIGURATION - SET YOUR PI'S IP ADDRESS HERE
@@ -65,6 +66,7 @@ running = True
 acPanel = None
 announcementPanel = None
 trackInfoPanel = None
+systemLogViewer = None
 
 class GPIOClient:
     """Client that connects to Raspberry Pi GPIO Server"""
@@ -77,6 +79,7 @@ class GPIOClient:
         self.running = True
         self.buffer = ""
         self.state_update_callback = None
+        self.log_message_callback = None
     
     def connect(self):
         """Connect to GPIO server on Pi"""
@@ -130,6 +133,14 @@ class GPIOClient:
             if msg_type == 'state_update':
                 if self.state_update_callback:
                     self.state_update_callback(message.get('data', {}))
+            
+            elif msg_type == 'log_message':
+                # Forward log messages to callback
+                if self.log_message_callback:
+                    self.log_message_callback(
+                        message.get('message', ''),
+                        message.get('category', 'system')
+                    )
         
         except json.JSONDecodeError:
             print(f"Invalid JSON from GPIO server: {message_str}")
@@ -182,7 +193,7 @@ def isManualMode():
     return drivetrainManualMode
 
 def cleanupAll():
-    global acPanel, announcementPanel, trackInfoPanel
+    global acPanel, announcementPanel, trackInfoPanel, systemLogViewer
     try:
         if acPanel and acPanel.root.winfo_exists():
             acPanel.root.destroy()
@@ -198,9 +209,14 @@ def cleanupAll():
             trackInfoPanel.root.destroy()
     except:
         pass
+    try:
+        if systemLogViewer and systemLogViewer.root.winfo_exists():
+            systemLogViewer.root.destroy()
+    except:
+        pass
 
 def main():
-    global acPanel, announcementPanel, trackInfoPanel
+    global acPanel, announcementPanel, trackInfoPanel, systemLogViewer
     
     print("=" * 60)
     print("Train Control System - Windows Hardware Controller")
@@ -220,6 +236,10 @@ def main():
     trackInfoRoot = tk.Toplevel(root)
     trackInfoPanel = TrackInformationPanel(trackInfoRoot)
     
+    # Create System Log Viewer window
+    systemLogRoot = tk.Toplevel(root)
+    systemLogViewer = SystemLogViewer(systemLogRoot, gpio_client=speedDisplay.gpio_client)
+    
     root.mainloop()
 
 class TrainSpeedDisplayUI:
@@ -233,6 +253,7 @@ class TrainSpeedDisplayUI:
         # GPIO Client Setup
         self.gpio_client = GPIOClient(PI_HOST, PI_GPIO_PORT)
         self.gpio_client.state_update_callback = self._onGPIOStateUpdate
+        self.gpio_client.log_message_callback = self._onGPIOLogMessage
         
         # Try to connect to GPIO server
         def connect_gpio():
@@ -271,6 +292,7 @@ class TrainSpeedDisplayUI:
         global serviceBrakeActive, trainHornActive, emergencyBrakeEngaged
         global drivetrainManualMode, manualSetpointSpeed
         global speedUpPressed, speedDownPressed, speedConfirmPressed
+        global systemLogViewer
         
         # Update local state
         leftDoorOpen = state.get('leftDoorOpen', False)
@@ -285,6 +307,13 @@ class TrainSpeedDisplayUI:
         speedUpPressed = state.get('speedUpPressed', False)
         speedDownPressed = state.get('speedDownPressed', False)
         speedConfirmPressed = state.get('speedConfirmPressed', False)
+        
+        # Forward state updates to System Log Viewer
+        if systemLogViewer:
+            try:
+                systemLogViewer.handleStateUpdate(state)
+            except:
+                pass
         
         # Send relevant updates to Train Model
         if self.server and self.train_model_connected:
@@ -316,6 +345,17 @@ class TrainSpeedDisplayUI:
                         'command': 'Service Brake',
                         'value': False
                     })
+            except:
+                pass
+    
+    def _onGPIOLogMessage(self, message, category):
+        """Handle log message from GPIO server"""
+        global systemLogViewer
+        
+        # Forward log messages to System Log Viewer
+        if systemLogViewer:
+            try:
+                systemLogViewer.handleLogMessage(message, category)
             except:
                 pass
     
