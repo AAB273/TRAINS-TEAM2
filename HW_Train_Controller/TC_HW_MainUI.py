@@ -20,9 +20,12 @@ import tkinter as tk
 import sys
 import os
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# FIX: Add parent directory to Python path to find TrainSocketServer
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
 
+# Now import your modules - these should work
 from TC_HW_AirConditioning_UI import ACSystemPanel
 from TC_HW_Announcement_UI import StationAnnouncementPanel
 from TC_HW_TrackInfo_UI import TrackInformationPanel
@@ -32,6 +35,8 @@ from TrainSocketServer import TrainSocketServer
 # CONFIGURATION - SET YOUR PI'S IP ADDRESS HERE
 PI_HOST = '192.168.1.179'  # ← CHANGE THIS to your Pi's IP address
 PI_GPIO_PORT = 12348
+
+# ... rest of your existing code continues unchanged ...
 
 def load_socket_config():
     config_path = Path("config.json")

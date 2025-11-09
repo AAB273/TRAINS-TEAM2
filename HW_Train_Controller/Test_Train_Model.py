@@ -15,22 +15,22 @@ import sys
 import os
 from pathlib import Path
 
-# Try to import TrainSocketServer from parent directory
+# FIX: Add parent directory to Python path to find TrainSocketServer
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
+
+# Now this import should work
 try:
-    # Get the parent directory (TRAINS-TEAM2)
-    project_root = Path(__file__).parent.parent
-    sys.path.insert(0, str(project_root))
-    
     from TrainSocketServer import TrainSocketServer
     HAS_SOCKET_SERVER = True
-    print(f"✓ TrainSocketServer loaded from {project_root}")
+    # Use ASCII characters to avoid Unicode issues in Windows console
+    print(f"[OK] TrainSocketServer loaded from {parent_dir}")
 except ImportError as e:
-    print("ERROR: TrainSocketServer.py not found!")
+    print(f"ERROR: TrainSocketServer.py not found!")
     print(f"Error: {e}")
-    print(f"\nLooking in parent directory: {Path(__file__).parent.parent}")
-    print("\nExpected structure:")
-    print("  C:\\Users\\lucas\\Desktop\\TRAINS-TEAM2\\TrainSocketServer.py")
-    print("  C:\\Users\\lucas\\Desktop\\TRAINS-TEAM2\\HW_Train_Controller\\Test_Train_Model.py")
+    print(f"Looking in: {parent_dir}")
+    print("Make sure TrainSocketServer.py is in the parent directory")
     sys.exit(1)
 
 class TestTrainModel:
@@ -41,20 +41,6 @@ class TestTrainModel:
         self.root.title("Test Train Model - Command Sender")
         self.root.geometry("600x700")
         self.root.configure(bg='#2c3e50')
-        
-        # Socket server setup
-        self.server = TrainSocketServer(port=12345, ui_id="Train Model")
-        self.server.set_allowed_connections(["Train Controller HW"])
-        self.server.start_server(self._process_message)
-        
-        # Try to connect to Train Controller HW
-        try:
-            self.server.connect_to_ui('localhost', 12347, "Train Controller HW")
-            print("✓ Connected to Train Controller HW")
-            self.connected = True
-        except Exception as e:
-            print(f"Note: Train Controller HW not yet running: {e}")
-            self.connected = False
         
         # Test values
         self.commandedSpeed = tk.DoubleVar(value=45.0)
@@ -67,10 +53,26 @@ class TestTrainModel:
         self.engineFailure = tk.BooleanVar(value=False)
         self.signalFailure = tk.BooleanVar(value=False)
         
+        # Auto-send control - MUST BE DEFINED BEFORE _createWidgets
+        self.auto_send = tk.BooleanVar(value=False)
+        
+        # Socket server setup
+        self.server = TrainSocketServer(port=12345, ui_id="Train Model")
+        self.server.set_allowed_connections(["Train Controller HW"])
+        self.server.start_server(self._process_message)
+        
+        # Try to connect to Train Controller HW
+        try:
+            self.server.connect_to_ui('localhost', 12347, "Train Controller HW")
+            print("[OK] Connected to Train Controller HW")
+            self.connected = True
+        except Exception as e:
+            print(f"Note: Train Controller HW not yet running: {e}")
+            self.connected = False
+        
         self._createWidgets()
         
-        # Auto-send updates every 2 seconds
-        self.auto_send = tk.BooleanVar(value=False)
+        # Start auto-send loop
         self._autoSendLoop()
         
         self.root.protocol("WM_DELETE_WINDOW", self._onClose)
@@ -393,20 +395,20 @@ class TestTrainModel:
                     'value': value
                 }
                 self.server.send_to_ui("Train Controller HW", message)
-                print(f"✓ Sent: {command} = {value}")
+                print(f"[SENT] {command} = {value}")
                 
                 # Update connection status
                 if not self.connected:
                     self.connected = True
                     self.connectionLabel.config(
-                        text="✓ Connected to Train Controller HW",
+                        text="[OK] Connected to Train Controller HW",
                         bg='#27ae60'
                     )
             except Exception as e:
-                print(f"✗ Error sending: {e}")
+                print(f"[ERROR] Error sending: {e}")
                 self.connected = False
                 self.connectionLabel.config(
-                    text="✗ Train Controller HW Disconnected",
+                    text="[ERROR] Train Controller HW Disconnected",
                     bg='#e74c3c'
                 )
     
