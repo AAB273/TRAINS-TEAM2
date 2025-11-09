@@ -89,7 +89,7 @@ class GPIOServer:
     def setupGPIO(self):
         """Initialize GPIO pins"""
         self.h = lgpio.gpiochip_open(4)
-        print(f"GPIO chip handle: {self.h}")
+        self.log(f"GPIO chip handle: {self.h}", 'system')
         
         # Configure input pins with pull-up resistors
         lgpio.gpio_claim_input(self.h, LEFT_DOOR_BUTTON, lgpio.SET_PULL_UP)
@@ -135,8 +135,33 @@ class GPIOServer:
             'drivetrain': 1, 'speed_up': 1, 'speed_down': 1, 'speed_confirm': 1
         }
         
-        print("GPIO Server Initialized")
+        self.log("GPIO Server Initialized", 'system')
         print("=" * 50)
+    
+    def log(self, message, category='system'):
+        """Log message to terminal AND broadcast to all clients"""
+        # Print to Pi terminal
+        print(message)
+        
+        # Send to all connected clients
+        log_msg = {
+            'type': 'log_message',
+            'message': message,
+            'category': category
+        }
+        
+        with self.clients_lock:
+            disconnected = []
+            for client in self.clients:
+                try:
+                    client.sendall((json.dumps(log_msg) + '\n').encode('utf-8'))
+                except:
+                    disconnected.append(client)
+            
+            # Remove disconnected clients
+            for client in disconnected:
+                if client in self.clients:
+                    self.clients.remove(client)
     
     def checkButtons(self):
         """Monitor all button inputs and update states"""
@@ -166,7 +191,7 @@ class GPIOServer:
             if self.prevStates['left_door'] == 1 and leftState == 0:
                 self.leftDoorOpen = not self.leftDoorOpen
                 lgpio.gpio_write(self.h, LEFT_DOOR_LED, 1 if self.leftDoorOpen else 0)
-                print(f"Left Door: {'OPEN' if self.leftDoorOpen else 'CLOSED'}")
+                self.log(f"Left Door: {'OPEN' if self.leftDoorOpen else 'CLOSED'}", 'doors')
                 stateChanged = True
                 time.sleep(0.3)
             
@@ -174,7 +199,7 @@ class GPIOServer:
             if self.prevStates['right_door'] == 1 and rightState == 0:
                 self.rightDoorOpen = not self.rightDoorOpen
                 lgpio.gpio_write(self.h, RIGHT_DOOR_LED, 1 if self.rightDoorOpen else 0)
-                print(f"Right Door: {'OPEN' if self.rightDoorOpen else 'CLOSED'}")
+                self.log(f"Right Door: {'OPEN' if self.rightDoorOpen else 'CLOSED'}", 'doors')
                 stateChanged = True
                 time.sleep(0.3)
             
@@ -182,7 +207,7 @@ class GPIOServer:
             if self.prevStates['headlights'] == 1 and headlightsState == 0:
                 self.headlightsOn = not self.headlightsOn
                 lgpio.gpio_write(self.h, HEADLIGHTS_LED, 1 if self.headlightsOn else 0)
-                print(f"Headlights: {'ON' if self.headlightsOn else 'OFF'}")
+                self.log(f"Headlights: {'ON' if self.headlightsOn else 'OFF'}", 'lights')
                 stateChanged = True
                 time.sleep(0.3)
             
@@ -190,35 +215,35 @@ class GPIOServer:
             if self.prevStates['interior'] == 1 and interiorState == 0:
                 self.interiorLightsOn = not self.interiorLightsOn
                 lgpio.gpio_write(self.h, INTERIOR_LIGHTS_LED, 1 if self.interiorLightsOn else 0)
-                print(f"Interior Lights: {'ON' if self.interiorLightsOn else 'OFF'}")
+                self.log(f"Interior Lights: {'ON' if self.interiorLightsOn else 'OFF'}", 'lights')
                 stateChanged = True
                 time.sleep(0.3)
             
             # Service Brake (continuous state)
             if serviceBrakeState == 0 and not self.serviceBrakeActive:
                 self.serviceBrakeActive = True
-                print("Service Brake: ENGAGED")
+                self.log("Service Brake: ENGAGED", 'brakes')
                 stateChanged = True
             elif serviceBrakeState == 1 and self.serviceBrakeActive:
                 self.serviceBrakeActive = False
-                print("Service Brake: RELEASED")
+                self.log("Service Brake: RELEASED", 'brakes')
                 stateChanged = True
             
             # Train Horn (continuous state)
             if trainHornState == 0 and not self.trainHornActive:
                 self.trainHornActive = True
-                print("Train Horn: SOUNDING")
+                self.log("Train Horn: SOUNDING", 'brakes')
                 stateChanged = True
             elif trainHornState == 1 and self.trainHornActive:
                 self.trainHornActive = False
-                print("Train Horn: OFF")
+                self.log("Train Horn: OFF", 'brakes')
                 stateChanged = True
             
             # Emergency Brake
             if self.prevStates['emergency_brake'] == 1 and emergencyBrakeState == 0:
                 self.emergencyBrakeEngaged = not self.emergencyBrakeEngaged
                 lgpio.gpio_write(self.h, EMERGENCY_BRAKE_LED, 1 if self.emergencyBrakeEngaged else 0)
-                print(f"EMERGENCY BRAKE: {'🚨 ENGAGED 🚨' if self.emergencyBrakeEngaged else 'RELEASED'}")
+                self.log(f"EMERGENCY BRAKE: {'🚨 ENGAGED 🚨' if self.emergencyBrakeEngaged else 'RELEASED'}", 'brakes')
                 stateChanged = True
                 time.sleep(0.3)
             
@@ -226,7 +251,7 @@ class GPIOServer:
             if self.prevStates['drivetrain'] == 1 and drivetrainState == 0:
                 self.drivetrainManualMode = not self.drivetrainManualMode
                 lgpio.gpio_write(self.h, DRIVETRAIN_MODE_LED, 1 if self.drivetrainManualMode else 0)
-                print(f"Drivetrain Mode: {'MANUAL' if self.drivetrainManualMode else 'AUTOMATIC'}")
+                self.log(f"Drivetrain Mode: {'MANUAL' if self.drivetrainManualMode else 'AUTOMATIC'}", 'speed')
                 stateChanged = True
                 time.sleep(0.3)
             
@@ -234,13 +259,13 @@ class GPIOServer:
             if self.drivetrainManualMode:
                 if self.prevStates['speed_up'] == 1 and speedUpState == 0:
                     self.manualSetpointSpeed = min(self.manualSetpointSpeed + 5, 70)
-                    print(f"Manual Speed Setpoint: {self.manualSetpointSpeed} MPH")
+                    self.log(f"Manual Speed Setpoint: {self.manualSetpointSpeed} MPH", 'speed')
                     stateChanged = True
                     time.sleep(0.2)
                 
                 if self.prevStates['speed_down'] == 1 and speedDownState == 0:
                     self.manualSetpointSpeed = max(self.manualSetpointSpeed - 5, 0)
-                    print(f"Manual Speed Setpoint: {self.manualSetpointSpeed} MPH")
+                    self.log(f"Manual Speed Setpoint: {self.manualSetpointSpeed} MPH", 'speed')
                     stateChanged = True
                     time.sleep(0.2)
             
@@ -291,7 +316,7 @@ class GPIOServer:
         
         if led_name in led_map:
             lgpio.gpio_write(self.h, led_map[led_name], 1 if state else 0)
-            print(f"LED {led_name}: {'ON' if state else 'OFF'}")
+            self.log(f"LED {led_name}: {'ON' if state else 'OFF'}", 'system')
             return True
         return False
     
@@ -312,11 +337,12 @@ class GPIOServer:
             
             # Remove disconnected clients
             for client in disconnected:
-                self.clients.remove(client)
+                if client in self.clients:
+                    self.clients.remove(client)
     
     def handleClient(self, client_socket, address):
         """Handle individual client connection"""
-        print(f"Client connected from {address}")
+        self.log(f"Client connected from {address}", 'system')
         
         with self.clients_lock:
             self.clients.append(client_socket)
@@ -345,14 +371,14 @@ class GPIOServer:
                         self.processCommand(line, client_socket)
         
         except Exception as e:
-            print(f"Client error: {e}")
+            self.log(f"Client error: {e}", 'error')
         
         finally:
             with self.clients_lock:
                 if client_socket in self.clients:
                     self.clients.remove(client_socket)
             client_socket.close()
-            print(f"Client disconnected from {address}")
+            self.log(f"Client disconnected from {address}", 'system')
     
     def processCommand(self, command_str, client_socket):
         """Process command from client"""
@@ -379,9 +405,9 @@ class GPIOServer:
                 client_socket.sendall((json.dumps(state_msg) + '\n').encode('utf-8'))
         
         except json.JSONDecodeError:
-            print(f"Invalid JSON received: {command_str}")
+            self.log(f"Invalid JSON received: {command_str}", 'error')
         except Exception as e:
-            print(f"Error processing command: {e}")
+            self.log(f"Error processing command: {e}", 'error')
     
     def start(self):
         """Start the GPIO server"""
@@ -395,8 +421,8 @@ class GPIOServer:
         server_socket.bind((self.host, self.port))
         server_socket.listen(5)
         
-        print(f"GPIO Server listening on {self.host}:{self.port}")
-        print("Waiting for Windows client connection...")
+        self.log(f"GPIO Server listening on {self.host}:{self.port}", 'system')
+        self.log("Waiting for Windows client connection...", 'system')
         
         try:
             while self.running:
@@ -409,7 +435,7 @@ class GPIOServer:
                 client_thread.start()
         
         except KeyboardInterrupt:
-            print("\nShutting down server...")
+            self.log("\nShutting down server...", 'system')
         
         finally:
             self.cleanup()
@@ -433,7 +459,7 @@ class GPIOServer:
             lgpio.gpio_write(self.h, SIGNAL_FAILURE_LED, 0)
             lgpio.gpiochip_close(self.h)
         
-        print("GPIO cleaned up. Goodbye!")
+        self.log("GPIO cleaned up. Goodbye!", 'system')
 
 if __name__ == "__main__":
     server = GPIOServer()
