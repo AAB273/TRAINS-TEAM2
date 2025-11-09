@@ -352,12 +352,15 @@ class TrainSpeedDisplayUI:
         """Handle log message from GPIO server"""
         global systemLogViewer
         
-        # Forward log messages to System Log Viewer
-        if systemLogViewer:
+        # DEBUG: Print to confirm we're receiving messages
+        print(f"GPIO LOG: [{category}] {message}")
+        
+        # Forward ALL log messages to System Log Viewer
+        if systemLogViewer and hasattr(systemLogViewer, 'handleLogMessage'):
             try:
                 systemLogViewer.handleLogMessage(message, category)
-            except:
-                pass
+            except Exception as e:
+                print(f"Error forwarding to log viewer: {e}")
     
     def _updateConnectionStatus(self, connected):
         """Update GPIO connection status"""
