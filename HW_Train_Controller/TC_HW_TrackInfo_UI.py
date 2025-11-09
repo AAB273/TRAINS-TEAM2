@@ -4,7 +4,7 @@ from datetime import datetime
 import os
 
 class TrackInformationPanel:
-	# UI panel for track information display with all three lines.
+	# UI panel for track information display with Green and Red lines.
 	
 	"""
 	Attributes:
@@ -22,36 +22,19 @@ class TrackInformationPanel:
 		# Initializes the track information panel.
 		self.root = root
 		self.root.title("TRACK INFORMATION PANEL")
-		self.root.geometry("1200x750")
+		self.root.geometry("1400x800")
 		self.root.configure(bg='#7cb9e8')
 		
 		self.currentBlock = tk.IntVar(value=1)
-		self.currentLine = tk.StringVar(value='Blue Line')
-		self.testLine = tk.StringVar(value='Blue Line')
+		self.currentLine = tk.StringVar(value='Green Line')
+		self.testLine = tk.StringVar(value='Green Line')
 		self.trackMap = None
 		self.timeLabels = {}
 		self.infoLabels = {}
 		self.testInfoLabels = {}
 		
-		# Track data for all three lines
+		# Track data for Green and Red lines
 		self.blockData = {
-			'Blue Line': {
-				1: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B or C'},
-				2: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B or C'},
-				3: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B or C'},
-				4: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B or C'},
-				5: {'slope': 0.0, 'speed': 31.06, 'switch': 6, 'station': 'Station B or C'},
-				6: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B'},
-				7: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B'},
-				8: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B'},
-				9: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B'},
-				10: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station B'},
-				11: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station C'},
-				12: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station C'},
-				13: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station C'},
-				14: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station C'},
-				15: {'slope': 0.0, 'speed': 31.06, 'switch': None, 'station': 'Station C'}
-			},
 			'Green Line': {
 				1: {'slope': 0.5, 'speed': 27.96, 'switch': None, 'station': 'None'},
 				2: {'slope': 1.0, 'speed': 27.96, 'switch': 'Left', 'station': 'Pioneer'},
@@ -86,7 +69,7 @@ class TrackInformationPanel:
 		self._updateTime()
 		self._updateTrackInfo()
 	
-	def beaconReceiver(self, blockNumber, line='Blue Line'):
+	def beaconReceiver(self, blockNumber, line='Green Line'):
 		# Receives block number from beacon signal.
 		self.currentLine.set(line)
 		if blockNumber in self.blockData.get(line, {}):
@@ -106,7 +89,6 @@ class TrackInformationPanel:
 		self.notebook.pack(fill='both', expand=True)
 		
 		# Create info tabs for each line
-		self._createTrackInfoTab('Blue Line', '#1a5490')
 		self._createTrackInfoTab('Green Line', '#2d7a2d')
 		self._createTrackInfoTab('Red Line', '#c0392b')
 		
@@ -190,48 +172,33 @@ class TrackInformationPanel:
 		
 		# Line Selector
 		selectorFrame = tk.Frame(mainFrame, bg='#34495e', relief='raised', bd=4)
-		selectorFrame.pack(fill='x', pady=(0, 20))
+		selectorFrame.pack(fill='x', pady=(0, 10))
 		
 		selectorTitle = tk.Label(
 			selectorFrame,
 			text="SELECT LINE",
-			font=('Arial', 16, 'bold'),
+			font=('Arial', 14, 'bold'),
 			bg='#34495e',
 			fg='white',
-			pady=10
+			pady=6
 		)
 		selectorTitle.pack()
 		
 		buttonFrame = tk.Frame(selectorFrame, bg='#2c3e50')
-		buttonFrame.pack(fill='x', padx=20, pady=15)
+		buttonFrame.pack(fill='x', padx=20, pady=10)
 		
 		# Line buttons
-		blueBtn = tk.Button(
-			buttonFrame,
-			text="Blue Line",
-			font=('Arial', 14, 'bold'),
-			bg='#1a5490',
-			fg='white',
-			activebackground='#0d3a6b',
-			relief='raised',
-			bd=4,
-			padx=30,
-			pady=15,
-			command=lambda: self._switchTestLine('Blue Line')
-		)
-		blueBtn.pack(side='left', expand=True, padx=5)
-		
 		greenBtn = tk.Button(
 			buttonFrame,
 			text="Green Line",
-			font=('Arial', 14, 'bold'),
+			font=('Arial', 12, 'bold'),
 			bg='#2d7a2d',
 			fg='white',
 			activebackground='#1e5a1e',
 			relief='raised',
-			bd=4,
-			padx=30,
-			pady=15,
+			bd=3,
+			padx=20,
+			pady=10,
 			command=lambda: self._switchTestLine('Green Line')
 		)
 		greenBtn.pack(side='left', expand=True, padx=5)
@@ -239,14 +206,14 @@ class TrackInformationPanel:
 		redBtn = tk.Button(
 			buttonFrame,
 			text="Red Line",
-			font=('Arial', 14, 'bold'),
+			font=('Arial', 12, 'bold'),
 			bg='#c0392b',
 			fg='white',
 			activebackground='#922b21',
 			relief='raised',
-			bd=4,
-			padx=30,
-			pady=15,
+			bd=3,
+			padx=20,
+			pady=10,
 			command=lambda: self._switchTestLine('Red Line')
 		)
 		redBtn.pack(side='left', expand=True, padx=5)
@@ -257,35 +224,35 @@ class TrackInformationPanel:
 		
 		self.testTitleLabel = tk.Label(
 			testFrame,
-			text="TEST MODE\nBLUE LINE",
-			font=('Arial', 16, 'bold'),
-			bg='#1a5490',
+			text="TEST MODE\nGREEN LINE",
+			font=('Arial', 14, 'bold'),
+			bg='#2d7a2d',
 			fg='white',
 			relief='raised',
-			bd=4,
-			padx=40,
-			pady=15
+			bd=3,
+			padx=30,
+			pady=10
 		)
-		self.testTitleLabel.pack(pady=20)
+		self.testTitleLabel.pack(pady=10)
 		
 		controlFrame = tk.Frame(testFrame, bg='#5dade2', relief='raised', bd=4)
-		controlFrame.pack(fill='x', padx=40, pady=20)
+		controlFrame.pack(fill='x', padx=40, pady=10)
 		
 		controlTitle = tk.Label(
 			controlFrame,
 			text="BLOCK SELECTOR",
-			font=('Arial', 16, 'bold'),
+			font=('Arial', 14, 'bold'),
 			bg='#5dade2',
 			fg='white',
-			pady=15
+			pady=10
 		)
 		controlTitle.pack()
 		
 		sliderFrame = tk.Frame(controlFrame, bg='#aed6f1')
-		sliderFrame.pack(fill='x', padx=30, pady=20)
+		sliderFrame.pack(fill='x', padx=30, pady=15)
 		
 		# Get initial block range
-		blocks = list(self.blockData['Blue Line'].keys())
+		blocks = list(self.blockData['Green Line'].keys())
 		min_block = min(blocks) if blocks else 1
 		max_block = max(blocks) if blocks else 15
 		
@@ -295,7 +262,7 @@ class TrackInformationPanel:
 			to=max_block,
 			orient='horizontal',
 			command=self._onTestBlockChange,
-			font=('Arial', 14, 'bold'),
+			font=('Arial', 12, 'bold'),
 			bg='#3498db',
 			fg='white',
 			activebackground='#2980b9',
@@ -303,14 +270,14 @@ class TrackInformationPanel:
 			relief='raised',
 			bd=3,
 			length=350,
-			width=35,
-			sliderlength=50
+			width=30,
+			sliderlength=40
 		)
 		self.blockSlider.pack()
 		self.blockSlider.set(min_block)
 		
 		infoDisplay = tk.Frame(testFrame, bg='#d6eaf8', relief='raised', bd=4)
-		infoDisplay.pack(fill='both', expand=True, padx=40, pady=(20, 40))
+		infoDisplay.pack(fill='both', expand=True, padx=40, pady=(10, 20))
 		
 		infoTitle = tk.Label(
 			infoDisplay,
@@ -325,7 +292,7 @@ class TrackInformationPanel:
 		self._createTestInfoLabels(infoDisplay)
 		
 		# Initialize test display
-		self._updateTestInfo(min_block, 'Blue Line')
+		self._updateTestInfo(min_block, 'Green Line')
 		
 	def _switchTestLine(self, line_name):
 		# Switches the active line in test mode.
@@ -333,7 +300,6 @@ class TrackInformationPanel:
 		
 		# Update title with line-specific color
 		colors = {
-			'Blue Line': '#1a5490',
 			'Green Line': '#2d7a2d',
 			'Red Line': '#c0392b'
 		}
@@ -356,21 +322,65 @@ class TrackInformationPanel:
 		
 	def _createInfoSection(self, parent, line_name, line_color):
 		# Creates the track information display section.
+		# Track map section
+		mapFrame = tk.Frame(parent, bg='#34495e', relief='raised', bd=4, width=650)
+		mapFrame.pack(side='left', fill='y', padx=(0, 10))
+		mapFrame.pack_propagate(False)
+		
+		mapTitle = tk.Label(
+			mapFrame,
+			text=f"TRACK MAP",
+			font=('Arial', 14, 'bold'),
+			bg='#34495e',
+			fg='white',
+			pady=8
+		)
+		mapTitle.pack()
+		
+		mapContainer = tk.Frame(mapFrame, bg='#2c3e50')
+		mapContainer.pack(fill='both', expand=True, padx=10, pady=10)
+		
+		# Try to load track map image using tkinter's PhotoImage
+		try:
+			track_map_path = r"C:\Users\lucas\Desktop\TRAINS-TEAM2\HW_Train_Controller\track map.png"
+			photo = tk.PhotoImage(file=track_map_path)
+			
+			# Zoom to 2/3 size
+			photo = photo.zoom(2, 2)
+			photo = photo.subsample(3, 3)
+			
+			mapLabel = tk.Label(mapContainer, image=photo, bg='#2c3e50')
+			mapLabel.image = photo  # Keep a reference
+			mapLabel.pack(padx=5, pady=5)
+		except Exception as e:
+			# If image can't be loaded, show placeholder
+			placeholderLabel = tk.Label(
+				mapContainer,
+				text="Track Map\nNot Found",
+				font=('Arial', 11),
+				bg='#2c3e50',
+				fg='#95a5a6',
+				justify='center',
+				pady=80
+			)
+			placeholderLabel.pack(fill='both', expand=True)
+		
+		# Info section
 		infoFrame = tk.Frame(parent, bg='#34495e', relief='raised', bd=4)
-		infoFrame.pack(fill='both', expand=True)
+		infoFrame.pack(side='right', fill='both', expand=True, padx=(10, 0))
 		
 		infoTitle = tk.Label(
 			infoFrame,
 			text=f"CURRENT TRACK INFO\n{line_name}",
-			font=('Arial', 16, 'bold'),
+			font=('Arial', 18, 'bold'),
 			bg='#34495e',
 			fg='white',
-			pady=10
+			pady=12
 		)
 		infoTitle.pack()
 		
 		infoContainer = tk.Frame(infoFrame, bg='#2c3e50')
-		infoContainer.pack(fill='both', expand=True, padx=15, pady=15)
+		infoContainer.pack(fill='both', expand=True, padx=20, pady=20)
 		
 		# Create info labels for this line
 		if line_name not in self.infoLabels:
@@ -427,29 +437,29 @@ class TrackInformationPanel:
 	def _createInfoLabel(self, parent, labelText, valueText):
 		# Creates a formatted info label with title and value.
 		frame = tk.Frame(parent, bg='#34495e', relief='raised', bd=3)
-		frame.pack(fill='x', pady=8)
+		frame.pack(fill='x', pady=10)
 		
 		title = tk.Label(
 			frame,
 			text=labelText,
-			font=('Arial', 14, 'bold'),
+			font=('Arial', 16, 'bold'),
 			bg='#34495e',
 			fg='#3498db',
 			anchor='w',
-			padx=10,
-			pady=5
+			padx=15,
+			pady=8
 		)
 		title.pack(fill='x')
 		
 		value = tk.Label(
 			frame,
 			text=valueText,
-			font=('Arial', 20, 'bold'),
+			font=('Arial', 24, 'bold'),
 			bg='#2c3e50',
 			fg='white',
 			anchor='w',
-			padx=15,
-			pady=10
+			padx=20,
+			pady=15
 		)
 		value.pack(fill='x')
 		
