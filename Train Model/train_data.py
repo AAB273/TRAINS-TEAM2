@@ -29,6 +29,7 @@ class Train:
         self.speed_limit = 0
         self.commanded_speed = 0
         self.commanded_authority = 0
+        self.distance_left = self.commanded_authority
 
         # For physics calculations
         self.last_power_command = 0.0
@@ -205,7 +206,7 @@ class Train:
         self.passengers_disembarking = int(value)
         self._notify_observers()
 
-    def calculate_force_speed_acceleration_(self, dt=1.0):
+    def calculate_force_speed_acceleration_distance(self, dt=1.0):
         """
         Calculate train physics based on current state and commands
         """
@@ -275,6 +276,7 @@ class Train:
         # Update state
         self.speed = new_speed
         self.acceleration = a
+        self.distance_left = self.distance_left - new_speed
         self._notify_observers()
     
 

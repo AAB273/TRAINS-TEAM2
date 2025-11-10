@@ -109,7 +109,7 @@ class TrainModelPassengerGUI:
             elif command == 'Power Command':
                 self.current_train.set_power_command(value)
             elif command == 'Train Horn':
-                playsound("Train Model\diesel-horn-02-98042.mp3")
+                playsound("Train Model/diesel-horn-02-98042.mp3")
             elif command == 'Station Announcement Message':
                 self.current_train.set_station(value)
             elif command == 'Commanded Authority':
@@ -128,7 +128,8 @@ class TrainModelPassengerGUI:
     def continuous_physics_update(self):
         """Continuously update train physics for real-time speed changes"""
         if self.current_train and self.current_train.deployed:
-            self.current_train.calculate_force_speed_acceleration_()
+            self.current_train.calculate_force_speed_acceleration_distance()
+
             self.server.send_to_ui("Train HW",{"Current Speed",self.current_train.speed})
             self.server.send_to_ui("Train SW",{"Current Speed",self.current_train.speed})
             self.update_ui_from_train(self.current_train)
