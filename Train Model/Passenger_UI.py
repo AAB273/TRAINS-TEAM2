@@ -19,6 +19,7 @@ sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
 import clock
 import time
+import string
 from playsound import playsound
 import random
 
@@ -84,10 +85,11 @@ class TrainModelPassengerGUI:
 
             command = message.get('command')
             value = message.get('value')
-            if(value == "1" or value == "0"):
-                value = bool(value)
-            else:
-                value = float(value)
+            if(string.isnumeric(value)):
+                if(value == "1" or value == "0"):
+                    value = bool(value)
+                else:
+                    value = float(value)
             
             if command == 'Cabin Interior Temperature Control':
                 target_temp = value
@@ -107,9 +109,9 @@ class TrainModelPassengerGUI:
             elif command == 'Power Command':
                 self.current_train.set_power_command(value)
             elif command == 'Train Horn':
-                print("placeholder")
+                playsound("Train Model\diesel-horn-02-98042.mp3")
             elif command == 'Station Announcement Message':
-                print("placeholder")
+                self.current_train.set_station(value)
             elif command == 'Commanded Authority':
                 self.current_train.set_commanded_authority(value)
                 self.server.send_to_ui("Train SW",{"Commanded Authority",value})
@@ -118,6 +120,8 @@ class TrainModelPassengerGUI:
                 self.current_train.set_commanded_speed(value)
                 self.server.send_to_ui("Train SW",{"Commanded Speed",value})
                 self.server.send_to_ui("Train HW",{"Commanded Speed",value})
+            elif command == 'Block Occupancy':
+                self.current_train.set_block(value)
         except Exception as e:
             print(f"Error processing message: {e}")
 
@@ -175,6 +179,18 @@ class TrainModelPassengerGUI:
             print(f"Signal Pickup Failure Deactivated")
             self.server.send_to_ui("Train SW",{"Signal Pickup Failure",0})
             self.server.send_to_ui("Train HW",{"Signal Pickup Failure",0})
+            
+    def update_disembarking(self):
+        if self.current_train and self.current_train.deployed and self.current_train.passenger_count != 0:
+            
+            if(self.current_train.speed == 0 and self.current_train.service_brake_active  and 
+            (self.current_train.right_door_open or self.current_train.left_door_open)):
+                
+                passenger_count = self.current_train.passenger_count
+                disembarking = random(0,passenger_count)
+                
+                self.current_train.set_disembarking(disembarking)
+                self.current_train.set_passenger_count(passenger_count - disembarking)
 
     def update_ui_from_train(self, train):
         """Update all UI elements when train data changes"""
@@ -279,13 +295,12 @@ class TrainModelPassengerGUI:
 
     def setup_gui(self):
         """Setup the complete GUI"""
-        # SCALED DOWN WINDOW SIZE
         self.root = tk.Tk()
         self.root.title("Passenger Train Model GUI")
         self.root.configure(bg=self.main_color)
-        self.root.geometry("900x800")  # Reduced from 1050x970
+        self.root.geometry("900x800")  
 
-        # Train Selector Dropdown Frame - FIXED WIDTH
+        # Train Selector Dropdown Frame 
         train_selector_container = tk.Frame(self.root, bg=self.main_color, height=30)
         train_selector_container.pack(fill='x', padx=8, pady=3)
         train_selector_container.pack_propagate(False)
@@ -296,7 +311,7 @@ class TrainModelPassengerGUI:
         # Train Selector
         self.train_selector_var = tk.StringVar()
         self.train_selector = tk.OptionMenu(train_selector_container, self.train_selector_var, "Loading...")
-        self.train_selector.config(bg=self.main_color, fg='white', font=('Arial', 9), width=20)  # Increased width from 12 to 20
+        self.train_selector.config(bg=self.main_color, fg='white', font=('Arial', 9), width=20)  
         self.train_selector.pack(side='left', padx=(0, 8))
         self.train_selector['menu'].config(bg=self.main_color, fg='white')
 
@@ -304,7 +319,7 @@ class TrainModelPassengerGUI:
         top_container = tk.Frame(self.root, bg=self.main_color, highlightbackground="black", highlightthickness=3)
         top_container.pack(fill='x', padx=8, pady=3)
 
-        # BLT Logo - Smaller
+        # BLT Logo 
         blt_logo_image = Image.open("Train Model/blt logo.png")
         converted_blt_logo_image = blt_logo_image.resize((60, 60))
         converted_blt_logo_image = ImageTk.PhotoImage(converted_blt_logo_image)
@@ -314,14 +329,14 @@ class TrainModelPassengerGUI:
         tk.Label(blt_logo_frame, image=converted_blt_logo_image, bg=self.main_color).pack(padx=1, pady=1)
         blt_logo_frame.image = converted_blt_logo_image
 
-        # Time Frame - Smaller
+        # Time Frame
         time_frame = tk.Frame(top_container, bg=self.off_color, width=150, height=65, highlightbackground="black", highlightthickness=3)
         time_frame.pack(side='left', padx=2, pady=2)
         time_frame.pack_propagate(False)
         self.ui_labels['time'] = tk.Label(time_frame, text="Time", bg=self.off_color, fg='white', font=('Arial', 16, 'bold'))
         self.ui_labels['time'].pack(padx=3, pady=3)
 
-        # Announcement Frame - Smaller
+        # Announcement Frame 
         Announcement_frame = tk.Frame(top_container, bg=self.off_color, width=600, height=65, highlightbackground="black", highlightthickness=3)
         Announcement_frame.pack(side='left', padx=2, pady=2)
         Announcement_frame.pack_propagate(False)
@@ -335,7 +350,7 @@ class TrainModelPassengerGUI:
         right_frame = tk.Frame(self.root, bg=self.main_color)
         right_frame.pack(side='right', fill='both', expand=True, padx=8, pady=3)
 
-        # Advertisement Frame - Smaller
+        # Advertisement Frame 
         ad_image = Image.open("Train Model/wendy's_AD.jpg")
         converted_ad_image = ad_image.resize((400, 180))
         converted_ad_image = ImageTk.PhotoImage(converted_ad_image)
@@ -345,12 +360,12 @@ class TrainModelPassengerGUI:
         tk.Label(Advertisement, image=converted_ad_image).pack(padx=1, pady=1)
         Advertisement.image = converted_ad_image
 
-        # Doors/Lights Frame - Compact
+        # Doors/Lights Frame 
         doors_and_lights_frame = tk.Frame(right_frame, height=200, highlightbackground="black", highlightthickness=2, bg=self.off_color)
         doors_and_lights_frame.pack(side='top', padx=2, pady=2, fill='x')
         doors_and_lights_frame.pack_propagate(False)
 
-        # Cabin Doors - Compact
+        # Cabin Doors 
         cabin_doors_frame = tk.Frame(doors_and_lights_frame, bg=self.off_color)
         cabin_doors_frame.pack(side='left', padx=3, pady=2, fill='both', expand=True)
 
@@ -371,7 +386,7 @@ class TrainModelPassengerGUI:
         self.ui_indicators['cabin_left_led'] = cabin_left_led
         self.ui_indicators['cabin_left_oval'] = cabin_left_oval
 
-        # Lights - Compact
+        # Lights 
         lights_frame = tk.Frame(doors_and_lights_frame, bg=self.off_color)
         lights_frame.pack(side='left', padx=3, pady=2, fill='both', expand=True)
 
@@ -392,13 +407,13 @@ class TrainModelPassengerGUI:
         self.ui_indicators['interior_led'] = Interior_led
         self.ui_indicators['interior_oval'] = interior_oval
 
-        # Murphy Failure Modes - Compact
+        # Murphy Failure Modes 
         murphy_frame = tk.Frame(right_frame, height=200, highlightbackground="black", highlightthickness=2, bg=self.off_color)
         murphy_frame.pack(side='top', padx=2, pady=2, fill='both')
         murphy_frame.pack_propagate(False)
         tk.Label(murphy_frame, text="Murphy Failure Modes", bg=self.off_color, fg='white', font=('Arial', 16, 'bold')).pack(pady=3)
 
-        # RESTORED: Separator lines in Murphy frame
+        #Separator lines in Murphy frame
         thin_line = tk.Frame(murphy_frame, bg='black', width=400)
         thin_line.pack(pady=2)
 
@@ -408,7 +423,7 @@ class TrainModelPassengerGUI:
                                               style="Medium.TCheckbutton")
         train_engine_switch.pack(pady=6, padx=3, fill='x', expand=True)
 
-        # RESTORED: Separator line
+        #Separator line
         thin_line = tk.Frame(murphy_frame, bg='black', width=400)
         thin_line.pack(pady=2)
 
@@ -418,7 +433,7 @@ class TrainModelPassengerGUI:
                                                style="Medium.TCheckbutton")
         signal_pickup_switch.pack(pady=6, padx=3, fill='x', expand=True)
 
-        # RESTORED: Separator line
+        #Separator line
         thin_line = tk.Frame(murphy_frame, bg='black', width=400)
         thin_line.pack(pady=2)
 
@@ -428,35 +443,30 @@ class TrainModelPassengerGUI:
                                        style="Medium.TCheckbutton")
         brake_switch.pack(pady=6, padx=3, fill='x', expand=True)
 
-        # Passenger Disembarking - Compact
+        # Passenger Disembarking
         pass_disembarking_frame = tk.Frame(right_frame, highlightbackground="black", highlightthickness=2, bg=self.off_color, height=50)
         pass_disembarking_frame.pack(side='top', padx=1, pady=1, fill='both')
 
         disembarking_content = tk.Frame(pass_disembarking_frame, bg=self.off_color)
         disembarking_content.pack(expand=True, fill='both', padx=3, pady=3)
 
-        generate_button = tk.Button(disembarking_content, text="Generate", bg=self.main_color, fg='white', font=('Arial', 9, 'bold'), relief='raised', bd=2, width=8, height=1,
-                                    command=lambda: [self.current_train.set_disembarking(random.randint(0,self.current_train.passenger_count)),
-                                                     self.current_train.set_passenger_count(self.current_train.passenger_count - self.current_train.passengers_disembarking)])
-        generate_button.pack(side='left', padx=(0, 8))
-
         self.ui_labels['disembarking'] = tk.Label(disembarking_content, text="Passengers Disembarking: 0", bg=self.off_color, fg='white', font=('Arial', 10, 'bold'))
         self.ui_labels['disembarking'].pack(side='left', fill='both', expand=True)
 
-        # Style for smaller checkbuttons
+      
         style = ttk.Style()
         style.theme_use('clam')
         style.configure("Medium.TCheckbutton", indicatorsize=16, padding=8, font=('Arial', 12, 'bold'), background=self.off_color, foreground='white')
         style.map("Medium.TCheckbutton", background=[('active', self.main_color)])
 
-        # Train Metrics - Compact
+        # Train Metrics 
         train_metrics_frame = tk.Frame(left_frame, width=480, height=580, bg=self.main_color, highlightbackground="black", highlightthickness=3)
         train_metrics_frame.pack(side='top', padx=2, pady=2)
         train_metrics_frame.pack_propagate(False)
         tk.Label(train_metrics_frame, text="Train Metrics", bg=self.off_color, fg='white', highlightbackground='black', highlightthickness=3, 
                  font=('Arial', 9, 'bold')).pack(padx=3, pady=3)
 
-        # Live Metrics - Compact
+        # Live Metrics 
         live_metrics = tk.Frame(train_metrics_frame, width=320, highlightbackground="black", highlightthickness=2, bg=self.off_color)
         live_metrics.pack(side='right', padx=2, pady=2, fill='y')
         live_metrics.pack_propagate(False)
@@ -466,7 +476,7 @@ class TrainModelPassengerGUI:
         self.ui_labels['speed'] = tk.Label(live_metrics, text="0.0 MPH", bg=self.off_color, fg='white', font=('Arial', 18, 'bold'))
         self.ui_labels['speed'].pack(pady=3)
 
-        # RESTORED: Separator line after speed
+        #Separator line after speed
         thin_line = tk.Frame(live_metrics, bg='black', width=300)
         thin_line.pack()
 
@@ -474,7 +484,7 @@ class TrainModelPassengerGUI:
         self.ui_labels['acceleration'] = tk.Label(live_metrics, text="0.0 MPH²", bg=self.off_color, fg='white', font=('Arial', 18, 'bold'))
         self.ui_labels['acceleration'].pack(pady=3)
 
-        # RESTORED: Separator line after acceleration
+        #Separator line after acceleration
         thin_line = tk.Frame(live_metrics, bg='black', width=300)
         thin_line.pack()
 
@@ -483,18 +493,18 @@ class TrainModelPassengerGUI:
         self.ui_labels['crew_count'] = tk.Label(live_metrics, text="Crew Count: 0", bg=self.off_color, fg='white', font=('Arial', 14, 'bold'))
         self.ui_labels['crew_count'].pack(pady=8)
 
-        # RESTORED: Separator line after crew count
+        #Separator line after crew count
         thin_line = tk.Frame(live_metrics, bg='black', width=300)
         thin_line.pack()
 
         self.ui_labels['Speed Limit'] = tk.Label(live_metrics, text="Speed Limit: 0", bg=self.off_color, fg='white', font=('Arial', 13, 'bold'))
         self.ui_labels['Speed Limit'].pack(pady=8)
 
-        # RESTORED: Separator line after speed limit
+        #Separator line after speed limit
         thin_line = tk.Frame(live_metrics, bg='black', width=300)
         thin_line.pack()
 
-        # Bottom metrics - Compact
+        # Bottom metrics
         bottom_live_metrics = tk.Frame(live_metrics, width=320, bg=self.off_color)
         bottom_live_metrics.pack(side='bottom', fill='x', pady=(0, 15))
 
@@ -507,7 +517,7 @@ class TrainModelPassengerGUI:
         self.ui_labels['Elevation'] = tk.Label(grade_elevation_row, text="Elevation (ft): 0", bg=self.off_color, fg='white', font=('Arial', 12, 'bold'))
         self.ui_labels['Elevation'].pack(side='right', padx=(3, 12), expand=True)
 
-        # RESTORED: Separator line after grade/elevation
+        #Separator line after grade/elevation
         thin_line_bottom = tk.Frame(bottom_live_metrics, bg='black', width=300)
         thin_line_bottom.pack()
 
@@ -517,7 +527,7 @@ class TrainModelPassengerGUI:
         self.ui_labels['Commanded Speed'] = tk.Label(bottom_live_metrics, text="Commanded Speed (MPH): 0", bg=self.off_color, fg='white', font=('Arial', 11, 'bold'))
         self.ui_labels['Commanded Speed'].pack(pady=3)
 
-        # Cabin Temp - Smaller
+        # Cabin Temp
         cabin_temp_frame = tk.Frame(train_metrics_frame, width=120, height=160, highlightbackground="black", highlightthickness=2, bg=self.off_color)
         cabin_temp_frame.pack(side='top', padx=2, pady=2)
         cabin_temp_frame.pack_propagate(False)
@@ -528,7 +538,7 @@ class TrainModelPassengerGUI:
         self.canvas_frame_circle.create_oval(8, 8, 92, 92, fill=self.off_color, outline='black', width=2)
         self.ui_labels['cabin_temp'] = self.canvas_frame_circle.create_text(50, 50, text="75°F", font=('Arial', 20, 'bold'), fill='white')
 
-        # Train Dimensions - Smaller
+        # Train Dimensions
         Train_Dimensions_Frame = tk.Frame(train_metrics_frame, width=120, height=220, highlightbackground="black", highlightthickness=2, bg=self.off_color)
         Train_Dimensions_Frame.pack(side='top', padx=2, pady=2)
         Train_Dimensions_Frame.pack_propagate(False)
@@ -541,7 +551,7 @@ class TrainModelPassengerGUI:
         self.ui_labels['width'] = tk.Label(Train_Dimensions_Frame, text="Width: 10.0ft", bg=self.off_color, fg='white', font=('Arial', 10))
         self.ui_labels['width'].pack(padx=1, pady=15)
 
-        # Power Command - Smaller
+        # Power Command 
         Train_Power_Command = tk.Frame(train_metrics_frame, width=120, height=180, highlightbackground="black", highlightthickness=2, bg=self.off_color)
         Train_Power_Command.pack(side='top', padx=2, pady=2)
         Train_Power_Command.pack_propagate(False)
@@ -549,7 +559,7 @@ class TrainModelPassengerGUI:
         self.ui_labels['power_command'] = tk.Label(Train_Power_Command, text="0 Watts", bg=self.off_color, fg='white', font=('Arial', 13))
         self.ui_labels['power_command'].pack(padx=1, pady=25)
 
-        # Emergency Brake - Smaller
+        # Emergency Brake 
         emergency_brake = tk.Frame(left_frame, width=480, height=80, highlightbackground="black", highlightthickness=2, bg=self.off_color)
         emergency_brake.pack(side='top', padx=2, pady=2)
         emergency_brake.pack_propagate(False)
