@@ -2,9 +2,6 @@ import tkinter as tk
 from tkinter import ttk
 import math
 import time
-import os, sys
-sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-from TrainSocketServer import TrainSocketServer
 
 class TestPanel(tk.Toplevel):
     def __init__(self, parent, main_window):
@@ -12,16 +9,6 @@ class TestPanel(tk.Toplevel):
         self.title("Input Test Panel")
         self.geometry("500x650")
         self.main_window = main_window
-
-        self.server = TrainSocketServer(port=12346, ui_id="Test_UI")
-        self.server.set_allowed_connections(["Driver_UI", "ui_3"])
-        
-        # Start server with minimal handler
-        def empty_handler(message, source_ui_id):
-            print(f"Test UI received: {message} from {source_ui_id}")
-        
-        self.server.start_server(empty_handler)
-        self.server.connect_to_ui('localhost', 12345, "Driver_UI")
 
         tk.Label(self, text="TEST INTERFACE", font=("Arial", 16, "bold")).pack(pady=10)
 
@@ -74,7 +61,7 @@ class TestPanel(tk.Toplevel):
         
         # Train Engine Failure
         tk.Button(failure_controls, text="TEF ON", bg="red", fg="white", 
-                 command=lambda: self.send_to_ui("test")).grid(row=0, column=0, padx=5)
+                 command=lambda: self.set_failure("engine", True)).grid(row=0, column=0, padx=5)
         tk.Button(failure_controls, text="TEF OFF", bg="green", fg="white",
                  command=lambda: self.set_failure("engine", False)).grid(row=0, column=1, padx=5)
         
@@ -94,22 +81,6 @@ class TestPanel(tk.Toplevel):
         tk.Label(self, text="Log:", font=("Arial", 12, "bold")).pack(pady=5)
         self.log = tk.Text(self, height=8, width=50, state=tk.DISABLED)
         self.log.pack(pady=5, fill="both", expand=True)
-
-    def send_to_ui(self, command, value=None):
-        """Send command to the target UI (creates dict for socket server)"""
-        message = {'command': command}
-        if value is not None:
-            message['value'] = value
-        
-        # Always send to Driver_UI
-        target_ui = "Driver_UI"
-        success = self.server.send_to_ui(target_ui, message)
-        
-        if success:
-            print(f"Sent {command} to {target_ui}")
-        else:
-            print(f"Failed to send {command} to {target_ui}")
-        return success
 
     def log_action(self, text):
         self.log.config(state=tk.NORMAL)

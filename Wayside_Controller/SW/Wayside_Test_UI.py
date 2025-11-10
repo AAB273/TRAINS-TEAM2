@@ -13,16 +13,22 @@ from TrainSocketServer import TrainSocketServer
 class RailwayControlSystem:
     def __init__(self, root, shared_data=None):
         self.root = root
-        self.root.title("Wayside Controller - Test Interface")
-        self.root.geometry("1200x750")
+        
+        if isinstance(root, tk.Tk):
+            self.root.title("Wayside Controller Software UI")
+            self.root.geometry("1200x750")
+        else:
+            self.root.title("Wayside Controller - Test Interface")
+            self.root.geometry("1200x750")
+            
         self.root.configure(bg="#1a1a4d")
         
         # Load track configuration
         self.track_config = TrackConfig()
         
         # Initialize socket server for test UI
-        self.server = TrainSocketServer(port=123421, ui_id="test_ui")
-        self.server.set_allowed_connections(["Track SW"])
+        self.server = TrainSocketServer(port=12346, ui_id="test_ui")
+        self.server.set_allowed_connections(["main_ui"])
         
         # Store shared data reference (if any)
         self.shared_data = shared_data
@@ -39,7 +45,7 @@ class RailwayControlSystem:
         # Set up window close protocol
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
-        print("Test UI ready with socket communication")
+        print("🧪 Test UI ready with socket communication")
         
     def _process_message(self, message, source_ui_id):
         """Process incoming messages from Main UI"""
@@ -47,7 +53,7 @@ class RailwayControlSystem:
 
     def send_to_main_ui(self, message):
         """Send message to Main UI"""
-        return self.server.send_to_ui("Track SW", message)
+        return self.server.send_to_ui("main_ui", message)
 
     def on_closing(self):
         """Handle application closing"""
@@ -92,10 +98,10 @@ class RailwayControlSystem:
 
     def _connect_to_main_ui(self):
         """Connect to Main UI server"""
-        if self.server.connect_to_ui('localhost', 12342, "Track SW"):
-            print("Connected to Main UI")
+        if self.server.connect_to_ui('localhost', 12345, "main_ui"):
+            print("✅ Connected to Main UI")
         else:
-            print("Failed to connect to Main UI - make sure Main UI is running")
+            print("❌ Failed to connect to Main UI - make sure Main UI is running")
 
     def setup_logging(self):
         pass
@@ -249,7 +255,13 @@ class RailwayControlSystem:
     
     def update_shared_data_from_log(self, log_message):
         """Legacy method - keep for backward compatibility"""
-        pass
+        # ... (your existing code here)
+
+    def configure_blue_line(self, blue_line_data):
+        self.track_config.set_track_data("Blue", blue_line_data)
+        
+    def load_track_configuration(self, track_name, config_file_path):
+        self.track_config.load_track_from_file(track_name, config_file_path)
 
 if __name__ == "__main__":
     root = tk.Tk()

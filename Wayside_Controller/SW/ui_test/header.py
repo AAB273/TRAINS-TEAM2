@@ -13,7 +13,7 @@ class Header:
     
     def create_header(self):
         # Logo
-        logo_img = tk.PhotoImage(file="blt logo.png")
+        logo_img = tk.PhotoImage(file="/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/blt logo.png")
         logo_img_small = logo_img.subsample(12, 12)
         logo_label = tk.Label(self.header_frame, image=logo_img_small, bg='#1a1a4d')  # Fixed: use self.header_frame
         logo_label.image = logo_img_small  # Keep a reference

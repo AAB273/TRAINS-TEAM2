@@ -1,13 +1,3 @@
-# import json          # ← ADD
-# from pathlib import Path  # ← ADD
-
-# def load_socket_config():  # ← ADD
-#     config_path = Path("config.json")
-#     if config_path.exists():
-#         with open(config_path, 'r') as f:
-#             config = json.load(f)
-#     return config.get("modules", {})
-
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from datetime import datetime
@@ -51,104 +41,11 @@ station_location = []
 ######
 ##############
 
-# speed data = suggeted and commanded data
-def handle_ctc_suggested_speed(speed_data):
-    """
-    Handle CTC suggested speed messages and convert to float with 3 decimal places
-    Expected formats:
-    - String: "Track HW", {"Suggested_speed", "float: new_speed"}
-    - Dictionary: {'Suggested_speed': 'float: 45.5'}
-    - Direct string: "float: 45.5"
-    """
-    try:
-        suggested_speed = None
-        
-        # Handle different input formats
-        if isinstance(speed_data, str):
-            # Extract float value from string format
-            if "float:" in speed_data:
-                # Find the float value in the string
-                import re
-                float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_data)
-                if float_match:
-                    speed_str = float_match.group(1)
-                    suggested_speed = float(speed_str)
-            else:
-                # Try direct conversion if it's just a number string
-                suggested_speed = float(speed_data)
-                
-        elif isinstance(speed_data, dict):
-            # Handle dictionary format
-            if 'Suggested_speed' in speed_data:
-                speed_value = speed_data['Suggested_speed']
-                if isinstance(speed_value, str) and "float:" in speed_value:
-                    speed_str = speed_value.split("float:")[1].strip()
-                    suggested_speed = float(speed_str)
-                else:
-                    suggested_speed = float(speed_value)
-            elif 'value' in speed_data:
-                # Alternative dictionary format
-                suggested_speed = float(speed_data['value'])
-        
-        # Format to 3 decimal places if conversion was successful
-        if suggested_speed is not None:
-            formatted_speed = round(suggested_speed, 3)
-            add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.3f} mph")
-            return formatted_speed
-        else:
-            add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
-            
-    except ValueError as e:
-        add_to_message_log(f"ERROR: Invalid speed format - {e}", "ERROR")
-    except Exception as e:
-        add_to_message_log(f"ERROR: Processing CTC speed message - {e}", "ERROR")
-    
-    return None
-
-def update_suggested_speed_display(speed):
-    """Update the suggested speed display in the right panel"""
-    try:
-        if hasattr(right_panel, 'update_suggested_speed'):
-            right_panel.update_suggested_speed(speed)
-        else:
-            # Fallback: try to find and update the label directly
-            formatted_speed = f"{speed:.3f} mph"
-            add_to_message_log(f"CTC Speed received (UI update pending): {formatted_speed}")
-    except Exception as e:
-        add_to_message_log(f"ERROR updating speed display: {e}", "ERROR")
-
 # installing update_callback function
 def update_callback(message):
     """Socket server callback function"""
     print(f"Socket message recieved: {message}")
     add_to_message_log(f"Socket: {message}")
-
-def send_commanded_speed_directly(speed_value):
-    """Direct function to send commanded speed to Track Model"""
-    # Check if server exists and is available
-    if not hasattr(test_data, 'server1') or not test_data.server1:
-        add_to_message_log("ERROR: Socket server not available for direct send", "ERROR")
-        return False
-    
-    # Validate and format speed
-    try:
-        formatted_speed = round(float(speed_value), 3)
-    except (ValueError, TypeError):
-        add_to_message_log("ERROR: Invalid speed value format", "ERROR")
-        return False
-    
-    # Create message
-    message = {
-        'command': 'commanded_speed',
-        'value': formatted_speed,
-        'source': 'Track HW',
-        'formatted_speed': f"{formatted_speed:.3f} mph"
-    }
-    
-    # Send message
-    test_data.server1.send_to_ui("Track Model", message)
-    add_to_message_log(f"Direct send: Commanded speed {formatted_speed:.3f} mph to Track Model")
-    return True
 
 # send_to_ui function
 # target ui is test ui
@@ -169,22 +66,22 @@ class UITestData:
     def __init__(self):
 
         # SOCKET SERVER
-            self.server1 = TrainSocketServer(port=12343, ui_id="Track HW")
-            self.server1.set_allowed_connections(["Track HW", "ui_3"])
-            self.server1.start_server(update_callback)
+        self.server1 = TrainSocketServer(port=12346, ui_id="WC_HW_MainUI")
+        self.server1.set_allowed_connections(["WC_HW_TestUI", "ui_3"])
+        self.server1.start_server(_process_message)
         
         # Connect to other UIs
-            self.server1.connect_to_ui('localhost', 4, "Track Model")
+        self.server1.connect_to_ui('localhost', 12345, "WC_HW_TestUI")
 
         # Current line
-            self.current_line = "Blue"
+        self.current_line = "Blue"
         # Maintenance mode
-            self.maintenance_mode = False
+        self.maintenance_mode = False
         # Callbacks
-            self.on_line_change = []
-            self.on_block_change = []  # For block updates
+        self.on_line_change = []
+        self.on_block_change = []  # For block updates
 
-            self.maintenance_changes = {
+        self.maintenance_changes = {
             "switches" : True,          # only switches chan be changed
             "lights" : False,           # lights cannot be changed
             "crossing" : False,         # crossing cannot be changed
@@ -192,16 +89,16 @@ class UITestData:
         }
 
         # Sample block data: [Occupied, Line, Block]
-            self.block_data = [
+        self.block_data = [
             ["No", "Blue", "1"],
             ["No", "Blue", "2"],
             ["Yes", "Blue", "6"],
             ["No", "Blue", "10"]
         ]
-            self.filtered_block_data = self.block_data.copy()
+        self.filtered_block_data = self.block_data.copy()
 
         # Sample track data for left panel
-            self.track_data = {
+        self.track_data = {
             "crossings": {
                 "Railway Crossing: 3": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
             },
@@ -214,7 +111,7 @@ class UITestData:
                 "Light 11": {"condition": "Normal", "signal": "Green"}
             }
         }
-            self.filtered_track_data = self.track_data.copy()
+        self.filtered_track_data = self.track_data.copy()
 
     def on_closing(self):
         print("Closing application...")
@@ -282,27 +179,22 @@ root.configure(bg="#0b1443")
 header_frame = tk.Frame(root, bg="#0b1443")
 header_frame.pack(fill="x", pady=10)
 
-## creating bit logo
-
-# 
-# def create_blt_logo(header):
-#     try:
-        # Load the image and resize it appropriately
-logo_image = Image.open("blt logo.png")
-logo_image = logo_image.resize((60, 60), Image.Resampling.LANCZOS)  # Adjust size as needed
-logo_photo = ImageTk.PhotoImage(logo_image)
-
-# Create label with image
-logo = tk.Label(header_frame, image=logo_photo, bg="#0b1443")
-logo.image = logo_photo  # Keep a reference to prevent garbage collection
-logo.pack(side="left", padx=15)
-# return logo_image
-# except Exception as e:
-# Fallback to text if image loading fails
-print(f"Error loading logo: {e}")
-logo = tk.Label(header_frame, text="🚉", bg="#0b1443", fg="white", font=("Arial", 20))
-logo.pack(side="left", padx=15)
-
+# Load and display the BLT logo
+try:
+    # Load the image and resize it appropriately
+    logo_image = Image.open("/home/siram/TRAINS-TEAM2/blt logo.png")
+    logo_image = logo_image.resize((60, 60), Image.Resampling.LANCZOS)  # Adjust size as needed
+    logo_photo = ImageTk.PhotoImage(logo_image)
+   
+    # Create label with image
+    logo = tk.Label(header_frame, image=logo_photo, bg="#0b1443")
+    logo.image = logo_photo  # Keep a reference to prevent garbage collection
+    logo.pack(side="left", padx=15)
+except Exception as e:
+    # Fallback to text if image loading fails
+    print(f"Error loading logo: {e}")
+    logo = tk.Label(header_frame, text="🚉", bg="#0b1443", fg="white", font=("Arial", 20))
+    logo.pack(side="left", padx=15)
 
 # Fault LED indicator
 fault_led = tk.Label(header_frame, text="Fault LED", bg="gray", fg="white", width=10, font=("Arial", 10, "bold"))
@@ -377,7 +269,7 @@ canvas.pack(fill="both", expand=True)
 
 # Load and display the Blue Linge track image
 try:
-    track_image = Image.ope("Blue Line.png")
+    track_image = Image.open("/home/siram/TRAINS-TEAM2/Blue Line.png")
     # Resize image to fit the canvas while maintaining aspect ratio
     track_image = track_image.resize((700, 400), Image.Resampling.LANCZOS)
     track_photo = ImageTk.PhotoImage(track_image)
@@ -843,62 +735,15 @@ left_panel.pack(side="left", fill="y", padx=5, pady=5)
 #######################################################################################
 # ---------- RIGHT PANEL ---------- #
 class RightPanel(tk.Frame):
-
     def __init__(self, parent, data):
         super().__init__(parent, bg='#1a1a4d', width=250)
         self.pack_propagate(False)
         self.data = data
-        self.suggested_speed_label = None 
         self.create_widgets()
 
         # Connect line change callback
         self.data.on_line_change.append(self.on_line_changed)
         self.data.on_block_change.append(self.on_block_data_changed)
-
-    def create_suggested_section(self):
-        suggested_frame = tk.LabelFrame(self, text="Suggested:",
-                                       bg='#cccccc', font=('Arial', 10, 'bold'))
-        suggested_frame.pack(fill=tk.X, pady=5)
-       
-        tk.Label(suggested_frame, text="Authority:", bg='#cccccc').pack(anchor='w', padx=5)
-        tk.Label(suggested_frame, text="2 blocks", bg='white',
-                relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
-        tk.Label(suggested_frame, text="Speed:", bg='#cccccc').pack(anchor='w', padx=5)
-        
-        # Store reference to speed label for updates (initialize with default)
-        self.suggested_speed_label = tk.Label(suggested_frame, text="38.000 mph", bg='white',
-                relief=tk.SUNKEN)
-        self.suggested_speed_label.pack(fill=tk.X, padx=5, pady=2)
-
-    def update_suggested_speed(self, speed):
-        """Update the suggested speed display with formatted value"""
-        formatted_speed = f"{speed:.3f} mph"
-        self.suggested_speed_label.config(text=formatted_speed)
-        add_to_message_log(f"UI: Suggested speed updated to {formatted_speed}")
-
-
-    def send_commanded_speed_directly(self, speed_value):
-        """Direct method to send commanded speed to Track Model"""
-        try:
-            formatted_speed = round(float(speed_value), 3)
-            message = {
-                'command': 'commanded_speed',
-                'value': formatted_speed,
-                'source': 'Wayside_HW_RightPanel',
-                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                'formatted_speed': f"{formatted_speed:.3f} mph"
-            }
-            
-            if hasattr(self.data, 'server1') and self.data.server1:
-                self.data.server1.send_to_ui("Track Model", message)
-                add_to_message_log(f"RightPanel direct: Commanded speed {formatted_speed:.3f} mph to Track Model")
-                return True
-            else:
-                add_to_message_log("ERROR: Socket server not available", "ERROR")
-                return False
-        except Exception as e:
-            add_to_message_log(f"ERROR in RightPanel direct send: {e}", "ERROR")
-            return False
 
     def on_block_data_changed(self, row_index, col_index, new_value):
         # Update only the affected row in the table if maintenance mode
@@ -924,8 +769,7 @@ class RightPanel(tk.Frame):
         self.create_commanded_section()
        
         # Search and block table
-        #self.create_block_table_section()
-        self.update_speed()
+        self.create_block_table_section()
 
     def update_block_options(self):
         """Update block selector based on current line"""
@@ -989,67 +833,9 @@ class RightPanel(tk.Frame):
         # commanded_authority.append(new_authority)
 
     def update_speed(self):
-        """Update commanded speed and send to Track Model"""
-    try:
+        """Update commanded speed and log the change"""
         new_speed = self.speed_entry.get()
-        
-        # Extract numeric value from input (handle "mph", etc.)
-        speed_value = self.extract_speed_value(new_speed)
-        
-        if speed_value is not None:
-            # Format to 3 decimal places
-            formatted_speed = round(speed_value, 3)
-            
-            # Update display
-            self.speed_entry.delete(0, tk.END)
-            self.speed_entry.insert(0, f"{formatted_speed:.3f} mph")
-            
-            # Send to Track Model
-            self.send_commanded_speed_to_track_model(formatted_speed)
-            
-            add_to_message_log(f"Commanded Speed sent to Track Model: {formatted_speed:.3f} mph")
-        else:
-            add_to_message_log("ERROR: Invalid speed format. Please enter a valid number.", "ERROR")
-            
-    except Exception as e:
-        add_to_message_log(f"ERROR updating speed: {e}")
-
-# Create the right panel with mock data
-right_panel = RightPanel(main_frame, test_data)
-right_panel.pack(side="right", fill="y", padx=5, pady=5)
-
-
-def extract_speed_value(self, speed_input):
-    """Extract numeric speed value from various input formats"""
-    try:
-        # Remove non-numeric characters except decimal point
-        import re
-        clean_speed = re.sub(r'[^\d.]', '', speed_input)
-        return float(clean_speed)
-    except ValueError:
-        return None
-
-def send_commanded_speed_to_track_model(self, speed):
-    """Send commanded speed to Track Model via socket"""
-    try:
-        if hasattr(test_data, 'server1') and test_data.server1:
-            message = {
-                'command': 'commanded_speed',
-                'value': speed,
-                'source': 'Wayside_HW',
-                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                'formatted_speed': f"{speed:.3f} mph"
-            }
-            
-            # Send to Track Model
-            test_data.server1.send_to_ui("Track Model", message)
-            add_to_message_log(f"✓ Commanded speed {speed:.3f} mph sent to Track Model")
-            
-        else:
-            add_to_message_log("ERROR: Socket server not available", "ERROR")
-            
-    except Exception as e:
-        add_to_message_log(f"ERROR sending speed to Track Model: {e}", "ERROR")
+        add_to_message_log(f"Commanded Speed updated to: {new_speed}")
     # Here you would also update the backend data structure
     # commanded_speed.append(new_speed)
    
@@ -1156,6 +942,9 @@ def send_commanded_speed_to_track_model(self, speed):
         """Refresh block table when mode changes"""
         self.create_block_table()
 
+# Create the right panel with mock data
+right_panel = RightPanel(main_frame, test_data)
+right_panel.pack(side="right", fill="y", padx=5, pady=5)
 
 # ---------- MAINTENANCE SCREEN (simple placeholder) ---------- #
 maint_label = tk.Label(maintenance_frame, text="Maintenance Mode Active", bg="#0b1443", fg="white", font=("Arial", 24))

@@ -1,14 +1,3 @@
-import json    
-from pathlib import Path 
-
-def load_socket_config():
-    config_path = Path("config.json")
-    if config_path.exists():
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-    return config.get("modules", {})
-
-
 import tkinter as tk
 from PIL import Image, ImageTk
 from tkinter import font
@@ -32,19 +21,10 @@ class TrainModelPassengerGUI:
         self.current_train = self.train_manager.get_selected_train()
         
         # Socket server setup
-        module_config = load_socket_config()
-        train_model_config = module_config.get("Train Model", {"port": 5})
-        self.server = TrainSocketServer(
-            port=train_model_config["port"],
-            ui_id="Train Model"
-        )
-        #self.server.set_allowed_connections(["Test_UI", "ui_3"])
-        self.server.set_allowed_connections(["Train SW","Train HW", "Track Model"])
+        self.server = TrainSocketServer(port=12345, ui_id="Train_Model_Passenger_UI")
+        self.server.set_allowed_connections(["Test_UI", "ui_3"])
         self.server.start_server(self._process_message)
-        #self.server.connect_to_ui('localhost', 12346, "Test_UI")
-        self.server.connect_to_ui('localhost', 12346, "Train SW")
-        self.server.connect_to_ui('localhost', 12347, "Train HW")
-        self.server.connect_to_ui('localhost', 12344, "Track Model")
+        self.server.connect_to_ui('localhost', 12346, "Test_UI")
         
         self.ui_labels = {}
         self.ui_indicators = {}
@@ -76,8 +56,8 @@ class TrainModelPassengerGUI:
             self.update_ui_from_train(self.current_train)
             self.root.after(1000, lambda: self._animate_temperature_change(target_temp))
             
-        self.server.send_to_ui("Train Controller",{"Temp",current_temp})
-    
+        print(f"Real Cabin Temp: {self.current_train.cabin_temp} Sent!")
+
     def _process_message(self, message, source_ui_id):
         """Process incoming messages and update train state"""
         try:
@@ -85,11 +65,10 @@ class TrainModelPassengerGUI:
 
             command = message.get('command')
             value = message.get('value')
-            if(string.isnumeric(value)):
-                if(value == "1" or value == "0"):
-                    value = bool(value)
-                else:
-                    value = float(value)
+            if(value == "1" or value == "0"):
+                value = bool(value)
+            else:
+                value = float(value)
             
             if command == 'Cabin Interior Temperature Control':
                 target_temp = value
@@ -109,9 +88,9 @@ class TrainModelPassengerGUI:
             elif command == 'Power Command':
                 self.current_train.set_power_command(value)
             elif command == 'Train Horn':
-                playsound("Train Model\diesel-horn-02-98042.mp3")
+                print("placeholder")
             elif command == 'Station Announcement Message':
-                self.current_train.set_station(value)
+                print("placeholder")
             elif command == 'Commanded Authority':
                 self.current_train.set_commanded_authority(value)
                 self.server.send_to_ui("Train SW",{"Commanded Authority",value})
@@ -120,8 +99,6 @@ class TrainModelPassengerGUI:
                 self.current_train.set_commanded_speed(value)
                 self.server.send_to_ui("Train SW",{"Commanded Speed",value})
                 self.server.send_to_ui("Train HW",{"Commanded Speed",value})
-            elif command == 'Block Occupancy':
-                self.current_train.set_block(value)
         except Exception as e:
             print(f"Error processing message: {e}")
 
@@ -129,43 +106,32 @@ class TrainModelPassengerGUI:
         """Continuously update train physics for real-time speed changes"""
         if self.current_train and self.current_train.deployed:
             self.current_train.calculate_force_speed_acceleration_()
-            self.server.send_to_ui("Train HW",{"Current Speed",self.current_train.speed})
-            self.server.send_to_ui("Train SW",{"Current Speed",self.current_train.speed})
             self.update_ui_from_train(self.current_train)
         self.root.after(100, self.continuous_physics_update)
 
     def emergency_brake_activated(self):
         self.current_train.set_emergency_brake(True)
         self.current_train.set_acceleration(-2.73)
-        self.server.send_to_ui("Train Controller",{"Passenger Emergency Signal",1})
         print(f"EMERGENCY BRAKE ACTIVATED!")
 
     def failure_service_brake_var_changed(self):
         if self.failure_brake_var.get():
             self.current_train.set_service_brake(0)
             self.emergency_brake_activated()
-            self.server.send_to_ui("Train SW",{"Service Brake Failure",1})
-            self.server.send_to_ui("Train HW",{"Service Brake Failure",1})
             print(f"Service Brake Failure Activated")
         elif self.failure_brake_var.get() == 0:
             print(f"Service Brake Deactivated")
             self.current_train.set_emergency_brake(0)
-            self.server.send_to_ui("Train SW",{"Service Brake Failure",0})
-            self.server.send_to_ui("Train HW",{"Service Brake Failure",0})
 
     def failure_train_engine_var_changed(self):
         if self.failure_train_engine_var.get():
             self.current_train.set_engine_failure(True)
             self.current_train.set_power_command(0)
             self.current_train.set_acceleration(0)
-            self.server.send_to_ui("Train SW",{"Train Engine Failure",1})
-            self.server.send_to_ui("Train HW",{"Train Engine Failure",1})
             print(f"Train Engine Failure Activated")
         elif self.failure_train_engine_var.get() == 0:
             self.current_train.set_engine_failure(False)
             print(f"Train Engine Failure Deactivated")
-            self.server.send_to_ui("Train SW",{"Train Engine Failure",0})
-            self.server.send_to_ui("Train HW",{"Train Engine Failure",0})
 
     def failure_signal_pickup_var_changed(self):
         if self.failure_signal_pickup_var.get():
@@ -173,24 +139,10 @@ class TrainModelPassengerGUI:
             self.ui_labels['Speed Limit'].config(text=f"Speed Limit: ??? MPH")
             self.ui_labels['Grade'].config(text=f"Grade: ???")
             self.ui_labels['Elevation'].config(text=f"Elevation: ???")
-            self.server.send_to_ui("Train SW",{"Signal Pickup Failure",1})
-            self.server.send_to_ui("Train HW",{"Signal Pickup Failure",1})
         else:
             print(f"Signal Pickup Failure Deactivated")
             self.server.send_to_ui("Train SW",{"Signal Pickup Failure",0})
             self.server.send_to_ui("Train HW",{"Signal Pickup Failure",0})
-            
-    def update_disembarking(self):
-        if self.current_train and self.current_train.deployed and self.current_train.passenger_count != 0:
-            
-            if(self.current_train.speed == 0 and self.current_train.service_brake_active  and 
-            (self.current_train.right_door_open or self.current_train.left_door_open)):
-                
-                passenger_count = self.current_train.passenger_count
-                disembarking = random(0,passenger_count)
-                
-                self.current_train.set_disembarking(disembarking)
-                self.current_train.set_passenger_count(passenger_count - disembarking)
 
     def update_ui_from_train(self, train):
         """Update all UI elements when train data changes"""
@@ -232,6 +184,10 @@ class TrainModelPassengerGUI:
             self.ui_labels['announcement'].config(text=f"EMERGENCY")
         else:
             self.ui_labels['announcement'].config(text=f"Arriving to Station {train.station} in {train.time_to_station}mins")
+        
+
+        #local_time = clock.getTime()
+        #self.ui_labels['time'].config(text=f"{local_time}")
 
         # Update power command and commanded values
         self.ui_labels['power_command'].config(text=f"{train.power_command:.0f} Watts")
@@ -570,13 +526,6 @@ class TrainModelPassengerGUI:
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-    def updateTime(self):
-    #continuously recall itself every second to update the time variable 
-        
-        local_time = clock.clock.getTime()
-        self.ui_labels['time'].config(text=f"{local_time}")
-        self.root.after(100, self.updateTime)
-
     
     def on_closing(self):
         print("Closing application...")
@@ -592,8 +541,6 @@ class TrainModelPassengerGUI:
         self.root.after(100, self.refresh_train_selector)
 
         self.root.after(100, self.continuous_physics_update)
-
-        self.root.after(100, self.updateTime)
 
         self.root.mainloop()
 

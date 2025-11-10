@@ -104,15 +104,6 @@ class Train:
         self.set_grade(self.line_data.get_value(value,'grade'))
         
     # Metric setters with validation
-    def set_commanded_authority(self,value):
-        self.commanded_authority = float(value)
-        self._notify_observers()
-
-    def set_commanded_speed(self,value):
-        self.commanded_speed = float(value)
-        self._notify_observers()
-        
-
     def set_speed_limit(self, value):
         self.speed_limit = float(value)
         self._notify_observers()
@@ -214,7 +205,7 @@ class Train:
         self.passengers_disembarking = int(value)
         self._notify_observers()
 
-    def calculate_force_speed_acceleration_(self, dt=.1):
+    def calculate_force_speed_acceleration_(self, dt=1.0):
         """
         Calculate train physics based on current state and commands
         """
