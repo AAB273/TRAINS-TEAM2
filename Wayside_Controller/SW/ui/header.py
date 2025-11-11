@@ -21,7 +21,7 @@ class Header(tk.Frame):
     
     def create_widgets(self):
         # Logo
-        logo_img = tk.PhotoImage(file="blt logo.png")
+        logo_img = tk.PhotoImage(file="/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/blt logo.png")
         logo_img_small = logo_img.subsample(12, 12)
         logo_label = tk.Label(self, image=logo_img_small, bg='#4a7c8c')
         logo_label.image = logo_img_small

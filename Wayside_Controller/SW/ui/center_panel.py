@@ -69,9 +69,9 @@ class CenterPanel(tk.Frame):
     def update_track_image(self):
         """Change track image based on selected line"""
         image_files = {
-            "Green": "Wayside_Controller/SW/data/Red and Green Line.png",
-            "Red": "Wayside_Controller/SW/data/Red and Green Line.png", 
-            "Blue": "Wayside_Controller/SW/data/Blue Line.png"
+            "Green": "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/GreenRedTrack.png",
+            "Red": "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/GreenRedTrack.png", 
+            "Blue": "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/BlueTrack.png"
         }
         
         try:
@@ -90,14 +90,14 @@ class CenterPanel(tk.Frame):
     def track_layout(self):
         """Load the initial track image based on current line"""
         image_files = {
-            "Green": "Wayside_Controller/SW/data/Red and Green Line.png",
-            "Red": "Wayside_Controller/SW/data/Red and Green Line.png", 
-            "Blue": "Wayside_Controller/SW/data/Blue Line.png"
+            "Green": "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/GreenRedTrack.png",
+            "Red": "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/GreenRedTrack.png", 
+            "Blue": "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/BlueTrack.png"
         }
         
         try:
             image_path = image_files.get(self.data.current_line, 
-                                       "Wayside_Controller/SW/data/Red and Green Line.png")
+                                       "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/GreenRedTrack.png")
             img = tk.PhotoImage(file=image_path)
             img = img.subsample(2, 2)
             self.track_image = img

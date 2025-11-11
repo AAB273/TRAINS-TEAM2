@@ -11,7 +11,7 @@ class TrainSocketServer:
         self.running = False
         self.connected_clients: Dict[str, socket.socket] = {}
         self.allowed_connections: Set[str] = set()  # IDs of UIs this UI can communicate with
-        self.max_connections = 3
+        self.max_connections = 2
         self.update_callback: Optional[Callable] = None
         
     def set_allowed_connections(self, ui_ids: list):

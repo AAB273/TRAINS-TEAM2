@@ -58,97 +58,12 @@ test_switches = ["Switch 5-6", "Switch 5-11", "Switch 15-16", "Switch 20-21"]
 test_lights = ["Light 6", "Light 11", "Light 16", "Light 21"]
 test_crossings = ["Railway Crossing: 3", "Railway Crossing: 8", "Railway Crossing: 12"]
 
-#######################################################################################
-def handle_ctc_suggested_speed(speed_data):
-    """
-    Handle CTC suggested speed messages and convert to float with 3 decimal places
-    Expected formats:
-    - String: "track HW", {"Suggested_speed", "float: new_speed"}
-    - Dictionary: {'Suggested_speed': 'float: 45.5'}
-    - Direct string: "float: 45.5"
-    """
-    try:
-        suggested_speed = None
-        
-        # Handle different input formats
-        if isinstance(speed_data, str):
-            # Extract float value from string format
-            if "float:" in speed_data:
-                # Find the float value in the string
-                import re
-                float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_data)
-                if float_match:
-                    speed_str = float_match.group(1)
-                    suggested_speed = float(speed_str)
-            else:
-                # Try direct conversion if it's just a number string
-                suggested_speed = float(speed_data)
-                
-        elif isinstance(speed_data, dict):
-            # Handle dictionary format
-            if 'Suggested_speed' in speed_data:
-                speed_value = speed_data['Suggested_speed']
-                if isinstance(speed_value, str) and "float:" in speed_value:
-                    speed_str = speed_value.split("float:")[1].strip()
-                    suggested_speed = float(speed_str)
-                else:
-                    suggested_speed = float(speed_value)
-            elif 'value' in speed_data:
-                # Alternative dictionary format
-                suggested_speed = float(speed_data['value'])
-        
-        # Format to 3 decimal places if conversion was successful
-        if suggested_speed is not None:
-            formatted_speed = round(suggested_speed, 3)
-            add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.3f} mph")
-            return formatted_speed
-        else:
-            add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
-            
-    except ValueError as e:
-        add_to_message_log(f"ERROR: Invalid speed format - {e}", "ERROR")
-    except Exception as e:
-        add_to_message_log(f"ERROR: Processing CTC speed message - {e}", "ERROR")
-    
-    return None
-
 ##############################################################
 # installing update_callback function
 def update_callback(message):
     """Socket server callback function"""
     print(f"Socket message received: {message}")
     add_to_message_log(f"Socket: {message}")
-
-     # Check for CTC suggested speed messages to forward to Main UI
-    if isinstance(message, dict):
-        # Check for speed-related commands from CTC
-        if message.get('command') in ['suggested_speed', 'speed', 'ctc_speed', 'suggested_speed_command']:
-            speed = handle_ctc_suggested_speed(message)
-            if speed is not None:
-                # Forward to Main UI
-                send_test_command("suggested_speed", speed)
-                
-        # Also check if message contains Suggested_speed key (direct from CTC)
-        elif 'Suggested_speed' in message:
-            speed = handle_ctc_suggested_speed(message)
-            if speed is not None:
-                # Forward to Main UI
-                send_test_command("suggested_speed", speed)
-        
-        # Handle track model messages that might contain CTC data
-        elif 'track' in str(message).lower() and 'suggested_speed' in str(message).lower():
-            speed = handle_ctc_suggested_speed(message)
-            if speed is not None:
-                # Forward to Main UI
-                send_test_command("suggested_speed", speed)
-                
-    elif isinstance(message, str):
-        # Handle string format messages from CTC
-        if 'Suggested_speed' in message or 'float:' in message:
-            speed = handle_ctc_suggested_speed(message)
-            if speed is not None:
-                # Forward to Main UI
-                send_test_command("suggested_speed", speed)
 ################################################################
 
 def add_to_message_log(message):
@@ -164,11 +79,6 @@ def send_test_command(command, value):
     try:
         if hasattr(root, 'socket_server'):
             message = {'command': command, 'value': value, 'source': 'TestUI'}
-            
-            # Special handling for speed commands
-            if command == "suggested_speed":
-                message['Suggested_speed'] = f"float: {value}"
-                
             root.socket_server.send_to_ui("WC_HW_MainUI", message)
             add_to_message_log(f"Sent command: {command} = {value}")
     except Exception as e:
@@ -368,31 +278,6 @@ random_test_frame.pack(fill='x', pady=10)
 
 tk.Label(random_test_frame, text="Quick Tests:", font=("Arial", 12), bg='white').pack(anchor='w')
 
-### CTC SUGGESTED SPEED
-#########################################################################################
-def simulate_ctc_speed_message():
-    """Simulate receiving CTC suggested speed message"""
-    test_speeds = [25.5, 30.0, 35.75, 40.123, 45.999]
-    speed = random.choice(test_speeds)
-    
-    # Create test message in the expected format
-    test_message = f"track HW", {"Suggested_speed", f"float: {speed}"}
-    
-    add_to_message_log(f"Simulating CTC Speed Message: {speed} mph")
-    
-    # Process the message
-    processed_speed = handle_ctc_suggested_speed(test_message)
-    if processed_speed is not None:
-        # Send to Main UI
-        send_test_command("suggested_speed", processed_speed)
-        add_to_message_log(f"Sent to Main UI: {processed_speed:.3f} mph")
-
-# Add the button to your random_test_frame
-ctc_speed_btn = tk.Button(random_test_frame, text="Simulate CTC Speed", 
-                         command=simulate_ctc_speed_message, bg="#2E8B57", fg="white", width=15)
-ctc_speed_btn.pack(anchor='w', pady=2)
-###########################################################################################
-
 def generate_random_failure():
     failures = random.randint(1, 3)
     send_test_command("random_failures", failures)
@@ -570,7 +455,7 @@ def initialize_socket_server():
     try:
         # Test UI uses port 12346
         server = TrainSocketServer(port=12346, ui_id="WC_HW_TestUI")
-        server.set_allowed_connections(["WC_HW_MainUI", "CTC", "ui_3"])  # Add CTC
+        server.set_allowed_connections(["WC_HW_MainUI", "ui_3"])
         server.start_server(update_callback)
         root.socket_server = server
         
@@ -578,22 +463,15 @@ def initialize_socket_server():
         connection_status.config(text="🟢 Connected", fg='green')
         add_to_message_log("Socket server started on port 12346")
         
-        # Try to connect to Main UI and CTC
-        def connect_to_uis():
+        # Try to connect to Main UI
+        def connect_to_main_ui():
             try:
                 server.connect_to_ui('localhost', 12345, "WC_HW_MainUI")
                 add_to_message_log("Connected to Main UI")
             except Exception as e:
                 add_to_message_log(f"Failed to connect to Main UI: {e}")
-            
-            # Try to connect to CTC if available
-            try:
-                server.connect_to_ui('localhost', 12347, "CTC")  # Adjust port as needed
-                add_to_message_log("Connected to CTC")
-            except Exception as e:
-                add_to_message_log(f"Failed to connect to CTC: {e}")
         
-        root.after(2000, connect_to_uis)
+        root.after(2000, connect_to_main_ui)
         return server
     except Exception as e:
         add_to_message_log(f"Socket server error: {e}")

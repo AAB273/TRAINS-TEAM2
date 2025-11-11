@@ -1,34 +1,45 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, Scrollbar
 from datetime import datetime
 import os
 
 class StationAnnouncementPanel:
-	# UI panel for train station announcements.
+	# UI panel for train station announcements with all three lines.
 	
 	"""
 	Attributes:
 		root: The main tkinter window
 		stations: Dictionary mapping line names to station lists
 		selectedStation: StringVar holding the currently selected station
+		currentLine: StringVar holding the currently selected line
 		notebook: ttk Notebook widget for tabs
 		emergencyText: Text widget for emergency messages
-		timeLabelBlue: Label showing time on Blue Line tab
-		timeLabelEmergency: Label showing time on Emergency tab
+		timeLabels: Dict of time labels for each tab
 	"""
 	
 	def __init__(self, root):
 		# Initializes the station announcement panel.
 		self.root = root
 		self.root.title("STATION ANNOUNCEMENT PANEL")
-		self.root.geometry("400x600")
+		self.root.geometry("500x700")
 		self.root.configure(bg='#2c3e50')
 		
+		# Station data for all three lines
 		self.stations = {
-			'Blue Line': ['Station B', 'Station C']
+			'Blue Line': ['Station B', 'Station C'],
+			'Green Line': ['Pioneer', 'Edgebrook', 'Station', 'Whited', 'South Bank', 
+			               'Central (Underground)', 'Inglewood (Underground)', 
+			               'Overbrook (Underground)', 'Glenbury', 'Dormont', 
+			               'Mt Lebanon', 'Poplar', 'Castle Shannon'],
+			'Red Line': ['Shadyside', 'Herron Ave', 'Swissville', 
+			             'Penn Station (Underground)', 'Steel Plaza (Underground)', 
+			             'First Ave (Underground)', 'Station Square', 
+			             'South Hills Junction']
 		}
 		
 		self.selectedStation = tk.StringVar()
+		self.currentLine = tk.StringVar(value='Blue Line')
+		self.timeLabels = {}
 		
 		self._createWidgets()
 		self._updateTime()
@@ -44,12 +55,14 @@ class StationAnnouncementPanel:
 		self.notebook.pack(fill='both', expand=True)
 		
 		self._createBlueLineTab()
+		self._createGreenLineTab()
+		self._createRedLineTab()
 		self._createEmergencyTab()
 		
-	def _createBlueLineTab(self):
-		# Creates the Blue Line station selection tab.
+	def _createLineTab(self, line_name, line_color):
+		# Creates a station selection tab for a specific line.
 		frame = tk.Frame(self.notebook, bg='#d0e8f5')
-		self.notebook.add(frame, text='Blue Line')
+		self.notebook.add(frame, text=line_name)
 		
 		# Header section with title and time
 		headerFrame = tk.Frame(frame, bg='#34495e')
@@ -68,7 +81,7 @@ class StationAnnouncementPanel:
 		timeFrame = tk.Frame(headerFrame, bg='#2c3e50', relief='raised', bd=3)
 		timeFrame.pack(pady=(5, 10))
 		
-		self.timeLabelBlue = tk.Label(
+		timeLabel = tk.Label(
 			timeFrame,
 			text="",
 			font=('Arial', 16, 'bold'),
@@ -77,14 +90,15 @@ class StationAnnouncementPanel:
 			padx=20,
 			pady=8
 		)
-		self.timeLabelBlue.pack()
+		timeLabel.pack()
+		self.timeLabels[line_name] = timeLabel
 		
-		# Blue Line title
+		# Line title
 		title = tk.Label(
 			frame,
-			text="Blue Line",
+			text=line_name,
 			font=('Arial', 24, 'bold'),
-			bg='#1a5490',
+			bg=line_color,
 			fg='white',
 			relief='raised',
 			bd=4,
@@ -93,42 +107,52 @@ class StationAnnouncementPanel:
 		)
 		title.pack(pady=30)
 		
-		# Station dropdown menu
+		# Scrollable station list frame - CENTERED
 		stationsFrame = tk.Frame(frame, bg='#d0e8f5')
-		stationsFrame.pack(expand=True, pady=20)
+		stationsFrame.pack(expand=True, fill='both', pady=20, padx=50)  # Increased side padding
 		
-		self.selectedStation.set("Select a Station")
+		# Create container for centered scrollable area
+		centerContainer = tk.Frame(stationsFrame, bg='#d0e8f5')
+		centerContainer.pack(expand=True)
 		
-		dropdownFrame = tk.Frame(stationsFrame, bg='#3498db', relief='sunken', bd=2)
-		dropdownFrame.pack()
+		# Create canvas and scrollbar for scrolling
+		canvas = tk.Canvas(centerContainer, bg='#d0e8f5', highlightthickness=0, width=350)
+		scrollbar = Scrollbar(centerContainer, orient="vertical", command=canvas.yview, width=20)
+		scrollable_frame = tk.Frame(canvas, bg='#d0e8f5')
 		
-		stationDropdown = tk.OptionMenu(
-			dropdownFrame,
-			self.selectedStation,
-			*self.stations['Blue Line'],
-			command=lambda s: self._selectStation(s, 'Blue Line')
+		scrollable_frame.bind(
+			"<Configure>",
+			lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
 		)
-		stationDropdown.config(
-			font=('Arial', 16),
-			bg='#3498db',
-			fg='white',
-			activebackground='#2980b9',
-			activeforeground='white',
-			width=25,
-			height=2,
-			relief='flat',
-			bd=0,
-			highlightthickness=0,
-			anchor='w'
-		)
-		stationDropdown['menu'].config(
-			font=('Arial', 14),
-			bg='#3498db',
-			fg='white'
-		)
-		stationDropdown.pack(pady=15)
 		
-		# Announce button
+		canvas.create_window((0, 0), window=scrollable_frame, anchor="n")
+		canvas.configure(yscrollcommand=scrollbar.set)
+		
+		# Pack canvas and scrollbar - centered
+		canvas.pack(side="left", fill="y", expand=False)
+		scrollbar.pack(side="right", fill="y")
+		
+		# Add station buttons to scrollable frame - centered
+		stations = self.stations[line_name]
+		
+		for station in stations:
+			btn = tk.Button(
+				scrollable_frame,
+				text=station,
+				font=('Arial', 14, 'bold'),
+				bg='#3498db',
+				fg='white',
+				activebackground='#2980b9',
+				activeforeground='white',
+				relief='raised',
+				bd=3,
+				command=lambda s=station, l=line_name: self._selectStation(s, l),
+				height=2,
+				width=28  # Fixed width for all buttons
+			)
+			btn.pack(pady=5)
+		
+		# Announce button at bottom
 		announceFrame = tk.Frame(frame, bg="#4b87e0")
 		announceFrame.pack(side='bottom', pady=30)
 		
@@ -142,11 +166,23 @@ class StationAnnouncementPanel:
 			activeforeground='white',
 			relief='raised',
 			bd=4,
-			command=lambda: self._announceStation('Blue Line'),
+			command=lambda: self._announceStation(line_name),
 			width=18,
 			height=2
 		)
 		announceBtn.pack()
+		
+	def _createBlueLineTab(self):
+		# Creates the Blue Line station selection tab.
+		self._createLineTab('Blue Line', '#1a5490')
+		
+	def _createGreenLineTab(self):
+		# Creates the Green Line station selection tab.
+		self._createLineTab('Green Line', '#2d7a2d')
+		
+	def _createRedLineTab(self):
+		# Creates the Red Line station selection tab.
+		self._createLineTab('Red Line', '#c0392b')
 		
 	def _createEmergencyTab(self):
 		# Creates the Emergency message tab.
@@ -170,7 +206,7 @@ class StationAnnouncementPanel:
 		timeFrame = tk.Frame(headerFrame, bg='#2c3e50', relief='raised', bd=3)
 		timeFrame.pack(pady=(5, 10))
 		
-		self.timeLabelEmergency = tk.Label(
+		timeLabel = tk.Label(
 			timeFrame,
 			text="",
 			font=('Arial', 16, 'bold'),
@@ -179,7 +215,8 @@ class StationAnnouncementPanel:
 			padx=20,
 			pady=8
 		)
-		self.timeLabelEmergency.pack()
+		timeLabel.pack()
+		self.timeLabels['Emergency'] = timeLabel
 		
 		# Emergency title
 		title = tk.Label(
@@ -201,7 +238,7 @@ class StationAnnouncementPanel:
 		
 		msgLabel = tk.Label(
 			msgContainer,
-			text="Emergency Msg.",
+			text="Emergency Message:",
 			font=('Arial', 14, 'bold'),
 			bg='#ffe8e8',
 			fg='#2c3e50'
@@ -211,6 +248,10 @@ class StationAnnouncementPanel:
 		textFrame = tk.Frame(msgContainer, bg='#2c3e50', relief='raised', bd=3)
 		textFrame.pack(fill='both', expand=True)
 		
+		# Add scrollbar to text widget
+		scrollbar = Scrollbar(textFrame)
+		scrollbar.pack(side='right', fill='y')
+		
 		self.emergencyText = tk.Text(
 			textFrame,
 			height=8,
@@ -219,9 +260,11 @@ class StationAnnouncementPanel:
 			fg='#2c3e50',
 			wrap='word',
 			relief='flat',
-			bd=0
+			bd=0,
+			yscrollcommand=scrollbar.set
 		)
 		self.emergencyText.pack(fill='both', expand=True, padx=3, pady=3)
+		scrollbar.config(command=self.emergencyText.yview)
 		
 		# Announce button
 		announceFrame = tk.Frame(frame, bg='#ffe8e8')
@@ -245,21 +288,29 @@ class StationAnnouncementPanel:
 		
 	def _selectStation(self, station, line):
 		# Selects a station for announcement.
-		if station == "Select a station":
-			return
 		self.selectedStation.set(station)
+		self.currentLine.set(line)
 		print(f"Selected: {station} on {line}")
 		
 	def _announceStation(self, line):
 		# Broadcasts station arrival announcement.
 		station = self.selectedStation.get()
 		if not station or station == "Select a station":
-			print("Please select a station first!")
+			print(f"Please select a station on {line} first!")
+			return
+		
+		# Check if selected station matches current line
+		if self.currentLine.get() != line:
+			print(f"Please select a station on {line}!")
 			return
 		
 		stations = self.stations[line]
-		currentIdx = stations.index(station)
-		nextStation = stations[currentIdx + 1] if currentIdx < len(stations) - 1 else "the end of the line"
+		try:
+			currentIdx = stations.index(station)
+			nextStation = stations[currentIdx + 1] if currentIdx < len(stations) - 1 else "the end of the line"
+		except ValueError:
+			nextStation = "the next station"
+		
 		doorSide = "both sides"
 		
 		announcement = (
@@ -268,7 +319,7 @@ class StationAnnouncementPanel:
 			f"Next stop is {nextStation}."
 		)
 		
-		print(f"ANNOUNCEMENT: {announcement}")
+		print(f"ANNOUNCEMENT ({line}): {announcement}")
 		
 	def _announceEmergency(self):
 		# Broadcasts emergency message.
@@ -284,10 +335,9 @@ class StationAnnouncementPanel:
 		now = datetime.now()
 		timeStr = now.strftime("%#m/%#d/%y %#I:%M %p") if os.name == 'nt' else now.strftime("%-m/%-d/%y %-I:%M %p")
 		
-		if hasattr(self, 'timeLabelBlue'):
-			self.timeLabelBlue.config(text=timeStr)
-		if hasattr(self, 'timeLabelEmergency'):
-			self.timeLabelEmergency.config(text=timeStr)
+		for label in self.timeLabels.values():
+			if label:
+				label.config(text=timeStr)
 			
 		self.root.after(1000, self._updateTime)
 

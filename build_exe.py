@@ -3,6 +3,8 @@ import sys
 
 PyInstaller.__main__.run([
     'launch_all_modules.py',
-    '--onefile',
-    '--windowed',
+    '--onedir',
+    '--hidden-import=PIL',
+    '--hidden-import=numpy',
+    '--hidden-import=pandas',
 ])

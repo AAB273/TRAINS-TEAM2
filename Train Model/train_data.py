@@ -3,8 +3,12 @@ Train Data Management System
 Handles all train data and state for both Test UI and Passenger UI
 All calculations are done in metric, then converted to imperial when displayed onto the UI, except for temperature which is already in farenheight
 """
-import numpy as np
-import time
+import os, sys
+sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
+from GreenLineData import GreenLine
+from RedLineData import RedLine
+from BlueLineData import BlueLine
+
 
 
 class Train:
@@ -22,9 +26,10 @@ class Train:
         self.cabin_temp = 72.0
         self.grade = 0
         self.elevation = 0
-        self.speed_limit = 50
+        self.speed_limit = 0
         self.commanded_speed = 0
         self.commanded_authority = 0
+        self.distance_left = self.commanded_authority
 
         # For physics calculations
         self.last_power_command = 0.0
@@ -57,10 +62,12 @@ class Train:
         self.deployed = False
         
         # Line assignment
-        self.line = "blue"  # blue for testing
+        self.line = "green" 
+        self.block = 0 #IDK what to put here for now.
+        #self.line_data
 
         # Station
-        self.station = ""
+        self.station = "YARD"
         self.time_to_station = 0
         self.emergency_announcement = "EMERGENCY"
         
@@ -81,16 +88,23 @@ class Train:
         for callback in self._observers:
             callback(self)
     
-    # Metric setters with validation
-    def set_commanded_authority(self,value):
-        self.commanded_authority = float(value)
-        self._notify_observers()
+    def set_line(self,value):
+        self.line = value
+        if(value == 'green'):
+            self.line_data = GreenLine()
+        elif(value == 'red'):
+            self.line_data = RedLine()
+        else:
+            self.line_data = BlueLine()
 
-    def set_commanded_speed(self,value):
-        self.commanded_speed = float(value)
-        self._notify_observers()
+        self._notify_observers
+    
+    def set_block(self,value):
+        self.block = value
+        self.set_speed_limit(self.line_data.get_value(value,'speed_limit'))
+        self.set_grade(self.line_data.get_value(value,'grade'))
         
-
+    # Metric setters with validation
     def set_speed_limit(self, value):
         self.speed_limit = float(value)
         self._notify_observers()
@@ -192,7 +206,7 @@ class Train:
         self.passengers_disembarking = int(value)
         self._notify_observers()
 
-    def calculate_force_speed_acceleration_(self, dt=.1):
+    def calculate_force_speed_acceleration_distance(self, dt=1.0):
         """
         Calculate train physics based on current state and commands
         """
@@ -203,6 +217,12 @@ class Train:
         EMERGENCY_BRAKE_DECEL = -2.73 
         MAX_FORCE = 25715 
         total_mass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passenger_count + 2))
+
+        #Grade Force
+        if self.grade != 0:
+            Fgrade = total_mass * (self.grade/100)
+        else:
+            Fgrade = 0
         
         # State-based acceleration logic
         if self.emergency_brake_active:
@@ -223,7 +243,8 @@ class Train:
                     # Normal operation for moving train
                     if self.speed > 0:
                         force = self.power_command / self.speed
-                        a = force / total_mass
+                        fnet = force + Fgrade
+                        a = fnet / total_mass
                     else:
                         a = 0
             else:
@@ -232,8 +253,15 @@ class Train:
         else:
             a = self.acceleration  # Fallback
         
-        # INTEGRATE: Update speed using acceleration
-        new_speed = self.speed + (a * dt)
+        if hasattr(self, 'acceleration_prev'):
+            avg_acceleration = (a + self.acceleration_prev) / 2
+        else:
+            avg_acceleration = a  # First time step
+    
+        new_speed = self.speed + (avg_acceleration * dt)
+    
+        # Store current acceleration for next iteration
+        self.acceleration_prev = a
         
         # Apply speed limits
         if new_speed > self.speed_limit:
@@ -248,7 +276,10 @@ class Train:
         # Update state
         self.speed = new_speed
         self.acceleration = a
+        self.distance_left = self.distance_left - new_speed
         self._notify_observers()
+    
+
     # Door controls
     def set_right_door(self, is_open):
         """Set right door state (True=Open, False=Closed)"""
