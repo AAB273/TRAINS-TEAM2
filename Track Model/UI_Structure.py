@@ -908,7 +908,7 @@ class TrackModelUI(tk.Tk):
         
         print("🧹 Completely cleared all track icons and reset all tracking data")
 
-    def process_structured_track_data(self, df):
+    def process_structured_track_data(self, df, pd):
         """Process the specific CSV/Excel structure and REPLACE default data"""
         try:
             print(f"🔄 Starting data replacement with {len(df)} rows")
@@ -1088,7 +1088,7 @@ class TrackModelUI(tk.Tk):
         for i, block in enumerate(self.data_manager.blocks[:5]):  # Show first 5 blocks
             print(f"   Block {i+1}: Length={block.length}m, Grade={block.grade}%, Speed={block.speed_limit}km/h")
 
-    def process_infrastructure(self, block, infrastructure):
+    def process_infrastructure(self, block, infrastructure, pd):
         """Process infrastructure information and REPLACE existing data"""
         try:
             if pd.isna(infrastructure) or infrastructure == '' or infrastructure == 'nan':
@@ -1280,7 +1280,7 @@ class TrackModelUI(tk.Tk):
         is_on = self.is_heater_on(block)
         self.set_heater_state(block, is_on, True)  # Keep current on/off state, set working
     
-    def on_closing():
+    def on_closing(self):
         """Handle application closing"""
         print("Closing application...")
         self.server.running = False
