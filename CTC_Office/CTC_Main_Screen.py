@@ -13,7 +13,7 @@ from tkinter import ttk
 from tkinter.messagebox import askyesno
 from PIL import Image, ImageTk
 from time import strftime
-import CTC_Schedule_Screen
+from CTC_Schedule_Screen import ScheduleScreen
 
 #necessary to import the clock from the parent directory#
 import os, sys
@@ -33,7 +33,6 @@ class MainScreen:
     self.frame: main ttk.Frame() that all ui widgets are placed onto
     self.scheduleScreen: holds the ScheduleScreen object that displays the "Schedule" tab
     self.notebook = notebook: main notebook that contains the ui tabs
-    self.refMap: screen for the reference map image
     self.totalPassengers: integer for the number of passengers on the blue line
     self.numberOfTrains: integer for the number of trains on the blue line
     self.clockText: a ttk.Label() that holds the current time
@@ -46,14 +45,13 @@ class MainScreen:
     self.lsArea: a ttk.Treeview() object that holds information about light states
     '''
 
-    def __init__(self, root: tk.Tk, schedule: CTC_Schedule_Screen.ScheduleScreen, frame: ttk.Frame, notebook: ttk.Notebook, refMap: tk.Tk):
+    def __init__(self, root: tk.Tk, schedule: ScheduleScreen, frame: ttk.Frame, notebook: ttk.Notebook):
     #initialize class variables and create backdrop for main screen
 
         self.root = root 
         self.frame = frame
         self.schedule_screen = schedule  
         self.notebook = notebook 
-        self.refMap = refMap
         self.totalPassengers = 0 
         self.numberOfTrains = 1
 
@@ -562,6 +560,7 @@ class MainScreen:
     def dispRefMap(self):
     #display the reference map to the user
 
+        self.refMap = tk.Toplevel(self.root)
         self.refMap.title("Reference Map")
         self.refMap.geometry("1000x500+1201+0")
         #configure the window holding the reference map

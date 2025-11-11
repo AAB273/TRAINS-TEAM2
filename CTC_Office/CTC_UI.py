@@ -26,7 +26,6 @@ def main():
 
     root = tk.Tk()
     win = tk.Toplevel(root)
-    refMap = tk.Toplevel(root)
     #declaring main window, as well as test ui and reference map windows as subwindows of the main
     root.title("CTC Office")
     root.geometry('1200x925+0+0')
@@ -48,8 +47,8 @@ def main():
     #create the main tabs for the ui and add them to the Notebook
 
     
-    mainScreen = CTC_Main_Screen.MainScreen(root, 0, systemFrame, mainNotebook, refMap)
-    scheduleScreen = CTC_Schedule_Screen.ScheduleScreen(root, mainScreen, scheduleFrame, mainNotebook, refMap)
+    mainScreen = CTC_Main_Screen.MainScreen(root, 0, systemFrame, mainNotebook)
+    scheduleScreen = CTC_Schedule_Screen.ScheduleScreen(root, mainScreen, scheduleFrame, mainNotebook)
     mainScreen.schedule_screen = scheduleScreen
     testUI = CTC_Test_UI.TestUI(win)
     #create the ui objects
