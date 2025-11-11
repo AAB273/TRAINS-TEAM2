@@ -13,9 +13,8 @@ class TrackDataManager:
 
         # ADD THIS: Bidirectional block directions
         self.bidirectional_directions = {
-            "Blocks 1-5": 0,  # 0 = left, 1 = right
-            "Blocks 6-10": 0,
-            "Blocks 11-15": 0
+            "Blocks 13-28": 0,  # 0 = left, 1 = right
+            "Blocks 77-85": 0
         }
 
         # ---------------- Default Track Setup ----------------

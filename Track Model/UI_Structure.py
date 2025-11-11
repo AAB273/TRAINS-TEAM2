@@ -276,9 +276,9 @@ class TrackModelUI(tk.Tk):
 
         # --- Add Red and Green Line image to tab 2 ---
         try:
-            bg_img2 = Image.open("Red and Green Line.png").resize((900, 450), Image.LANCZOS)
+            bg_img2 = Image.open("Red and Green Line.png").resize((600, 450), Image.LANCZOS)
             self.block_view_bg = ImageTk.PhotoImage(bg_img2)
-            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=900, highlightthickness=0)
+            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=600, highlightthickness=0)
             self.block_canvas.pack(fill="x", padx=10, pady=10)
             self.block_canvas.create_image(0, 0, image=self.block_view_bg, anchor="nw")
             self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
@@ -288,7 +288,7 @@ class TrackModelUI(tk.Tk):
             
         except Exception as e:
             print("⚠️ Could not load Red and Green Line.png for Block/Station tab:", e)
-            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=900)
+            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=600)
             self.block_canvas.pack(fill="x", padx=10, pady=10)
             self.train_items_center = []
 
@@ -296,20 +296,100 @@ class TrackModelUI(tk.Tk):
         plc_panel2 = self.create_PLCupload_panel(frame2)
         plc_panel2.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
 
+
+    def create_track_system_table(self, parent):
+        """Creates a side panel showing Switches, Signals, and Heaters in a live table."""
+        card = self.make_card(parent, "Track Signals, Switches, and Heaters")
+        card.pack(side="right", fill="y", padx=10, pady=10)
+
+        # Create and style the Treeview
+        self.track_sys_tree = ttk.Treeview(
+            card,
+            columns=("Block", "Switch", "Signal", "Heater"),
+            show="headings",
+            height=15
+        )
+        self.track_sys_tree.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Define column headings
+        for col in ("Block", "Switch", "Signal", "Heater"):
+            self.track_sys_tree.heading(col, text=col)
+            self.track_sys_tree.column(col, anchor="center", width=110)
+
+        # Add vertical scrollbar
+        vsb = ttk.Scrollbar(card, orient="vertical", command=self.track_sys_tree.yview)
+        self.track_sys_tree.configure(yscroll=vsb.set)
+        vsb.pack(side="right", fill="y")
+
+        # Populate for the first time
+        self.update_track_system_table()
+
+    def update_track_system_table(self):
+        """Refresh the Switch/Signal/Heater table with live data."""
+        if not hasattr(self, "track_sys_tree"):
+            return  # Not yet built
+
+        self.track_sys_tree.delete(*self.track_sys_tree.get_children())
+
+        for b in self.data_manager.blocks:
+            switch_state = "Right" if getattr(b, "switch_state", False) else "Left"
+            signal_state = getattr(b, "traffic_light_state", 0)
+            heater_status = "On" if self.heater_manager.is_heater_on(b) else "Off"
+            heater_work = "Working" if self.heater_manager.is_heater_working(b) else "Broken"
+            heater_display = f"{heater_status}/{heater_work}"
+
+            self.track_sys_tree.insert(
+                "",
+                "end",
+                values=(b.block_number, switch_state, f"Signal {signal_state}", heater_display)
+            )
+
+
     # ---------------- Bottom Table ----------------
     def create_bottom_table(self, parent):
-        card = self.make_card(parent, "Track / Station Data")
-        card.pack(fill="both", expand=True)
-        self.table_frame = tk.Frame(card, bg="white")
+        """Creates the bottom section with Track/Station Data on the left 
+        and Track Elements on the right."""
+        container = tk.Frame(parent, bg="navy")
+        container.pack(fill="both", expand=True)
+
+        # --- Left side: Track/Station Data table ---
+        left_card = self.make_card(container, "Track / Station Data")
+        left_card.pack(side="left", fill="both", expand=True, padx=(0, 5), pady=5)
+        self.table_frame = tk.Frame(left_card, bg="white")
         self.table_frame.pack(fill="both", expand=True)
 
-        # Initialize Treeview once
-        self.columns_track = ("Block", "Grade", "Elevation", "Length", "Speed Limit", "Heaters", "Beacons")
+        # Initialize Treeview for main data
+        self.columns_track = ("Block", "Grade", "Elevation", "Length", "Speed Limit", "Beacons")
         self.columns_station = ("Block", "Station", "Ticket Sales", "Passengers Boarding", "Passengers Disembarking")
         self.tree = ttk.Treeview(self.table_frame, show="headings")
         self.tree.pack(fill="both", expand=True, padx=10, pady=10)
 
         self.update_bottom_table()
+
+        # --- Right side: Track System Status table ---
+        right_card = self.make_card(container, "Track Elements")
+        right_card.pack(side="left", fill="both", expand=True, padx=(5, 0), pady=5)
+
+        # Add system table inside
+        self.track_sys_tree = ttk.Treeview(
+            right_card,
+            columns=("Block", "Switch", "Signal", "Crossing", "Heater"),
+            show="headings",
+            height=15
+        )
+        self.track_sys_tree.pack(fill="both", expand=True, padx=10, pady=10)
+
+        for col in ("Block", "Switch", "Signal", "Crossing", "Heater"):
+            self.track_sys_tree.heading(col, text=col)
+            self.track_sys_tree.column(col, anchor="center", width=110)
+
+        vsb = ttk.Scrollbar(right_card, orient="vertical", command=self.track_sys_tree.yview)
+        self.track_sys_tree.configure(yscroll=vsb.set)
+        vsb.pack(side="right", fill="y")
+
+        # Populate initial data
+        self.update_track_system_table()
+
 
     def update_bottom_table(self):
         if self.view_mode.get() == "track":
@@ -423,15 +503,15 @@ class TrackModelUI(tk.Tk):
             self.block_frame.pack(fill="both", expand=True)
 
             try:
-                blue_line_img = Image.open("Red and Green Line.png").resize((900, 450), Image.LANCZOS)
+                blue_line_img = Image.open("Red and Green Line.png").resize((600, 450), Image.LANCZOS)
                 self.block_bg_img = ImageTk.PhotoImage(blue_line_img)
-                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=900, highlightthickness=0)
+                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=600, highlightthickness=0)
                 self.block_canvas.pack(fill="x", padx=10, pady=10)
                 self.block_canvas.create_image(0, 0, image=self.block_bg_img, anchor="nw")
                 self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
             except Exception as e:
                 print("⚠️ Could not load Red and Green Line.png for occupancy view:", e)
-                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=900)
+                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=600)
                 self.block_canvas.pack(fill="x", padx=10, pady=10)
 
             # Load Train Image
@@ -548,7 +628,7 @@ class TrackModelUI(tk.Tk):
 
         # Background image
         try:
-            bg_img = Image.open("Red and Green Line.png").resize((900, 450), Image.LANCZOS)
+            bg_img = Image.open("Red and Green Line.png").resize((600, 450), Image.LANCZOS)
             self.track_bg = ImageTk.PhotoImage(bg_img)
             self.track_canvas.create_image(0, 0, image=self.track_bg, anchor="nw")
             self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
@@ -758,24 +838,38 @@ class TrackModelUI(tk.Tk):
             for group_name in self.data_manager.bidirectional_directions.keys():
                 self.create_bidirectional_control(bidir_frame, group_name)
 
-        
-
             # --- TERMINAL / EVENT LOG SECTION ---
-            terminal_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
+            terminal_frame = tk.Frame(
+                outer_frame,
+                bg="white",
+                highlightbackground="#d0d0d0",
+                highlightthickness=1
+            )
             terminal_frame.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 
+            # Header row with title on left and Send Outputs button on right
+            header_frame = tk.Frame(terminal_frame, bg="white")
+            header_frame.pack(fill="x", padx=5, pady=(3, 0))
+
             tk.Label(
-                terminal_frame,
+                header_frame,
                 text="Event Log / Terminal",
                 font=("Arial", 9, "bold"),
                 bg="white",
                 fg="black"
-            ).pack(anchor="w", padx=5, pady=(3, 3))
+            ).pack(side="left", anchor="w")
 
+            send_button = ttk.Button(
+                header_frame,
+                text="Check Outputs",
+                command=self.send_outputs
+            )
+            send_button.pack(side="right", anchor="e", padx=(0, 3))
+
+            # Inner frame holds text box and scrollbar
             term_inner = tk.Frame(terminal_frame, bg="white")
             term_inner.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 
-            # Create terminal widget
             terminal = tk.Text(
                 term_inner,
                 height=8,
@@ -787,20 +881,12 @@ class TrackModelUI(tk.Tk):
                 wrap="word"
             )
             terminal.pack(side="left", fill="both", expand=True)
-            
-            # STORE THIS TERMINAL REFERENCE
+
             self.terminals.append(terminal)
 
             scrollbar = ttk.Scrollbar(term_inner, command=terminal.yview)
             scrollbar.pack(side="right", fill="y")
             terminal.config(yscrollcommand=scrollbar.set)
-
-            # --- SEND OUTPUTS BUTTON ---
-            send_button = ttk.Button(outer_frame, text="Send Outputs", command=self.send_outputs)
-            send_button.pack(pady=(5, 10), padx=5, anchor="s")
-
-            send_button = ttk.Button(outer_frame, text="Set Beacon Data", command=self.send_outputs)
-            send_button.pack(pady=(5, 10), padx=5, anchor="s")
 
             return outer_frame
     
@@ -819,12 +905,6 @@ class TrackModelUI(tk.Tk):
         status_lbl = tk.Label(control_frame, textvariable=status_var, width=12, anchor="center", 
                             bg="white", relief="sunken", bd=1)
         status_lbl.pack(side="left", padx=(0, 10))
-        
-        # Toggle button (immediate action, no save required)
-        btn_toggle = tk.Button(control_frame, text="Toggle Direction", 
-                            command=lambda gn=group_name: self.toggle_bidirectional_direction(gn),
-                            width=15)
-        btn_toggle.pack(side="left")
         
         # Store the status variable for updates
         self.bidir_controls[group_name] = status_var
@@ -1029,7 +1109,7 @@ class TrackModelUI(tk.Tk):
         """Handle PNG/JPG upload - replace track diagram background and clear all icons"""
         try:
             # Load and resize the new image
-            new_img = Image.open(filename).resize((900, 450), Image.LANCZOS)
+            new_img = Image.open(filename).resize((600, 450), Image.LANCZOS)
             self.track_bg = ImageTk.PhotoImage(new_img)
             
             # Clear EVERYTHING from the canvas first
@@ -1394,10 +1474,10 @@ class TrackModelUI(tk.Tk):
         self.temp_label.config(text=f"Temperature: {getattr(self.data_manager, 'environmental_temp', '--')}°C")
 
         # Update bottom table in-place
-        self.update_bottom_table()
+        # self.update_bottom_table()
 
         # Redraw track icons (switches, crossings, lights)
-        self.draw_track_icons()
+        # self.draw_track_icons()
 
         # REMOVED: Automatic terminal refresh - terminal only updates on button click now
 
@@ -1407,6 +1487,9 @@ class TrackModelUI(tk.Tk):
         
         if hasattr(self, "block_canvas") and hasattr(self, "train_items_center"):
             self.draw_trains(canvas=self.block_canvas, items_list=self.train_items_center)
+
+        # Refresh the right-side Track System table
+        self.update_track_system_table()
 
         # Refresh again in 1 second
         self.after(1000, self.refresh_ui)
