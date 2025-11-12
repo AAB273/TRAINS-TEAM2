@@ -1476,12 +1476,12 @@ class TrackModelUI(tk.Tk):
         
         # Ticket Sales and Boarding/Disembarking
         terminal.insert("end", "=== STATION DATA ===\n")
-        for idx, station in enumerate(dm.station_location):
-            block_num, station_name = station
+        for block_num, station_name in dm.station_location:  # ← Removed enumerate
+            block_idx = block_num - 1  # ← Convert to zero-based index
             terminal.insert("end", f"Station {station_name} (Block {block_num}):\n")
-            terminal.insert("end", f"  Tickets Sold: {int(dm.ticket_sales[idx])}\n")
-            terminal.insert("end", f"  Passengers Boarding: {int(dm.passengers_boarding[idx])}\n")
-            terminal.insert("end", f"  Passengers Disembarking: {int(dm.passengers_disembarking[idx])}\n\n")
+            terminal.insert("end", f"  Tickets Sold: {int(dm.ticket_sales[block_idx])}\n")  # ← Use block_idx
+            terminal.insert("end", f"  Passengers Boarding: {int(dm.passengers_boarding[block_idx])}\n")  # ← Use block_idx
+            terminal.insert("end", f"  Passengers Disembarking: {int(dm.passengers_disembarking[block_idx])}\n\n")  # ← Use block_idx
 
         # Track Circuit Signals / Occupancy
         terminal.insert("end", "=== BLOCK OCCUPANCY ===\n")
@@ -1514,21 +1514,9 @@ class TrackModelUI(tk.Tk):
             terminal.insert("end", "No active beacons\n")
         terminal.insert("end", "\n")
 
-        # Heater Status
-#        terminal.insert("end", "=== HEATER STATUS ===\n")
-#        for block in dm.blocks:
-#            if hasattr(block, 'track_heater') and isinstance(block.track_heater, list):
-#                if block.track_heater[0] == 1 or block.track_heater[1] == 0:  # On or broken
-#                    status = "ON" if block.track_heater[0] == 1 else "OFF"
-#                    working = "WORKING" if block.track_heater[1] == 1 else "BROKEN"
-#                    terminal.insert("end", f"Block {block.block_number}: {status} / {working}\n")
-#        terminal.insert("end", "\n")
-
-
-#        
-#        terminal.see("end")
-#        terminal.config(state="disabled")
-#        print("✅ Terminal update complete")
+        terminal.see("end")
+        terminal.config(state="disabled")
+        print("✅ Terminal update complete")
 
     def _log_to_terminal(self, terminal, msg):
         """Append a message to a specific terminal."""

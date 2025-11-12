@@ -292,7 +292,7 @@ class ScheduleScreen:
 
         self.mainScreen.send_to_ui("TL", str(self.trainNum - 1) + ", " + f"{speed:.3f}\n" + ", " + str(auth) + ", " + line)
         #self.server.send_to_ui("Track HW", {"suggested_speed", f"{speed:.3f}\n"})
-        #self.server.send_to_ui("Track SW", {"suggested", {"green", "0", f"{speed:.3f}\n", auth}})
+        self.server.send_to_ui("Track SW", {"suggested", {"green", "0", f"{speed:.3f}\n", auth}})
 
 ###############################################################################################################################################################
 
