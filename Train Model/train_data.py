@@ -26,7 +26,7 @@ class Train:
         self.cabin_temp = 72.0
         self.grade = 0
         self.elevation = 0
-        self.speed_limit = 0
+        self.speed_limit = 10000
         self.commanded_speed = 0
         self.commanded_authority = 0
         self.distance_left = self.commanded_authority
@@ -59,7 +59,7 @@ class Train:
         self.service_brake_active = True
         
         # Deployment status
-        self.deployed = True
+        self.deployed = False
         
         # Line assignment
         self.line = "green" 
@@ -197,19 +197,20 @@ class Train:
     def set_service_brake(self, value):
         value = bool(value)
         if value:
-            self.service_brake_active = 1
+            self.service_brake_active = True
         else:
-            self.service_brake_active = 0
+            self.service_brake_active = False
         self._notify_observers()
 
     def set_disembarking(self, value):
         self.passengers_disembarking = int(value)
         self._notify_observers()
+        
 
     def calculate_force_speed_acceleration_distance(self, dt=1.0):
-        """
-        Calculate train physics based on current state and commands
-        """
+
+        """Calculate train physics based on current state and commands"""
+
         # Constants
         EMPTY_TRAIN_MASS = 40900  
         AVG_PASSENGER_MASS = 65.77 
@@ -217,7 +218,8 @@ class Train:
         EMERGENCY_BRAKE_DECEL = -2.73 
         MAX_FORCE = 25715 
         total_mass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passenger_count + 2))
-
+        neg_grade_true = False
+        
         # Grade Force - FIXED
         if self.grade != 0:
             Fgrade = total_mass * 9.8 * (self.grade/100)
@@ -374,7 +376,7 @@ class Train:
 class TrainManager:
     """Manages all trains in the system"""
     
-    def __init__(self, num_trains=14):
+    def __init__(self, num_trains=1):
         self.trains = {i+1: Train(i+1) for i in range(num_trains)}
         self.selected_train_id = 1
     
