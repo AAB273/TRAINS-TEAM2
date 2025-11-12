@@ -64,10 +64,11 @@ class MainScreen:
         module_config = load_socket_config()
         ctc_config = module_config.get("CTC", {"port": 1})
         self.server = TrainSocketServer(port = ctc_config["port"], ui_id = "CTC")
-        self.server.set_allowed_connections(["Track SW", "Track HW", "CTC_Test_UI"])  #add "CTC_Test_UI when using test ui"
+        self.server.set_allowed_connections(["Track SW", "Track HW", "Track Model", "CTC_Test_UI"])  #add "CTC_Test_UI when using test ui"
         self.server.start_server(self._processMessage)
         self.server.connect_to_ui('localhost', 12342, "Track SW")
         self.server.connect_to_ui('localhost', 12343, "Track HW")
+        self.server.connect_to_ui('localhost', 12344, "Track Model")
 
         #for test ui
         self.server.connect_to_ui('localhost', 12349, "CTC_Test_UI")
@@ -163,26 +164,8 @@ class MainScreen:
 
         elif (code == "TP"):
         #throughput data case
-            tickets = ""
-            disemb = ""
-            commaInd = 0
-
-            #grab data from message
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                tickets += data[i]
-            data = data[commaInd + 2:]
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                disemb += data[i]
-            line = data[commaInd + 2:]
-
-            tickets = int(tickets)
-            disemb = int(disemb)
+            tickets = data[0]
+            disemb = data[1]
 
             self.totalPassengers += (tickets - disemb)
             #add new passengers to total
