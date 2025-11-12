@@ -3,7 +3,6 @@ from pathlib import Path
 import tkinter as tk
 import sys
 import os
-
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 from ui.header import Header
 from ui.left_panel import LeftPanel
