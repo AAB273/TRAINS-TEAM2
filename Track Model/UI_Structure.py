@@ -2223,8 +2223,7 @@ class TrackModelUI(tk.Tk):
 
     def send_all_outputs(self):
         """Send all outputs to appropriate UIs. Call this periodically or on state change."""
-        self.send_ticket_sales_to_ctc()
-        self.send_passengers_disembarking_to_ctc()
+        self.send_station_data_to_ctc()
         self.send_failure_modes_to_wayside()
         self.send_block_occupancy_to_wayside()
         self.send_block_occupancy_to_train_model()
