@@ -45,7 +45,7 @@ class RightPanel(tk.Frame):
     
     def refresh_ui(self):
         """Refresh all UI elements when data changes externally"""
-        print("🔄 DEBUG: RightPanel refresh_ui called")
+        print("DEBUG: RightPanel refresh_ui called")
         self.update_block_options()        # Update dropdown
         self.create_block_table()          # Refresh status table
         self.update_current_block_info()   # Update block details
