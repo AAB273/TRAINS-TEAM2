@@ -129,7 +129,6 @@ class TrainModelPassengerGUI:
         """Continuously update train physics for real-time speed changes"""
         if self.current_train and self.current_train.deployed:
             self.current_train.calculate_force_speed_acceleration_distance()
-
             self.server.send_to_ui("Train HW",{"Current Speed",self.current_train.speed})
             self.server.send_to_ui("Train SW",{"Current Speed",self.current_train.speed})
             self.update_ui_from_train(self.current_train)
@@ -138,7 +137,8 @@ class TrainModelPassengerGUI:
     def emergency_brake_activated(self):
         self.current_train.set_emergency_brake(True)
         self.current_train.set_acceleration(-2.73)
-        self.server.send_to_ui("Train Controller",{"Passenger Emergency Signal",1})
+        self.server.send_to_ui("Train HW",{"Passenger Emergency Signal",1})
+        self.server.send_to_ui("Train SW",{"Passenger Emergency Signal",1})
         print(f"EMERGENCY BRAKE ACTIVATED!")
 
     def failure_service_brake_var_changed(self):
