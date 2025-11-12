@@ -68,6 +68,7 @@ class MainScreen:
         self.server.start_server(self._processMessage)
         self.server.connect_to_ui('localhost', 12342, "Track SW")
         self.server.connect_to_ui('localhost', 12343, "Track HW")
+        self.server.connect_to_ui('localhost', 12344, "Track Model")
 
         #for test ui
         self.server.connect_to_ui('localhost', 12349, "CTC_Test_UI")
@@ -163,26 +164,8 @@ class MainScreen:
 
         elif (code == "TP"):
         #throughput data case
-            tickets = ""
-            disemb = ""
-            commaInd = 0
-
-            #grab data from message
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                tickets += data[i]
-            data = data[commaInd + 2:]
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                disemb += data[i]
-            line = data[commaInd + 2:]
-
-            tickets = int(tickets)
-            disemb = int(disemb)
+            tickets = data[0]
+            disemb = data[1]
 
             self.totalPassengers += (tickets - disemb)
             #add new passengers to total
