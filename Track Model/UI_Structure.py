@@ -34,12 +34,6 @@ class TrackModelUI(tk.Tk):
         # CRITICAL: Set data_manager FIRST before anything else
         self.data_manager = manager
 
-        # UI 1 - Can communicate with UI 2 and UI 3
-        self.server = TrainSocketServer(port=12345, ui_id="UI_Structure")
-        self.server.set_allowed_connections(["Test_UI","ui_3"])
-        self.server.start_server(self._process_message)
-        self.server.connect_to_ui('localhost',12346,"Test_UI")
-
         module_config = load_socket_config()
         config = module_config.get("Track Model", {"port": 4})
         self.server = TrainSocketServer(
@@ -2222,8 +2216,8 @@ class TrackModelUI(tk.Tk):
         self.root.destroy()
 
     # ============================================================================
-# Add these methods to your TrackModelUI class
-# ============================================================================
+    # Add these methods to your TrackModelUI class
+    # ============================================================================
     # ---------------- OUTPUT METHODS (Sending Data) ----------------
 
     def send_all_outputs(self):
