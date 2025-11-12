@@ -59,7 +59,7 @@ class Train:
         self.service_brake_active = True
         
         # Deployment status
-        self.deployed = False
+        self.deployed = True
         
         # Line assignment
         self.line = "green" 
@@ -218,65 +218,89 @@ class Train:
         MAX_FORCE = 25715 
         total_mass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passenger_count + 2))
 
-        #Grade Force
+        # Grade Force - FIXED
         if self.grade != 0:
-            Fgrade = total_mass * (self.grade/100)
+            Fgrade = total_mass * 9.8 * (self.grade/100)
+            if(self.grade < 0):
+                neg_grade_true = True
+            else:
+                neg_grade_true = False
         else:
             Fgrade = 0
         
         # State-based acceleration logic
         if self.emergency_brake_active:
-            a = EMERGENCY_BRAKE_DECEL
+            a_new = EMERGENCY_BRAKE_DECEL
             
         elif self.service_brake_active:
             if self.speed > 0:
-                a = SERVICE_BRAKE_DECEL
+                a_new = SERVICE_BRAKE_DECEL
             else:
-                a = 0
+                a_new = 0
                 
         elif not self.service_brake_active:  # Service brake is OFF
             if not self.left_door_open and not self.right_door_open and self.power_command > 0:
-                # ONLY use max force when completely stopped and starting from rest
                 if self.speed == 0:
-                    a = MAX_FORCE / total_mass
+                    a_new = MAX_FORCE / total_mass
                 else:
-                    # Normal operation for moving train
                     if self.speed > 0:
                         force = self.power_command / self.speed
-                        fnet = force + Fgrade
-                        a = fnet / total_mass
+                        if neg_grade_true:
+                            fnet = force + Fgrade  
+                            a_new = fnet / total_mass
+                        else:
+                            fnet = force - Fgrade  
+                            a_new = fnet / total_mass
                     else:
-                        a = 0
+                        a_new = 0
             else:
-                a = 0  # No power or doors open
+                a_new = 0  # No power or doors open
                 
         else:
-            a = self.acceleration  # Fallback
+            a_new = self.acceleration  # Fallback
         
+        
+        if self.speed >= self.speed_limit and a_new > 0:
+            a_new = 0
+        
+        # Trapezoidal integration for speed
         if hasattr(self, 'acceleration_prev'):
-            avg_acceleration = (a + self.acceleration_prev) / 2
+            avg_acceleration = (a_new + self.acceleration_prev) / 2
         else:
-            avg_acceleration = a  # First time step
-    
+            avg_acceleration = a_new
+
         new_speed = self.speed + (avg_acceleration * dt)
-    
-        # Store current acceleration for next iteration
-        self.acceleration_prev = a
         
-        # Apply speed limits
-        if new_speed > self.speed_limit:
-            new_speed = self.speed_limit
-            a = 0  # Stop accelerating when at limit
-            
-        # Ensure speed doesn't go negative
+      
         if new_speed < 0:
             new_speed = 0
-            a = 0
+            a_new = 0
+        
+     
+        if new_speed > self.speed_limit:
+            new_speed = self.speed_limit
+        
+        # NOW calculate distance with final speed values
+        if hasattr(self, 'speed_prev'):
+            avg_speed = (new_speed + self.speed_prev) / 2
+        else:
+            avg_speed = new_speed
+
+        distance = avg_speed * dt
         
         # Update state
+        self.acceleration_prev = a_new
+        self.speed_prev = self.speed  # Store current speed before updating
         self.speed = new_speed
-        self.acceleration = a
-        self.distance_left = self.distance_left - new_speed
+        self.acceleration = a_new
+        self.distance_left = self.distance_left - distance
+        
+        # Time to Station Calculation 
+        if new_speed > 0.1:  
+            self.set_time_to_station(int(self.distance_left / new_speed))
+        else:
+            self.set_time_to_station('Soon')
+
         self._notify_observers()
     
 

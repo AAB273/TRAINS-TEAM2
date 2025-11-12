@@ -51,12 +51,36 @@ class TrackModelUI(tk.Tk):
 }
         self.terminals = []
 
+        # Initialize sorting state variables
+        self.track_data_sort_column = None
+        self.track_data_sort_reverse = False
+        self.track_system_sort_column = None
+        self.track_system_sort_reverse = False
+
         # Use the shared TrackDataManager
         self.data_manager = manager
 
-        self.file_manager = FileUploadManager(self)
+        # --- Auto-load Green Line data from Excel file ---
+        import os
+        track_file = os.path.join(os.path.dirname(__file__), "Track Data.xlsx")
+        if os.path.exists(track_file):
+            loaded = self.data_manager.load_excel_data(track_file)
+            if loaded:
+                print("[UI] Green Line Track Data successfully loaded on launch.")
+            else:
+                print("[UI] Failed to load Green Line Track Data.")
+        else:
+            print("[UI] Track Data.xlsx not found in directory.")
+
+
+        self.file_manager = FileUploadManager(self.data_manager, ui_reference=self)
         self.heater_manager = HeaterSystemManager(self)
         self.diagram_drawer = TrackDiagramDrawer(self, self.data_manager)
+
+        # --- Auto-load Green Line track data from Excel on startup ---
+        if not self.file_manager.auto_load_green_line():
+            print("[UI] ⚠️ Green Line data could not be loaded automatically.")
+
 
         for b in self.data_manager.blocks:
             if not hasattr(b, "traffic_light_state"):
@@ -299,20 +323,20 @@ class TrackModelUI(tk.Tk):
 
     def create_track_system_table(self, parent):
         """Creates a side panel showing Switches, Signals, and Heaters in a live table."""
-        card = self.make_card(parent, "Track Signals, Switches, and Heaters")
+        card = self.make_card(parent, "Track Signals, Switches, Crossings, and Heaters")
         card.pack(side="right", fill="y", padx=10, pady=10)
 
         # Create and style the Treeview
         self.track_sys_tree = ttk.Treeview(
             card,
-            columns=("Block", "Switch", "Signal", "Heater"),
+            columns=("Block", "Switch", "Signal", "Crossing", "Heater"),
             show="headings",
             height=15
         )
         self.track_sys_tree.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Define column headings
-        for col in ("Block", "Switch", "Signal", "Heater"):
+        for col in ("Block", "Switch", "Signal", "Crossing", "Heater"):
             self.track_sys_tree.heading(col, text=col)
             self.track_sys_tree.column(col, anchor="center", width=110)
 
@@ -325,30 +349,190 @@ class TrackModelUI(tk.Tk):
         self.update_track_system_table()
 
     def update_track_system_table(self):
-        """Refresh the Switch/Signal/Heater table with live data."""
+        """Refresh the Switch/Signal/Crossing/Heater table with live data - ONLY infrastructure blocks."""
         if not hasattr(self, "track_sys_tree"):
             return  # Not yet built
 
         self.track_sys_tree.delete(*self.track_sys_tree.get_children())
 
+        # Get infrastructure data map
+        infra_map = getattr(self.data_manager, "infrastructure_data", {})
+        
+        # Collect all rows first before inserting
+        rows = []
+        
         for b in self.data_manager.blocks:
-            switch_state = "Right" if getattr(b, "switch_state", False) else "Left"
-            signal_state = getattr(b, "traffic_light_state", 0)
-            heater_status = "On" if self.heater_manager.is_heater_on(b) else "Off"
-            heater_work = "Working" if self.heater_manager.is_heater_working(b) else "Broken"
-            heater_display = f"{heater_status}/{heater_work}"
+            # Check if block has any infrastructure (switch, signal, crossing, or station)
+            has_switch = b.block_number in self.switch_blocks or getattr(b, "switch_state", False)
+            has_signal = b.block_number in self.signal_blocks or getattr(b, "signal", None) is not None
+            has_crossing = b.block_number in self.crossing_blocks or getattr(b, "crossing", False)
+            
+            # Check if block has station infrastructure
+            has_station = False
+            infra = str(infra_map.get(b.block_number, "")).upper()
+            if "STATION" in infra:
+                has_station = True
+            
+            # Also check station_location list
+            if any(block_num == b.block_number for block_num, _ in self.data_manager.station_location):
+                has_station = True
+            
+            # Only add row if block has ANY infrastructure
+            if has_switch or has_signal or has_crossing or has_station:
+                switch_state = "Right" if getattr(b, "switch_state", False) else "Left" if has_switch else "N/A"
+                
+                # Handle signal state
+                if has_signal:
+                    signal_state = getattr(b, "traffic_light_state", 0)
+                    signal_display = f"Signal {signal_state}"
+                else:
+                    signal_display = "N/A"
+                
+                crossing_state = "Active" if getattr(b, "crossing", False) else "Inactive" if has_crossing else "N/A"
+                
+                # Only show heater status for station blocks
+                if has_station:
+                    heater_status = "On" if self.heater_manager.is_heater_on(b) else "Off"
+                    heater_work = "Working" if self.heater_manager.is_heater_working(b) else "Broken"
+                    heater_display = f"{heater_status}/{heater_work}"
+                else:
+                    heater_display = "N/A"
 
-            self.track_sys_tree.insert(
-                "",
-                "end",
-                values=(b.block_number, switch_state, f"Signal {signal_state}", heater_display)
-            )
+                rows.append((b.block_number, switch_state, signal_display, crossing_state, heater_display))
+        
+        # Apply sorting if needed
+        if hasattr(self, 'track_system_sort_column') and self.track_system_sort_column:
+            rows = self.apply_track_system_sort(rows, self.track_system_sort_column, self.track_system_sort_reverse)
+        
+        # Insert sorted rows
+        for row in rows:
+            self.track_sys_tree.insert("", "end", values=row)
 
+
+    def sort_track_data_table(self, column):
+        """Sort Track/Station Data table by the clicked column."""
+        # Toggle sort direction if same column clicked again
+        if self.track_data_sort_column == column:
+            self.track_data_sort_reverse = not self.track_data_sort_reverse
+        else:
+            self.track_data_sort_column = column
+            self.track_data_sort_reverse = False
+        
+        # Get all current rows
+        rows = [(self.tree.item(child)["values"], child) for child in self.tree.get_children()]
+        
+        # Determine column index
+        col_index = self.columns_track.index(column)
+        
+        # Custom sort function
+        def sort_key(item):
+            val = item[0][col_index]
+            # Remove units and convert to numbers for numeric columns
+            if column == "Block":
+                return int(val)
+            elif column in ("Grade", "Elevation", "Length", "Speed Limit"):
+                # Extract numeric value (remove % or m or km/h)
+                num_str = ''.join(c for c in str(val).split()[0] if c.isdigit() or c == '.' or c == '-')
+                return float(num_str) if num_str else 0
+            else:
+                return str(val)
+        
+        # Sort rows
+        rows.sort(key=sort_key, reverse=self.track_data_sort_reverse)
+        
+        # Rearrange items in the tree
+        for index, (values, child) in enumerate(rows):
+            self.tree.move(child, '', index)
+        
+        # Update column heading to show sort direction
+        for col in self.columns_track:
+            if col == column:
+                arrow = " ↓" if self.track_data_sort_reverse else " ↑"
+                self.tree.heading(col, text=f"{col}{arrow}")
+            else:
+                self.tree.heading(col, text=col)
+
+
+    def sort_track_system_table(self, column):
+        """Sort Track System Status table by the clicked column."""
+        # Toggle sort direction if same column clicked again
+        if self.track_system_sort_column == column:
+            self.track_system_sort_reverse = not self.track_system_sort_reverse
+        else:
+            self.track_system_sort_column = column
+            self.track_system_sort_reverse = False
+        
+        # Refresh table with new sort order
+        self.update_track_system_table()
+        
+        # Update column heading to show sort direction
+        columns = ("Block", "Switch", "Signal", "Crossing", "Heater")
+        for col in columns:
+            if col == column:
+                arrow = " ↓" if self.track_system_sort_reverse else " ↑"
+                self.track_sys_tree.heading(col, text=f"{col}{arrow}")
+            else:
+                self.track_sys_tree.heading(col, text=col)
+
+
+    def apply_track_system_sort(self, rows, column, reverse):
+        """Apply sorting to track system table rows."""
+        # Map column name to index
+        columns = ("Block", "Switch", "Signal", "Crossing", "Heater")
+        col_index = columns.index(column)
+        
+        # Custom sort key function
+        def sort_key(row):
+            val = row[col_index]
+            
+            if column == "Block":
+                return int(val)
+            
+            elif column == "Switch":
+                # Sort: Left < Right < N/A
+                if val == "N/A":
+                    return 2
+                elif val == "Left":
+                    return 0
+                else:  # Right
+                    return 1
+            
+            elif column == "Signal":
+                # Sort: N/A < Signal 0 < Signal 1 < Signal 2 < Signal 3
+                if val == "N/A":
+                    return -1
+                else:
+                    # Extract signal number
+                    return int(val.split()[1])
+            
+            elif column == "Crossing":
+                # Sort: N/A < Inactive < Active
+                if val == "N/A":
+                    return 0
+                elif val == "Inactive":
+                    return 1
+                else:  # Active
+                    return 2
+            
+            elif column == "Heater":
+                # Sort by status first (Off < On), then by working state (Broken < Working)
+                # N/A comes first
+                if val == "N/A":
+                    return (0, 0)
+                parts = val.split("/")
+                status = 0 if parts[0] == "Off" else 1
+                working = 0 if parts[1] == "Broken" else 1
+                return (status, working)
+            
+            return str(val)
+        
+        # Sort and return
+        return sorted(rows, key=sort_key, reverse=reverse)
 
     # ---------------- Bottom Table ----------------
     def create_bottom_table(self, parent):
         """Creates the bottom section with Track/Station Data on the left 
-        and Track Elements on the right."""
+        and Track System Status on the right."""
         container = tk.Frame(parent, bg="navy")
         container.pack(fill="both", expand=True)
 
@@ -358,19 +542,46 @@ class TrackModelUI(tk.Tk):
         self.table_frame = tk.Frame(left_card, bg="white")
         self.table_frame.pack(fill="both", expand=True)
 
-        # Initialize Treeview for main data
-        self.columns_track = ("Block", "Grade", "Elevation", "Length", "Speed Limit", "Beacons")
-        self.columns_station = ("Block", "Station", "Ticket Sales", "Passengers Boarding", "Passengers Disembarking")
-        self.tree = ttk.Treeview(self.table_frame, show="headings")
+        # Define columns (you can add Infrastructure column if desired)
+        self.columns_track = ("Block", "Grade", "Elevation", "Length", "Speed Limit")
+        self.tree = ttk.Treeview(self.table_frame, columns=self.columns_track, show="headings")
         self.tree.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self.update_bottom_table()
+        for col in self.columns_track:
+            self.tree.heading(col, text=col, command=lambda c=col: self.sort_track_data_table(c))
+            self.tree.column(col, anchor="center", width=110)
+
+        # --- Filter and populate only infrastructure blocks ---
+        infra_map = getattr(self.data_manager, "infrastructure_data", {})
+        allowed_keywords = ["STATION", "SWITCH", "RAILWAY CROSSING", "CROSSING"]
+
+        # Clear any existing rows (in case of reload)
+        self.tree.delete(*self.tree.get_children())
+
+        for b in self.data_manager.blocks:
+            infra = str(infra_map.get(b.block_number, "")).upper()
+            if any(keyword in infra for keyword in allowed_keywords):
+                heater_display = (
+                    f"{'On' if self.heater_manager.is_heater_on(b) else 'Off'}/"
+                    f"{'Working' if self.heater_manager.is_heater_working(b) else 'Broken'}"
+                )
+
+                self.tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        b.block_number,
+                        f"{b.grade}%",
+                        f"{b.elevation} m",
+                        f"{b.length} m",
+                        f"{b.speed_limit} km/h",
+                        heater_display,
+                    ),
+                )
 
         # --- Right side: Track System Status table ---
-        right_card = self.make_card(container, "Track Elements")
+        right_card = self.make_card(container, "Track System Status")
         right_card.pack(side="left", fill="both", expand=True, padx=(5, 0), pady=5)
-
-        # Add system table inside
         self.track_sys_tree = ttk.Treeview(
             right_card,
             columns=("Block", "Switch", "Signal", "Crossing", "Heater"),
@@ -380,94 +591,15 @@ class TrackModelUI(tk.Tk):
         self.track_sys_tree.pack(fill="both", expand=True, padx=10, pady=10)
 
         for col in ("Block", "Switch", "Signal", "Crossing", "Heater"):
-            self.track_sys_tree.heading(col, text=col)
+            self.track_sys_tree.heading(col, text=col, command=lambda c=col: self.sort_track_system_table(c))
             self.track_sys_tree.column(col, anchor="center", width=110)
 
         vsb = ttk.Scrollbar(right_card, orient="vertical", command=self.track_sys_tree.yview)
         self.track_sys_tree.configure(yscroll=vsb.set)
         vsb.pack(side="right", fill="y")
 
-        # Populate initial data
+        # Populate initial Track System table
         self.update_track_system_table()
-
-
-    def update_bottom_table(self):
-        if self.view_mode.get() == "track":
-            self.show_track_view()
-        else:
-            self.show_station_view()
-        # Filters remain intact; no destroying checkbuttons
-        self.init_filter_checkbuttons()
-
-    def refresh_block_table(self):
-        """Refresh the block table display"""
-        self.update_bottom_table()
-
-    def show_track_view(self):
-        """Display the track table view with active filters applied."""
-
-        # --- Define filter sets (use your actual block locations) ---
-        switch_blocks = {5, 6, 11}
-        crossing_blocks = {4}
-        signal_blocks = {6, 11}
-        station_blocks = {10, 15}
-        # All blocks are bidirectional, so we'll include all block numbers 1-15
-
-        # --- Configure columns ---
-        self.tree.config(columns=self.columns_track)
-        for col in self.columns_track:
-            self.tree.heading(col, text=col.capitalize())
-            self.tree.column(col, width=120, anchor="center")
-
-        # --- Clear existing rows ---
-        self.tree.delete(*self.tree.get_children())
-
-        # --- Get filter states ---
-        show_all = self.filter_vars["All Blocks"].get()
-        show_switch = self.filter_vars["Switch Blocks"].get()
-        show_crossing = self.filter_vars["Crossing Blocks"].get()
-        show_station = self.filter_vars["Station Blocks"].get()
-        show_signal = self.filter_vars["Signal Blocks"].get()
-
-        # --- Insert filtered rows ---
-        for b in self.data_manager.blocks:
-            num = b.block_number
-
-            # Determine if block should be shown
-            if show_all:
-                show = True
-            else:
-                show = False
-                if show_switch and num in switch_blocks:
-                    show = True
-                elif show_crossing and num in crossing_blocks:
-                    show = True
-                elif show_station and num in station_blocks:
-                    show = True
-                elif show_signal and num in signal_blocks:
-                    show = True
-
-            # Insert visible blocks
-            if show:
-                heater_display = f"{'On' if self.heater_manager.is_heater_on(b) else 'Off'}/{'Working' if self.heater_manager.is_heater_working(b) else 'Broken'}"
-            
-                # Simple beacon display - only show Active/Inactive
-                beacon_active = BeaconManager.is_beacon_active(b)
-                beacon_display = "Active" if beacon_active else "Inactive"
-            
-                self.tree.insert(
-                    "",
-                    "end",
-                    values=(
-                        b.block_number,
-                        f"{b.grade}%",
-                        f"{b.elevation} ft",
-                        f"{b.length} mi",
-                        f"{b.speed_limit} mph",
-                        heater_display,
-                        beacon_display,
-                    ),
-                )
 
     def show_station_view(self):
         """Display station data with Red and Green Line image and dynamic train positions."""

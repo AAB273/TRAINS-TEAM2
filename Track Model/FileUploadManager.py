@@ -35,6 +35,88 @@ class FileUploadManager:
         except Exception as e:
             messagebox.showerror("Upload Error", f"Could not load track file:\n{e}")
 
+
+    def auto_load_green_line(self):
+        """
+        Automatically load the Green Line track data from 'Track Data.xlsx' if it exists in the directory.
+        Reads columns for block geometry and infrastructure, then updates the TrackDataManager.
+        """
+        import os
+        import pandas as pd
+        from Track_Blocks import Block
+
+        # Look for the Excel file in the same directory as this script
+        track_file = os.path.join(os.path.dirname(__file__), "Track Data.xlsx")
+
+        if not os.path.exists(track_file):
+            print("[FileUploadManager] ⚠️ 'Track Data.xlsx' not found in directory.")
+            return False
+
+        try:
+            # Load Excel sheet (Green Line)
+            df = pd.read_excel(track_file, sheet_name="Green Line")
+            print(f"[FileUploadManager] 📊 Loaded Excel file with columns: {list(df.columns)}")
+
+            # --- Verify required columns ---
+            required_cols = [
+                "Block Number",
+                "Block Length (m)",
+                "Block Grade (%)",
+                "ELEVATION (M)",
+                "Speed Limit (Km/Hr)"
+            ]
+            for col in required_cols:
+                if col not in df.columns:
+                    raise ValueError(f"Missing required column: {col}")
+
+            # --- Store Infrastructure info (if column exists) ---
+            if "Infrastructure" in df.columns:
+                self.data_manager.infrastructure_data = {
+                    int(row["Block Number"]): str(row["Infrastructure"])
+                    for _, row in df.iterrows()
+                    if not pd.isna(row["Infrastructure"])
+                }
+                print(f"[FileUploadManager] 🧱 Infrastructure data loaded for "
+                    f"{len(self.data_manager.infrastructure_data)} blocks.")
+            else:
+                self.data_manager.infrastructure_data = {}
+                print("[FileUploadManager] ⚠️ No 'Infrastructure' column found in Excel.")
+
+            # --- Load Green Line block data ---
+            self.data_manager.blocks = []
+            for _, row in df.iterrows():
+                try:
+                    block = Block(
+                        block_number=int(row["Block Number"]),
+                        length=float(row["Block Length (m)"]),
+                        grade=float(row["Block Grade (%)"]),
+                        elevation=float(row["ELEVATION (M)"]),
+                        speed_limit=float(row["Speed Limit (Km/Hr)"])
+                    )
+
+                    # Attach infrastructure info if available
+                    infra = self.data_manager.infrastructure_data.get(block.block_number, None)
+                    if infra:
+                        block.infrastructure = infra
+
+                    self.data_manager.blocks.append(block)
+
+                except Exception as e:
+                    print(f"[FileUploadManager] ⚠️ Skipped invalid row: {e}")
+
+            print(f"[FileUploadManager] ✅ Loaded {len(self.data_manager.blocks)} Green Line blocks successfully.")
+
+            # --- Refresh UI if available ---
+            if self.ui_reference and hasattr(self.ui_reference, "refresh_ui"):
+                self.ui_reference.refresh_ui()
+
+            return True
+
+        except Exception as e:
+            print(f"[FileUploadManager] ❌ Failed to load Green Line data: {e}")
+            return False
+
+
     # ---------------- Excel / CSV / Text Upload Handlers ----------------
 
     def handle_data_upload(self, filename):
