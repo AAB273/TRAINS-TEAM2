@@ -16,18 +16,16 @@ class ScheduleScreen:
     self.mainScreen: holds the MainScreen object that displays the "Syestem Information" tab
     self.notebook: main notebook that contains the ui tabs
     self.trainNum: number of trains released into the yard
-    self.refMap: screen for the reference map image
     self.clockText: a ttk.Label() that holds the current time
     self.clockTimer: contains the call to updateTime, allowing the program to cancel the timer when switching tabs
     '''
 
-    def __init__(self, root: tk.Tk, main: CTC_Main_Screen, frame: ttk.Frame, notebook: ttk.Notebook, refMap: tk.Tk):
+    def __init__(self, root: tk.Tk, main: CTC_Main_Screen, frame: ttk.Frame, notebook: ttk.Notebook):
     #initialize class variables and create backdrop for schedule screen
 
         self.root = root  #main variable for the window
         self.frame = frame
         self.mainScreen = main  #variable to hold the data of the schedule screen
-        self.refMap = refMap
         self.notebook = notebook  #variable to hold data about the tab buttons
         self.trainNum = 1;  #number of trains that have been sent to the system
 
@@ -198,15 +196,16 @@ class ScheduleScreen:
 
     def dispRefMap(self):
     #display the reference map to the user
-
-        self.refMap.title("Reference Map")
-        self.refMap.geometry("1000x500+1201+0")
+        
+        refMap = tk.Toplevel(self.root)
+        refMap.title("Reference Map")
+        refMap.geometry("1000x500+1201+0")
         #configure the window holding the reference map
 
         mapOriginalImage = Image.open("CTC_Office/blue_line.png") 
         mapImage = ImageTk.PhotoImage(mapOriginalImage.resize((1000, 500)))
         #create and resize image
-        mapImageLabel = ttk.Label(self.refMap, image = mapImage, background = "white")
+        mapImageLabel = ttk.Label(refMap, image = mapImage, background = "white")
         mapImageLabel.image = mapImage
         #keep a reference to the image so that it appears on the window
         mapImageLabel.pack()
@@ -259,19 +258,18 @@ class ScheduleScreen:
         Write all data to to_test_ui.txt data file so the test ui can read in data changes
         Follows formatting rules specified in README.txt
         '''
-        outfile = open("CTC_Office/to_test_ui.txt", "w")
-        outfile.write("TL\n")
-        outfile.write(str(self.trainNum) + "\n")
+        # outfile = open("CTC_Office/to_test_ui.txt", "w")  REMOVE, THIS IS FILE STUFF
+        # outfile.write("TL\n")
+        # outfile.write(str(self.trainNum) + "\n")
 
         distToStation = float(750)
         #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
         arrTime = self.timeToSeconds(time)
         speed = distToStation / arrTime
 
-        outfile.write(f"{speed:.3f}\n")
-        outfile.write("8\n")
-        outfile.write(line + "\n")
-        outfile.close()
+        #self.mainScreen.send_to_ui("TL", str(self.trainNum - 1) + ", " + f"{speed:.3f}\n" + ", 8, " + line)
+        self.server.send_to_ui("Track HW", {"suggested_speed", f"{speed:.3f}\n"})
+        self.server.send_to_ui("Track SW", {"suggested", {"green", "0", f"{speed:.3f}\n", "8"}})
 
 ###############################################################################################################################################################
 

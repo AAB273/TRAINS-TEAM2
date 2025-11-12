@@ -51,80 +51,80 @@ class TrackDiagramDrawer:
         # Draw all icons after layout
         self.draw_track_icons()
 
-    def draw_track_icons(self):
-        """
-        Draws all dynamic icons (switches, crossings, traffic lights, etc.) based on block states.
-        """
-        for b in self.track_data.blocks:
-            pos = self.icon_refs.get(b.block_number, None)
-            if not pos:
-                continue
+    # def draw_track_icons(self):
+        # """
+        # Draws all dynamic icons (switches, crossings, traffic lights, etc.) based on block states.
+        # """
+        # for b in self.track_data.blocks:
+        #     pos = self.icon_refs.get(b.block_number, None)
+        #     if not pos:
+        #         continue
 
-            x, y = pos["x"], pos["y"]
+        #     x, y = pos["x"], pos["y"]
 
-            # Draw switch
-            if hasattr(b, "switch") and b.switch is not None:
-                color = "blue" if b.switch else "gray"
-                self.canvas.create_oval(x - 6, y - 25, x + 6, y - 13, fill=color, outline="black")
+        #     # Draw switch
+        #     if hasattr(b, "switch") and b.switch is not None:
+        #         color = "blue" if b.switch else "gray"
+        #         self.canvas.create_oval(x - 6, y - 25, x + 6, y - 13, fill=color, outline="black")
 
-            # Draw crossing
-            if hasattr(b, "crossing") and b.crossing:
-                color = "orange" if b.crossing else "gray"
-                self.canvas.create_rectangle(x - 6, y + 13, x + 6, y + 25, fill=color, outline="black")
+        #     # Draw crossing
+        #     if hasattr(b, "crossing") and b.crossing:
+        #         color = "orange" if b.crossing else "gray"
+        #         self.canvas.create_rectangle(x - 6, y + 13, x + 6, y + 25, fill=color, outline="black")
 
-            # Draw signals and lights
-            if hasattr(b, "signal"):
-                self.draw_signal(b.block_number, b.signal)
-            if hasattr(b, "traffic_light"):
-                self.draw_traffic_light(b.block_number, b.traffic_light)
+        #     # Draw signals and lights
+        #     if hasattr(b, "signal"):
+        #         self.draw_signal(b.block_number, b.signal)
+        #     if hasattr(b, "traffic_light"):
+        #         self.draw_traffic_light(b.block_number, b.traffic_light)
 
     # -------------------------------------------------------------------------
     # SPECIFIC DRAWING HELPERS
     # -------------------------------------------------------------------------
-    def draw_traffic_light(self, block_num: int, state: str, light_size: int = 16):
-        """
-        Draws a traffic light icon representing block signal state.
+    # def draw_traffic_light(self, block_num: int, state: str, light_size: int = 16):
+    #     """
+    #     Draws a traffic light icon representing block signal state.
 
-        Args:
-            block_num (int): The block number where the light appears.
-            state (str): State of the light ('green', 'red', etc.).
-            light_size (int): Diameter of the traffic light circle.
-        """
-        pos = self.icon_refs.get(block_num)
-        if not pos:
-            return
+    #     Args:
+    #         block_num (int): The block number where the light appears.
+    #         state (str): State of the light ('green', 'red', etc.).
+    #         light_size (int): Diameter of the traffic light circle.
+    #     """
+    #     pos = self.icon_refs.get(block_num)
+    #     if not pos:
+    #         return
 
-        x, y = pos["x"], pos["y"] - 40
-        color = "green" if state.lower() == "green" else "red"
-        self.canvas.create_oval(
-            x - light_size / 2, y - light_size / 2,
-            x + light_size / 2, y + light_size / 2,
-            fill=color, outline="black"
-        )
+    #     x, y = pos["x"], pos["y"] - 40
+    #     color = "green" if state.lower() == "green" else "red"
+    #     self.canvas.create_oval(
+    #         x - light_size / 2, y - light_size / 2,
+    #         x + light_size / 2, y + light_size / 2,
+    #         fill=color, outline="black"
+    #     )
 
-    def draw_signal(self, block_num: int, state: str):
-        """
-        Draws a small rectangular signal indicator above each block.
+    # def draw_signal(self, block_num: int, state: str):
+    #     """
+    #     Draws a small rectangular signal indicator above each block.
 
-        Args:
-            block_num (int): The block number.
-            state (str): Signal state (e.g., 'GO', 'STOP').
-        """
-        pos = self.icon_refs.get(block_num)
-        if not pos:
-            return
+    #     Args:
+    #         block_num (int): The block number.
+    #         state (str): Signal state (e.g., 'GO', 'STOP').
+    #     """
+    #     pos = self.icon_refs.get(block_num)
+    #     if not pos:
+    #         return
 
-        x, y = pos["x"], pos["y"] - 55
-        color = "green" if state.upper() == "GO" else "red"
-        self.canvas.create_rectangle(x - 8, y - 4, x + 8, y + 4, fill=color, outline="black")
+    #     x, y = pos["x"], pos["y"] - 55
+    #     color = "green" if state.upper() == "GO" else "red"
+    #     self.canvas.create_rectangle(x - 8, y - 4, x + 8, y + 4, fill=color, outline="black")
 
     # -------------------------------------------------------------------------
     # CLEARING AND RESET
     # -------------------------------------------------------------------------
-    def clear_all_track_icons(self):
-        """
-        Removes all dynamic icons from the canvas while leaving the base track lines intact.
-        """
-        # We’ll just clear everything and redraw static track if needed
-        self.canvas.delete("all")
-        self.icon_refs.clear()
+    # def clear_all_track_icons(self):
+    #     """
+    #     Removes all dynamic icons from the canvas while leaving the base track lines intact.
+    #     """
+    #     # We’ll just clear everything and redraw static track if needed
+    #     self.canvas.delete("all")
+    #     self.icon_refs.clear()

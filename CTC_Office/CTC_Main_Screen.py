@@ -1,3 +1,13 @@
+import json    
+from pathlib import Path 
+
+def load_socket_config():
+    config_path = Path("config.json")
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config.get("modules", {})
+
 import tkinter as tk
 from tkinter import ttk
 from tkinter.messagebox import askyesno
@@ -9,6 +19,7 @@ import CTC_Schedule_Screen
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 import clock
+from TrainSocketServer import TrainSocketServer
 
 
 class MainScreen:
@@ -22,7 +33,6 @@ class MainScreen:
     self.frame: main ttk.Frame() that all ui widgets are placed onto
     self.scheduleScreen: holds the ScheduleScreen object that displays the "Schedule" tab
     self.notebook = notebook: main notebook that contains the ui tabs
-    self.refMap: screen for the reference map image
     self.totalPassengers: integer for the number of passengers on the blue line
     self.numberOfTrains: integer for the number of trains on the blue line
     self.clockText: a ttk.Label() that holds the current time
@@ -33,18 +43,34 @@ class MainScreen:
     self.mmArea: a ttk.Treeview() object that holds information about maintenance mode
     self.tpArea: a ttk.Treeview() object that holds information about throughputs
     self.lsArea: a ttk.Treeview() object that holds information about light states
+
+    self.mmList: a dictionary containing every block with a switch and what blocks they can face
     '''
 
-    def __init__(self, root: tk.Tk, schedule: CTC_Schedule_Screen.ScheduleScreen, frame: ttk.Frame, notebook: ttk.Notebook, refMap: tk.Tk):
+    def __init__(self, root: tk.Tk, schedule: CTC_Schedule_Screen.ScheduleScreen, frame: ttk.Frame, notebook: ttk.Notebook):
     #initialize class variables and create backdrop for main screen
 
         self.root = root 
         self.frame = frame
         self.schedule_screen = schedule  
         self.notebook = notebook 
-        self.refMap = refMap
         self.totalPassengers = 0 
         self.numberOfTrains = 1
+
+        self.mmList = {12: [1, 13], 28: [29, 150], 77: [76, 101], 85: [86, 100], 0: [57, 63]}
+
+
+        # Socket server setup
+        module_config = load_socket_config()
+        ctc_config = module_config.get("CTC", {"port": 1})
+        self.server = TrainSocketServer(port = ctc_config["port"], ui_id = "CTC")
+        self.server.set_allowed_connections(["Track SW", "Track HW", "CTC_Test_UI"])  #add "CTC_Test_UI when using test ui"
+        self.server.start_server(self._processMessage)
+        self.server.connect_to_ui('localhost', 12342, "Track SW")
+        self.server.connect_to_ui('localhost', 12343, "Track HW")
+
+        #for test ui
+        self.server.connect_to_ui('localhost', 12349, "CTC_Test_UI")
 
         self.createTopRow()
         #print the logo, reference map button, time
@@ -53,20 +79,58 @@ class MainScreen:
 
 ###############################################################################################################################################################
 
-    def updateMainScreen(self):
+    def send_to_ui(self, command, value=None):
+        pass
+        """Send command to the target UI (creates dict for socket server)"""
+        message = {'command': command}
+        if value is not None:
+            message['value'] = value
+        
+        # Always send to Train_Model_Passenger_UI
+        target_ui = "CTC_Test_UI"
+        success = self.server.send_to_ui(target_ui, message)
+        
+        if success:
+            print(f"Sent {command} to {target_ui}")
+        else:
+            print(f"Failed to send {command} to {target_ui}")
+
+        return success
+    
+###############################################################################################################################################################
+
+    def _processMessage(self, message, source_ui_id):
+        """Process incoming messages and update train state"""
+        try:
+            print(f"Received message from {source_ui_id}: {message}")
+
+            command = message.get('command')
+            value = message.get('value')
+
+            self.updateMainScreen(command, value)
+
+        except Exception as e:
+            print(f"Error processing message: {e}")
+
+###############################################################################################################################################################
+
+    def updateMainScreen(self, code, data):
     #update any data according to the data file
         '''
         Note: Follows formatting rules specified in README.txt.
         '''
 
-        infile = open("CTC_Office/CTC_data.txt", "r")
-        data = infile.readline()
-        #read in first line of data file to grab the data type
-
-        if (data.strip() == "TS"):
+        if (code == "TS"):
         #track state data case
-            location = infile.readline().strip()
-            line = infile.readline().strip()
+            location = ""
+            commaInd = 0
+            #index of the space to allow us to grab other data from the string
+            for i in range(len(data)):
+                if (data[i] == ","):
+                    commaInd = i
+                    break
+                location += data[i]
+            line = data[(commaInd + 2):]
 
             children = self.tsArea.get_children("")
             #get a list of the items in the Treeview
@@ -97,11 +161,29 @@ class MainScreen:
                     level = self.tsArea.insert('', "end", text = line.title())
                     self.tsArea.insert(level, "end", text = "Block " + location, values = ["Send Maintenance"])
 
-        elif (data.strip() == "TP"):
+        elif (code == "TP"):
         #throughput data case
-            tickets = int(infile.readline().strip())
-            disemb = int(infile.readline().strip())
-            line = infile.readline().strip()
+            tickets = ""
+            disemb = ""
+            commaInd = 0
+
+            #grab data from message
+            for i in range(len(data)):
+                if (data[i] == ","):
+                    commaInd = i
+                    break
+                tickets += data[i]
+            data = data[commaInd + 2:]
+            for i in range(len(data)):
+                if (data[i] == ","):
+                    commaInd = i
+                    break
+                disemb += data[i]
+            line = data[commaInd + 2:]
+
+            tickets = int(tickets)
+            disemb = int(disemb)
+
             self.totalPassengers += (tickets - disemb)
             #add new passengers to total
 
@@ -123,11 +205,25 @@ class MainScreen:
                         self.tpArea.insert("", "end", text = line.title(), values = [self.totalPassengers/self.numberOfTrains])
                         break
 
-        elif (data.strip() == "LS"):  
+        elif (code == "LS"):  
         #light switch data case
-            location = infile.readline().strip()
-            state = infile.readline().strip()
-            line = infile.readline().strip()
+            location = ""
+            state = ""
+            commaInd = 0
+
+            #grab data from message
+            for i in range(len(data)):
+                if (data[i] == ","):
+                    commaInd = i
+                    break
+                location += data[i]
+            data = data[commaInd + 2:]
+            for i in range(len(data)):
+                if (data[i] == ","):
+                    commaInd = i
+                    break
+                state += data[i]
+            line = data[commaInd + 2:]
         
             if (state == "00"):
                 state = "red"
@@ -170,11 +266,25 @@ class MainScreen:
                     level = self.lsArea.insert('', "end", text = line.title())
                     self.lsArea.insert(level, "end", text = "Block " + location, values = [state])
 
-        elif (data.strip() == "RC"):
+        elif (code == "RC"):
             #railway crossing data case
-            location = infile.readline().strip()
-            state = infile.readline().strip()
-            line = infile.readline().strip()
+            location = ""
+            state = ""
+            commaInd = 0
+            
+            #grab data from message
+            for i in range(len(data)):
+                if (data[i] == ","):
+                    commaInd = i
+                    break
+                location += data[i]
+            data = data[commaInd + 2:]
+            for i in range(len(data)):
+                if (data[i] == ","):
+                    commaInd = i
+                    break
+                state += data[i]
+            line = data[commaInd + 2:]
            
             if (state == "0"):
                 state = "inactive"
@@ -213,11 +323,6 @@ class MainScreen:
                     level = self.rcArea.insert('', "end", text = line.title())
                     self.rcArea.insert(level, "end", text = "Block " + location, values = [state])
         
-        infile.close()
-        reset = open("CTC_Office/CTC_data.txt", "w")
-        reset.close()
-        #close read-in file, then clear the data file
-
 ###############################################################################################################################################################
 
     def createTopRow(self):
@@ -354,9 +459,10 @@ class MainScreen:
         self.mmArea.column("Switch", width = 100)
         #create and format the Treeview holding maintenance mode data
 
-        blueLineLevel = self.mmArea.insert("", "end", text = "Blue")
-        self.mmArea.insert(blueLineLevel, "end", text = "Block 5", values = ["Block 6", "Switch"])
-        #switches for blue line only (WILL BE EDITED WHEN DOING RED/GREEN LINES)
+        greenLineLevel = self.mmArea.insert("", "end", text = "Green")
+        for key in self.mmList:
+            self.mmArea.insert(greenLineLevel, "end", text = "Block " + str(key), values = ["Block " + str(self.mmList[key][0]), "Switch"])
+        #switches for green line only (will add red later)
 
         self.mmArea.bind("<Button-1>", self.switchTrack)
         self.mmArea.pack(side = "left")
@@ -459,14 +565,15 @@ class MainScreen:
     def dispRefMap(self):
     #display the reference map to the user
 
-        self.refMap.title("Reference Map")
-        self.refMap.geometry("1000x500+1201+0")
+        refMap = tk.Toplevel(self.root)
+        refMap.title("Reference Map")
+        refMap.geometry("1000x500+1201+0")
         #configure the window holding the reference map
 
         mapOriginalImage = Image.open("CTC_Office/blue_line.png") 
         mapImage = ImageTk.PhotoImage(mapOriginalImage.resize((1000, 500)))
         #create and resize image
-        mapImageLabel = ttk.Label(self.refMap, image = mapImage, background = "white")
+        mapImageLabel = ttk.Label(refMap, image = mapImage, background = "white")
         mapImageLabel.image = mapImage
         #keep a reference to the image so that it appears on the window
         mapImageLabel.pack()
@@ -533,8 +640,6 @@ class MainScreen:
                     Write all data to to_test_ui.txt data file so the test ui can read in data changes
                     Follows formatting rules specified in README.txt
                     '''
-                    toTest = open("CTC_Office/to_test_ui.txt", "w")
-                    toTest.write("TS\n")
 
                     temp = self.tsArea.item(rowID, "text")
                     location = ""
@@ -542,11 +647,8 @@ class MainScreen:
                     #grab block number from row
                         if (char.isdigit()):
                             location += char
-                    
-                    toTest.write(location + "\n")
-                    toTest.write(self.tsArea.item(self.tsArea.parent(rowID), "text").lower())
-                    #grab line
-                    toTest.close()
+
+                    self.send_to_ui("TS", location + ", " + self.tsArea.item(self.tsArea.parent(rowID), "text").lower())
 
 ###############################################################################################################################################################
     
@@ -563,18 +665,17 @@ class MainScreen:
                 answer = askyesno(title = "Confirmation", message = "Would you like to switch the track?")
                 #confirmation pop-up, returns True if user clicks "Yes"
                 if (answer):
-                    if (self.mmArea.item(rowID, "values")[0] == "Block 6"):
-                        self.mmArea.set(rowID, column = "Direction", value = "Block 11")
-                    else:
-                        self.mmArea.set(rowID, column = "Direction", value = "Block 6")
-                    #edit which block the switch is pointed at (FOR BLUE LINE ONLY)
+                    
+                    for key in self.mmList:
+                        if (self.mmArea.item(rowID, "text") == "Block " + str(key)):
+                            if (self.mmArea.item(rowID, "values")[0] == "Block " + str(self.mmList[key][0])):
+                                self.mmArea.set(rowID, column = "Direction", value = "Block " + str(self.mmList[key][1]))
+                                break
+                            else:
+                                self.mmArea.set(rowID, column = "Direction", value = "Block " + str(self.mmList[key][0]))
+                                break
+                        #edit which block the switch is pointed at
 
-                    '''
-                    Write all data to to_test_ui.txt data file so the test ui can read in data changes
-                    Follows formatting rules specified in README.txt
-                    '''
-                    toTest = open("CTC_Office/to_test_ui.txt", "w")
-                    toTest.write("MM\n")
 
                     temp = self.mmArea.item(rowID, "text")
                     location = ""
@@ -582,7 +683,6 @@ class MainScreen:
                         if (char.isdigit()):
                             location += char
                     #grab specific block location
-                    toTest.write(location + "\n")
 
                     temp = self.mmArea.item(rowID, "values")[0]
                     direction = ""
@@ -590,7 +690,17 @@ class MainScreen:
                         if (char.isdigit()):
                             direction += char
                     #grab specific block direction
-                    toTest.write(direction + "\n")
-                    toTest.write(self.mmArea.item(self.mmArea.parent(rowID), "text").lower())
-                    #grab line
-                    toTest.close()
+
+                    self.send_to_ui("MM", location + ", " + direction + ", " + self.mmArea.item(self.mmArea.parent(rowID), "text").lower())
+
+###############################################################################################################################################################
+
+    def onClosing(self):
+        """Handle application closing"""
+        print("Closing application...")
+        self.server.running = False
+        if self.server.server_socket:
+            try:
+                self.server.server_socket.close()
+            except:
+                pass

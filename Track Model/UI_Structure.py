@@ -51,12 +51,36 @@ class TrackModelUI(tk.Tk):
 }
         self.terminals = []
 
+        # Initialize sorting state variables
+        self.track_data_sort_column = None
+        self.track_data_sort_reverse = False
+        self.track_system_sort_column = None
+        self.track_system_sort_reverse = False
+
         # Use the shared TrackDataManager
         self.data_manager = manager
 
-        self.file_manager = FileUploadManager(self)
+        # --- Auto-load Green Line data from Excel file ---
+        import os
+        track_file = os.path.join(os.path.dirname(__file__), "Track Data.xlsx")
+        if os.path.exists(track_file):
+            loaded = self.data_manager.load_excel_data(track_file)
+            if loaded:
+                print("[UI] Green Line Track Data successfully loaded on launch.")
+            else:
+                print("[UI] Failed to load Green Line Track Data.")
+        else:
+            print("[UI] Track Data.xlsx not found in directory.")
+
+
+        self.file_manager = FileUploadManager(self.data_manager, ui_reference=self)
         self.heater_manager = HeaterSystemManager(self)
         self.diagram_drawer = TrackDiagramDrawer(self, self.data_manager)
+
+        # --- Auto-load Green Line track data from Excel on startup ---
+        if not self.file_manager.auto_load_green_line():
+            print("[UI] ⚠️ Green Line data could not be loaded automatically.")
+
 
         for b in self.data_manager.blocks:
             if not hasattr(b, "traffic_light_state"):
@@ -107,6 +131,40 @@ class TrackModelUI(tk.Tk):
         if title:
             tk.Label(card, text=title, font=("Arial", 12, "bold"), bg="white").pack(anchor="w", padx=10, pady=5)
         return card
+    
+    def on_failure_changed(self):
+        """Triggered when any failure mode checkbox is toggled."""
+        import tkinter.simpledialog as simpledialog
+        import tkinter.messagebox as messagebox
+
+        # Determine which failure was triggered
+        failures = {
+            "Track Circuit": self.failure_train_circuit_var,
+            "Broken Railroads": self.failure_rail_var,
+            "Power": self.failure_power_var,
+        }
+
+        for failure_name, var in failures.items():
+            if var.get():  # Box was checked
+                block = simpledialog.askstring(
+                    "Select Block",
+                    f"Enter the block number to apply '{failure_name}' failure:"
+                )
+
+                if block:
+                    # Here you could apply the failure to the backend (TrackDataManager, etc.)
+                    print(f"Applying {failure_name} failure to Block {block}")
+                    # Example if you have data_manager:
+                    # self.data_manager.set_failure(block, failure_name)
+
+                else:
+                    messagebox.showinfo("Cancelled", f"No block selected for {failure_name}.")
+                    var.set(False)  # Uncheck if cancelled
+
+            else:
+                # Failure unchecked (cleared)
+                print(f"{failure_name} states updated")
+                # Example: self.data_manager.clear_failure(failure_name)
 
     # ---------------- Left Panel ----------------
     def create_left_panel(self, parent):
@@ -158,7 +216,7 @@ class TrackModelUI(tk.Tk):
         self.failure_power_var = tk.BooleanVar(value=False)
 
         ttk.Checkbutton(
-            fail_card, text="Train Circuit", variable=self.failure_train_circuit_var,
+            fail_card, text="Track Circuit", variable=self.failure_train_circuit_var,
             command=self.on_failure_changed, style="Large.TCheckbutton"
         ).pack(pady=10, padx=5, fill='x', expand=True)
         ttk.Checkbutton(
@@ -240,11 +298,11 @@ class TrackModelUI(tk.Tk):
         frame2 = tk.Frame(notebook, bg="white")
         notebook.add(frame2, text="Block and Station Occupancy")
 
-        # --- Add Blue Line image to tab 2 ---
+        # --- Add Red and Green Line image to tab 2 ---
         try:
-            bg_img2 = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
+            bg_img2 = Image.open("Red and Green Line.png").resize((600, 450), Image.LANCZOS)
             self.block_view_bg = ImageTk.PhotoImage(bg_img2)
-            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=900, highlightthickness=0)
+            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=600, highlightthickness=0)
             self.block_canvas.pack(fill="x", padx=10, pady=10)
             self.block_canvas.create_image(0, 0, image=self.block_view_bg, anchor="nw")
             self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
@@ -253,8 +311,8 @@ class TrackModelUI(tk.Tk):
             self.train_items_center = []
             
         except Exception as e:
-            print("⚠️ Could not load Blue Line.png for Block/Station tab:", e)
-            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=900)
+            print("⚠️ Could not load Red and Green Line.png for Block/Station tab:", e)
+            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=600)
             self.block_canvas.pack(fill="x", padx=10, pady=10)
             self.train_items_center = []
 
@@ -262,101 +320,289 @@ class TrackModelUI(tk.Tk):
         plc_panel2 = self.create_PLCupload_panel(frame2)
         plc_panel2.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
 
+
+    def create_track_system_table(self, parent):
+        """Creates a side panel showing Switches, Signals, and Heaters in a live table."""
+        card = self.make_card(parent, "Track Signals, Switches, Crossings, and Heaters")
+        card.pack(side="right", fill="y", padx=10, pady=10)
+
+        # Create and style the Treeview
+        self.track_sys_tree = ttk.Treeview(
+            card,
+            columns=("Block", "Switch", "Signal", "Crossing", "Heater"),
+            show="headings",
+            height=15
+        )
+        self.track_sys_tree.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Define column headings
+        for col in ("Block", "Switch", "Signal", "Crossing", "Heater"):
+            self.track_sys_tree.heading(col, text=col)
+            self.track_sys_tree.column(col, anchor="center", width=110)
+
+        # Add vertical scrollbar
+        vsb = ttk.Scrollbar(card, orient="vertical", command=self.track_sys_tree.yview)
+        self.track_sys_tree.configure(yscroll=vsb.set)
+        vsb.pack(side="right", fill="y")
+
+        # Populate for the first time
+        self.update_track_system_table()
+
+    def update_track_system_table(self):
+        """Refresh the Switch/Signal/Crossing/Heater table with live data - ONLY infrastructure blocks."""
+        if not hasattr(self, "track_sys_tree"):
+            return  # Not yet built
+
+        self.track_sys_tree.delete(*self.track_sys_tree.get_children())
+
+        # Get infrastructure data map
+        infra_map = getattr(self.data_manager, "infrastructure_data", {})
+        
+        # Collect all rows first before inserting
+        rows = []
+        
+        for b in self.data_manager.blocks:
+            # Check if block has any infrastructure (switch, signal, crossing, or station)
+            has_switch = b.block_number in self.switch_blocks or getattr(b, "switch_state", False)
+            has_signal = b.block_number in self.signal_blocks or getattr(b, "signal", None) is not None
+            has_crossing = b.block_number in self.crossing_blocks or getattr(b, "crossing", False)
+            
+            # Check if block has station infrastructure
+            has_station = False
+            infra = str(infra_map.get(b.block_number, "")).upper()
+            if "STATION" in infra:
+                has_station = True
+            
+            # Also check station_location list
+            if any(block_num == b.block_number for block_num, _ in self.data_manager.station_location):
+                has_station = True
+            
+            # Only add row if block has ANY infrastructure
+            if has_switch or has_signal or has_crossing or has_station:
+                switch_state = "Right" if getattr(b, "switch_state", False) else "Left" if has_switch else "N/A"
+                
+                # Handle signal state
+                if has_signal:
+                    signal_state = getattr(b, "traffic_light_state", 0)
+                    signal_display = f"Signal {signal_state}"
+                else:
+                    signal_display = "N/A"
+                
+                crossing_state = "Active" if getattr(b, "crossing", False) else "Inactive" if has_crossing else "N/A"
+                
+                # Only show heater status for station blocks
+                if has_station:
+                    heater_status = "On" if self.heater_manager.is_heater_on(b) else "Off"
+                    heater_work = "Working" if self.heater_manager.is_heater_working(b) else "Broken"
+                    heater_display = f"{heater_status}/{heater_work}"
+                else:
+                    heater_display = "N/A"
+
+                rows.append((b.block_number, switch_state, signal_display, crossing_state, heater_display))
+        
+        # Apply sorting if needed
+        if hasattr(self, 'track_system_sort_column') and self.track_system_sort_column:
+            rows = self.apply_track_system_sort(rows, self.track_system_sort_column, self.track_system_sort_reverse)
+        
+        # Insert sorted rows
+        for row in rows:
+            self.track_sys_tree.insert("", "end", values=row)
+
+
+    def sort_track_data_table(self, column):
+        """Sort Track/Station Data table by the clicked column."""
+        # Toggle sort direction if same column clicked again
+        if self.track_data_sort_column == column:
+            self.track_data_sort_reverse = not self.track_data_sort_reverse
+        else:
+            self.track_data_sort_column = column
+            self.track_data_sort_reverse = False
+        
+        # Get all current rows
+        rows = [(self.tree.item(child)["values"], child) for child in self.tree.get_children()]
+        
+        # Determine column index
+        col_index = self.columns_track.index(column)
+        
+        # Custom sort function
+        def sort_key(item):
+            val = item[0][col_index]
+            # Remove units and convert to numbers for numeric columns
+            if column == "Block":
+                return int(val)
+            elif column in ("Grade", "Elevation", "Length", "Speed Limit"):
+                # Extract numeric value (remove % or m or km/h)
+                num_str = ''.join(c for c in str(val).split()[0] if c.isdigit() or c == '.' or c == '-')
+                return float(num_str) if num_str else 0
+            else:
+                return str(val)
+        
+        # Sort rows
+        rows.sort(key=sort_key, reverse=self.track_data_sort_reverse)
+        
+        # Rearrange items in the tree
+        for index, (values, child) in enumerate(rows):
+            self.tree.move(child, '', index)
+        
+        # Update column heading to show sort direction
+        for col in self.columns_track:
+            if col == column:
+                arrow = " ↓" if self.track_data_sort_reverse else " ↑"
+                self.tree.heading(col, text=f"{col}{arrow}")
+            else:
+                self.tree.heading(col, text=col)
+
+
+    def sort_track_system_table(self, column):
+        """Sort Track System Status table by the clicked column."""
+        # Toggle sort direction if same column clicked again
+        if self.track_system_sort_column == column:
+            self.track_system_sort_reverse = not self.track_system_sort_reverse
+        else:
+            self.track_system_sort_column = column
+            self.track_system_sort_reverse = False
+        
+        # Refresh table with new sort order
+        self.update_track_system_table()
+        
+        # Update column heading to show sort direction
+        columns = ("Block", "Switch", "Signal", "Crossing", "Heater")
+        for col in columns:
+            if col == column:
+                arrow = " ↓" if self.track_system_sort_reverse else " ↑"
+                self.track_sys_tree.heading(col, text=f"{col}{arrow}")
+            else:
+                self.track_sys_tree.heading(col, text=col)
+
+
+    def apply_track_system_sort(self, rows, column, reverse):
+        """Apply sorting to track system table rows."""
+        # Map column name to index
+        columns = ("Block", "Switch", "Signal", "Crossing", "Heater")
+        col_index = columns.index(column)
+        
+        # Custom sort key function
+        def sort_key(row):
+            val = row[col_index]
+            
+            if column == "Block":
+                return int(val)
+            
+            elif column == "Switch":
+                # Sort: Left < Right < N/A
+                if val == "N/A":
+                    return 2
+                elif val == "Left":
+                    return 0
+                else:  # Right
+                    return 1
+            
+            elif column == "Signal":
+                # Sort: N/A < Signal 0 < Signal 1 < Signal 2 < Signal 3
+                if val == "N/A":
+                    return -1
+                else:
+                    # Extract signal number
+                    return int(val.split()[1])
+            
+            elif column == "Crossing":
+                # Sort: N/A < Inactive < Active
+                if val == "N/A":
+                    return 0
+                elif val == "Inactive":
+                    return 1
+                else:  # Active
+                    return 2
+            
+            elif column == "Heater":
+                # Sort by status first (Off < On), then by working state (Broken < Working)
+                # N/A comes first
+                if val == "N/A":
+                    return (0, 0)
+                parts = val.split("/")
+                status = 0 if parts[0] == "Off" else 1
+                working = 0 if parts[1] == "Broken" else 1
+                return (status, working)
+            
+            return str(val)
+        
+        # Sort and return
+        return sorted(rows, key=sort_key, reverse=reverse)
+
     # ---------------- Bottom Table ----------------
     def create_bottom_table(self, parent):
-        card = self.make_card(parent, "Track / Station Data")
-        card.pack(fill="both", expand=True)
-        self.table_frame = tk.Frame(card, bg="white")
+        """Creates the bottom section with Track/Station Data on the left 
+        and Track System Status on the right."""
+        container = tk.Frame(parent, bg="navy")
+        container.pack(fill="both", expand=True)
+
+        # --- Left side: Track/Station Data table ---
+        left_card = self.make_card(container, "Track / Station Data")
+        left_card.pack(side="left", fill="both", expand=True, padx=(0, 5), pady=5)
+        self.table_frame = tk.Frame(left_card, bg="white")
         self.table_frame.pack(fill="both", expand=True)
 
-        # Initialize Treeview once
-        self.columns_track = ("Block", "Grade", "Elevation", "Length", "Speed Limit", "Heaters", "Beacons")
-        self.columns_station = ("Block", "Station", "Ticket Sales", "Passengers Boarding", "Passengers Disembarking")
-        self.tree = ttk.Treeview(self.table_frame, show="headings")
+        # Define columns (you can add Infrastructure column if desired)
+        self.columns_track = ("Block", "Grade", "Elevation", "Length", "Speed Limit")
+        self.tree = ttk.Treeview(self.table_frame, columns=self.columns_track, show="headings")
         self.tree.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self.update_bottom_table()
-
-    def update_bottom_table(self):
-        if self.view_mode.get() == "track":
-            self.show_track_view()
-        else:
-            self.show_station_view()
-        # Filters remain intact; no destroying checkbuttons
-        self.init_filter_checkbuttons()
-
-    def refresh_block_table(self):
-        """Refresh the block table display"""
-        self.update_bottom_table()
-
-    def show_track_view(self):
-        """Display the track table view with active filters applied."""
-
-        # --- Define filter sets (use your actual block locations) ---
-        switch_blocks = {5, 6, 11}
-        crossing_blocks = {4}
-        signal_blocks = {6, 11}
-        station_blocks = {10, 15}
-        # All blocks are bidirectional, so we'll include all block numbers 1-15
-
-        # --- Configure columns ---
-        self.tree.config(columns=self.columns_track)
         for col in self.columns_track:
-            self.tree.heading(col, text=col.capitalize())
-            self.tree.column(col, width=120, anchor="center")
+            self.tree.heading(col, text=col, command=lambda c=col: self.sort_track_data_table(c))
+            self.tree.column(col, anchor="center", width=110)
 
-        # --- Clear existing rows ---
+        # --- Filter and populate only infrastructure blocks ---
+        infra_map = getattr(self.data_manager, "infrastructure_data", {})
+        allowed_keywords = ["STATION", "SWITCH", "RAILWAY CROSSING", "CROSSING"]
+
+        # Clear any existing rows (in case of reload)
         self.tree.delete(*self.tree.get_children())
 
-        # --- Get filter states ---
-        show_all = self.filter_vars["All Blocks"].get()
-        show_switch = self.filter_vars["Switch Blocks"].get()
-        show_crossing = self.filter_vars["Crossing Blocks"].get()
-        show_station = self.filter_vars["Station Blocks"].get()
-        show_signal = self.filter_vars["Signal Blocks"].get()
-
-        # --- Insert filtered rows ---
         for b in self.data_manager.blocks:
-            num = b.block_number
+            infra = str(infra_map.get(b.block_number, "")).upper()
+            if any(keyword in infra for keyword in allowed_keywords):
+                heater_display = (
+                    f"{'On' if self.heater_manager.is_heater_on(b) else 'Off'}/"
+                    f"{'Working' if self.heater_manager.is_heater_working(b) else 'Broken'}"
+                )
 
-            # Determine if block should be shown
-            if show_all:
-                show = True
-            else:
-                show = False
-                if show_switch and num in switch_blocks:
-                    show = True
-                elif show_crossing and num in crossing_blocks:
-                    show = True
-                elif show_station and num in station_blocks:
-                    show = True
-                elif show_signal and num in signal_blocks:
-                    show = True
-
-            # Insert visible blocks
-            if show:
-                heater_display = f"{'On' if self.heater_manager.is_heater_on(b) else 'Off'}/{'Working' if self.heater_manager.is_heater_working(b) else 'Broken'}"
-            
-                # Simple beacon display - only show Active/Inactive
-                beacon_active = BeaconManager.is_beacon_active(b)
-                beacon_display = "Active" if beacon_active else "Inactive"
-            
                 self.tree.insert(
                     "",
                     "end",
                     values=(
                         b.block_number,
                         f"{b.grade}%",
-                        f"{b.elevation} ft",
-                        f"{b.length} mi",
-                        f"{b.speed_limit} mph",
+                        f"{b.elevation} m",
+                        f"{b.length} m",
+                        f"{b.speed_limit} km/h",
                         heater_display,
-                        beacon_display,
                     ),
                 )
 
+        # --- Right side: Track System Status table ---
+        right_card = self.make_card(container, "Track System Status")
+        right_card.pack(side="left", fill="both", expand=True, padx=(5, 0), pady=5)
+        self.track_sys_tree = ttk.Treeview(
+            right_card,
+            columns=("Block", "Switch", "Signal", "Crossing", "Heater"),
+            show="headings",
+            height=15
+        )
+        self.track_sys_tree.pack(fill="both", expand=True, padx=10, pady=10)
+
+        for col in ("Block", "Switch", "Signal", "Crossing", "Heater"):
+            self.track_sys_tree.heading(col, text=col, command=lambda c=col: self.sort_track_system_table(c))
+            self.track_sys_tree.column(col, anchor="center", width=110)
+
+        vsb = ttk.Scrollbar(right_card, orient="vertical", command=self.track_sys_tree.yview)
+        self.track_sys_tree.configure(yscroll=vsb.set)
+        vsb.pack(side="right", fill="y")
+
+        # Populate initial Track System table
+        self.update_track_system_table()
+
     def show_station_view(self):
-        """Display station data with Blue Line image and dynamic train positions."""
+        """Display station data with Red and Green Line image and dynamic train positions."""
         
         # --- Configure columns for station view ---
         self.tree.config(columns=self.columns_station)
@@ -389,15 +635,15 @@ class TrackModelUI(tk.Tk):
             self.block_frame.pack(fill="both", expand=True)
 
             try:
-                blue_line_img = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
+                blue_line_img = Image.open("Red and Green Line.png").resize((600, 450), Image.LANCZOS)
                 self.block_bg_img = ImageTk.PhotoImage(blue_line_img)
-                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=900, highlightthickness=0)
+                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=600, highlightthickness=0)
                 self.block_canvas.pack(fill="x", padx=10, pady=10)
                 self.block_canvas.create_image(0, 0, image=self.block_bg_img, anchor="nw")
                 self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
             except Exception as e:
-                print("⚠️ Could not load Blue Line.png for occupancy view:", e)
-                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=900)
+                print("⚠️ Could not load Red and Green Line.png for occupancy view:", e)
+                self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=600)
                 self.block_canvas.pack(fill="x", padx=10, pady=10)
 
             # Load Train Image
@@ -514,12 +760,12 @@ class TrackModelUI(tk.Tk):
 
         # Background image
         try:
-            bg_img = Image.open("Blue Line.png").resize((900, 450), Image.LANCZOS)
+            bg_img = Image.open("Red and Green Line.png").resize((600, 450), Image.LANCZOS)
             self.track_bg = ImageTk.PhotoImage(bg_img)
             self.track_canvas.create_image(0, 0, image=self.track_bg, anchor="nw")
             self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
         except Exception as e:
-            print("⚠️ Could not load background Blue Line.png:", e)
+            print("⚠️ Could not load background Red and Green Line.png:", e)
 
         # Load icon images once and store persistently to prevent garbage collection
         def load_icon(path, size=(32, 32)):
@@ -558,7 +804,7 @@ class TrackModelUI(tk.Tk):
         }
 
         # Draw initial icons
-        self.diagram_drawer.draw_track_icons()
+        # self.diagram_drawer.draw_track_icons()
 
         def load_resized_image(path, size=(32, 32)):
             """Helper to load and resize an image once."""
@@ -572,86 +818,86 @@ class TrackModelUI(tk.Tk):
                     return None
             return self.icon_images.get(key)
 
-        # --- Draw Crossing (Block 4) ---
-        block_cross = self.data_manager.blocks[3]  # index 3 → block 4
-        x, y = self.block_positions.get(4, (0, 0))
-        img_path = "Crossing_On.png" if block_cross.crossing else "Crossing_Off.png"
-        img_obj = load_resized_image(img_path, size=(96, 96))  # slightly smaller
-        if img_obj:
-            self.icon_item_ids["crossing"][4] = self.track_canvas.create_image(
-                x, y + 40, image=img_obj, anchor="center"
-            )
+        # # --- Draw Crossing (Block 4) ---
+        # block_cross = self.data_manager.blocks[3]  # index 3 → block 4
+        # x, y = self.block_positions.get(4, (0, 0))
+        # img_path = "Crossing_On.png" if block_cross.crossing else "Crossing_Off.png"
+        # img_obj = load_resized_image(img_path, size=(96, 96))  # slightly smaller
+        # if img_obj:
+        #     self.icon_item_ids["crossing"][4] = self.track_canvas.create_image(
+        #         x, y + 40, image=img_obj, anchor="center"
+        #     )
 
-        # --- Draw Switch (Block 5) ---
-        block_switch = self.data_manager.blocks[4]  # index 4 → block 5
-        x, y = self.block_positions.get(5, (0, 0))
-        img_path = "Lever_Right.png" if block_switch.switch_state else "Lever_Left.png"
-        img_obj = load_resized_image(img_path, size=(64, 64))  # keep doubled size
-        if img_obj:
-            self.icon_item_ids["switch"][5] = self.track_canvas.create_image(
-                x, y, image=img_obj, anchor="center"
-            )
+        # # --- Draw Switch (Block 5) ---
+        # block_switch = self.data_manager.blocks[4]  # index 4 → block 5
+        # x, y = self.block_positions.get(5, (0, 0))
+        # img_path = "Lever_Right.png" if block_switch.switch_state else "Lever_Left.png"
+        # img_obj = load_resized_image(img_path, size=(64, 64))  # keep doubled size
+        # if img_obj:
+        #     self.icon_item_ids["switch"][5] = self.track_canvas.create_image(
+        #         x, y, image=img_obj, anchor="center"
+        #     )
 
-        # Draw all traffic lights dynamically based on block numbers
-        for b in self.data_manager.blocks:
-            if getattr(b, "block_number", None) in [6, 11]:
-                self.draw_traffic_light(b.block_number, b.traffic_light_state)
+        # # Draw all traffic lights dynamically based on block numbers
+        # for b in self.data_manager.blocks:
+        #     if getattr(b, "block_number", None) in [6, 11]:
+        #         self.draw_traffic_light(b.block_number, b.traffic_light_state)
 
-    def draw_traffic_light(self, block_num, state, light_size=16):
-        """Draw a traffic light with 4 positions. Handle both traffic_light_state and signal attributes."""
+    # def draw_traffic_light(self, block_num, state, light_size=16):
+    #     """Draw a traffic light with 4 positions. Handle both traffic_light_state and signal attributes."""
         
-        # Convert 2-bit signal to single state if needed
-        if isinstance(state, list) and len(state) == 2:
-            # Convert [bit1, bit2] to integer 0-3
-            state = (state[0] << 1) | state[1]
+    #     # Convert 2-bit signal to single state if needed
+    #     if isinstance(state, list) and len(state) == 2:
+    #         # Convert [bit1, bit2] to integer 0-3
+    #         state = (state[0] << 1) | state[1]
         
-        x, y = self.block_positions.get(block_num, (0,0))
-        spacing = 4
-        num_lights = 4
-        padding = 4
+    #     x, y = self.block_positions.get(block_num, (0,0))
+    #     spacing = 4
+    #     num_lights = 4
+    #     padding = 4
 
-        # Clear previous if exists
-        if "traffic" not in self.icon_item_ids:
-            self.icon_item_ids["traffic"] = {}
-        if block_num in self.icon_item_ids["traffic"]:
-            for item in self.icon_item_ids["traffic"][block_num]:
-                self.track_canvas.delete(item)
+    #     # Clear previous if exists
+    #     if "traffic" not in self.icon_item_ids:
+    #         self.icon_item_ids["traffic"] = {}
+    #     if block_num in self.icon_item_ids["traffic"]:
+    #         for item in self.icon_item_ids["traffic"][block_num]:
+    #             self.track_canvas.delete(item)
 
-        items = []
+    #     items = []
 
-        # Rectangle height covers all lights + spacing + padding
-        rect_height = num_lights * light_size + (num_lights - 1) * spacing + 2*padding
-        rect_width = light_size + 2*padding
-        rect_top = y - rect_height//2
-        rect_bottom = y + rect_height//2
-        rect_left = x - rect_width//2
-        rect_right = x + rect_width//2
+    #     # Rectangle height covers all lights + spacing + padding
+    #     rect_height = num_lights * light_size + (num_lights - 1) * spacing + 2*padding
+    #     rect_width = light_size + 2*padding
+    #     rect_top = y - rect_height//2
+    #     rect_bottom = y + rect_height//2
+    #     rect_left = x - rect_width//2
+    #     rect_right = x + rect_width//2
 
-        # Draw black background
-        rect = self.track_canvas.create_rectangle(rect_left, rect_top, rect_right, rect_bottom,
-                                                fill="black", outline="black")
-        items.append(rect)
+    #     # Draw black background
+    #     rect = self.track_canvas.create_rectangle(rect_left, rect_top, rect_right, rect_bottom,
+    #                                             fill="black", outline="black")
+    #     items.append(rect)
 
-        # Draw lights
-        lights = ["red", "yellow", "green", "lime"]  # top → bottom
-        for i, color in enumerate(lights):
-            fill_color = color if state == i else "gray"
-            cx1 = x - light_size//2
-            cy1 = rect_top + padding + i*(light_size + spacing)
-            cx2 = x + light_size//2
-            cy2 = cy1 + light_size
-            circle = self.track_canvas.create_oval(cx1, cy1, cx2, cy2, fill=fill_color, outline="white")
-            items.append(circle)
+    #     # Draw lights
+    #     lights = ["red", "yellow", "green", "lime"]  # top → bottom
+    #     for i, color in enumerate(lights):
+    #         fill_color = color if state == i else "gray"
+    #         cx1 = x - light_size//2
+    #         cy1 = rect_top + padding + i*(light_size + spacing)
+    #         cx2 = x + light_size//2
+    #         cy2 = cy1 + light_size
+    #         circle = self.track_canvas.create_oval(cx1, cy1, cx2, cy2, fill=fill_color, outline="white")
+    #         items.append(circle)
 
-        self.icon_item_ids["traffic"][block_num] = items
+    #     self.icon_item_ids["traffic"][block_num] = items
 
-    def draw_signal(self, block_num, state):
-        # state is 0-3 representing 00, 01, 10, 11
-        colors = ["gray", "yellow", "green", "lime"]  # map 0-3
-        color = colors[state]
-        x, y = self.block_positions.get(block_num, (0,0))
-        size = 10
-        self.track_canvas.create_oval(x-size, y-size, x+size, y+size, fill=color)
+    # def draw_signal(self, block_num, state):
+    #     # state is 0-3 representing 00, 01, 10, 11
+    #     colors = ["gray", "yellow", "green", "lime"]  # map 0-3
+    #     color = colors[state]
+    #     x, y = self.block_positions.get(block_num, (0,0))
+    #     size = 10
+    #     self.track_canvas.create_oval(x-size, y-size, x+size, y+size, fill=color)
 
     def create_PLCupload_panel(self, parent):
             """Creates separate PLC upload and terminal panels to the right of the track diagram."""
@@ -699,24 +945,63 @@ class TrackModelUI(tk.Tk):
             # --- BIDIRECTIONAL BLOCK CONTROLS (WITH BUTTONS LIKE TEST UI) ---
             bidir_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
             bidir_frame.pack(fill="x", padx=5, pady=(0, 8))
-        
-
-            # --- TERMINAL / EVENT LOG SECTION ---
-            terminal_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
-            terminal_frame.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 
             tk.Label(
-                terminal_frame,
+                bidir_frame,
+                text="Bidirectional Block Directions",
+                font=("Arial", 9, "bold"),
+                bg="white",
+                fg="black"
+            ).pack(pady=(5, 3))
+
+            # Create control widgets for each bidirectional group (like Test UI)
+            self.bidir_controls = {}
+            
+            # Use the shared data from TrackDataManager - ensure it exists
+            if not hasattr(self.data_manager, 'bidirectional_directions'):
+                # Initialize with default data if missing
+                self.data_manager.bidirectional_directions = {
+                    "Blocks 1-5": 0,
+                    "Blocks 6-10": 0, 
+                    "Blocks 11-15": 0
+                }
+            
+            # Create controls for each group
+            for group_name in self.data_manager.bidirectional_directions.keys():
+                self.create_bidirectional_control(bidir_frame, group_name)
+
+            # --- TERMINAL / EVENT LOG SECTION ---
+            terminal_frame = tk.Frame(
+                outer_frame,
+                bg="white",
+                highlightbackground="#d0d0d0",
+                highlightthickness=1
+            )
+            terminal_frame.pack(fill="both", expand=True, padx=5, pady=(0, 5))
+
+            # Header row with title on left and Send Outputs button on right
+            header_frame = tk.Frame(terminal_frame, bg="white")
+            header_frame.pack(fill="x", padx=5, pady=(3, 0))
+
+            tk.Label(
+                header_frame,
                 text="Event Log / Terminal",
                 font=("Arial", 9, "bold"),
                 bg="white",
                 fg="black"
-            ).pack(anchor="w", padx=5, pady=(3, 3))
+            ).pack(side="left", anchor="w")
 
+            send_button = ttk.Button(
+                header_frame,
+                text="Check Outputs",
+                command=self.send_outputs
+            )
+            send_button.pack(side="right", anchor="e", padx=(0, 3))
+
+            # Inner frame holds text box and scrollbar
             term_inner = tk.Frame(terminal_frame, bg="white")
             term_inner.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 
-            # Create terminal widget
             terminal = tk.Text(
                 term_inner,
                 height=8,
@@ -728,22 +1013,116 @@ class TrackModelUI(tk.Tk):
                 wrap="word"
             )
             terminal.pack(side="left", fill="both", expand=True)
-            
-            # STORE THIS TERMINAL REFERENCE
+
             self.terminals.append(terminal)
 
             scrollbar = ttk.Scrollbar(term_inner, command=terminal.yview)
             scrollbar.pack(side="right", fill="y")
             terminal.config(yscrollcommand=scrollbar.set)
 
-            # --- SEND OUTPUTS BUTTON ---
-            send_button = ttk.Button(outer_frame, text="Send Outputs", command=self.send_outputs)
-            send_button.pack(pady=(5, 10), padx=5, anchor="s")
-
-            send_button = ttk.Button(outer_frame, text="Set Beacon Data", command=self.send_outputs)
-            send_button.pack(pady=(5, 10), padx=5, anchor="s")
-
             return outer_frame
+    
+    
+    def create_bidirectional_control(self, parent, group_name):
+        """Create a control row with label, status, and toggle button for a bidirectional group"""
+        control_frame = tk.Frame(parent, bg="white")
+        control_frame.pack(fill="x", pady=3, padx=5)
+        
+        # Group label
+        lbl_group = tk.Label(control_frame, text=f"{group_name}:", width=15, anchor="w", bg="white")
+        lbl_group.pack(side="left", padx=(0, 10))
+        
+        # Direction status
+        status_var = tk.StringVar()
+        status_lbl = tk.Label(control_frame, textvariable=status_var, width=12, anchor="center", 
+                            bg="white", relief="sunken", bd=1)
+        status_lbl.pack(side="left", padx=(0, 10))
+        
+        # Store the status variable for updates
+        self.bidir_controls[group_name] = status_var
+        
+        # Set initial status
+        self.update_bidirectional_status(group_name)
+
+    def update_bidirectional_status(self, group_name):
+        """Update the status display for a bidirectional group"""
+        if (hasattr(self.data_manager, 'bidirectional_directions') and 
+            group_name in self.data_manager.bidirectional_directions and
+            group_name in self.bidir_controls):
+            
+            direction = self.data_manager.bidirectional_directions[group_name]
+            status_text = "← Left" if direction == 0 else "Right →"
+            self.bidir_controls[group_name].set(status_text)
+
+    def toggle_bidirectional_direction(self, group_name):
+        """Main UI toggle - now just a placeholder since Test UI controls"""
+        print(f"ℹ️ Main UI toggle for {group_name} - Test UI is the controller")
+
+    def save_bidirectional_direction(self, group_name):
+        """Main UI save - now just a placeholder"""
+        print(f"ℹ️ Main UI save for {group_name} - Test UI controls changes")
+
+    def refresh_bidirectional_controls(self):
+        """Refresh all bidirectional controls - called by Test UI"""
+        print("🔄 Main UI refreshing bidirectional controls from Test UI")
+        if hasattr(self.data_manager, 'bidirectional_directions'):
+            for group_name in self.data_manager.bidirectional_directions.keys():
+                self.update_bidirectional_status(group_name)
+    
+    def force_bidirectional_table_visible(self):
+        """Force the bidirectional table to be visible - debugging method"""
+        if hasattr(self, 'bidir_tree'):
+            # Make sure the treeview is mapped (visible)
+            self.bidir_tree.update()
+            
+            # Force a geometry update
+            self.bidir_tree.pack_info()
+            
+            # Print treeview geometry information
+            print("=== BIDIRECTIONAL TABLE VISIBILITY DEBUG ===")
+            print(f"Treeview exists: {self.bidir_tree is not None}")
+            print(f"Treeview mapped: {self.bidir_tree.winfo_ismapped()}")
+            print(f"Treeview width: {self.bidir_tree.winfo_width()}")
+            print(f"Treeview height: {self.bidir_tree.winfo_height()}")
+            print(f"Treeview x: {self.bidir_tree.winfo_x()}")
+            print(f"Treeview y: {self.bidir_tree.winfo_y()}")
+            print(f"Parent visible: {self.bidir_tree.winfo_parent()}")
+            
+            # Try to force focus and selection to make it visible
+            children = self.bidir_tree.get_children()
+            if children:
+                self.bidir_tree.focus(children[0])
+                self.bidir_tree.selection_set(children[0])
+            
+            print("=============================================")
+    
+    def on_bidir_table_click(self, event):
+        """Handle clicks on the bidirectional table to toggle directions"""
+        item = self.bidir_tree.identify_row(event.y)
+        if item:
+            column = self.bidir_tree.identify_column(event.x)
+            # Only respond to clicks anywhere in the row (not just direction column)
+            # This makes it easier to toggle
+            values = self.bidir_tree.item(item, "values")
+            if values and len(values) > 0:
+                group_name = values[0]
+                print(f"🖱️ Clicked on {group_name} in column {column}")
+                self.toggle_bidirectional_direction(group_name)
+
+    def debug_bidirectional_table(self):
+        """Debug method to check the current state of the bidirectional table"""
+        if hasattr(self, 'bidir_tree'):
+            print("=== BIDIRECTIONAL TABLE DEBUG ===")
+            print(f"Treeview exists: {self.bidir_tree is not None}")
+            print(f"Number of rows: {len(self.bidir_tree.get_children())}")
+            
+            for item in self.bidir_tree.get_children():
+                values = self.bidir_tree.item(item, "values")
+                print(f"  Row: {values}")
+            
+            print(f"Data manager state: {getattr(self.data_manager, 'bidirectional_directions', 'NO DATA')}")
+            print("=================================")
+
 
     def send_outputs(self):
         """Only refresh terminals when Send Outputs button is clicked"""
@@ -862,7 +1241,7 @@ class TrackModelUI(tk.Tk):
         """Handle PNG/JPG upload - replace track diagram background and clear all icons"""
         try:
             # Load and resize the new image
-            new_img = Image.open(filename).resize((900, 450), Image.LANCZOS)
+            new_img = Image.open(filename).resize((600, 450), Image.LANCZOS)
             self.track_bg = ImageTk.PhotoImage(new_img)
             
             # Clear EVERYTHING from the canvas first
@@ -908,7 +1287,7 @@ class TrackModelUI(tk.Tk):
         
         print("🧹 Completely cleared all track icons and reset all tracking data")
 
-    def process_structured_track_data(self, df):
+    def process_structured_track_data(self, df, pd):
         """Process the specific CSV/Excel structure and REPLACE default data"""
         try:
             print(f"🔄 Starting data replacement with {len(df)} rows")
@@ -1088,7 +1467,7 @@ class TrackModelUI(tk.Tk):
         for i, block in enumerate(self.data_manager.blocks[:5]):  # Show first 5 blocks
             print(f"   Block {i+1}: Length={block.length}m, Grade={block.grade}%, Speed={block.speed_limit}km/h")
 
-    def process_infrastructure(self, block, infrastructure):
+    def process_infrastructure(self, block, infrastructure, pd):
         """Process infrastructure information and REPLACE existing data"""
         try:
             if pd.isna(infrastructure) or infrastructure == '' or infrastructure == 'nan':
@@ -1192,9 +1571,6 @@ class TrackModelUI(tk.Tk):
             terminal.see("end")
             terminal.config(state="disabled")
 
-    def on_failure_changed(self):
-        print("Failure states updated")
-
     def refresh_trains(self):
         # Remove old train icons first
         if hasattr(self, "train_items"):
@@ -1230,10 +1606,10 @@ class TrackModelUI(tk.Tk):
         self.temp_label.config(text=f"Temperature: {getattr(self.data_manager, 'environmental_temp', '--')}°C")
 
         # Update bottom table in-place
-        self.update_bottom_table()
+        # self.update_bottom_table()
 
         # Redraw track icons (switches, crossings, lights)
-        self.draw_track_icons()
+        # self.draw_track_icons()
 
         # REMOVED: Automatic terminal refresh - terminal only updates on button click now
 
@@ -1243,6 +1619,9 @@ class TrackModelUI(tk.Tk):
         
         if hasattr(self, "block_canvas") and hasattr(self, "train_items_center"):
             self.draw_trains(canvas=self.block_canvas, items_list=self.train_items_center)
+
+        # Refresh the right-side Track System table
+        self.update_track_system_table()
 
         # Refresh again in 1 second
         self.after(1000, self.refresh_ui)
@@ -1280,7 +1659,7 @@ class TrackModelUI(tk.Tk):
         is_on = self.is_heater_on(block)
         self.set_heater_state(block, is_on, True)  # Keep current on/off state, set working
     
-    def on_closing():
+    def on_closing(self):
         """Handle application closing"""
         print("Closing application...")
         self.server.running = False
