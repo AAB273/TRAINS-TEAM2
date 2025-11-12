@@ -6,6 +6,12 @@ from time import strftime
 import CTC_Main_Screen
 import pandas as pd
 
+#necessary to import the clock from the parent directory#
+import os, sys
+sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
+import clock
+from TrainSocketServer import TrainSocketServer
+
 class ScheduleScreen:
 #"Schedule" ui screen appearance and data
     '''
@@ -150,7 +156,7 @@ class ScheduleScreen:
         buttonFrame = ttk.Frame(leftFrame, style = "white.TFrame")
         buttonFrame.pack(pady = 40, side = "top", expand = True)
         #sub-frame to organize buttons
-        getDeploy = ttk.Button(buttonFrame, text = "Deploy Train", style = "TButton", command = lambda: (self.sendDeployData("1", selectedLocation.get(), arrivalTime.get(), "blue"), self.updateManualEdit("1", selectedLocation.get(), arrivalTime.get(), "blue")))
+        getDeploy = ttk.Button(buttonFrame, text = "Deploy Train", style = "TButton", command = lambda: (self.sendDeployData("1", selectedLocation.get(), arrivalTime.get(), "green"), self.updateManualEdit("1", selectedLocation.get(), arrivalTime.get(), "green")))
         getDeploy.pack(pady = 15, side = "top", fill = "x")
         #grab inputs from the Combobox and Entry (if user inputs values)
         autoButton = ttk.Button(buttonFrame, text = "Automatic Mode", style = "TButton", command = lambda: self.updateAutoEdit())
@@ -238,6 +244,11 @@ class ScheduleScreen:
     def updateManualEdit(self, location: str, destination: str, time: str, line: str):
     #update the manual edit tab
 
+        distToStation = 0.0
+        arrTime = self.timeToSeconds(time)
+        speed = 0
+        auth = 0
+
         children = self.meArea.get_children("")
         #get a list of the items in the Treeview
         if (not children):
@@ -269,13 +280,19 @@ class ScheduleScreen:
 
         self.trainNum += 1
 
-        distToStation = float(750)
-        arrTime = self.timeToSeconds(time)
-        speed = distToStation / arrTime
+        if (destination == "Glenbury" or destination == "Dormont" or destination == "Overbrook" or destination == "Inglewood" or destination == "Central"):
+            destination = destination + " 1"
+        
+        for key in self.distToNext:
+            if (key == "from " + destination):
+                break
+            distToStation += self.distToNext[key]
+            auth += self.blocksToNext[key]
+        speed = float(distToStation) / arrTime
 
-        #self.mainScreen.send_to_ui("TL", str(self.trainNum - 1) + ", " + f"{speed:.3f}\n" + ", 8, " + line)
-        self.server.send_to_ui("Track HW", {"suggested_speed", f"{speed:.3f}\n"})
-        self.server.send_to_ui("Track SW", {"suggested", {"green", "0", f"{speed:.3f}\n", "8"}})
+        self.mainScreen.send_to_ui("TL", str(self.trainNum - 1) + ", " + f"{speed:.3f}\n" + ", " + str(auth) + ", " + line)
+        #self.server.send_to_ui("Track HW", {"suggested_speed", f"{speed:.3f}\n"})
+        #self.server.send_to_ui("Track SW", {"suggested", {"green", "0", f"{speed:.3f}\n", auth}})
 
 ###############################################################################################################################################################
 
