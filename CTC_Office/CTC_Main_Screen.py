@@ -57,7 +57,7 @@ class MainScreen:
         self.totalPassengers = 0 
         self.numberOfTrains = 1
 
-        self.mmList = {12: [1, 12], 28: [29, 150], 77: [76, 101], 85: [86, 100], 0: [57, 63]}
+        self.mmList = {12: [1, 13], 28: [29, 150], 77: [76, 101], 85: [86, 100], 0: [57, 63]}
 
 
         # Socket server setup
@@ -461,7 +461,7 @@ class MainScreen:
 
         greenLineLevel = self.mmArea.insert("", "end", text = "Green")
         for key in self.mmList:
-            self.mmArea.insert(greenLineLevel, "end", text = "Block " + str(key), values = [self.mmList[key][0], "Switch"])
+            self.mmArea.insert(greenLineLevel, "end", text = "Block " + str(key), values = ["Block " + str(self.mmList[key][0]), "Switch"])
         #switches for green line only (will add red later)
 
         self.mmArea.bind("<Button-1>", self.switchTrack)
@@ -665,14 +665,16 @@ class MainScreen:
                 answer = askyesno(title = "Confirmation", message = "Would you like to switch the track?")
                 #confirmation pop-up, returns True if user clicks "Yes"
                 if (answer):
+                    
                     for key in self.mmList:
-                        if (self.mmArea.item(rowID, "values")[0] == "Block " + str(self.mmList[key][0])):
-                            self.mmArea.set(rowID, column = "Direction", value = "Block " + str(self.mmList[key][1]))
-                            break
-                        else:
-                            self.mmArea.set(rowID, column = "Direction", value = "Block " + str(self.mmList[key][0]))
-                            break
-                        #edit which block the switch is pointed at (FOR BLUE LINE ONLY)
+                        if (self.mmArea.item(rowID, "text") == "Block " + str(key)):
+                            if (self.mmArea.item(rowID, "values")[0] == "Block " + str(self.mmList[key][0])):
+                                self.mmArea.set(rowID, column = "Direction", value = "Block " + str(self.mmList[key][1]))
+                                break
+                            else:
+                                self.mmArea.set(rowID, column = "Direction", value = "Block " + str(self.mmList[key][0]))
+                                break
+                        #edit which block the switch is pointed at
 
 
                     temp = self.mmArea.item(rowID, "text")
