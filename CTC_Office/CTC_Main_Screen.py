@@ -33,7 +33,6 @@ class MainScreen:
     self.frame: main ttk.Frame() that all ui widgets are placed onto
     self.scheduleScreen: holds the ScheduleScreen object that displays the "Schedule" tab
     self.notebook = notebook: main notebook that contains the ui tabs
-    self.refMap: screen for the reference map image
     self.totalPassengers: integer for the number of passengers on the blue line
     self.numberOfTrains: integer for the number of trains on the blue line
     self.clockText: a ttk.Label() that holds the current time
@@ -44,18 +43,22 @@ class MainScreen:
     self.mmArea: a ttk.Treeview() object that holds information about maintenance mode
     self.tpArea: a ttk.Treeview() object that holds information about throughputs
     self.lsArea: a ttk.Treeview() object that holds information about light states
+
+    self.mmList: a dictionary containing every block with a switch and what blocks they can face
     '''
 
-    def __init__(self, root: tk.Tk, schedule: CTC_Schedule_Screen.ScheduleScreen, frame: ttk.Frame, notebook: ttk.Notebook, refMap: tk.Tk):
+    def __init__(self, root: tk.Tk, schedule: CTC_Schedule_Screen.ScheduleScreen, frame: ttk.Frame, notebook: ttk.Notebook):
     #initialize class variables and create backdrop for main screen
 
         self.root = root 
         self.frame = frame
         self.schedule_screen = schedule  
         self.notebook = notebook 
-        self.refMap = refMap
         self.totalPassengers = 0 
         self.numberOfTrains = 1
+
+        self.mmList = {12: [1, 12], 28: [29, 150], 77: [76, 101], 85: [86, 100], 0: [57, 63]}
+
 
         # Socket server setup
         module_config = load_socket_config()
@@ -456,10 +459,10 @@ class MainScreen:
         self.mmArea.column("Switch", width = 100)
         #create and format the Treeview holding maintenance mode data
 
-        greenLineLevel = self.mmArea.insert("", "end", text = "Blue")
-        self.mmArea.insert(greenLineLevel, "end", text = "Block 13", values = ["Block 12", "Switch"])
-        self.mmArea.insert(greenLineLevel, "end", text = "Block  ", values = ["Block  ", "Switch"])
-        #switches for green line only (maybe change to add red and green at the same time?)
+        greenLineLevel = self.mmArea.insert("", "end", text = "Green")
+        for key in self.mmList:
+            self.mmArea.insert(greenLineLevel, "end", text = "Block " + str(key), values = [self.mmList[key][0], "Switch"])
+        #switches for green line only (will add red later)
 
         self.mmArea.bind("<Button-1>", self.switchTrack)
         self.mmArea.pack(side = "left")
@@ -562,14 +565,15 @@ class MainScreen:
     def dispRefMap(self):
     #display the reference map to the user
 
-        self.refMap.title("Reference Map")
-        self.refMap.geometry("1000x500+1201+0")
+        refMap = tk.Toplevel(self.root)
+        refMap.title("Reference Map")
+        refMap.geometry("1000x500+1201+0")
         #configure the window holding the reference map
 
         mapOriginalImage = Image.open("CTC_Office/blue_line.png") 
         mapImage = ImageTk.PhotoImage(mapOriginalImage.resize((1000, 500)))
         #create and resize image
-        mapImageLabel = ttk.Label(self.refMap, image = mapImage, background = "white")
+        mapImageLabel = ttk.Label(refMap, image = mapImage, background = "white")
         mapImageLabel.image = mapImage
         #keep a reference to the image so that it appears on the window
         mapImageLabel.pack()
@@ -661,16 +665,15 @@ class MainScreen:
                 answer = askyesno(title = "Confirmation", message = "Would you like to switch the track?")
                 #confirmation pop-up, returns True if user clicks "Yes"
                 if (answer):
-                    if (self.mmArea.item(rowID, "values")[0] == "Block 6"):
-                        self.mmArea.set(rowID, column = "Direction", value = "Block 11")
-                    else:
-                        self.mmArea.set(rowID, column = "Direction", value = "Block 6")
-                    #edit which block the switch is pointed at (FOR BLUE LINE ONLY)
+                    for key in self.mmList:
+                        if (self.mmArea.item(rowID, "values")[0] == "Block " + str(self.mmList[key][0])):
+                            self.mmArea.set(rowID, column = "Direction", value = "Block " + str(self.mmList[key][1]))
+                            break
+                        else:
+                            self.mmArea.set(rowID, column = "Direction", value = "Block " + str(self.mmList[key][0]))
+                            break
+                        #edit which block the switch is pointed at (FOR BLUE LINE ONLY)
 
-                    '''
-                    Write all data to to_test_ui.txt data file so the test ui can read in data changes
-                    Follows formatting rules specified in README.txt
-                    '''
 
                     temp = self.mmArea.item(rowID, "text")
                     location = ""
