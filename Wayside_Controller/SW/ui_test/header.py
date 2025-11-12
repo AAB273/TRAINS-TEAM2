@@ -8,7 +8,7 @@ class Header:
         
         self.header_frame = tk.Frame(root, bg="#1a1a4d")
         self.header_frame.pack(fill='x', pady=8)
-        
+
         self.create_header()
     
     def create_header(self):
