@@ -2162,6 +2162,376 @@ class TrackModelUI(tk.Tk):
                 pass
         self.root.destroy()
 
+    # ============================================================================
+# Add these methods to your TrackModelUI class
+# ============================================================================
+    # ---------------- OUTPUT METHODS (Sending Data) ----------------
+
+    def send_all_outputs(self):
+        """Send all outputs to appropriate UIs. Call this periodically or on state change."""
+        self.send_ticket_sales_to_ctc()
+        self.send_passengers_disembarking_to_ctc()
+        self.send_failure_modes_to_wayside()
+        self.send_block_occupancy_to_wayside()
+        self.send_block_occupancy_to_train_model()
+        self.send_commanded_speed_to_train_model()
+        self.send_commanded_authority_to_train_model()
+        self.send_beacons_to_train_model()
+        self.send_passengers_boarding_to_train_model()
+        self.send_light_states_to_train_controller()
+
+    def send_ticket_sales_to_ctc(self):
+        """Send ticket sales data to CTC."""
+        ticket_data = {}
+        for block_num, station_name in self.data_manager.station_location:
+            idx = block_num - 1
+            ticket_data[block_num] = {
+                'station_name': station_name,
+                'ticket_sales': int(self.data_manager.ticket_sales[idx])
+            }
+        
+        self.server.send_to_ui("CTC", {
+            'command': 'ticket_sales',
+            'data': ticket_data
+        })
+        print(f"📤 Sent ticket sales to CTC")
+
+    def send_passengers_disembarking_to_ctc(self):
+        """Send passengers disembarking data to CTC."""
+        disembarking_data = {}
+        for block_num, station_name in self.data_manager.station_location:
+            idx = block_num - 1
+            disembarking_data[block_num] = {
+                'station_name': station_name,
+                'passengers_disembarking': int(self.data_manager.passengers_disembarking[idx])
+            }
+        
+        self.server.send_to_ui("CTC", {
+            'command': 'passengers_disembarking',
+            'data': disembarking_data
+        })
+        print(f"📤 Sent passengers disembarking to CTC")
+
+    def send_failure_modes_to_wayside(self):
+        """Send failure modes to Wayside Controller."""
+        failures = self.murphy_failures.get_all_failures()
+        
+        failure_data = {}
+        for block_num, failure_type in failures.items():
+            failure_data[block_num] = {
+                'failure_type': failure_type,
+                'traversable': self.murphy_failures.is_traversable(block_num)
+            }
+        
+        self.server.send_to_ui("Wayside Controller", {
+            'command': 'failure_modes',
+            'data': failure_data
+        })
+        print(f"📤 Sent failure modes to Wayside Controller ({len(failures)} failures)")
+
+    def send_block_occupancy_to_wayside(self):
+        """Send block occupancy to Wayside Controller."""
+        occupancy_data = {}
+        for block in self.data_manager.blocks:
+            if block.occupancy != 0:  # Only send occupied blocks
+                occupancy_data[block.block_number] = block.occupancy
+        
+        self.server.send_to_ui("Wayside Controller", {
+            'command': 'block_occupancy',
+            'data': occupancy_data
+        })
+        print(f"📤 Sent block occupancy to Wayside Controller ({len(occupancy_data)} occupied)")
+
+    def send_block_occupancy_to_train_model(self):
+        """Send block occupancy to Train Model."""
+        occupancy_data = {}
+        for block in self.data_manager.blocks:
+            occupancy_data[block.block_number] = block.occupancy
+        
+        self.server.send_to_ui("Train Model", {
+            'command': 'block_occupancy',
+            'data': occupancy_data
+        })
+        print(f"📤 Sent block occupancy to Train Model")
+
+    def send_commanded_speed_to_train_model(self):
+        """Send commanded speed to Train Model."""
+        speed_data = {}
+        for i, train_id in enumerate(self.data_manager.active_trains):
+            if i < len(self.data_manager.commanded_speed):
+                speed_data[train_id] = self.data_manager.commanded_speed[i]
+        
+        self.server.send_to_ui("Train Model", {
+            'command': 'commanded_speed',
+            'data': speed_data
+        })
+        print(f"📤 Sent commanded speed to Train Model")
+
+    def send_commanded_authority_to_train_model(self):
+        """Send commanded authority to Train Model."""
+        authority_data = {}
+        for i, train_id in enumerate(self.data_manager.active_trains):
+            if i < len(self.data_manager.commanded_authority):
+                authority_data[train_id] = self.data_manager.commanded_authority[i]
+        
+        self.server.send_to_ui("Train Model", {
+            'command': 'commanded_authority',
+            'data': authority_data
+        })
+        print(f"📤 Sent commanded authority to Train Model")
+
+    def send_beacons_to_train_model(self):
+        """Send beacon data to Train Model."""
+        beacon_data = {}
+        for block in self.data_manager.blocks:
+            # Only send if beacon can be sent (no track circuit or power failure)
+            if self.murphy_failures.can_send_beacon(block.block_number):
+                if hasattr(block, 'beacon') and block.beacon:
+                    beacon_data[block.block_number] = block.beacon
+        
+        self.server.send_to_ui("Train Model", {
+            'command': 'beacons',
+            'data': beacon_data
+        })
+        print(f"📤 Sent beacons to Train Model ({len(beacon_data)} blocks)")
+
+    def send_passengers_boarding_to_train_model(self):
+        """Send passengers boarding data to Train Model."""
+        boarding_data = {}
+        for block_num, station_name in self.data_manager.station_location:
+            idx = block_num - 1
+            boarding_data[block_num] = {
+                'station_name': station_name,
+                'passengers_boarding': int(self.data_manager.passengers_boarding[idx])
+            }
+        
+        self.server.send_to_ui("Train Model", {
+            'command': 'passengers_boarding',
+            'data': boarding_data
+        })
+        print(f"📤 Sent passengers boarding to Train Model")
+
+    def send_light_states_to_train_controller(self):
+        """Send traffic light states to Train Controller."""
+        light_data = {}
+        for block_num in self.light_states:
+            if block_num <= len(self.data_manager.blocks):
+                block = self.data_manager.blocks[block_num - 1]
+                # Check if block has power
+                if self.murphy_failures.has_power(block_num):
+                    light_data[block_num] = getattr(block, 'traffic_light_state', 0)
+                else:
+                    light_data[block_num] = 0  # No power = lights off
+        
+        self.server.send_to_ui("Train Controller", {
+            'command': 'light_states',
+            'data': light_data
+        })
+        print(f"📤 Sent light states to Train Controller")
+
+
+    # ---------------- INPUT HANDLERS (Update _process_message) ----------------
+
+    def _process_message(self, message, source_ui_id):
+        """Process incoming messages from other UIs"""
+        try:
+            print(f"📨 Received from {source_ui_id}: {message}")
+            
+            command = message.get('command')
+            value = message.get('value')
+            data = message.get('data')  # Added support for 'data' field
+            block_number = message.get('block_number')
+            
+            # ============================================================
+            # COMMANDED SPEED - From Wayside/CTC
+            # ============================================================
+            if command == 'commanded_speed':
+                if isinstance(data, dict):
+                    # Batch update: {train_id: speed, ...}
+                    for train_id, speed in data.items():
+                        if train_id in self.data_manager.active_trains:
+                            idx = self.data_manager.active_trains.index(train_id)
+                            self.data_manager.commanded_speed[idx] = speed
+                            print(f"✅ Updated commanded speed for {train_id}: {speed} m/s")
+                else:
+                    # Single update
+                    train_id = message.get('train_id')
+                    if train_id in self.data_manager.active_trains:
+                        idx = self.data_manager.active_trains.index(train_id)
+                        self.data_manager.commanded_speed[idx] = value
+                        print(f"✅ Updated commanded speed for {train_id}: {value} m/s")
+            
+            # ============================================================
+            # COMMANDED AUTHORITY - From Wayside/CTC
+            # ============================================================
+            elif command == 'commanded_authority':
+                if isinstance(data, dict):
+                    # Batch update: {train_id: authority, ...}
+                    for train_id, authority in data.items():
+                        if train_id in self.data_manager.active_trains:
+                            idx = self.data_manager.active_trains.index(train_id)
+                            self.data_manager.commanded_authority[idx] = authority
+                            print(f"✅ Updated commanded authority for {train_id}: {authority} blocks")
+                else:
+                    # Single update
+                    train_id = message.get('train_id')
+                    if train_id in self.data_manager.active_trains:
+                        idx = self.data_manager.active_trains.index(train_id)
+                        self.data_manager.commanded_authority[idx] = value
+                        print(f"✅ Updated commanded authority for {train_id}: {value} blocks")
+            
+            # ============================================================
+            # SWITCH POSITIONS - From Wayside Controller
+            # ============================================================
+            elif command == 'switch_positions':
+                if isinstance(data, dict):
+                    for block_num, state in data.items():
+                        if 1 <= block_num <= len(self.data_manager.blocks):
+                            block = self.data_manager.blocks[block_num - 1]
+                            block.switch_state = state
+                            print(f"✅ Updated switch at block {block_num}: {'Right' if state else 'Left'}")
+                    self.refresh_ui()
+                elif isinstance(value, dict):
+                    for block_num, state in value.items():
+                        if 1 <= block_num <= len(self.data_manager.blocks):
+                            block = self.data_manager.blocks[block_num - 1]
+                            block.switch_state = state
+                            print(f"✅ Updated switch at block {block_num}: {'Right' if state else 'Left'}")
+                    self.refresh_ui()
+                elif block_number:
+                    if 1 <= block_number <= len(self.data_manager.blocks):
+                        block = self.data_manager.blocks[block_number - 1]
+                        block.switch_state = value
+                        print(f"✅ Updated switch at block {block_number}: {'Right' if value else 'Left'}")
+                        self.refresh_ui()
+            
+            # ============================================================
+            # LIGHT STATES / SIGNALS - From Wayside Controller
+            # ============================================================
+            elif command == 'light_states' or command == 'signal_states':
+                if isinstance(data, dict):
+                    for block_num, state in data.items():
+                        if 1 <= block_num <= len(self.data_manager.blocks):
+                            block = self.data_manager.blocks[block_num - 1]
+                            block.traffic_light_state = state
+                            print(f"✅ Updated signal at block {block_num}: State {state}")
+                    self.refresh_ui()
+                elif isinstance(value, dict):
+                    for block_num, state in value.items():
+                        if 1 <= block_num <= len(self.data_manager.blocks):
+                            block = self.data_manager.blocks[block_num - 1]
+                            block.traffic_light_state = state
+                            print(f"✅ Updated signal at block {block_num}: State {state}")
+                    self.refresh_ui()
+                elif block_number and value is not None:
+                    if 1 <= block_number <= len(self.data_manager.blocks):
+                        block = self.data_manager.blocks[block_number - 1]
+                        block.traffic_light_state = value
+                        print(f"✅ Updated signal at block {block_number}: State {value}")
+                        self.refresh_ui()
+            
+            # ============================================================
+            # BLOCK OCCUPANCY - From Train Model
+            # ============================================================
+            elif command == 'block_occupancy':
+                if isinstance(data, dict):
+                    for block_num, occupancy in data.items():
+                        if 1 <= block_num <= len(self.data_manager.blocks):
+                            block = self.data_manager.blocks[block_num - 1]
+                            block.occupancy = occupancy
+                            print(f"✅ Updated occupancy for block {block_num}: {occupancy}")
+                    self.refresh_ui()
+                elif isinstance(value, dict):
+                    for block_num, occupancy in value.items():
+                        if 1 <= block_num <= len(self.data_manager.blocks):
+                            block = self.data_manager.blocks[block_num - 1]
+                            block.occupancy = occupancy
+                            print(f"✅ Updated occupancy for block {block_num}: {occupancy}")
+                    self.refresh_ui()
+                elif block_number is not None:
+                    if 1 <= block_number <= len(self.data_manager.blocks):
+                        block = self.data_manager.blocks[block_number - 1]
+                        block.occupancy = value
+                        print(f"✅ Updated occupancy for block {block_number}: {value}")
+                        self.refresh_ui()
+            
+            # ============================================================
+            # PASSENGERS DISEMBARKING - From Train Model
+            # ============================================================
+            elif command == 'passengers_disembarking':
+                if block_number is not None:
+                    idx = block_number - 1
+                    if 0 <= idx < len(self.data_manager.passengers_disembarking):
+                        self.data_manager.passengers_disembarking[idx] = value
+                        print(f"✅ Updated passengers disembarking at block {block_number}: {value}")
+                        if self.view_mode.get() == "station":
+                            self.populate_station_view()
+            
+            # ============================================================
+            # PASSENGERS BOARDING - From Train Model
+            # ============================================================
+            elif command == 'passengers_boarding':
+                if block_number is not None:
+                    idx = block_number - 1
+                    if 0 <= idx < len(self.data_manager.passengers_boarding):
+                        self.data_manager.passengers_boarding[idx] = value
+                        print(f"✅ Updated passengers boarding at block {block_number}: {value}")
+                        if self.view_mode.get() == "station":
+                            self.populate_station_view()
+            
+            # ============================================================
+            # TRAIN OCCUPANCY - From Train Model
+            # ============================================================
+            elif command == 'train_occupancy':
+                train_id = message.get('train_id')
+                if train_id in self.data_manager.active_trains:
+                    idx = self.data_manager.active_trains.index(train_id)
+                    self.data_manager.train_occupancy[idx] = value
+                    print(f"✅ Updated train occupancy for {train_id}: {value} passengers")
+            
+            # ============================================================
+            # CROSSING STATE - From Wayside Controller
+            # ============================================================
+            elif command == 'crossing_state':
+                if block_number is not None:
+                    if 1 <= block_number <= len(self.data_manager.blocks):
+                        block = self.data_manager.blocks[block_number - 1]
+                        block.crossing = value
+                        print(f"✅ Updated crossing at block {block_number}: {'Active' if value else 'Inactive'}")
+                        self.refresh_ui()
+            
+            # ============================================================
+            # TEST COMMAND
+            # ============================================================
+            elif command == 'test_command':
+                print(f"🧪 Test message received: {value}")
+            
+            # ============================================================
+            # REQUEST DATA - Another UI wants our data
+            # ============================================================
+            elif command == 'request_all_data':
+                print(f"📤 Sending all data to {source_ui_id}")
+                self.send_all_outputs()
+            
+            # ============================================================
+            # UNKNOWN COMMAND
+            # ============================================================
+            else:
+                print(f"⚠️ Unknown command: {command}")
+        
+        except Exception as e:
+            print(f"❌ Error processing message: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+    # ---------------- PERIODIC OUTPUT UPDATES ----------------
+
+    def start_output_updates(self):
+        """Start periodic output updates (every 5 seconds)."""
+        self.send_all_outputs()
+        self.after(5000, self.start_output_updates)  # Send every 5 seconds
+
 # ---------------- Run Application ----------------
 if __name__ == "__main__":
     manager = UI_Variables.TrackDataManager()
@@ -2170,13 +2540,26 @@ if __name__ == "__main__":
     
     # Store reference to test UI for refreshing
     app.tester_reference = tester
+
+    # Start periodic output updates after a delay
+    app.after(3000, app.start_output_updates)
     
     # Verify integration
-    print("=== SYSTEM INTEGRATION CHECK ===")
+    print("\n" + "="*60)
+    print("SYSTEM INTEGRATION CHECK")
+    print("="*60)
     print(f"Main UI manager: {app.data_manager}")
     print(f"Test UI manager: {tester.manager}") 
     print(f"Same instance: {app.data_manager is tester.manager}")
     print(f"Bidirectional data shared: {hasattr(manager, 'bidirectional_directions')}")
+    print(f"Socket server running: {app.server.running}")
+    print(f"Allowed connections: {app.server.allowed_connections}")
+    print(f"Connected clients: {list(app.server.connected_clients.keys())}")
+    print("="*60 + "\n")
+    
+    # Test sending data (optional - uncomment to test immediately)
+    # print("🧪 Testing data transmission...")
+    # app.send_all_outputs()
     
     tester.lift()
     app.mainloop()
