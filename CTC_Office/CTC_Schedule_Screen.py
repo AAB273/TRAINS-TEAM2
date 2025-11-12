@@ -18,6 +18,10 @@ class ScheduleScreen:
     self.trainNum: number of trains released into the yard
     self.clockText: a ttk.Label() that holds the current time
     self.clockTimer: contains the call to updateTime, allowing the program to cancel the timer when switching tabs
+
+    self.distToNext: dictionary containing the distance to go to the next station from where the train currently is
+                     example data "from 
+    self.blocksToNext: dictionary like distToNext, but with the number of blocks rather than the distance
     '''
 
     def __init__(self, root: tk.Tk, main: CTC_Main_Screen, frame: ttk.Frame, notebook: ttk.Notebook):
@@ -28,6 +32,17 @@ class ScheduleScreen:
         self.mainScreen = main  #variable to hold the data of the schedule screen
         self.notebook = notebook  #variable to hold data about the tab buttons
         self.trainNum = 1;  #number of trains that have been sent to the system
+
+        self.distToNext = {"from Yard": 400, "from Glenbury 1": 900, "from Dormont 1": 600, "from Mt. Lebanon": 2686.6,
+                           "from Poplar": 600, "from Castle Shannon": 715, "from Dormont 2": 952, "from Glenbury 2": 540,
+                           "from Overbrook 1": 450, "from Inglewood 1": 450, "from Central 1": 759, "from Pioneer": 700,
+                           "from Edgebrook": 900, "from LLC Plaza": 1200, "from Whited": 1150, "from South Bank": 400, "from Central 2": 450,
+                           "from Inglewood 2": 450, "from Overbrook 2": 650}
+        self.blocksToNext = {"from Yard": 2, "from Glenbury 1": 7, "from Dormont 1": 3, "from Mt. Lebanon": 10,
+                             "from Poplar": 7, "from Castle Shannon": 8, "from Dormont 2": 8, "from Glenbury 2": 8,
+                             "from Overbrook 1": 8, "from Inglewood 1": 8, "from Central 1": 10, "from Pioneer": 6,
+                             "from Edgebrook": 6, "from LLC Plaza": 5, "from Whited": 8, "from South Bank": 7, "from Central 2": 8,
+                             "from Inglewood 2": 8, "from Overbrook 2": 7}
 
         self.createTopRow()
         #print to top row of the UI to the window
@@ -117,8 +132,8 @@ class ScheduleScreen:
 
         locSelect = ttk.Combobox(locFrame, textvariable = selectedLocation)
         #shows options for the user to select for destination
-        locSelect["values"] = ["Station B", "Station C"]
-        #for BLUE LINE ONLY
+        locSelect["values"] = ["Pioneer", "Edgewood", "LLC Plaza", "Whited", "South Bank", "Central", "Inglewood", "Overbrook", "Glenbury", "Dormont", "Mt. Lebanon", "Poplar", "Castle Shannon"]
+        #for GREEN LINE ONLY
         locSelect["state"] = "readonly"
         locSelect.pack(padx = 5, pady = 5, fill = "x")
 
@@ -254,16 +269,7 @@ class ScheduleScreen:
 
         self.trainNum += 1
 
-        '''
-        Write all data to to_test_ui.txt data file so the test ui can read in data changes
-        Follows formatting rules specified in README.txt
-        '''
-        # outfile = open("CTC_Office/to_test_ui.txt", "w")  REMOVE, THIS IS FILE STUFF
-        # outfile.write("TL\n")
-        # outfile.write(str(self.trainNum) + "\n")
-
         distToStation = float(750)
-        #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
         arrTime = self.timeToSeconds(time)
         speed = distToStation / arrTime
 
