@@ -1,3 +1,14 @@
+import json          # ← ADD
+from pathlib import Path  # ← ADD
+
+def load_socket_config():  # ← ADD
+    config_path = Path("config.json")
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config.get("modules", {})
+
+
 import tkinter as tk
 from tkinter import ttk
 import math
@@ -96,12 +107,26 @@ class Main_Window:
     def __init__(self, root):
         self.root = root
         self.root.title("Train Controller - Monitor Display")
+        #add zoomed command to make screen fit 
+        self.root.attributes('-zoomed', True)  # On macOS/Linux
+        self.root.configure(bg="navy")
         
         # Make fullscreen
-        self.screen_width = self.root.winfo_screenwidth()
+        '''self.screen_width = self.root.winfo_screenwidth()
         self.screen_height = self.root.winfo_screenheight()
         self.root.geometry(f"{self.screen_width}x{self.screen_height}")
-        self.root.configure(bg="navy")
+        '''
+
+        # Socket server setup
+        #added socket server 
+        module_config = load_socket_config()
+        train_model_config = module_config.get("Train SW", {"port: 12346"})
+        self.server = TrainSocketServer(port=train_model_config["port"], ui_id="Train SW")
+        
+        self.server.set_allowed_connections(["Train Model", "Track Model"])
+        self.server.start_server(self._process_message)
+        self.server.connect_to_ui('localhost', 12345, "Train Model")
+        self.server.connect_to_ui('localhost', 12344, "Track Model")
         
         main_container = tk.Frame(self.root, bg="white", relief=tk.RAISED, bd=5)
         main_container.place(relx=0.02, rely=0.08, relwidth=0.96, relheight=0.9)
@@ -155,9 +180,9 @@ class Main_Window:
         self.current_speed_display.pack(pady=5)
         
         # Service Brake Percentage Display
-        self.brake_percentage_display = tk.Label(speedometer_frame, text="Service Brake: 0%", 
-                                                font=("Arial", 12, "bold"), bg="white", fg="red")
-        self.brake_percentage_display.pack(pady=2)
+        #self.brake_percentage_display = tk.Label(speedometer_frame, text="Service Brake: 0%", 
+                                                #font=("Arial", 12, "bold"), bg="white", fg="red")
+        #self.brake_percentage_display.pack(pady=2)
         
         # Commanded Speed Frame
         self.commanded_speed_frame = tk.Frame(main_container, bg="grey", relief=tk.RAISED, bd=2)
@@ -250,13 +275,13 @@ class Main_Window:
         
         # Train Horn Button
         try:
-            self.train_horn_icon = tk.PhotoImage(file="trainhorn.png")
+            self.train_horn_icon = tk.PhotoImage(file="train_controller_sw/trainhorn.png")
             self.train_horn_icon = self.train_horn_icon.subsample(5, 5)
             self.train_horn = tk.Button(main_container, image=self.train_horn_icon, 
                                        bg="burlywood1", activebackground="burlywood3",
                                        command=self.press_horn, relief=tk.RAISED, bd=3)
         except:
-            self.train_horn = tk.Button(main_container, text="Train Horn\n🎺", 
+            self.train_horn = tk.Button(main_container, text="Train Horn\n", 
                                        font=("Arial", 14, "bold"), bg="burlywood1", 
                                        activebackground="burlywood3",
                                        command=self.press_horn, relief=tk.RAISED, bd=3)
@@ -271,7 +296,7 @@ class Main_Window:
                                           hold_mode=True, canvas_bg="white")
         self.service_brake.place(relx=.23, rely=.52)
         
-        # Brake Percentage Control
+        '''# Brake Percentage Control
         brake_percent_frame = tk.Frame(main_container, bg="white")
         brake_percent_frame.place(relx=.23, rely=.48)
         
@@ -286,7 +311,8 @@ class Main_Window:
                                         font=("Arial", 10))
         brake_percent_menu.pack(side=tk.LEFT)
         brake_percent_menu.bind("<<ComboboxSelected>>", self.on_brake_percent_change)
-        
+        '''
+
         # Emergency Brake
         self.emergency_brake = Brake_button(main_container, radius=70, color="darkred", 
                                             hover_color="red", active_color="red4",
@@ -295,53 +321,53 @@ class Main_Window:
         self.emergency_brake.place(relx=.69, rely=.52)
         
         # Emergency Light
-        self.emergency_light = EmergencyLight(main_container, size=100)
+        self.emergency_light = EmergencyLight(main_container, size=75)
         self.emergency_light.place(relx=.7, rely=.41)
         
         tk.Label(main_container, text="Emergency Signal", font=("Arial", 14, "bold"),
-                bg="lightgray", fg="darkred").place(relx=.68, rely=.38)
+                bg="darkgray", fg="darkred").place(relx=.68, rely=.38)
         
         # Control Buttons Grid
         self.button_grid_frame = tk.Frame(main_container, bg="grey", relief=tk.RAISED, bd=2)
         self.button_grid_frame.place(relx=0.75, rely=0.68, relwidth=0.22, relheight=0.28)
         
         try:
-            self.bulb_logo = tk.PhotoImage(file="bulb.png").subsample(9, 9)
+            self.bulb_logo = tk.PhotoImage(file="train_controller_sw/bulb.png").subsample(9, 9)
             self.cabin_lights_btn = ToggleButton(self.button_grid_frame, image=self.bulb_logo,
                                                 callback=self.toggle_cabin_lights)
             self.cabin_lights_btn.image = self.bulb_logo
         except:
-            self.cabin_lights_btn = ToggleButton(self.button_grid_frame, text="💡", 
+            self.cabin_lights_btn = ToggleButton(self.button_grid_frame, text="", 
                                                 font=("Arial", 24), callback=self.toggle_cabin_lights)
         self.cabin_lights_btn.grid(row=0, column=0, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.headlight_logo = tk.PhotoImage(file="headlight.png").subsample(5, 5)
+            self.headlight_logo = tk.PhotoImage(file="train_controller_sw/headlight.png").subsample(5, 5)
             self.headlights_btn = ToggleButton(self.button_grid_frame, image=self.headlight_logo,
                                               callback=self.toggle_headlights)
             self.headlights_btn.image = self.headlight_logo
         except:
-            self.headlights_btn = ToggleButton(self.button_grid_frame, text="🔦", 
+            self.headlights_btn = ToggleButton(self.button_grid_frame, text="", 
                                               font=("Arial", 24), callback=self.toggle_headlights)
         self.headlights_btn.grid(row=0, column=1, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.left_door_logo = tk.PhotoImage(file="leftdoor.png").subsample(10, 10)
+            self.left_door_logo = tk.PhotoImage(file="train_controller_sw/leftdoor.png").subsample(10, 10)
             self.left_door_btn = ToggleButton(self.button_grid_frame, image=self.left_door_logo,
                                              callback=self.toggle_left_door)
             self.left_door_btn.image = self.left_door_logo
         except:
-            self.left_door_btn = ToggleButton(self.button_grid_frame, text="◄|", 
+            self.left_door_btn = ToggleButton(self.button_grid_frame, text="", 
                                              font=("Arial", 24), callback=self.toggle_left_door)
         self.left_door_btn.grid(row=1, column=0, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.right_door_logo = tk.PhotoImage(file="right.png").subsample(10, 10)
+            self.right_door_logo = tk.PhotoImage(file="train_controller_sw/right.png").subsample(10, 10)
             self.right_door_btn = ToggleButton(self.button_grid_frame, image=self.right_door_logo,
                                               callback=self.toggle_right_door)
             self.right_door_btn.image = self.right_door_logo
         except:
-            self.right_door_btn = ToggleButton(self.button_grid_frame, text="|►", 
+            self.right_door_btn = ToggleButton(self.button_grid_frame, text="", 
                                               font=("Arial", 24), callback=self.toggle_right_door)
         self.right_door_btn.grid(row=1, column=1, padx=8, pady=8, sticky="nsew")
         tk.Label(self.button_grid_frame, text="Left Door", font=("Arial", 10, "bold"), 
@@ -358,10 +384,10 @@ class Main_Window:
         
         # BLT Logo
         logo_frame = tk.Frame(main_container, bg="white", relief=tk.RAISED, bd=1)
-        logo_frame.place(relx=0.01, rely=0.01, relwidth=0.12, relheight=0.24)
+        logo_frame.place(relx=0.01, rely=0.01, relwidth=0.12, relheight=0.22)
         
         try:
-            self.bltlogo = tk.PhotoImage(file="bltlogo.png").subsample(4, 4)
+            self.bltlogo = tk.PhotoImage(file="train_controller_sw/bltlogo.png").subsample(4, 4)
             self.bltLabel = tk.Label(logo_frame, image=self.bltlogo, bg="white", borderwidth=0)
             self.bltLabel.pack(expand=True, fill=tk.BOTH, padx=2, pady=2)
         except:
@@ -415,17 +441,56 @@ class Main_Window:
         self.set_speed = 45
         self.set_temp = 68
         self.is_auto_mode = True
-        self.service_brake_percentage = 50  # Default to 50%
+        #self.service_brake_percentage = 50  # Default to 50%
         self.service_brake_active = False
         self.emergency_brake_active = False
         self.door_safety_lock = True
         
         self.update_displays()
         # Test Panel
-        self.test_panel = TestPanel(self.root, self)
+        #self.test_panel = TestPanel(self.root, self)
 
         #safety critical design:
-        self.safety_monitor = SafetyMonitor(self)
+        #self.safety_monitor = SafetyMonitor(self)
+
+    def _process_message(self, message, source_ui_id):
+        """Process incoming messages and update train state"""
+        try:
+            print(f"Received message from {source_ui_id}: {message}")
+
+            command = message.get('command')
+            value = message.get('value')
+            
+            if command == 'Commanded Authority':
+                #set authority command
+                self.set_authority(value)
+                
+            elif command == 'Commanded Speed': 
+                #set commanded
+                print("helloworld")
+            elif command == "Passenger Emergency Signal":
+                #set signal light
+                print("helloworld")
+            elif command == "Actual Velocity":
+                #set speedometer
+                print("helloworld")
+            elif command == "Cabin Temperature": 
+                #set cabin temp
+                print("helloworld")
+            elif command == "Failure Modes": 
+                #set failure lights
+                print("helloworld")
+            elif command == "Beacon Data": 
+                #update beacon information
+                print("helloworld")
+            elif command == "Preloaded Track Information":
+                #update track information
+                print("helloworld")
+            elif command == "Light States": 
+                #display lights states
+                print("helloworld")
+        except Exception as e:
+            print(f"Error processing message: {e}")
 
     
     def add_to_status_log(self, message):
@@ -467,7 +532,7 @@ class Main_Window:
                 self.set_current_speed(self.current_speed)
         elif self.service_brake_active:
             # Service brake: gradual deceleration based on percentage
-            deceleration_rate = self.service_brake_percentage * 0.1  # Scale factor
+            deceleration_rate = 1 #apply decelaration rate here!!!
             if self.current_speed > 0:
                 self.current_speed = max(0, self.current_speed - deceleration_rate)
                 self.set_current_speed(self.current_speed)
@@ -546,8 +611,8 @@ class Main_Window:
     def service_brake_action(self, pressed):
         if pressed:
             self.service_brake_active = True
-            self.add_to_status_log(f"Service brake activated at {self.service_brake_percentage}%")
-            print(f"Service brake: PRESSED at {self.service_brake_percentage}%")
+            self.add_to_status_log(f"Service brake applied")
+            print(f"Service brake applied")
         else:
             self.service_brake_active = False
             self.add_to_status_log("Service brake released")
@@ -645,11 +710,11 @@ class Main_Window:
 
         if failure_detected and not self.emergency_brake_active:
             # Automatically activate the emergency brake
-            self.add_to_status_log("⚠️ FAILURE DETECTED: Activating emergency brake.")
+            self.add_to_status_log(" FAILURE DETECTED: Activating emergency brake.")
             self.emergency_brake_action(True)
         elif not failure_detected and self.emergency_brake_active:
             # Automatically release when all failures are cleared
-            self.add_to_status_log("✅ All failures cleared: Releasing emergency brake.")
+            self.add_to_status_log(" All failures cleared: Releasing emergency brake.")
             self.emergency_brake_action(False)
 
 
@@ -661,6 +726,17 @@ class Main_Window:
             self.track_info_panel = TrackInformationPanel(self.track_info_window)
         else:
             self.track_info_window.lift()
+
+    def on_closing(self):
+        """Handle application closing"""
+        print("Closing application...")
+        self.server.running = False
+        if self.server.server_socket:
+            try:
+                self.server.server_socket.close()
+            except:
+                pass
+        self.root.destroy()
 
 if __name__ == "__main__":
     root = tk.Tk()

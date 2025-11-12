@@ -18,7 +18,7 @@ class StationAnnouncementDisplay(tk.Frame):
         header_frame = tk.Frame(main_frame, bg="lightgrey", relief=tk.RAISED)
         header_frame.pack(fill=tk.X, pady=(0, 10))
         
-        expand_btn = tk.Button(header_frame, text="➤", font=("Arial", 14, "bold"),
+        expand_btn = tk.Button(header_frame, text="", font=("Arial", 14, "bold"),
                               command=self.toggle_expand, bg="lightgrey", relief=tk.FLAT,
                               cursor="hand2")
         expand_btn.pack(side=tk.LEFT, padx=5)
