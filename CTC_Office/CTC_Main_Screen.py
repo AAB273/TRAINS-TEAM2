@@ -64,7 +64,7 @@ class MainScreen:
         module_config = load_socket_config()
         ctc_config = module_config.get("CTC", {"port": 1})
         self.server = TrainSocketServer(port = ctc_config["port"], ui_id = "CTC")
-        self.server.set_allowed_connections(["Track SW", "Track HW", "CTC_Test_UI"])  #add "CTC_Test_UI when using test ui"
+        self.server.set_allowed_connections(["Track SW", "Track HW", "Track Model", "CTC_Test_UI"])  #add "CTC_Test_UI when using test ui"
         self.server.start_server(self._processMessage)
         self.server.connect_to_ui('localhost', 12342, "Track SW")
         self.server.connect_to_ui('localhost', 12343, "Track HW")
