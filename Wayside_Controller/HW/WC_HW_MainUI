@@ -1287,6 +1287,7 @@ class RightPanel(tk.Frame):
             'line': 6,
             'block': 6,
             'section': 8,
+            'infrastructure': 15
         }
 
         tk.Label(headers_frame, text="Occupied", bg='#cccccc',
@@ -1335,7 +1336,10 @@ class RightPanel(tk.Frame):
             # Section letter (read-only)
                 tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-           
+             
+            #  Infrastructure (read-only) 
+                tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
+                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
             # Store combos for potential access
                 self.block_combos.append(occ_combo)
            
