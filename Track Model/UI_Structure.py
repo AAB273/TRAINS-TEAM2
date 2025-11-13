@@ -1225,7 +1225,8 @@ class TrackModelUI(tk.Tk):
             self.data_manager.bidirectional_directions = {
                 "Blocks 1-5": 0,
                 "Blocks 6-10": 0, 
-                "Blocks 11-15": 0
+                "Blocks 11-15": 0,
+                "Blocks 77-85": 0  # N section - bidirectional blocks
             }
         
         # Create controls for each group
@@ -1329,6 +1330,19 @@ class TrackModelUI(tk.Tk):
         """
         if not hasattr(self.data_manager, 'blocks') or not self.data_manager.blocks:
             return 0  # Default to left if no data
+        
+        # Special handling for N section (blocks 77-85)
+        if group_name == "Blocks 77-85":
+            # Check switch state at block 85
+            if len(self.data_manager.blocks) > 84:
+                block_85 = self.data_manager.blocks[84]  # Block 85 at index 84
+                if hasattr(block_85, 'switch_state'):
+                    # When switch is False (Left/Diverging for 100→85→84 route)
+                    # Set blocks to face right for backward travel
+                    if not block_85.switch_state:
+                        return 1  # Right direction for backward travel
+                    else:
+                        return 0  # Left direction for normal forward travel
         
         # Parse the block range from group name (e.g., "Blocks 1-5" -> [1,2,3,4,5])
         import re
@@ -1517,7 +1531,38 @@ class TrackModelUI(tk.Tk):
         elif current_block == 100:  # Before switch at 85-86
             return 85  # Go through switch section
         elif current_block == 85:
+            # Check switch state at block 85
+            # The switch at 85 controls whether we go to 84 (backwards on N section) or 86
+            if len(self.data_manager.blocks) > 84:  # Ensure block 85 exists
+                block_85 = self.data_manager.blocks[84]  # Block 85 is at index 84 (0-based)
+                if hasattr(block_85, 'switch_state'):
+                    # When switch is set for 100->85 route (coming from the loop),
+                    # we should go backwards to block 84 (ascending on N section)
+                    # Otherwise, continue forward to block 86
+                    if block_85.switch_state:  # True = Right/Forward to 86
+                        return 86  # Continue forward through switch
+                    else:  # False = Left/Backward to 84 (for trains coming from 100)
+                        return 84  # Go backwards on N section (ascending block numbers)
+            # Default if no switch state found
             return 86  # Continue through switch
+        elif current_block == 84:
+            # If coming from 85 via switch, continue backwards on N section
+            return 83  # Continue ascending on N block set
+        elif current_block == 83:
+            return 82  # Continue backwards through N section
+        elif current_block == 82:
+            return 81  # Continue backwards through N section
+        elif current_block == 81:
+            return 80  # Continue backwards through N section
+        elif current_block == 80:
+            return 79  # Continue backwards through N section
+        elif current_block == 79:
+            return 78  # Continue backwards through N section
+        elif current_block == 78:
+            return 77  # Continue backwards through N section
+        elif current_block == 77:
+            # End of N section backwards, continue to next section
+            return 101  # Continue to next block after N section
         elif current_block == 86:
             return 87  # Exit switch section
         elif current_block == 57:  # Near yard exit
@@ -1540,17 +1585,23 @@ class TrackModelUI(tk.Tk):
         try:
             update = {block_num: occupancy}
             
-            # Send to Train Model
+            # Send to Train Model (keep existing format for Train Model)
             self.server.send_to_ui("Train Model", {
                 "command": "block_occupancy",
                 "value": update
             })
             
-            # Send to Track Controllers
+            # Send to Track SW (Wayside Controller) in the exact format required
+            # Flat structure with track, block, occupied fields
             self.server.send_to_ui("Track SW", {
-                "command": "block_occupancy",
-                "value": update
+                'track': 'Green',
+                'block': block_num,  # Send as number, not string
+                'occupied': occupancy != 0  # Boolean: true if occupied, false if not
             })
+            
+            print(f"📤 Sent to Track SW: Block {block_num} {'occupied' if occupancy != 0 else 'unoccupied'}")
+            
+            # Also send old format for backward compatibility with Track HW
             self.server.send_to_ui("Track HW", {
                 "command": "block_occupancy",
                 "value": update
@@ -1588,7 +1639,9 @@ class TrackModelUI(tk.Tk):
     
     def log_switch_change(self, block_num, from_block, to_block, state):
         """Log switch state changes with descriptive information"""
-        direction = "Right/Straight" if state else "Left/Diverging"
+        # Get the actual destination block
+        destination = self.get_switch_destination(block_num, state)
+        direction_text = f"To Block {destination}"
         path_description = f"from Block {from_block} to Block {to_block}"
         
         # Add more context if this is a known switch
@@ -1600,11 +1653,30 @@ class TrackModelUI(tk.Tk):
             else:
                 path_type = "alternate route"
             
-            print(f"🔀 Switch at Block {block_num}: Set to {direction} ({path_type})")
+            print(f"🔀 Switch at Block {block_num}: {direction_text} ({path_type})")
             print(f"   Route: {path_description}")
         else:
-            print(f"✅ Updated switch at Block {block_num}: {direction}")
+            print(f"✅ Updated switch at Block {block_num}: {direction_text}")
             print(f"   Route: {path_description}")
+        
+        # Special handling for switch at block 85
+        # When switch routes from 100→85 (state=False), set N section (77-85) to face right
+        if block_num == 85 or (from_block == 85 and to_block in [84, 86]):
+            if hasattr(self.data_manager, 'bidirectional_directions'):
+                if not state:  # Switch set to Left/Diverging (100→85→84 route)
+                    # Set blocks 77-85 to face right (1) for backward travel
+                    self.data_manager.bidirectional_directions["Blocks 77-85"] = 1
+                    print(f"   📍 N Section (Blocks 77-85) set to Right → for backward travel")
+                    # Update the display
+                    if "Blocks 77-85" in self.bidir_controls:
+                        self.bidir_controls["Blocks 77-85"].set("Right →")
+                else:  # Switch set to Right/Straight (normal forward route)
+                    # Set blocks 77-85 to face left (0) for normal forward travel
+                    self.data_manager.bidirectional_directions["Blocks 77-85"] = 0
+                    print(f"   📍 N Section (Blocks 77-85) set to ← Left for forward travel")
+                    # Update the display
+                    if "Blocks 77-85" in self.bidir_controls:
+                        self.bidir_controls["Blocks 77-85"].set("← Left")
         
         # Log to terminal if available
         for terminal in self.terminals:
@@ -2286,6 +2358,92 @@ class TrackModelUI(tk.Tk):
         # Option 3: Default
         return 1
 
+    def get_switch_destination(self, block_number, switch_state):
+        """
+        Determine which block a switch routes to based on block number and switch state.
+        Returns the destination block number.
+        Based on the track diagram switches:
+        - Block 12: SWITCH (12-13, 1-13)
+        - Block 28: SWITCH (28-29, 150-28)
+        - Block 57: SWITCH (57-Yard)
+        - Block 62: SWITCH FROM YARD (Yard-62)
+        - Block 76: SWITCH (76-77, 77-101)
+        - Block 85: SWITCH (85-86, 100-85)
+        """
+        # Handle switch at block 12 (12-13, 1-13)
+        if block_number == 12:
+            if switch_state:  # True = main route
+                return 13
+            else:  # False = from block 1
+                return 13  # Both routes go to 13
+        
+        # Handle switch at block 28 (28-29, 150-28)
+        elif block_number == 28:
+            if switch_state:  # True = main route
+                return 29
+            else:  # False = from block 150
+                return 29  # Both routes go to 29
+        
+        # Handle switch at block 57 (57-Yard)
+        elif block_number == 57:
+            if switch_state:  # True = continue on main line
+                return 58  # Next block in sequence
+            else:  # False = to yard
+                return 0  # Yard (represented as 0 since it's not a numbered block)
+        
+        # Handle switch at block 62 (FROM YARD)
+        elif block_number == 62:
+            if switch_state:  # True = from main line
+                return 63  # Continue to next block
+            else:  # False = from yard
+                return 63  # From yard also goes to 63
+        
+        # Handle switch at block 76 (76-77, 77-101)
+        elif block_number == 76:
+            if switch_state:  # True = main route
+                return 77
+            else:  # False = skip to 101
+                return 101
+        
+        # Handle switch at block 85 (85-86, 100-85)
+        elif block_number == 85:
+            if switch_state:  # True = main route forward
+                return 86
+            else:  # False = backward route (for trains from 100)
+                return 84  # Go backwards on N section
+        
+        # Handle reverse direction for bidirectional switches
+        elif block_number == 1:
+            # Coming from block 1, can go to 2 or jump to 13 via switch
+            if switch_state:
+                return 2  # Normal route
+            else:
+                return 13  # Via switch at 12
+        
+        elif block_number == 77:
+            # Block 77 can go to 78 or back to 101
+            if switch_state:
+                return 78  # Continue on N section
+            else:
+                return 101  # Jump to block 101
+        
+        elif block_number == 100:
+            # Block 100 can go to 85 via switch
+            if not switch_state:  # When switch at 85 is set for 100->85
+                return 85
+            else:
+                return 101  # Normal route would be 101 but this depends on track layout
+        
+        elif block_number == 150:
+            # Block 150 can loop back to 1 or go to 28 via switch
+            if switch_state:
+                return 1  # Normal loop back
+            else:
+                return 28  # Via switch
+        
+        # For any other blocks, default to next sequential block
+        return block_number + 1
+
 
     # 6. Update your update_track_system_table to show failure status:
 
@@ -2315,7 +2473,16 @@ class TrackModelUI(tk.Tk):
                 has_power = self.murphy_failures.has_power(b.block_number)
                 
                 # Switch state
-                switch_state = "Right" if getattr(b, "switch_state", False) else "Left" if has_switch else "N/A"
+                if has_switch:
+                    current_switch_state = getattr(b, "switch_state", False)
+                    destination_block = self.get_switch_destination(b.block_number, current_switch_state)
+                    # Special case for yard
+                    if destination_block == 0:
+                        switch_state = "To Yard"
+                    else:
+                        switch_state = f"To Block {destination_block}"
+                else:
+                    switch_state = "N/A"
                 
                 # Signal state (off if power failure)
                 if has_signal:
@@ -2762,17 +2929,55 @@ class TrackModelUI(tk.Tk):
         print(f"📤 Sent failure modes to Wayside Controller ({len(failures)} failures)")
 
     def send_block_occupancy_to_wayside(self):
-        """Send block occupancy to Wayside Controller."""
+        """Send block occupancy to Wayside Controller (Track SW and Track HW)."""
+        # Send individual occupancy updates in the flat format Wayside expects
+        occupied_count = 0
+        unoccupied_count = 0
+        
+        for block in self.data_manager.blocks:
+            # Send all blocks so Wayside knows both occupied and unoccupied states
+            is_occupied = block.occupancy != 0
+            
+            # Send to Track SW in the exact flat format required
+            self.server.send_to_ui("Track SW", {
+                'track': 'Green',
+                'block': block.block_number,  # Send as number
+                'occupied': is_occupied  # Boolean value
+            })
+            
+            if is_occupied:
+                occupied_count += 1
+            else:
+                unoccupied_count += 1
+        
+        # Also send bulk format to Track HW for backward compatibility
         occupancy_data = {}
         for block in self.data_manager.blocks:
-            if block.occupancy != 0:  # Only send occupied blocks
+            if block.occupancy != 0:  # Only occupied blocks in bulk format
                 occupancy_data[block.block_number] = block.occupancy
         
-        self.server.send_to_ui("Wayside Controller", {
-            'command': 'Block Occupancy',
+        self.server.send_to_ui("Track HW", {
+            'command': 'Block Occupancy', 
             'data': occupancy_data
         })
-        print(f"📤 Sent block occupancy to Wayside Controller ({len(occupancy_data)} occupied)")
+        
+        print(f"📤 Sent block occupancy to Wayside: {occupied_count} occupied, {unoccupied_count} unoccupied blocks")
+    
+    def send_bulk_occupancy_to_wayside(self):
+        """Send bulk occupancy data to Wayside Controller as a dictionary."""
+        # Create occupancy data dictionary (block_number: boolean)
+        occupancy_data = {}
+        for block in self.data_manager.blocks:
+            occupancy_data[block.block_number] = block.occupancy != 0
+        
+        # Send in the flat format with all occupancy data at once
+        self.server.send_to_ui("Track SW", {
+            'track': 'Green',
+            'block': 'all',  # Special indicator for bulk update
+            'occupied': occupancy_data  # Dictionary of block_num: boolean
+        })
+        
+        print(f"📤 Sent bulk occupancy data to Track SW: {len(occupancy_data)} blocks")
 
     def send_block_occupancy_to_train_model(self):
         """Send block occupancy to Train Model."""
@@ -3247,7 +3452,12 @@ class TrackModelUI(tk.Tk):
                     if 1 <= block_number <= len(self.data_manager.blocks):
                         block = self.data_manager.blocks[block_number - 1]
                         block.switch_state = value
-                        print(f"✅ Updated switch at block {block_number}: {'Right' if value else 'Left'} (legacy boolean format)")
+                        destination = self.get_switch_destination(block_number, value)
+                        if destination == 0:
+                            destination_text = "Yard"
+                        else:
+                            destination_text = f"Block {destination}"
+                        print(f"✅ Updated switch at block {block_number}: To {destination_text} (legacy boolean format)")
                         self.refresh_bidirectional_controls()
                         self.refresh_ui()
                         
@@ -3509,6 +3719,9 @@ class TrackModelUI(tk.Tk):
                         
                         self.update_occupied_blocks_display()
                         
+                        # Forward occupancy update to Wayside Controller
+                        self.send_block_occupancy_update(block_num, occupancy)
+                        
                 elif isinstance(value, dict):
                     # Format: {block_num: occupancy, ...}
                     for block_num, occupancy in value.items():
@@ -3531,6 +3744,9 @@ class TrackModelUI(tk.Tk):
                                         # Reset position tracking
                                         if train_id in self.train_positions_in_block:
                                             self.train_positions_in_block[train_id] = 0
+                            
+                            # Forward occupancy update to Wayside Controller
+                            self.send_block_occupancy_update(block_num, occupancy)
                     
                     self.update_occupied_blocks_display()
                 else:
@@ -3549,6 +3765,8 @@ class TrackModelUI(tk.Tk):
     def start_output_updates(self):
         """Start periodic output updates (every 5 seconds)."""
         self.send_all_outputs()
+        # Also send occupancy updates to Wayside
+        self.send_block_occupancy_to_wayside()
         self.after(5000, self.start_output_updates)  # Send every 5 seconds
 
     def test_block_occupancy(self, block_num, occupancy):
