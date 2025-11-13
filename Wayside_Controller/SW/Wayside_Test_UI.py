@@ -125,7 +125,7 @@ class RailwayControlSystem:
                     # Send socket message
                     message = {
                         'command': 'update_switch',
-                        'data': {
+                        'value': {
                             'track': track,
                             'block': block,
                             'direction': switch_direction
@@ -144,7 +144,7 @@ class RailwayControlSystem:
                     
                     message = {
                         'command': 'update_light',
-                        'data': {
+                        'value': {
                             'track': track,
                             'block': block,
                             'color': light_color
@@ -166,7 +166,7 @@ class RailwayControlSystem:
                     
                     message = {
                         'command': 'update_crossing',
-                        'data': {
+                        'value': {
                             'track': track,
                             'block': block,
                             'lights': lights_setting,
@@ -203,7 +203,7 @@ class RailwayControlSystem:
                 speed = self.speed_auth.commanded_speed_var.get()
                 authority = self.speed_auth.commanded_auth_var.get()
             
-            message = { 'command': 'update_speed_auth', 'data': {
+            message = { 'command': 'update_speed_auth', 'value': {
                     'track': track,
                     'block': block,
                     'speed': speed,
@@ -234,7 +234,7 @@ class RailwayControlSystem:
             
             message = {
                 'command': 'update_occupancy',
-                'data': {
+                'value': {
                     'track': track,
                     'block': block,
                     'occupied': occupied

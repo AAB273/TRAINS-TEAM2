@@ -117,71 +117,104 @@ def update_callback(message):
 # target ui is test ui
 
 #Example of Process Function:
-def _process_message(self, message, source_ui_id):
+def _process_message(self, data, connection=None, server_instance=None):
+    """Process incoming messages from Test UI"""
     try:
         print(f"=== MAIN UI DEBUG ===")
-        print(f"Received connection/message from: {source_ui_id}")
-        print(f"Message: {message}")
-        print(f"Allowed connections: {self.server1.allowed_connections}")
+        print(f"Received data: {data}")
         print(f"=== END DEBUG ===")
+         # Parse the data if it's a string
+        if isinstance(data, str):
+            try:
+                # Try to parse as JSON
+                parsed_data = json.loads(data)
+                print(f"Parsed JSON data: {parsed_data}")
+                message_data = parsed_data
+            except json.JSONDecodeError:
+                # If it's not JSON, treat it as a plain string message
+                print(f"Data is plain string, not JSON: {data}")
+                message_data = {'message': data}
+        else:
+            # Data is already a dictionary
+            message_data = data
+        
+        # Handle different commands
+        if command == 'ctc_suggestion':
+            # Use your existing function
+            formatted_speed = self.handle_ctc_suggested_speed(value)
+            if formatted_speed is not None:
+                self.update_suggested_speed(formatted_speed)
+                # ADD THIS LINE - sync back to Test UI
+                self.sync_speed_to_test_ui(formatted_speed)
+        
+        # Extract the actual message
+        message = message_data.get('message', message_data)
+        source_ui_id = message_data.get('ui_id', 'Unknown')
+        
+        print(f"Processing message from {source_ui_id}: {message}")
+        
+        # Extract message and source UI ID
+        if isinstance(data, 'dict'):
+            message = data.get('message', data)
+            source_ui_id = data.get('WC_HW_TestUI', 'Unknown')
+        else:
+            message = data
+            source_ui_id = 'WC_HW_TestUI'
+        
+        print(f"Processing message from {source_ui_id}: {message}")
+        
         command = message.get('command')
-        value = message.get('value') 
-        if command == 'some_command':
+        value = message.get('value')
+        
+        # Handle different commands
+        if command == 'ctc_suggestion':
+            self.handle_ctc_suggestion(value)
+        elif command == 'set_block_occupancy':
+            self.handle_block_occupancy(value)
+        elif command == 'set_switch_position':
+            self.handle_switch_position(value)
+        elif command == 'some_command':
             print(f"Test command received with value: {value}")
+        else:
+            print(f"Unknown command: {command}")
+            
     except Exception as e:
-            print(f"Error processing message: {e}")
+        print(f"Error processing message: {e}")
     
+
+    def sync_speed_to_test_ui(self, speed_value):
+        """Sync speed changes back to Test UI"""
+        try:
+            if hasattr(self, 'server1') and self.server1:
+                message = {
+                'command': 'sync_suggested_speed',
+                'value': str(speed_value),
+                'ui_id': 'WC_HW_MainUI'
+            }
+                self.server1.send_to_ui("WC_HW_TestUI", message)
+        except Exception as e:
+            print(f"Error syncing speed to Test UI: {e}")
+        
 # Enhanced Mock data class for both panels
 class UITestData:
     def __init__(self):
-
-        # SOCKET SERVER
-        self.server1 = TrainSocketServer(port=12345, ui_id="WC_HW_MainUI")
-        self.server1.set_allowed_connections(["WC_HW_TestUI", "ui_3"])
-        self.server1.start_server(_process_message)
-        
-        # Connect to other UIs
-        self.server1.connect_to_ui('localhost', 12346, "WC_HW_TestUI")  # Test UI
-
-        # Add this to your Main UI after starting the socket server
-    def verify_server_running():
-        """Verify the socket server is actually running"""
-        if hasattr(self, 'server1') and self.server1:
-            print(f"=== SERVER VERIFICATION ===")
-            print(f"Server running: {self.server1.running}")
-            print(f"Server port: 12345")
-            print(f"UI ID: {self.server1.ui_id}")
-            print(f"Allowed connections: {self.server1.allowed_connections}")
-        
-        # Test if server socket is bound
-        if hasattr(self.server1, 'server_socket'):
-            print(f"Server socket: {self.server1.server_socket}")
-            if self.server1.server_socket:
-                print(f"Socket bound: {self.server1.server_socket.fileno() != -1}")
-        print(f"=== END VERIFICATION ===")
-
-# Call this after a short delay
-        if hasattr(self, 'root'):
-            self.root.after(2000, verify_server_running)
-
-
-        # Current line
-        # self.current_line = "Blue"
-        self.current_line = "Green"
-        # Maintenance mode
-        self.maintenance_mode = False
-        # Callbacks
-        self.on_line_change = []
-        self.on_block_change = []  # For block updates
-
-        self.maintenance_changes = {
-            "switches" : True,          # only switches chan be changed
-            "lights" : False,           # lights cannot be changed
-            "crossing" : False,         # crossing cannot be changed
-            "block_occupancy" : False   # block occupancy cannot be changed
+        # Initialize ALL data attributes first
+        self.track_data = {
+            "crossings": {
+                "Railway Crossing: 108": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
+            },
+            "switches": {
+                "Switch 76-77": {"condition": "Normal", "direction": "Blocks 76-77"},
+                "Switch 85-86": {"condition": "Normal", "direction": "Blocks 85-86"}
+            },
+            "lights": {
+                "Light 76": {"condition": "Normal", "signal": "Green"},
+                "Light 85": {"condition": "Normal", "signal": "Yellow"},
+                "Light 108": {"condition": "Normal", "signal": "Red"}
+            }
         }
 
-            # Sample block data: [Occupied, Line, Block]
+        # Sample block data: [Occupied, Line, Block]
         self.block_data = [
             ["No", "Green", "74", "M"],
             ["No", "Green", "75", "M"],
@@ -262,91 +295,122 @@ class UITestData:
             # ["No", "Green", "150", "Z"]
         ]
         self.filtered_block_data = self.block_data.copy()
-
-        # Sample track data for left panel
-        self.track_data = {
-        "crossings": {
-            "Railway Crossing: 108": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
-        },
-        "switches": {
-            "Switch 76-77": {"condition": "Normal", "direction": "Blocks 76-77"},
-            "Switch 85-86": {"condition": "Normal", "direction": "Blocks 85-86"}
-        },
-        "lights": {
-            "Light 76": {"condition": "Normal", "signal": "Green"},
-            "Light 85": {"condition": "Normal", "signal": "Yellow"},
-            "Light 108": {"condition": "Normal", "signal": "Red"}
-        }
-    }
+        
+        # Initialize filtered_track_data by copying track_data
         self.filtered_track_data = self.track_data.copy()
+
+        # Initialize block_data (make sure this exists too)
+        self.block_data = []  # Add your actual block data here
+        self.filtered_block_data = self.block_data.copy()
+
+        # SOCKET SERVER
+        self.server1 = TrainSocketServer(port=12345, ui_id="WC_HW_MainUI")
+        self.server1.set_allowed_connections(["WC_HW_TestUI", "ui_3"])
+        self.server1.start_server(_process_message)
+        
+        # Connect to other UIs
+        self.server1.connect_to_ui('localhost', 12346, "WC_HW_TestUI")
+
+        # Current line
+        self.current_line = "Green"
+        # Maintenance mode
+        self.maintenance_mode = False
+        # Callbacks
+        self.on_line_change = []
+        self.on_block_change = []
+
+        self.maintenance_changes = {
+            "switches": True,
+            "lights": False,
+            "crossing": False,
+            "block_occupancy": False
+        }
+
+        # Call this after a short delay
+        if hasattr(self, 'root'):
+            self.root.after(2000, self.verify_server_running)
+
+    def verify_server_running(self):
+        """Verify the socket server is actually running"""
+        if hasattr(self, 'server1') and self.server1:
+            print(f"=== SERVER VERIFICATION ===")
+            print(f"Server running: {self.server1.running}")
+            print(f"Server port: 12345")
+            print(f"UI ID: {self.server1.ui_id}")
+            print(f"Allowed connections: {self.server1.allowed_connections}")
+        
+        # Test if server socket is bound
+        if hasattr(self.server1, 'server_socket'):
+            print(f"Server socket: {self.server1.server_socket}")
+            if self.server1.server_socket:
+                print(f"Socket bound: {self.server1.server_socket.fileno() != -1}")
+        print(f"=== END VERIFICATION ===")
 
     def on_closing(self):
         print("Closing application...")
-    
-    # Properly stop the socket server with comprehensive cleanup
-    if hasattr(self, 'server1') and self.server1:
-        try:
-            # 1. First, notify connected clients
-            if hasattr(server1, 'connections'):
-                disconnect_msg = {
-                    'command': 'server_shutdown',
-                    'message': 'Main UI is closing',
-                    'timestamp': time.time()
-                }
-                for ui_id, connection in list(self.server1.connections.items()):
+        
+        # Properly stop the socket server with comprehensive cleanup
+        if hasattr(self, 'server1') and self.server1:
+            try:
+                # 1. First, notify connected clients
+                if hasattr(self.server1, 'connections'):
+                    disconnect_msg = {
+                        'command': 'server_shutdown',
+                        'message': 'Main UI is closing',
+                        'timestamp': time.time()
+                    }
+                    for ui_id, connection in list(self.server1.connections.items()):
+                        try:
+                            self.server1.send_to_ui(ui_id, disconnect_msg)
+                        except:
+                            pass
+                
+                # 2. Stop accepting new connections
+                self.server1.running = False
+                
+                # 3. Close all active connections
+                if hasattr(self.server1, 'connections'):
+                    for ui_id, connection in list(self.server1.connections.items()):
+                        try:
+                            if hasattr(connection, 'close'):
+                                connection.close()
+                        except Exception as e:
+                            print(f"Error closing connection to {ui_id}: {e}")
+                    self.server1.connections.clear()
+                
+                # 4. Close the server socket
+                if hasattr(self.server1, 'server_socket') and self.server1.server_socket:
                     try:
-                        self.server1.send_to_ui(ui_id, disconnect_msg)
-                    except:
-                        pass
-            
-            # 2. Stop accepting new connections
-            self.server1.running = False
-            
-            # 3. Close all active connections
-            if hasattr(self.server1, 'connections'):
-                for ui_id, connection in list(self.server1.connections.items()):
-                    try:
-                        if hasattr(connection, 'close'):
-                            connection.close()
+                        self.server1.server_socket.close()
+                        print("Server socket closed")
                     except Exception as e:
-                        print(f"Error closing connection to {ui_id}: {e}")
-                self.server1.connections.clear()
-            
-            # 4. Close the server socket
-            if hasattr(self.server1, 'server_socket') and self.server1.server_socket:
-                try:
-                    self.server1.server_socket.close()
-                    print("Server socket closed")
-                except Exception as e:
-                    print(f"Error closing server socket: {e}")
-            
-            # 5. Stop any running threads
-            if hasattr(self.server1, 'listen_thread') and self.server1.listen_thread:
-                try:
-                    self.server1.listen_thread.join(timeout=2.0)  # Wait for thread to finish
-                except Exception as e:
-                    print(f"Error joining listen thread: {e}")
-            
-            print("Socket server shutdown complete")
-            
-        except Exception as e:
-            print(f"Error during socket server shutdown: {e}")
-    
-    # 6. Finally, destroy the root window
-    if hasattr(self, 'root') and self.root:
-        try:
-            self.root.destroy()
-            print("Root window destroyed")
-        except Exception as e:
-            print(f"Error destroying root window: {e}")
-    
-    print("Application closed successfully")
+                        print(f"Error closing server socket: {e}")
+                
+                # 5. Stop any running threads
+                if hasattr(self.server1, 'listen_thread') and self.server1.listen_thread:
+                    try:
+                        self.server1.listen_thread.join(timeout=2.0)
+                    except Exception as e:
+                        print(f"Error joining listen thread: {e}")
+                
+                print("Socket server shutdown complete")
+                
+            except Exception as e:
+                print(f"Error during socket server shutdown: {e}")
+        
+        # 6. Finally, destroy the root window
+        if hasattr(self, 'root') and self.root:
+            try:
+                self.root.destroy()
+                print("Root window destroyed")
+            except Exception as e:
+                print(f"Error destroying root window: {e}")
+        
+        print("Application closed successfully")
 
-    # Method to return block table data
     def get_block_table_data(self):
         return self.filtered_block_data
 
-    # Update block data when changed in maintenance mode
     def update_block_data(self, row_index, col_index, new_value):
         if 0 <= row_index < len(self.block_data):
             self.block_data[row_index][col_index] = new_value
@@ -355,10 +419,9 @@ class UITestData:
             for callback in self.on_block_change:
                 callback(row_index, col_index, new_value)
 
-    # Filter block data based on search term
     def filter_block_data(self, search_term):
         if not search_term or search_term.strip() == "":
-            self.filtered_block_data = self.block_data.copy() # shows all data if nothing is being searched
+            self.filtered_block_data = self.block_data.copy()
         else:
             self.filtered_block_data = [
                 row for row in self.block_data
@@ -366,14 +429,17 @@ class UITestData:
             ]
    
     def is_changeable(self, component_type):
-        """Check if a compnenet type can be edited in current mode"""
-        if not self.maintenace_mode:
-            return False    #nothing can be edided in main mode
+        """Check if a component type can be edited in current mode"""
+        if not self.maintenance_mode:
+            return False
         return self.maintenance_changes.get(component_type, False)
 
 # Create mock data instance
 test_data = UITestData()
-test_data.filtered_track_data = test_data.track_data.copy()
+# Temporary safety check - ensure filtered_track_data exists
+if not hasattr(test_data, 'filtered_track_data'):
+    print("Warning: filtered_track_data not found, creating it now...")
+    test_data.filtered_track_data = test_data.track_data.copy() if hasattr(test_data, 'track_data') else {"switches": {}, "lights": {}, "crossings": {}}
 ########################################################################################################################
 
 # Root window setup
@@ -734,10 +800,12 @@ maint_check.grid(row=0, column=1, padx=10)
 # ---------- LEFT PANEL ---------- #
 class LeftPanel(tk.Frame):
     def __init__(self, parent, data):
+        self.parent = parent
         super().__init__(parent, bg='#1a1a4d', width=250)
         self.pack_propagate(False)
         self.data = data
         self.create_widgets()
+        self.ensure_data_initialized()
         # Connect line change callback:
         self.data.on_line_change.append(self.on_line_changed)
    
@@ -810,6 +878,17 @@ class LeftPanel(tk.Frame):
 
         # Initialize with current line data
         self.update_switch_options()
+
+    def ensure_data_initialized(self):
+        """Ensure all required data structures exist"""
+        if not hasattr(self.data, 'filtered_track_data'):
+            self.data.filtered_track_data = {
+                "crossings": {},
+                "switches": {},
+                "lights": {}
+            }
+        if not hasattr(self.data, 'track_data'):
+            self.data.track_data = self.data.filtered_track_data
 
     def update_switch_options(self):
         """Update combobox options based on current line"""

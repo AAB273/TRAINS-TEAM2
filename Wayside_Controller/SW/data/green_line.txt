@@ -56,11 +56,11 @@ Green,54,UNDERGROUND
 Green,55,UNDERGROUND
 Green,56,UNDERGROUND
 Green,57,STATION; OVERBROOK; UNDERGROUND
-Green,58,Switch TO YARD (57-yard)
+Green,58,Switch (57-yard; 57-58)
 Green,59,
 Green,60,
 Green,61,
-Green,62,Switch FROM YARD (Yard-63)
+Green,62,Switch FROM YARD (Yard-63; 62-63)
 Green,63,Light
 Green,64,
 Green,65,STATION; GLENBURY
