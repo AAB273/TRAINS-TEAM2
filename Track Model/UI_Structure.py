@@ -725,18 +725,42 @@ class TrackModelUI(tk.Tk):
             for item in self.tree.get_children():
                 self.tree.delete(item)
         
-        # Populate station data
+        # Consolidate station data by station name
+        # Group blocks by station name
+        station_dict = {}
         for block_num, station_name in self.data_manager.station_location:
-            idx = block_num - 1
+            if station_name not in station_dict:
+                station_dict[station_name] = []
+            station_dict[station_name].append(block_num)
+        
+        # Populate consolidated station data
+        for station_name, block_numbers in sorted(station_dict.items()):
+            # Format block numbers as "block1, block2" if multiple
+            if len(block_numbers) == 1:
+                block_display = str(block_numbers[0])
+            else:
+                block_display = ", ".join(str(b) for b in sorted(block_numbers))
+            
+            # Sum up tickets, boarding, and disembarking across all blocks for this station
+            total_tickets = 0
+            total_boarding = 0
+            total_disembarking = 0
+            
+            for block_num in block_numbers:
+                idx = block_num - 1
+                total_tickets += int(self.data_manager.ticket_sales[idx])
+                total_boarding += int(self.data_manager.passengers_boarding[idx])
+                total_disembarking += int(self.data_manager.passengers_disembarking[idx])
+            
             self.tree.insert(
                 "",
                 "end",
                 values=(
-                    block_num,
+                    block_display,
                     station_name,
-                    f"{int(self.data_manager.ticket_sales[idx])} Tickets",
-                    f"{int(self.data_manager.passengers_boarding[idx])} Boarding", 
-                    f"{int(self.data_manager.passengers_disembarking[idx])} Leaving",
+                    f"{total_tickets} Tickets",
+                    f"{total_boarding} Boarding",
+                    f"{total_disembarking} Leaving",
                 ),
             )
 
@@ -1167,6 +1191,30 @@ class TrackModelUI(tk.Tk):
                         self.data_manager.passengers_boarding[idx] = new_boarding
                     else:
                         self.data_manager.passengers_boarding[idx] = 0
+
+    def _update_switch_positions(self, positions):
+        """Update the switch positions received from Wayside Controller."""
+        if not hasattr(self, "switch_blocks") or not self.switch_blocks:
+            print("[WARN] No switch blocks loaded — cannot apply switch positions.")
+            return
+
+        sorted_switch_blocks = sorted(self.switch_blocks)
+        if len(positions) != len(sorted_switch_blocks):
+            print(f"[WARN] Switch array length mismatch — got {len(positions)}, expected {len(sorted_switch_blocks)}")
+            return
+
+        print("🔀 Applying switch updates:")
+        for idx, block_num in enumerate(sorted_switch_blocks):
+            state = bool(positions[idx])  # 1 = right, 0 = left
+            block = self.data_manager.blocks[block_num - 1]
+            block.switch_state = state
+            print(f"  Block {block_num}: {'RIGHT' if state else 'LEFT'}")
+
+        # Update Track Elements table to reflect changes
+        self.update_track_system_table()
+
+        print("✅ Switch states updated and Track Elements table refreshed.")
+
 
     def create_block_occupancy_panel(self, parent):
         """Create Block Occupancy control panel for center area."""
@@ -2296,6 +2344,30 @@ class TrackModelUI(tk.Tk):
                 # User cancelled - keep box checked
                 self.failure_train_circuit_var.set(True)
 
+    def _create_train_from_wayside(self, speed, authority):
+        """Automatically create a train object when Wayside sends new speed/authority."""
+        # Initialize starting ID if not set yet
+        if not hasattr(self.data_manager, "next_train_id"):
+            self.data_manager.next_train_id = 11000
+
+        # Assign new train ID
+        train_id = self.data_manager.next_train_id
+        self.data_manager.next_train_id += 1
+
+        # Register new train in data manager
+        self.data_manager.active_trains.append(f"Train {train_id}")
+        self.data_manager.commanded_speed.append(speed)
+        self.data_manager.commanded_authority.append(authority)
+        self.data_manager.train_occupancy.append(0)
+
+        print(f"[TRAIN CREATED] ID={train_id}, Speed={speed} m/s, Authority={authority} blocks")
+
+        # Refresh dropdowns and terminals
+        self.train_combo["values"] = self.data_manager.active_trains
+        self.train_combo.set(f"Train {train_id}")
+        self.send_outputs()
+
+
     def prompt_and_activate_broken_rail(self):
         """Prompt for block number and activate/clear broken rail failure."""
         if self.failure_rail_var.get():
@@ -2364,7 +2436,7 @@ class TrackModelUI(tk.Tk):
 
     def send_all_outputs(self):
         """Send all outputs to appropriate UIs. Call this periodically or on state change."""
-        self.send_station_data_to_ctc()
+        self.send_all_station_data_to_ctc()
         self.send_failure_modes_to_wayside()
         self.send_block_occupancy_to_wayside()
         self.send_block_occupancy_to_train_model()
@@ -2393,6 +2465,14 @@ class TrackModelUI(tk.Tk):
                 'value': [ticket_count, disembarking_count]
             })
             print(f"📤 Sent station data to CTC: [tickets={ticket_count}, disembarking={disembarking_count}]")
+
+    def send_all_station_data_to_ctc(self):
+        """
+        Send ticket sales and passengers disembarking for ALL stations to CTC.
+        This is called periodically by send_all_outputs().
+        """
+        for block_num, station_name in self.data_manager.station_location:
+            self.send_station_data_to_ctc(block_num)
 
     def send_failure_modes_to_wayside(self):
         """Send failure modes to Wayside Controller."""
@@ -2523,41 +2603,117 @@ class TrackModelUI(tk.Tk):
         try:
             print(f"📨 Received from {source_ui_id}: {message}")
             
+            # Extract command (ensure string type)
             command = message.get('command')
+            if command is not None and not isinstance(command, str):
+                command = str(command)
+            
+            # Extract value (no type conversion - keep as-is)
             value = message.get('value')
+            
+            # Extract data (no type conversion - keep as-is)
             data = message.get('data')  # Added support for 'data' field
+            
+            # Extract block_number and convert to int if it's a string
             block_number = message.get('block_number')
+            if block_number is not None:
+                if isinstance(block_number, str):
+                    try:
+                        block_number = int(block_number)
+                    except (ValueError, TypeError):
+                        print(f"⚠️ Could not convert block_number '{block_number}' to int")
+                        block_number = None
+                elif not isinstance(block_number, int):
+                    try:
+                        block_number = int(block_number)
+                    except (ValueError, TypeError):
+                        print(f"⚠️ Could not convert block_number '{block_number}' to int")
+                        block_number = None
             
             # ============================================================
             # COMMANDED SPEED AND AUTHORITY - Combined command
-            # Receives array: [block_number, commanded_speed, commanded_authority]
-            # Sends array in SAME format to Train Model: [block_number, commanded_speed, commanded_authority]
+            # Receives from Wayside: separate fields (block_number, commanded_speed, commanded_authority)
+            # Sends to Train Model: array format [block_number, commanded_speed, commanded_authority]
             # ============================================================
             if command == 'Speed and Authority':
-                # Expect value as array: [block_number, commanded_speed, commanded_authority]
-                if isinstance(value, list) and len(value) == 3:
-                    block_number = value[0]
-                    commanded_speed = value[1]
-                    commanded_authority = value[2]
-                    train_id = message.get('train_id')
+                # Accept Wayside Controller format: separate fields in message
+                commanded_speed = message.get('commanded_speed')
+                commanded_authority = message.get('commanded_authority')
+                block_num = message.get('block_number')
+                # train_id = message.get('train_id')
+                self._create_train_from_wayside(commanded_speed, commanded_authority)
+                
+                # Convert numeric values from strings if needed
+                if commanded_speed is not None and isinstance(commanded_speed, str):
+                    try:
+                        commanded_speed = float(commanded_speed)
+                    except (ValueError, TypeError):
+                        print(f"⚠️ Could not convert commanded_speed '{commanded_speed}' to float")
+                        commanded_speed = None
+                
+                if commanded_authority is not None and isinstance(commanded_authority, str):
+                    try:
+                        commanded_authority = int(commanded_authority)
+                    except (ValueError, TypeError):
+                        print(f"⚠️ Could not convert commanded_authority '{commanded_authority}' to int")
+                        commanded_authority = None
+                
+                if block_num is not None and isinstance(block_num, str):
+                    try:
+                        block_num = int(block_num)
+                    except (ValueError, TypeError):
+                        print(f"⚠️ Could not convert block_num '{block_num}' to int")
+                        block_num = None
+                
+                # Also support legacy array format for backwards compatibility
+                if commanded_speed is None and isinstance(value, list) and len(value) == 3:
+                    block_num = value[0] if not isinstance(value[0], str) else int(value[0])
+                    commanded_speed = value[1] if not isinstance(value[1], str) else float(value[1])
+                    commanded_authority = value[2] if not isinstance(value[2], str) else int(value[2])
+                
+                if commanded_speed is not None and commanded_authority is not None and block_num is not None:
+                    # ALWAYS update commanded values by block number (for display in Train Details panel)
+                    idx = block_num - 1
+                    if 0 <= idx < len(self.data_manager.commanded_speed):
+                        self.data_manager.commanded_speed[idx] = commanded_speed
+                        self.data_manager.commanded_authority[idx] = commanded_authority
+                        print(f"✅ Updated commanded values for Block {block_num}: Speed={commanded_speed}, Authority={commanded_authority}")
+                        
+                        # Refresh Train Details panel if it exists
+                        if hasattr(self, 'tester_reference') and hasattr(self.tester_reference, 'refresh_train_details'):
+                            self.tester_reference.refresh_train_details()
                     
-                    if train_id and train_id in self.data_manager.active_trains:
+                    # If no train_id provided, try to find train on this block
+                    if not train_id:
+                        # Look for a train on this block
+                        if block_num <= len(self.data_manager.blocks):
+                            block = self.data_manager.blocks[block_num - 1]
+                            if hasattr(block, 'occupancy') and block.occupancy != 0:
+                                # Use the train ID from block occupancy
+                                train_id = f"Train_{block.occupancy}"
+                            else:
+                                # Default to using block number as train identifier
+                                train_id = f"Train_1"
+                                
+                    # Update commanded speed and authority for the specific train (if it exists)
+                    if train_id in self.data_manager.active_trains:
                         idx = self.data_manager.active_trains.index(train_id)
                         self.data_manager.commanded_speed[idx] = commanded_speed
                         self.data_manager.commanded_authority[idx] = commanded_authority
-                        print(f"✅ Updated commanded speed for {train_id}: {commanded_speed} m/s")
-                        print(f"✅ Updated commanded authority for {train_id}: {commanded_authority} blocks")
+                        print(f"✅ Updated commanded values for {train_id}: Speed={commanded_speed}, Authority={commanded_authority}")
                         
-                        # Send array in SAME format [block_number, commanded_speed, commanded_authority] to Train Model
-                        speed_authority_array = [block_number, commanded_speed, commanded_authority]
+                        # Send array format to Train Model: [block_number, commanded_speed, commanded_authority]
+                        speed_authority_array = [block_num, commanded_speed, commanded_authority]
                         self.server.send_to_ui("Train Model", {
                             "command": "Speed and Authority",
                             "train_id": train_id,
                             "value": speed_authority_array
                         })
                         print(f"📤 Sent Speed and Authority array to Train Model: {speed_authority_array}")
+                    else:
+                        print(f"⚠️ Train {train_id} not found in active trains (will still display in Train Details). Available: {self.data_manager.active_trains}")
                 else:
-                    print(f"⚠️ Invalid Speed and Authority format. Expected [block_number, speed, authority], got: {value}")
+                    print(f"⚠️ Invalid Speed and Authority format. Got speed={commanded_speed}, auth={commanded_authority}, block={block_num}")
             
             # ============================================================
             # SWITCH POSITIONS - Update switch states
@@ -2566,8 +2722,19 @@ class TrackModelUI(tk.Tk):
             elif command == 'Switch Positions':
                 if isinstance(value, dict):
                     for block_num, state in value.items():
+                        # Convert block_num from string to int if needed
+                        if isinstance(block_num, str):
+                            try:
+                                block_num = int(block_num)
+                            except (ValueError, TypeError):
+                                print(f"⚠️ Could not convert block_num key '{block_num}' to int")
+                                continue
+                        
                         if 1 <= block_num <= len(self.data_manager.blocks):
                             block = self.data_manager.blocks[block_num - 1]
+                            # Convert state to bool if it's a string
+                            if isinstance(state, str):
+                                state = state.lower() in ('true', '1', 'yes', 'right')
                             block.switch_state = state
                             print(f"✅ Updated switch at block {block_num}: {'Right' if state else 'Left'}")
                     self.refresh_ui()
@@ -2575,6 +2742,9 @@ class TrackModelUI(tk.Tk):
                     # Single switch update
                     if 1 <= block_number <= len(self.data_manager.blocks):
                         block = self.data_manager.blocks[block_number - 1]
+                        # Convert state to bool if it's a string
+                        if isinstance(value, str):
+                            value = value.lower() in ('true', '1', 'yes', 'right')
                         block.switch_state = value
                         print(f"✅ Updated switch at block {block_number}: {'Right' if value else 'Left'}")
                         self.refresh_ui()
@@ -2586,6 +2756,14 @@ class TrackModelUI(tk.Tk):
             elif command == 'Light States':
                 if isinstance(data, dict):
                     for block_num, bit_array in data.items():
+                        # Convert block_num from string to int if needed
+                        if isinstance(block_num, str):
+                            try:
+                                block_num = int(block_num)
+                            except (ValueError, TypeError):
+                                print(f"⚠️ Could not convert block_num key '{block_num}' to int")
+                                continue
+                        
                         if 1 <= block_num <= len(self.data_manager.blocks):
                             block = self.data_manager.blocks[block_num - 1]
                             # Convert two-bit boolean array to state (0-3)
@@ -2600,6 +2778,14 @@ class TrackModelUI(tk.Tk):
                     self.refresh_ui()
                 elif isinstance(value, dict):
                     for block_num, bit_array in value.items():
+                        # Convert block_num from string to int if needed
+                        if isinstance(block_num, str):
+                            try:
+                                block_num = int(block_num)
+                            except (ValueError, TypeError):
+                                print(f"⚠️ Could not convert block_num key '{block_num}' to int")
+                                continue
+                        
                         if 1 <= block_num <= len(self.data_manager.blocks):
                             block = self.data_manager.blocks[block_num - 1]
                             # Convert two-bit boolean array to state (0-3)
@@ -2629,6 +2815,14 @@ class TrackModelUI(tk.Tk):
                 if block_number is not None:
                     idx = block_number - 1
                     if 0 <= idx < len(self.data_manager.passengers_disembarking):
+                        # Convert value to int if it's a string
+                        if isinstance(value, str):
+                            try:
+                                value = int(value)
+                            except (ValueError, TypeError):
+                                print(f"⚠️ Could not convert value '{value}' to int")
+                                value = 0
+                        
                         self.data_manager.passengers_disembarking[idx] = value
                         print(f"✅ Received passengers disembarking from Train Model: Block {block_number} = {value}")
                         
@@ -2646,6 +2840,13 @@ class TrackModelUI(tk.Tk):
                 train_id = message.get('train_id')
                 if train_id in self.data_manager.active_trains:
                     idx = self.data_manager.active_trains.index(train_id)
+                    # Convert value to int if it's a string
+                    if isinstance(value, str):
+                        try:
+                            value = int(value)
+                        except (ValueError, TypeError):
+                            print(f"⚠️ Could not convert value '{value}' to int")
+                            value = 0
                     self.data_manager.train_occupancy[idx] = value
                     print(f"✅ Updated train occupancy for {train_id}: {value} passengers")
             
