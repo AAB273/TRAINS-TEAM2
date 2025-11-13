@@ -370,6 +370,10 @@ class RightPanel(tk.Frame):
                 # Handle conversion errors gracefully
                 print(f"Warning: Could not convert commanded values to integers: {authority}, {speed}")
         
+        # SEND TO TRACK MODEL VIA MAIN UI
+        if hasattr(self.data, 'app') and self.data.app:
+            self.data.app.send_commanded_to_track_model(current_line, block, speed, authority)
+                
         # Log the command action
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if self.log_callback:

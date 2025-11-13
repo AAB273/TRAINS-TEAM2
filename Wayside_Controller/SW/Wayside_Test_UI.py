@@ -203,9 +203,7 @@ class RailwayControlSystem:
                 speed = self.speed_auth.commanded_speed_var.get()
                 authority = self.speed_auth.commanded_auth_var.get()
             
-            message = {
-                'command': 'update_speed_auth',
-                'data': {
+            message = { 'command': 'update_speed_auth', 'data': {
                     'track': track,
                     'block': block,
                     'speed': speed,

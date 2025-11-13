@@ -27,9 +27,12 @@ class RailwayControlSystem:
         self.root.configure(bg='#1a1a4d')
         
         self.data = RailwayData()
+
+        # Add this line - gives RailwayData a reference to the main app
+        self.data.app = self
         
         # Load socket configuration first
-        module_config = load_socket_config().get("Track SW", {"port": 22342})
+        module_config = load_socket_config().get("Track SW", {"port": 2})
         
         # Initialize socket server with the loaded configuration
         self.server = TrainSocketServer(
@@ -58,7 +61,7 @@ class RailwayControlSystem:
             print(f"Main UI received from {source_ui_id}: {message}")
             
             command = message.get('command')
-            data = message.get('data', {})
+            data = message.get('value', {})
             
             if command == 'update_switch':
                 self._handle_switch_update(data)
@@ -73,6 +76,25 @@ class RailwayControlSystem:
                 
         except Exception as e:
             print(f"Error processing message: {e}")
+
+    def send_commanded_to_track_model(self, block, speed, authority):
+        """Send commanded speed and authority to Track Model"""
+        track_model_message = {
+            "command": "Speed and Authority",
+            "block_number": block,
+            "speed_value": speed,
+            "authority_value": authority,
+        }
+        success = self.send_to_track_model(track_model_message)
+        if success:
+            print(f"Sent to Track Model: Block {block}, Speed:{speed}, Auth:{authority}")
+        else:
+            print(f"Failed to send to Track Model: Block {block}")
+        return success
+
+    def send_to_track_model(self, message):
+        """Send message to Track Model"""
+        return self.server.send_to_ui("Track Model", message)
 
     def _handle_switch_update(self, data):
         """Handle switch updates from Test UI"""
