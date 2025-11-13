@@ -108,6 +108,7 @@ class MainScreen:
 
             command = message.get('command')
             value = message.get('value')
+            print(command)
 
             self.updateMainScreen(command, value)
 
@@ -572,7 +573,6 @@ class MainScreen:
         to leave CTC_data.txt purely for inputs from other modules.
         '''
         #NEED TO ADD THIS TO UPDATE UI
-        print("here")
 
         children = self.tlArea.get_children("")
         #get a list of the items in the Treeview
