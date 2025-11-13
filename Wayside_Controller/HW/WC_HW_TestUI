@@ -7,6 +7,7 @@ from PIL import Image, ImageTk
 import os, sys
 import time
 import random
+import json
 sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from TrainSocketServer import TrainSocketServer
 
@@ -78,8 +79,16 @@ def send_test_command(command, value):
     """Send test commands to Main UI"""
     try:
         if hasattr(root, 'socket_server'):
-            message = {'command': command, 'value': value, 'source': 'TestUI'}
-            root.socket_server.send_to_ui("WC_HW_MainUI", message)
+            message = {
+                'command': command, 
+                'value': value, 
+                'source': 'TestUI',
+                'timestamp' : time.time(),
+                'ui_id' : 'WC_HW_TestUI'
+                }
+            # Convert to JSON string before sending
+            json_message = json.dumps(message)
+            root.socket_server.send_to_ui("WC_HW_MainUI", json_message)
             add_to_message_log(f"Sent command: {command} = {value}")
     except Exception as e:
         add_to_message_log(f"Failed to send command: {e}")
@@ -172,11 +181,21 @@ main_frame = tk.Frame(root, bg='white')
 main_frame.place(x=50, y=150, width=1300, height=700)
 
 data_gen_frame = tk.Frame(root, bg='white', width=350)
-data_gen_frame.pack(side='left', fill='y', padx=10, pady=10)
+# data_gen_frame.pack(side='left', fill='y', padx=10, pady=10)
+
+# LEFT COLUMN - Test Data Generation
+left_frame = tk.Frame(main_frame, bg='white')
+left_frame.place(x=20, y=20, width=400, height=650)
+
+# Test Data Generator Section
+data_gen_frame = tk.Frame(left_frame, bg='white', relief='raised', bd=2)
+data_gen_frame.pack(fill='x', pady=10)
+
+tk.Label(data_gen_frame, text="Test Data Generator", font=("Arial", 14, "bold"), bg='white').pack(anchor='w', pady=5)
 
 # CTC Input Simulation Section
 ctc_frame = tk.Frame(data_gen_frame, bg='white', relief='raised', bd=2)
-ctc_frame.pack(fill='x', pady=10)
+ctc_frame.pack(side='bottom',padx=30, pady=0)
 
 tk.Label(ctc_frame, text="CTC Control Panel", font=("Arial", 14, "bold"), bg='white').pack(anchor='w', pady=5)
 
@@ -220,15 +239,13 @@ send_ctc_btn = tk.Button(ctc_frame, text="Send Suggestion", command=send_ctc_sug
                         bg="#003366", fg="white", width=15)
 send_ctc_btn.pack(pady=5)
 
-# LEFT COLUMN - Test Data Generation
-left_frame = tk.Frame(main_frame, bg='white')
-left_frame.place(x=20, y=20, width=400, height=650)
-
-# Test Data Generator Section
-data_gen_frame = tk.Frame(left_frame, bg='white', relief='raised', bd=2)
-data_gen_frame.pack(fill='x', pady=10)
-
-tk.Label(data_gen_frame, text="Test Data Generator", font=("Arial", 14, "bold"), bg='white').pack(anchor='w', pady=5)
+def sync_suggested_speed(speed_value):
+    """Update Test UI speed when Main UI changes it"""
+    try:
+        suggested_speed_var.set(str(speed_value))
+        add_to_message_log(f"Speed synced from Main UI: {speed_value} mph")
+    except Exception as e:
+        add_to_message_log(f"Error syncing speed: {e}")
 
 # Block Occupancy Testing
 block_frame = tk.Frame(data_gen_frame, bg='white')
@@ -564,6 +581,8 @@ def initialize_socket_server():
                 connection_status.config(text="🔴 Connection Error", fg='red')
                 add_to_message_log(f"Connection error: {e}")
         
+        # if command == 'sync_suggested_speed':
+        #     sync_suggested_speed(value)
         # Start checking for Main UI after a delay
         root.after(3000, lambda: wait_for_main_ui(0))
         return server

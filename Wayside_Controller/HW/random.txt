@@ -10,8 +10,168 @@ line 817, in update_switch_options
 
 AttributeError: 'UITestData' object has no attribute 'filtered_track_data'. Did you mean: 'filter_block_data'?
 
-line 1003, in <module>
-    left_panel = LeftPanel(main_frame, test_data)
+MAIN UI(suggested_speed):
+
+def handle_ctc_suggested_speed(speed_data):
+    """
+    Handle CTC suggested speed messages and convert to float with 3 decimal places
+    Expected formats:
+    - String: "track HW", {"Suggested_speed", "float: new_speed"}
+    - Dictionary: {'Suggested_speed': 'float: 45.5'}
+    - Direct string: "float: 45.5"
+    """
+    try:
+        suggested_speed = None
+        
+        # Handle different input formats
+        if isinstance(speed_data, str):
+            # Extract float value from string format
+            if "float:" in speed_data:
+                # Find the float value in the string
+                import re
+                float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_data)
+                if float_match:
+                    speed_str = float_match.group(1)
+                    suggested_speed = float(speed_str)
+            else:
+                # Try direct conversion if it's just a number string
+                suggested_speed = float(speed_data)
+                
+        elif isinstance(speed_data, dict):
+            # Handle dictionary format
+            if 'Suggested_speed' in speed_data:
+                speed_value = speed_data['Suggested_speed']
+                if isinstance(speed_value, str) and "float:" in speed_value:
+                    speed_str = speed_value.split("float:")[1].strip()
+                    suggested_speed = float(speed_str)
+                else:
+                    suggested_speed = float(speed_value)
+            elif 'value' in speed_data:
+                # Alternative dictionary format
+                suggested_speed = float(speed_data['value'])
+        
+        # Format to 3 decimal places if conversion was successful
+        if suggested_speed is not None:
+            formatted_speed = round(suggested_speed, 3)
+            add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.3f} mph")
+            return formatted_speed
+        else:
+            add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
+            
+    except ValueError as e:
+        add_to_message_log(f"ERROR: Invalid speed format - {e}", "ERROR")
+    except Exception as e:
+        add_to_message_log(f"ERROR: Processing CTC speed message - {e}", "ERROR")
+    
+    return None
+
+def update_suggested_speed(self, speed_value):
+    # """Update the suggested speed display with formatted value"""
+        try:
+            if speed_value is not None:
+                formatted_speed = f"{speed_value:.3f} mph"
+                self.suggested_speed_label.config(text=formatted_speed)
+                add_to_message_log(f"Suggested Speed updated to: {formatted_speed}")
+            else:
+                add_to_message_log("ERROR: Invalid speed value received", "ERROR")
+        except Exception as e:
+            add_to_message_log(f"ERROR updating speed display: {e}", "ERROR")
+
+    def update_suggested_authority(self, authority_value):
+        """Update the suggested authority display"""
+        try:
+            if authority_value is not None:
+                formatted_authority = f"{authority_value} blocks"
+                self.suggested_authority_label.config(text=formatted_authority)
+                add_to_message_log(f"Suggested Authority updated to: {formatted_authority}")
+            else:
+                add_to_message_log("ERROR: Invalid authority value received", "ERROR")
+        except Exception as e:
+            add_to_message_log(f"ERROR updating authority display: {e}", "ERROR")
+
+
+def extract_speed_from_dict(speed_dict):
+        """Extract speed value from dictionary format"""
+        try:
+            # Try different possible dictionary keys
+            if 'Suggested_speed' in speed_dict:
+                speed_value = speed_dict['Suggested_speed']
+                if isinstance(speed_value, str):
+                    return CTCSpeedHandler.extract_speed_from_string(speed_value)
+                else:
+                    return float(speed_value)
+                    
+            elif 'value' in speed_dict:
+                return float(speed_dict['value'])
+                
+            elif 'speed' in speed_dict:
+                return float(speed_dict['speed'])
+                
+        except (ValueError, TypeError, KeyError):
+            return None
+    
+    # @staticmethod
+    def format_speed_value(speed):
+        """Format speed to 3 decimal places"""
+        if speed is not None:
+            return round(float(speed), 3)
+        return None
+    
+    # @staticmethod
+    def handle_ctc_speed_message(speed_data):
+        """
+        Main method to handle CTC speed messages
+        Returns formatted speed value or None if invalid
+        """
+        print(f"DEBUG: Processing CTC speed data: {speed_data}")
+        
+        extracted_speed = None
+        
+        # Handle different input types
+        if isinstance(speed_data, str):
+            extracted_speed = CTCSpeedHandler.extract_speed_from_string(speed_data)
+            
+        elif isinstance(speed_data, dict):
+            extracted_speed = CTCSpeedHandler.extract_speed_from_dict(speed_data)
+            
+        elif isinstance(speed_data, (int, float)):
+            extracted_speed = float(speed_data)
+        
+        # Format the speed value
+        formatted_speed = CTCSpeedHandler.format_speed_value(extracted_speed)
+        
+        # Log the result
+        if formatted_speed is not None:
+            add_to_message_log(f"CTC Suggested Speed Processed: {formatted_speed:.3f} mph")
+        else:
+            add_to_message_log(f"ERROR: Could not process CTC speed data: {speed_data}", "ERROR")
+        
+        return formatted_speed
+##################################################################################################################
+#################################################################################################################
+TEST UI (suggested_speed)
+
+def send_ctc_suggestion():
+    """Send CTC speed/authority suggestion as a string"""
+    try:
+        speed = suggested_speed_var.get().strip()
+        authority = authority_var.get().strip()
+
+        if not speed or not authority:
+            messagebox.showwarning("Missing Data", "Please enter both speed and authority.")
+            return
+
+        # Create string message
+        suggestion_str = f"Speed: {speed}, Authority: {authority}"
+        send_test_command("ctc_suggestion", suggestion_str)
+        add_to_message_log(f"CTC Suggestion sent -> Speed={speed}, Authority{authority}")
+
+    except Exception as e:
+        add_to_message_log(f"Error sending CTC suggestion: {e}")
+
+send_ctc_btn = tk.Button(ctc_frame, text="Send Suggestion", command=send_ctc_suggestion,
+                        bg="#003366", fg="white", width=15)
+send_ctc_btn.pack(pady=5)
 
 
 
