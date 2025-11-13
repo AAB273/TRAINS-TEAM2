@@ -190,16 +190,13 @@ class RailwayControlSystem:
                 if authority is not None:
                     self.data.suggested_authority[track][block] = authority
             
-            # Update displays if we're viewing that track/block
+            # ALWAYS UPDATE RIGHT PANEL
             if hasattr(self, 'right_panel'):
-                current_track = self.data.current_line
-                current_block = self.right_panel.block_combo.get() if hasattr(self.right_panel, 'block_combo') else None
+                self.right_panel.update_commanded_display()
+                self.right_panel.update_suggested_display()
+                print(f"✅ Right panel refreshed for {value_type} values")
                 
-                if track == current_track and block == current_block:
-                    self.right_panel.update_commanded_display()
-                    self.right_panel.update_suggested_display()
-            
-            print(f"{value_type.capitalize()} values updated successfully")
+                print(f"{value_type.capitalize()} values updated successfully")
 
     def _handle_occupancy_update(self, data):
         """Handle occupancy updates from Test UI"""
@@ -215,6 +212,8 @@ class RailwayControlSystem:
             for idx, row in enumerate(self.data.block_data_original):
                 if row[1] == track and str(row[2]) == str(block):
                     new_occupied = "Yes" if occupied else "No"
+                    print(f"📍 DEBUG: Found block at index {idx}: {row}")
+                    print(f"📍 DEBUG: Calling update_block_data({idx}, 0, '{new_occupied}')")
                     self.data.update_block_data(idx, 0, new_occupied)
                     found = True
                     break
@@ -223,6 +222,15 @@ class RailwayControlSystem:
                 print(f"Block {block} not found on {track} track")
             else:
                 print(f"Occupancy update initiated")
+
+            # ADD THIS: Force refresh the center panel table
+            if hasattr(self, 'center_panel') and hasattr(self.center_panel, 'refresh_table'):
+                self.center_panel.refresh_table()
+                print(f"✅ Center panel refreshed for occupancy update")
+            
+            # Also trigger data update callbacks
+            if hasattr(self.data, 'trigger_data_update'):
+                self.data.trigger_data_update()
 
     def send_to_test_ui(self, message):
         """Send message to Test UI"""
