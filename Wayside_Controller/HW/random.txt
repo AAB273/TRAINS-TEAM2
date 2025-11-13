@@ -1,6 +1,19 @@
-UI WC_HW_TestUI can communicate with: {'ui_3', 'WC_HW_MainUI'}
-Train GUI Server WC_HW_TestUI listening on port 12346
-Failed to connect to WC_HW_MainUI: [Errno 111] Connection refused
-Failed to connect to WC_HW_MainUI: [Errno 111] Connection refused
-Not connected to WC_HW_MainUI
-Failed to connect to WC_HW_MainUI: [Errno 111] Connection refused
+left_panel = LeftPanel(main_frame, test_data)
+line 741, in __init__: 
+    self.create_widgets()
+line 752, in create_widgets: 
+    self.create_switch_section()
+line 813, in create_switch_section: 
+    self.update_switch_options()
+line 817, in update_switch_options
+    switches = list(self.data.filtered_track_data.get("switches", {}).keys())
+
+AttributeError: 'UITestData' object has no attribute 'filtered_track_data'. Did you mean: 'filter_block_data'?
+
+line 1003, in <module>
+    left_panel = LeftPanel(main_frame, test_data)
+
+
+
+
+    
