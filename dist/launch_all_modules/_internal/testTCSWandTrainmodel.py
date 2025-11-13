@@ -3,6 +3,7 @@ import sys
 import time
 import os
 from pathlib import Path
+import platform
 
 if os.environ.get('TRAINS_LAUNCHER_RUNNING') == '1':
     print("ERROR: Recursive launch detected!")
@@ -23,10 +24,10 @@ def launch_all():
     
     processes = []
     
-    # Set PYTHONPATH to include exe_dir so imports work
+    # Set PYTHONPATH
     env = os.environ.copy()
     env['PYTHONPATH'] = exe_dir + os.pathsep + env.get('PYTHONPATH', '')
-    
+
     print("Starting modules...\n")
     for module_name, module_file in modules:
         file_path = os.path.join(exe_dir, module_file)
@@ -34,14 +35,18 @@ def launch_all():
         if os.path.exists(file_path):
             print(f"  > Launching {module_name}")
             try:
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                startupinfo.wShowWindow = subprocess.SW_HIDE
-                
+                # Only use STARTUPINFO on Windows
+                startupinfo = None
+                if platform.system() == "Windows":
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    startupinfo.wShowWindow = 0  # SW_HIDE = 0
+
                 process = subprocess.Popen(
-                [sys.executable, file_path],
-                cwd=exe_dir,
-                env=env
+                    [sys.executable, file_path],
+                    cwd=exe_dir,
+                    env=env,
+                    startupinfo=startupinfo  # include here
                 )
                 processes.append((module_name, process))
                 print(f"    SUCCESS: {module_name} started")
@@ -50,9 +55,8 @@ def launch_all():
                 print(f"  ! Failed to launch {module_name}: {e}")
         else:
             print(f"  ! File not found: {file_path}")
-    
+
     time.sleep(3)
-    
     
     print("\n" + "="*60)
     print(f"SUCCESS: {len(processes)} modules launched!")
