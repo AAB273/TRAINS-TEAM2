@@ -26,6 +26,9 @@ class RightPanel(tk.Frame):
         # Build all UI components
         self.create_widgets()
 
+        # HARDCODE the yard to station commands
+        self.set_yard_to_station_commands()
+
         # Connect callbacks for real-time updates
         self.data.on_line_change.append(self.on_line_changed)  # When line changes
         self.data.on_data_update.append(self.refresh_ui)       # When data updates
@@ -614,3 +617,148 @@ class RightPanel(tk.Frame):
         
         # Update the display
         self.update_commanded_display()
+
+
+    def set_yard_to_station_commands(self):
+        """Hardcode commanded authority and speed from yard (63) to station (96) and back to yard (57)"""
+        current_line = "Green"
+        
+        # Outbound: Yard (63) to Station (96) - decreasing authority
+        blocks_outbound = list(range(63, 97))  # 63 to 96
+        authority = len(blocks_outbound) - 1  # Start with full authority
+        
+        for block_num in blocks_outbound:
+            self.commanded_authority[current_line][str(block_num)] = str(authority)
+            self.commanded_speed[current_line][str(block_num)] = "31" if authority > 0 else "0"
+            authority -= 1
+        
+        # Return: Station (96) back to Yard (57) - decreasing authority  
+        blocks_return = list(range(96, 56, -1))  # 96 down to 57
+        authority = len(blocks_return) - 1  # Start with full authority
+        
+        for block_num in blocks_return:
+            self.commanded_authority[current_line][str(block_num)] = str(authority)
+            self.commanded_speed[current_line][str(block_num)] = "31" if authority > 0 else "0"
+            authority -= 1
+        
+        # Set final destinations to 0 authority
+        self.commanded_authority[current_line]["96"] = "0"  # Station - stop here
+        self.commanded_speed[current_line]["96"] = "0"
+        
+        self.commanded_authority[current_line]["57"] = "0"  # Yard - stop here  
+        self.commanded_speed[current_line]["57"] = "0"
+        
+        print("DEBUG: Hardcoded commanded values set for yard-station route")
+
+    def update_commanded_display(self):
+        """Update commanded display with HARDCODED values for section path"""
+        selected_block = self.block_combo.get()
+        current_line = self.data.current_line
+        
+        if selected_block and current_line == "Green":
+            # HARDCODED VALUES for K->L->M->N->O>P>Q>N>R>s>t>U>V>W>X>Y>Z>F>E>D>C>B>A>D>E>F>G>H>I>yard
+            hardcoded_values = {
+                # K section (Yard to Dormont)
+                "63": {"auth": "33", "speed": "31"},
+                "64": {"auth": "32", "speed": "31"},
+                "65": {"auth": "31", "speed": "31"},
+                "66": {"auth": "30", "speed": "31"},
+                "67": {"auth": "29", "speed": "31"},
+                "68": {"auth": "28", "speed": "31"},
+                
+                # L section
+                "69": {"auth": "27", "speed": "31"},
+                "70": {"auth": "26", "speed": "31"},
+                "71": {"auth": "25", "speed": "31"},
+                "72": {"auth": "24", "speed": "31"},
+                "73": {"auth": "23", "speed": "31"},
+            
+                # M section
+                "74": {"auth": "22", "speed": "31"},
+                "75": {"auth": "21", "speed": "31"},
+                "76": {"auth": "20", "speed": "31"},
+                
+                # N section (Mt Lebanon to Poplar)
+                "77": {"auth": "19", "speed": "31"},
+                "78": {"auth": "18", "speed": "31"},
+                "79": {"auth": "17", "speed": "31"},
+                "80": {"auth": "16", "speed": "31"},
+                "81": {"auth": "15", "speed": "31"},
+                "82": {"auth": "14", "speed": "31"},
+                "83": {"auth": "13", "speed": "31"},
+                "84": {"auth": "12", "speed": "31"},
+                "85": {"auth": "11", "speed": "31"},
+                
+                # O section (Poplar)
+                "86": {"auth": "10", "speed": "31"},
+                "87": {"auth": "9", "speed": "31"},
+                "88": {"auth": "8", "speed": "31"},
+                
+                # P section (Castle Shannon)
+                "89": {"auth": "7", "speed": "31"},
+                "90": {"auth": "6", "speed": "31"},
+                "91": {"auth": "5", "speed": "31"},
+                "92": {"auth": "4", "speed": "31"},
+                "93": {"auth": "3", "speed": "31"},
+                "94": {"auth": "2", "speed": "31"},
+                "95": {"auth": "1", "speed": "31"},
+                "96": {"auth": "0", "speed": "31"},
+                "97": {"auth": "16", "speed": "31"},
+                
+                # Q section
+                "98": {"auth": "15", "speed": "31"},
+                "99": {"auth": "14", "speed": "31"},
+                "100": {"auth": "13", "speed": "31"},
+                
+                # Back through N section
+                "85": {"auth": "12", "speed": "31"},  # Back through switch
+                "84": {"auth": "11", "speed": "31"},
+                "83": {"auth": "10", "speed": "31"},
+                
+                # R section
+                "101": {"auth": "9", "speed": "31"},
+                
+                # S section
+                "102": {"auth": "8", "speed": "31"},
+                "103": {"auth": "7", "speed": "31"},
+                "104": {"auth": "6", "speed": "31"},
+                
+                # T section
+                "105": {"auth": "5", "speed": "31"},
+                "106": {"auth": "4", "speed": "31"},
+                "107": {"auth": "3", "speed": "31"},
+                "108": {"auth": "2", "speed": "31"},
+                "109": {"auth": "1", "speed": "31"},
+                
+                # U section
+                "110": {"auth": "0", "speed": "0"},  # Stop point
+                "111": {"auth": "0", "speed": "0"},
+                "112": {"auth": "0", "speed": "0"},
+                "113": {"auth": "0", "speed": "0"},
+                "114": {"auth": "0", "speed": "0"},
+                "115": {"auth": "0", "speed": "0"},
+                "116": {"auth": "0", "speed": "0"},
+                
+                # Yard return blocks
+                "57": {"auth": "0", "speed": "0"},  # Yard stop
+                "58": {"auth": "0", "speed": "0"},
+                "59": {"auth": "0", "speed": "0"},
+                "60": {"auth": "0", "speed": "0"},
+                "61": {"auth": "0", "speed": "0"},
+                "62": {"auth": "0", "speed": "0"}
+            }
+            
+            if selected_block in hardcoded_values:
+                # Use hardcoded values
+                auth = hardcoded_values[selected_block]["auth"]
+                speed = hardcoded_values[selected_block]["speed"]
+                self.commanded_auth_label.config(text=f"{auth} blocks")
+                self.commanded_speed_label.config(text=f"{speed} mph")
+            else:
+                # For other blocks, show defaults
+                self.commanded_auth_label.config(text="0 blocks")
+                self.commanded_speed_label.config(text="0 mph")
+        else:
+            # For other lines or no selection, show defaults
+            self.commanded_auth_label.config(text="0 blocks")
+            self.commanded_speed_label.config(text="0 mph")

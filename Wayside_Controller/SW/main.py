@@ -31,6 +31,9 @@ class RailwayControlSystem:
         # Add this line - gives RailwayData a reference to the main app
         self.data.app = self
         
+        # ADD THIS LINE: Track previous occupancy to detect changes
+        self.previous_occupancy = {"Green": {}, "Red": {}}
+
         # Load socket configuration first
         module_config = load_socket_config().get("Track SW", {"port": 2})
         
@@ -217,7 +220,14 @@ class RailwayControlSystem:
             else:
                 print(f"Occupancy update initiated")
 
-            # ADD THIS: Force refresh the center panel table
+            #Send speed and authority to Track Model when block becomes occupied
+            if occupied:
+                # Get commanded values for this block
+                commanded_speed = self.data.commanded_speed[track].get(block, 0)
+                commanded_authority = self.data.commanded_authority[track].get(block, 0)
+                self.send_commanded_to_track_model(track, block, commanded_speed, commanded_authority)
+
+            # Force refresh the center panel table
             if hasattr(self, 'center_panel') and hasattr(self.center_panel, 'refresh_table'):
                 self.center_panel.refresh_table()
                 print(f"Center panel refreshed for occupancy update")
