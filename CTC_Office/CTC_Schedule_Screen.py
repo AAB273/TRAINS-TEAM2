@@ -199,7 +199,7 @@ class ScheduleScreen:
     def updateTime(self):
     #continuously recall itself every second to update the time variable
 
-        time = strftime("%I:%M %p")
+        time = clock.clock.getTime()
         self.clockText.configure(text = time)
         self.clockTimer = self.root.after(1000, self.updateTime)
 
@@ -209,7 +209,7 @@ class ScheduleScreen:
     #update the screen if "System Information" tab is clicked
         if (event.widget.tab(event.widget.select(), "text") == "System Information"):
         #prevents errors on boot
-            self.root.after_cancel(self.clockTimer)
+            #self.root.after_cancel(self.clockTimer)
             #cancel this call if active
             self.notebook.select(0)
 
@@ -290,9 +290,9 @@ class ScheduleScreen:
             auth += self.blocksToNext[key]
         speed = float(distToStation) / arrTime
 
-        self.mainScreen.send_to_ui("TL", str(self.trainNum - 1) + ", " + f"{speed:.3f}\n" + ", " + str(auth) + ", " + line)
-        #self.server.send_to_ui("Track HW", {"suggested_speed", f"{speed:.3f}\n"})
-        #self.server.send_to_ui("Track SW", {"suggested", {"green", "0", f"{speed:.3f}\n", auth}})
+        #self.mainScreen.send_to_ui("TL", str(self.trainNum - 1) + ", " + f"{speed:.3f}\n" + ", " + str(auth) + ", " + line)
+        #self.mainScreen.send_to_ui("Track HW", {"command": "suggested_speed", "value": {f"{speed:.3f}\n"}})
+        self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": "Green", "block": 63, "speed": speed, "authority": auth, "value_type": "suggested"}})
 
 ###############################################################################################################################################################
 

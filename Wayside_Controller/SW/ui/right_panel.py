@@ -45,7 +45,7 @@ class RightPanel(tk.Frame):
     
     def refresh_ui(self):
         """Refresh all UI elements when data changes externally"""
-        print("🔄 DEBUG: RightPanel refresh_ui called")
+        print("DEBUG: RightPanel refresh_ui called")
         self.update_block_options()        # Update dropdown
         self.create_block_table()          # Refresh status table
         self.update_current_block_info()   # Update block details
@@ -370,6 +370,10 @@ class RightPanel(tk.Frame):
                 # Handle conversion errors gracefully
                 print(f"Warning: Could not convert commanded values to integers: {authority}, {speed}")
         
+        # SEND TO TRACK MODEL VIA MAIN UI
+        if hasattr(self.data, 'app') and self.data.app:
+            self.data.app.send_commanded_to_track_model(current_line, block, speed, authority)
+                
         # Log the command action
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if self.log_callback:

@@ -37,24 +37,17 @@ class TrackDataManager:
             self.passengers_boarding[idx] = 0
             self.passengers_disembarking[idx] = 0
 
-        # print("Initialized station_location:", self.station_location)
-        # print("Initialized ticket_sales:", self.ticket_sales)
-        # print("Initialized passengers_boarding:", self.passengers_boarding)
-        # print("Initialized passengers_disembarking:", self.passengers_disembarking)
-
 
     # ---------------- Excel Data Loading ----------------
     def load_excel_data(self, track_path=None, train_path=None):
         """Load data from Excel files; fallback to defaults if missing."""
-        if not track_path or not train_path:
-            # print("No Excel files provided. Using default blank data.")
+        if not track_path:  # Only check track_path
             self._create_default_blocks()
             return True
 
         try:
             track_df = pd.read_excel(track_path)
-            train_df = pd.read_excel(train_path)
-
+            
             # Clear old data
             self.blocks = []
 
@@ -68,30 +61,43 @@ class TrackDataManager:
                     track_heater=False,
                     beacon=False,
                 )
+                b.failure_mode = None
+                b.traversable = True
                 self.blocks.append(b)
 
-            # Load train data
-            self.active_trains = train_df["Train ID"].tolist() if "Train ID" in train_df else []
-            self.train_occupancy = train_df["Occupancy"].tolist() if "Occupancy" in train_df else []
-            self.commanded_speed = train_df["Commanded Speed"].tolist() if "Commanded Speed" in train_df else []
-            self.commanded_authority = train_df["Commanded Authority"].tolist() if "Commanded Authority" in train_df else []
+            # Load train data if provided
+            if train_path:
+                train_df = pd.read_excel(train_path)
+                self.active_trains = train_df["Train ID"].tolist() if "Train ID" in train_df else []
+                self.train_occupancy = train_df["Occupancy"].tolist() if "Occupancy" in train_df else []
+                self.commanded_speed = train_df["Commanded Speed"].tolist() if "Commanded Speed" in train_df else []
+                self.commanded_authority = train_df["Commanded Authority"].tolist() if "Commanded Authority" in train_df else []
 
-            # print("Excel data loaded successfully.")
             return True
 
         except Exception as e:
-            # print(f"❌ Error loading Excel data: {e}")
+            print(f"❌ Error loading Excel data: {e}")
             self._create_default_blocks()
             return False
 
     def _create_default_blocks(self):
         """Create 15 default track blocks."""
         from Track_Blocks import Block
-        self.blocks = [
-            Block(block_number=i+1, length=50, grade=0, elevation=0, speed_limit=50, 
-                track_heater=[0, 1], beacon=[0]*128)  # Default 128-bit beacon
-            for i in range(15)
-        ]
+        self.blocks = []
+        for i in range(15):
+            block = Block(
+                block_number=i+1, 
+                length=50, 
+                grade=0, 
+                elevation=0, 
+                speed_limit=50, 
+                track_heater=[0, 1],  # OFF but WORKING
+                beacon=[0]*128  # Default 128-bit beacon
+            )
+            # Initialize failure mode attributes
+            block.failure_mode = None
+            block.traversable = True
+            self.blocks.append(block)
 
     # ---------------- Data Access ----------------
     def get_data(self):
@@ -109,17 +115,16 @@ class TrackDataManager:
             "passengers_disembarking": self.passengers_disembarking,
         }
     
-    # In UI_Variables.py, replace the method:
     def collect_outputs_to_send(self):
         """Collect all block data for output transmission."""
         outputs_to_send = [
             "ticket_sales", "passengers_disembarking", "occupancy",
             "commanded_speed", "commanded_authority", "beacon",
-            "failure_mode", "passengers_boarding"
+            "failure_mode", "passengers_boarding", "traversable"
         ]
         
         data_to_send = []
-        for b in self.blocks:  # Fixed: self.blocks instead of self.manager.blocks
+        for b in self.blocks:
             block_data = {}
             for attr in outputs_to_send:
                 # Handle attributes stored in manager vs block

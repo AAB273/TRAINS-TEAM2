@@ -74,6 +74,13 @@ class LeftPanel(tk.Frame):
 
     def run_plc(self):
         """Start or stop the uploaded PLC program"""
+
+        #check if in maintenance mode
+        if not self.data.maintenance_mode:
+            messagebox.showwarning("Maintenance Mode Required", 
+                                "PLC operations can only be performed in Maintenance Mode.")
+            return
+    
         from ui.plc_engine import PLCProgram
         if not hasattr(self, "plc_instance"):
             self.plc_instance = PLCProgram(self.data, self.log_callback)
@@ -156,6 +163,13 @@ class LeftPanel(tk.Frame):
 
     def set_crossing(self):
         """Set crossing lights/bar and update model"""
+
+         # Check if in maintenance mode
+        if not self.data.maintenance_mode:
+            messagebox.showwarning("Maintenance Mode Required", 
+                                "Crossing controls can only be modified in Maintenance Mode.")
+            return
+        
         selected = self.crossing_selector.get()
         if selected:
             new_light = self.crossing_lights.get()
@@ -213,7 +227,7 @@ class LeftPanel(tk.Frame):
 
     def update_switch_display(self, event=None):
         selected = self.switch_selector.get()
-        switches = self.data.filtered_switch_positions  # Changed from filtered_track_data
+        switches = self.data.filtered_switch_positions
         if selected in switches:
             data = switches[selected]
             self.switch_condition.config(state='normal')
@@ -221,26 +235,84 @@ class LeftPanel(tk.Frame):
             self.switch_condition.insert(0, data["condition"])
             self.switch_condition.config(state='readonly')
 
-            # Use only the true options from the model
-            options = data.get("options", [])
-            self.switch_direction['values'] = options
-            current_dir = data.get("direction", options[0] if options else "")
-            self.switch_direction.set(current_dir)
+            # Get raw options (block numbers)
+            raw_options = data.get("options", [])
+            
+            # Create display options with section information
+            display_options = []
+            self.current_switch_mapping = {}
+            
+            for option in raw_options:
+                display_name = self.convert_to_section_display(option)
+                display_options.append(display_name)
+                self.current_switch_mapping[display_name] = option
+            
+            # Update UI with section-based display
+            self.switch_direction['values'] = display_options
+            
+            # Set current selection
+            current_raw_dir = data.get("direction", raw_options[0] if raw_options else "")
+            current_display_dir = self.convert_to_section_display(current_raw_dir)
+            self.switch_direction.set(current_display_dir)
+
+    def convert_to_section_display(self, raw_direction):
+        """Convert raw block direction to section-based display name"""
+        if '-' in raw_direction:
+            parts = raw_direction.split('-')
+            if parts[0].isdigit() and parts[1].isdigit():
+                # Both are block numbers (e.g., "12-13")
+                from_block, to_block = parts
+                from_section = self.data.get_section_for_block(self.data.current_line, int(from_block))
+                to_section = self.data.get_section_for_block(self.data.current_line, int(to_block))
+                return f"Section {from_section} → Section {to_section}"
+            elif parts[0].isdigit():
+                # From block to yard (e.g., "57-yard")
+                from_block = parts[0]
+                from_section = self.data.get_section_for_block(self.data.current_line, int(from_block))
+                return f"Section {from_section} → Yard"
+            else:
+                # From yard to block (e.g., "yard-63")
+                to_block = parts[1]
+                to_section = self.data.get_section_for_block(self.data.current_line, int(to_block))
+                return f"Yard → Section {to_section}"
+        else:
+            # Handle "TO YARD", "FROM YARD" etc.
+            return raw_direction.replace("_", " ").title()
 
     def set_switch(self):
-        """Set switch direction and update model"""
+        """Set switch direction and update model - log raw block numbers"""
+        if not self.data.maintenance_mode:
+            messagebox.showwarning("Maintenance Mode Required", 
+                                "Switch controls can only be modified in Maintenance Mode.")
+            return
+            
         selected = self.switch_selector.get()
         if selected:
-            new_direction = self.switch_direction.get()
-            self.data.update_track_data("switch_positions", selected, "direction", new_direction)  # Changed category
-            self.data.update_track_data("switch_positions", selected, "condition", f"Set to {new_direction}")  # Changed category
+            display_direction = self.switch_direction.get()
+            raw_direction = self.current_switch_mapping.get(display_direction, display_direction)
+            
+            # Update model
+            self.data.update_track_data("switch_positions", selected, "direction", raw_direction)
+            self.data.update_track_data("switch_positions", selected, "condition", f"Set to {display_direction}")
             self.update_switch_display()
 
-            # Log the action - use the direct callback - JUST LIKE YOUR TEST PANEL
+            # Get original switch name for logging
+            if hasattr(self, 'selector_mapping') and selected in self.selector_mapping:
+                original_switch = self.selector_mapping[selected]
+            else:
+                original_switch = selected
+            
+            # Send to track model
+            block = original_switch.split(" ")[1] if " " in original_switch else original_switch
+            if hasattr(self.data, 'app') and self.data.app:
+                self.data.app.send_switch_to_track_model(self.data.current_line, block, raw_direction)
+            
+            # SIMPLE TERMINAL OUTPUT - just the raw values
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             if self.log_callback:
-                self.log_callback(f"{current_time} UPDATE: Switch {selected} set to {new_direction} on {self.data.current_line} track")
-
+                self.log_callback(f"{current_time} UPDATE: Switch {original_switch} set to {raw_direction}")
+            
+            print(f"Switch {original_switch} set to {raw_direction}")
     # ------------------------------
     # LIGHTS
     # ------------------------------
@@ -295,6 +367,12 @@ class LeftPanel(tk.Frame):
 
     def set_light(self):
         """Set light signal and update model"""
+        # Check if in maintenance mode
+        if not self.data.maintenance_mode:
+            messagebox.showwarning("Maintenance Mode Required", 
+                                "Light controls can only be modified in Maintenance Mode.")
+            return
+        
         selected = self.light_selector.get()
         if selected:
             new_signal = self.light_signal.get()
