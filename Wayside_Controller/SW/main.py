@@ -77,7 +77,7 @@ class RailwayControlSystem:
         except Exception as e:
             print(f"Error processing message: {e}")
 
-    def send_commanded_to_track_model(self, block, speed, authority):
+    def send_commanded_to_track_model(self, track_line, block, speed, authority):
         """Send commanded speed and authority to Track Model"""
         track_model_message = {
             "command": "Speed and Authority",
