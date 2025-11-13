@@ -2379,8 +2379,9 @@ class TrackModelUI(tk.Tk):
                 occupancy_data[block.block_number] = block.occupancy
         
         self.server.send_to_ui("Wayside Controller", {
-            'command': 'block_occupancy',
-            'data': occupancy_data
+            'track': "Green",
+            'block': block,
+            'occupied': occupancy_data
         })
         print(f"📤 Sent block occupancy to Wayside Controller ({len(occupancy_data)} occupied)")
 
@@ -2598,7 +2599,6 @@ class TrackModelUI(tk.Tk):
                         print(f"✅ Updated occupancy for block {block_number}: {value}")
                         self.refresh_ui()
 
-                        send_to_ui("Wayside Controller SW, ")
             
             # ============================================================
             # PASSENGERS DISEMBARKING - From Train Model
