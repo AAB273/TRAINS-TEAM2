@@ -51,6 +51,7 @@ class TrackModelUI(tk.Tk):
         self.server.connect_to_ui('localhost', 12343,'Track HW')
 
         self.switch_blocks = set()
+        self.switch_states = {}  # Dictionary to track switch states {block_num: direction}
         self.crossing_blocks = set()
         self.light_states = {12, 29, 76, 86}
         self.station_blocks = set()
@@ -1011,6 +1012,14 @@ class TrackModelUI(tk.Tk):
             if "SWITCH" in infrastructure_upper:
                 self.switch_blocks.add(block_num)
                 print(f"  🔀 Found switch at block {block_num}")
+                
+                # Initialize switch direction for this block
+                if 1 <= block_num <= len(self.data_manager.blocks):
+                    block = self.data_manager.blocks[block_num - 1]
+                    if not hasattr(block, 'switch_direction'):
+                        block.switch_direction = 'normal'  # Default direction
+                    # Also initialize in switch_states dictionary
+                    self.switch_states[block_num] = getattr(block, 'switch_direction', 'normal')
             
             # Check for crossings
             if "CROSSING" in infrastructure_upper:
@@ -1197,6 +1206,34 @@ class TrackModelUI(tk.Tk):
             print("[DEBUG] Forced label update")
         except Exception as e:
             print(f"[DEBUG] Could not force update: {e}")
+
+    def update_switch_display(self):
+        """Update the display of switch states in the UI."""
+        print(f"[DEBUG] update_switch_display called")
+        
+        # Update switch status labels if they exist
+        if hasattr(self, 'switch_status_labels'):
+            for block_num, label in self.switch_status_labels.items():
+                if block_num in self.switch_states:
+                    direction = self.switch_states[block_num]
+                    label.config(text=f"Switch {block_num}: {direction}")
+                    print(f"[DEBUG] Updated switch display for block {block_num}: {direction}")
+        
+        # Update switch blocks in the data manager
+        for block_num in self.switch_blocks:
+            if 1 <= block_num <= len(self.data_manager.blocks):
+                block = self.data_manager.blocks[block_num - 1]
+                if hasattr(block, 'switch_direction'):
+                    print(f"[DEBUG] Block {block_num} switch direction: {block.switch_direction}")
+        
+        # Refresh the track data and system tables to show updated switch states
+        try:
+            self.refresh_track_data_table()
+            self.refresh_track_system_table()
+            print("[DEBUG] Refreshed tables after switch update")
+        except Exception as e:
+            print(f"[DEBUG] Could not refresh tables: {e}")
+
 
     def create_PLCupload_panel(self, parent):
         """Creates block occupancy, bidirectional controls and terminal panel (PLC upload moved to left panel)."""
@@ -1720,8 +1757,8 @@ class TrackModelUI(tk.Tk):
             # Flat structure with track, block, occupied fields
             self.server.send_to_ui("Track SW", {
                 'track': 'Green',
-                'block': block_num,  # Send as number, not string
-                'occupied': occupancy != 0  # Boolean: true if occupied, false if not
+                'block': str(block_num),  # Convert to string
+                'occupied': str(occupancy)  # Send occupancy value as string (e.g., "0" or "1")
             })
             
             print(f"📤 Sent to Track SW: Block {block_num} {'occupied' if occupancy != 0 else 'unoccupied'}")
@@ -3081,11 +3118,14 @@ class TrackModelUI(tk.Tk):
             # Send all blocks so Wayside knows both occupied and unoccupied states
             is_occupied = block.occupancy != 0
             
-            # Send to Track SW in the exact flat format required
+            # Send to Track SW with proper command format
             self.server.send_to_ui("Track SW", {
-                'track': 'Green',
-                'block': block.block_number,  # Send as number
-                'occupied': is_occupied  # Boolean value
+                'command': 'update_occupancy', 
+                'value': {
+                    'track': 'Green',
+                    'block': str(block.block_number),  # Send as string
+                    'occupied': is_occupied  # Boolean value
+                }
             })
             
             if is_occupied:
@@ -3830,6 +3870,85 @@ class TrackModelUI(tk.Tk):
             elif command == 'request_all_data':
                 print(f"📤 Sending all data to {source_ui_id}")
                 self.send_all_outputs()
+            
+            # ============================================================
+            # SWITCH STATES - From Wayside Controller
+            # Updates switch positions/directions
+            # ============================================================
+            elif command == 'switch_states':
+                switches = message.get('switches', value)
+                
+                if switches:
+                    print(f"🔀 Received switch states from {source_ui_id}")
+                    
+                    # Handle array of switch states
+                    if isinstance(switches, list):
+                        # Define switch block mapping based on Green Line switches
+                        switch_block_mapping = {
+                            0: 13,   # Switch at block 13
+                            1: 29,   # Switch at block 29
+                            2: 57,   # Switch at block 57
+                            3: 63,   # Switch at block 63
+                            4: 77,   # Switch at block 77
+                            5: 85,   # Switch at block 85
+                        }
+                        
+                        for idx, direction in enumerate(switches):
+                            if idx in switch_block_mapping:
+                                block_num = switch_block_mapping[idx]
+                                if 1 <= block_num <= len(self.data_manager.blocks):
+                                    block = self.data_manager.blocks[block_num - 1]
+                                    
+                                    # Store switch direction in block
+                                    block.switch_direction = direction
+                                    
+                                    # Update switch states dictionary
+                                    if not hasattr(self, 'switch_states'):
+                                        self.switch_states = {}
+                                    self.switch_states[block_num] = direction
+                                    
+                                    print(f"   Updated switch at block {block_num}: {direction}")
+                                    
+                                    # Mark block as having a switch
+                                    self.switch_blocks.add(block_num)
+                    
+                    # Refresh relevant UI components
+                    self.refresh_track_data_table()
+                    self.refresh_track_system_table()
+                    self.update_switch_display()
+            
+            elif command == 'update_switch':
+                # Handle individual switch updates
+                track = value.get('track')
+                block = value.get('block')
+                direction = value.get('direction')
+                
+                if block and direction:
+                    print(f"🔀 Switch update: Block {block} -> {direction}")
+                    
+                    if isinstance(block, str):
+                        block = int(block)
+                        
+                    if 1 <= block <= len(self.data_manager.blocks):
+                        block_obj = self.data_manager.blocks[block - 1]
+                        
+                        # Store switch state
+                        block_obj.switch_direction = direction
+                        
+                        # Update switch states dictionary
+                        if not hasattr(self, 'switch_states'):
+                            self.switch_states = {}
+                        self.switch_states[block] = direction
+                        
+                        # Mark block as having a switch
+                        self.switch_blocks.add(block)
+                        
+                        print(f"✅ Updated switch at block {block}: {direction}")
+                        
+                        # Update displays
+                        self.refresh_track_data_table()
+                        self.refresh_track_system_table()
+                        self.update_switch_display()
             
             # ============================================================
             # BLOCK OCCUPANCY - From Train Model
