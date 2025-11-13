@@ -41,15 +41,13 @@ class TrackDataManager:
     # ---------------- Excel Data Loading ----------------
     def load_excel_data(self, track_path=None, train_path=None):
         """Load data from Excel files; fallback to defaults if missing."""
-        if not track_path or not train_path:
-            # print("No Excel files provided. Using default blank data.")
+        if not track_path:  # Only check track_path
             self._create_default_blocks()
             return True
 
         try:
             track_df = pd.read_excel(track_path)
-            train_df = pd.read_excel(train_path)
-
+            
             # Clear old data
             self.blocks = []
 
@@ -63,22 +61,22 @@ class TrackDataManager:
                     track_heater=False,
                     beacon=False,
                 )
-                # Initialize failure mode attributes
                 b.failure_mode = None
                 b.traversable = True
                 self.blocks.append(b)
 
-            # Load train data
-            self.active_trains = train_df["Train ID"].tolist() if "Train ID" in train_df else []
-            self.train_occupancy = train_df["Occupancy"].tolist() if "Occupancy" in train_df else []
-            self.commanded_speed = train_df["Commanded Speed"].tolist() if "Commanded Speed" in train_df else []
-            self.commanded_authority = train_df["Commanded Authority"].tolist() if "Commanded Authority" in train_df else []
+            # Load train data if provided
+            if train_path:
+                train_df = pd.read_excel(train_path)
+                self.active_trains = train_df["Train ID"].tolist() if "Train ID" in train_df else []
+                self.train_occupancy = train_df["Occupancy"].tolist() if "Occupancy" in train_df else []
+                self.commanded_speed = train_df["Commanded Speed"].tolist() if "Commanded Speed" in train_df else []
+                self.commanded_authority = train_df["Commanded Authority"].tolist() if "Commanded Authority" in train_df else []
 
-            # print("Excel data loaded successfully.")
             return True
 
         except Exception as e:
-            # print(f"❌ Error loading Excel data: {e}")
+            print(f"❌ Error loading Excel data: {e}")
             self._create_default_blocks()
             return False
 

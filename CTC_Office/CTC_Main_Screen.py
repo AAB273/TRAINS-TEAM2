@@ -80,21 +80,20 @@ class MainScreen:
 
 ###############################################################################################################################################################
 
-    def send_to_ui(self, command, value=None):
-        pass
+    def send_to_ui(self, target, data):
         """Send command to the target UI (creates dict for socket server)"""
-        message = {'command': command}
-        if value is not None:
-            message['value'] = value
+        message = {'command': data["command"]}
+        if data["value"] is not None:
+            message['value'] = data["value"]
         
         # Always send to Train_Model_Passenger_UI
-        target_ui = "CTC_Test_UI"
+        target_ui = target
         success = self.server.send_to_ui(target_ui, message)
         
         if success:
-            print(f"Sent {command} to {target_ui}")
+            print(f"Sent {data["command"]} to {target_ui}")
         else:
-            print(f"Failed to send {command} to {target_ui}")
+            print(f"Failed to send {data["command"]} to {target_ui}")
 
         return success
     
