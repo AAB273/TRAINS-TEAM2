@@ -1,11 +1,22 @@
 import json          # ← ADD
 from pathlib import Path  # ← ADD
 
-def load_socket_config():  # ← ADD
+def load_socket_config():
+    """Load socket configuration from config.json"""
     config_path = Path("config.json")
+    config = {}  # ✅ Initialize config first
+    
     if config_path.exists():
-        with open(config_path, 'r') as f:
-            config = json.load(f)
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+        except json.JSONDecodeError as e:
+            print(f"Error reading config.json: {e}")
+        except Exception as e:
+            print(f"Error loading config: {e}")
+    else:
+        print("Warning: config.json not found, using default configuration")
+    
     return config.get("modules", {})
 
 
@@ -125,7 +136,7 @@ class Main_Window:
         # Socket server setup
         #added socket server 
         module_config = load_socket_config()
-        train_model_config = module_config.get("Train SW", {"port: 12346"})
+        train_model_config = module_config.get("Train SW", {"port": 12346})
         self.server = TrainSocketServer(port=train_model_config["port"], ui_id="Train SW")
         
         self.server.set_allowed_connections(["Train Model", "Track Model"])
@@ -280,7 +291,7 @@ class Main_Window:
         
         # Train Horn Button
         try:
-            self.train_horn_icon = tk.PhotoImage(file="train_controller_sw/trainhorn.png")
+            self.train_horn_icon = tk.PhotoImage(file="trainhorn.png")
             self.train_horn_icon = self.train_horn_icon.subsample(5, 5)
             self.train_horn = tk.Button(main_container, image=self.train_horn_icon, 
                                        bg="burlywood1", activebackground="burlywood3",
@@ -337,7 +348,7 @@ class Main_Window:
         self.button_grid_frame.place(relx=0.75, rely=0.68, relwidth=0.22, relheight=0.28)
         
         try:
-            self.bulb_logo = tk.PhotoImage(file="train_controller_sw/bulb.png").subsample(9, 9)
+            self.bulb_logo = tk.PhotoImage(file="bulb.png").subsample(9, 9)
             self.cabin_lights_btn = ToggleButton(self.button_grid_frame, image=self.bulb_logo,
                                                 callback=self.toggle_cabin_lights)
             self.cabin_lights_btn.image = self.bulb_logo
@@ -347,7 +358,7 @@ class Main_Window:
         self.cabin_lights_btn.grid(row=0, column=0, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.headlight_logo = tk.PhotoImage(file="train_controller_sw/headlight.png").subsample(5, 5)
+            self.headlight_logo = tk.PhotoImage(file="headlight.png").subsample(5, 5)
             self.headlights_btn = ToggleButton(self.button_grid_frame, image=self.headlight_logo,
                                               callback=self.toggle_headlights)
             self.headlights_btn.image = self.headlight_logo
@@ -357,7 +368,7 @@ class Main_Window:
         self.headlights_btn.grid(row=0, column=1, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.left_door_logo = tk.PhotoImage(file="train_controller_sw/leftdoor.png").subsample(10, 10)
+            self.left_door_logo = tk.PhotoImage(file="leftdoor.png").subsample(10, 10)
             self.left_door_btn = ToggleButton(self.button_grid_frame, image=self.left_door_logo,
                                              callback=self.toggle_left_door)
             self.left_door_btn.image = self.left_door_logo
@@ -367,7 +378,7 @@ class Main_Window:
         self.left_door_btn.grid(row=1, column=0, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.right_door_logo = tk.PhotoImage(file="train_controller_sw/right.png").subsample(10, 10)
+            self.right_door_logo = tk.PhotoImage(file="right.png").subsample(10, 10)
             self.right_door_btn = ToggleButton(self.button_grid_frame, image=self.right_door_logo,
                                               callback=self.toggle_right_door)
             self.right_door_btn.image = self.right_door_logo
@@ -392,7 +403,7 @@ class Main_Window:
         logo_frame.place(relx=0.01, rely=0.01, relwidth=0.12, relheight=0.22)
         
         try:
-            self.bltlogo = tk.PhotoImage(file="train_controller_sw/bltlogo.png").subsample(4, 4)
+            self.bltlogo = tk.PhotoImage(file="bltlogo.png").subsample(4, 4)
             self.bltLabel = tk.Label(logo_frame, image=self.bltlogo, bg="white", borderwidth=0)
             self.bltLabel.pack(expand=True, fill=tk.BOTH, padx=2, pady=2)
         except:
@@ -441,6 +452,13 @@ class Main_Window:
         self.clock = ClockDisplay(self.clock_frame)
         self.clock.pack(padx=5, pady=5)
 
+        #engineer control panel
+        engineer_btn = tk.Button(self.root, text="Engineer Panel", 
+                                font=("Arial", 12, "bold"),
+                                bg="orange", fg="black", relief=tk.RAISED, bd=2,
+                                command=self.toggle_engineer_ui)
+        engineer_btn.place(relx=0.72, rely=0.015, relwidth=0.1, relheight=0.045)
+
         # State variables
         self.current_speed = 0
         self.set_speed = 45
@@ -450,10 +468,19 @@ class Main_Window:
         self.service_brake_active = False
         self.emergency_brake_active = False
         self.door_safety_lock = True
+        self.emergency_brake_auto_triggered = False
+        #PID control param
+        self.kp = 10.0  # Default proportional gain
+        self.ki = 2.0   # Default integral gain
+        self.integral_error = 0.0  # For PID calculation
+        self.previous_error = 0.0  # For tracking error
+
+        #create engineer UI
+        self.engineer_ui = EngineerUI(self, callback=self.on_pid_change)
         
         self.update_displays()
         # Test Panel
-        self.test_panel = TestPanel(self.root, self)
+        #self.test_panel = TestPanel(self.root, self)
 
         #safety critical design:
         #self.safety_monitor = SafetyMonitor(self)
@@ -519,6 +546,97 @@ class Main_Window:
                 print("helloworld")
         except Exception as e:
             print(f"Error processing message: {e}")
+
+    def set_pid_parameters(self, kp, ki):
+        """Set PID parameters from engineer UI"""
+        self.kp = kp
+        self.ki = ki
+        self.integral_error = 0.0  # Reset integral when parameters change
+        print(f"PID parameters updated - Kp: {kp}, Ki: {ki}")
+    
+    def on_pid_change(self, kp, ki):
+        """Callback when PID parameters change"""
+        self.add_to_status_log(f"Engineer adjusted PID: Kp={kp:.1f}, Ki={ki:.1f}")
+    
+    def toggle_engineer_ui(self):
+        """Show/hide engineer UI"""
+        if self.engineer_ui.window.state() == 'normal':
+            self.engineer_ui.hide()
+        else:
+            self.engineer_ui.show()
+    
+    def calculate_power_command(self, commanded_speed, actual_speed):
+        """
+        Calculate power command using PI controller
+        
+        Args:
+            commanded_speed: Target speed in mph
+            actual_speed: Current speed in mph
+            
+        Returns:
+            power_command: Power value to send to train model
+        """
+        # Calculate error
+        error = commanded_speed - actual_speed
+        
+        # Update integral error (with anti-windup)
+        self.integral_error += error
+        
+        # Anti-windup: Limit integral term
+        max_integral = 100.0
+        self.integral_error = max(-max_integral, min(max_integral, self.integral_error))
+        
+        # PI Control: P = Kp * error, I = Ki * integral_error
+        proportional = self.kp * error
+        integral = self.ki * self.integral_error
+        
+        # Calculate total power command
+        power_command = proportional + integral
+        
+        # Limit power output (example: 0-100 range)
+        power_command = max(0, min(100, power_command))
+        
+        # Log for debugging
+        if hasattr(self, 'add_to_status_log'):
+            self.add_to_status_log(f"Power: {power_command:.1f} (P:{proportional:.1f}, I:{integral:.1f})")
+        
+        return power_command
+    
+    def update_displays(self):
+        """Update all displays periodically"""
+        # Update brake effect on speed
+        self.apply_brake_effect()
+        
+        # Update door safety
+        self.update_door_safety()
+        
+        # Calculate and send power command (ADD THIS)
+        if self.is_auto_mode:
+            commanded = float(self.commanded_speed_value.cget("text"))
+            power = self.calculate_power_command(commanded, self.current_speed)
+            # TODO: Send power command to train model via socket
+            # self.server.send_message("Train Model", {"command": "Power", "value": power})
+        
+        # Schedule next update
+        self.root.after(100, self.update_displays)
+    
+    def on_closing(self):
+        """Handle application closing"""
+        print("Closing application...")
+        
+        # Close engineer UI
+        if hasattr(self, 'engineer_ui'):
+            self.engineer_ui.window.destroy()
+        
+        # Close server
+        self.server.running = False
+        if self.server.server_socket:
+            try:
+                self.server.server_socket.close()
+            except:
+                pass
+        
+        self.root.destroy()
 
     
     def add_to_status_log(self, message):
@@ -813,4 +931,6 @@ class Main_Window:
 if __name__ == "__main__":
     root = tk.Tk()
     app = Main_Window(root)
+    root.protocol("WM_DELETE_WINDOW", app.on_closing)
+
     root.mainloop()
