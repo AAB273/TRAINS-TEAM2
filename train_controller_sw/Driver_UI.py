@@ -108,14 +108,18 @@ class Main_Window:
         self.root = root
         self.root.title("Train Controller - Monitor Display")
         #add zoomed command to make screen fit 
-        self.root.attributes('-zoomed', True)  # On macOS/Linux
+        #self.root.attributes('-zoomed', True)  # On macOS/Linux
         self.root.configure(bg="navy")
-        
+        self.root.attributes('-zoomed', True)  # On macOS/Linux
+        #self.root.state('zoomed') for windows
+
         # Make fullscreen
-        '''self.screen_width = self.root.winfo_screenwidth()
+        self.screen_width = self.root.winfo_screenwidth()
         self.screen_height = self.root.winfo_screenheight()
-        self.root.geometry(f"{self.screen_width}x{self.screen_height}")
-        '''
+        self.root.geometry(f"{self.screen_width}x{self.screen_height}+0+0")
+        
+        #make resizable
+        self.root.resizable(True, True)
 
         # Socket server setup
         #added socket server 
@@ -448,7 +452,7 @@ class Main_Window:
         
         self.update_displays()
         # Test Panel
-        #self.test_panel = TestPanel(self.root, self)
+        self.test_panel = TestPanel(self.root, self)
 
         #safety critical design:
         #self.safety_monitor = SafetyMonitor(self)
@@ -461,25 +465,48 @@ class Main_Window:
             command = message.get('command')
             value = message.get('value')
             
+            #only need to display the commanded authority
             if command == 'Commanded Authority':
                 #set authority command
                 self.set_authority(value)
-                
+
+            #only need to display the commanded speed in frame
             elif command == 'Commanded Speed': 
                 #set commanded
-                print("helloworld")
+                self.set_commanded_speed(value)
+
+            #upon receiving an emergency signal, we should also automatically apply E-brake
             elif command == "Passenger Emergency Signal":
                 #set signal light
-                print("helloworld")
+                self.set_emergency_signal(value)
+                if value:  # Signal is active
+                    self.emergency_brake_action(True)
+                    self.add_to_status_log("Passenger emergency signal received!")
+
+            #from this actual velocity (speedometer showing), we need to do backend which will take this and commanded speed and 
+                #generate the proper power output to train model
             elif command == "Actual Velocity":
                 #set speedometer
-                print("helloworld")
+                self.set_current_speed(value)
+                
+            #only need to set the cabin temperature to display updated temp
             elif command == "Cabin Temperature": 
                 #set cabin temp
-                print("helloworld")
-            elif command == "Failure Modes": 
+                self.set_cabin_temp(value)
+
+            elif command == "Brake Failure": 
                 #set failure lights
-                print("helloworld")
+                self.handle_failure_mode("Brake Failure", value)
+                self.brake_failure.set_state(value)
+
+            elif command == "Signal Pickup Failure":
+                self.handle_failure_mode("Signal Pickup Failure") 
+                self.signal_failure.set_state(value)
+
+            elif command == "Train Engine Failure":
+                self.handle_failure_mode("Train Engine Failure")
+                self.engine_failure.set_state(value)
+
             elif command == "Beacon Data": 
                 #update beacon information
                 print("helloworld")
@@ -504,6 +531,37 @@ class Main_Window:
             self.status_log.delete(1.0, f"{len(lines)-100}.0")
         self.status_log.see(tk.END)
         self.status_log.config(state=tk.DISABLED)
+
+    def handle_failure_mode(self, failure_type, is_active):
+        """Handle failure mode activation/deactivation"""
+        if is_active:
+            # Failure detected - auto-activate emergency brake
+            self.add_to_status_log(f" CRITICAL: {failure_type} detected!")
+            
+            if not self.emergency_brake_active:
+                self.emergency_brake_active = True
+                self.emergency_brake_auto_triggered = True
+                self.emergency_light.activate()
+                self.add_to_status_log(" Emergency brake auto-activated due to failure!")
+                print(f"EMERGENCY BRAKE AUTO-ACTIVATED: {failure_type}")
+        else:
+            # Failure cleared
+            self.add_to_status_log(f"✓ {failure_type} cleared")
+            
+            # Check if ALL failures are now cleared
+            if self.emergency_brake_auto_triggered:
+                all_cleared = not (
+                    self.engine_failure.active or
+                    self.signal_failure.active or
+                    self.brake_failure.active
+                )
+                
+                if all_cleared:
+                    self.add_to_status_log("✓ All failures cleared - Safe to release emergency brake")
+                    # Optional: Auto-release if ALL failures are cleared
+                    # self.emergency_brake_active = False
+                    # self.emergency_brake_auto_triggered = False
+                    # self.emergency_light.deactivate()
     
     def update_displays(self):
         """Update all displays periodically"""
@@ -512,9 +570,6 @@ class Main_Window:
         
         # Update door safety
         self.update_door_safety()
-
-        #check failure modes:
-        self.check_failure_modes()
 
         #safety critical implementation
         #self.safety_monitor.check_vital_conditions()
@@ -619,15 +674,31 @@ class Main_Window:
             print("Service brake: RELEASED")
     
     def emergency_brake_action(self, pressed):
+        """Handle emergency brake button press"""
         if pressed:
             self.emergency_brake_active = True
             self.emergency_light.activate()
             self.add_to_status_log(" EMERGENCY BRAKE ACTIVATED!")
             print("EMERGENCY BRAKE ACTIVATED!")
         else:
+            # Check if it's safe to release (no active failures)
+            failure_detected = (
+                self.engine_failure.active or
+                self.signal_failure.active or
+                self.brake_failure.active
+            )
+            
+            if failure_detected:
+                self.add_to_status_log(" Cannot release e-brake: Active system failure!")
+                print("E-brake release DENIED - failure active")
+                # Don't change brake state - keep it active
+                return
+            
+            # Safe to release
             self.emergency_brake_active = False
+            self.emergency_brake_auto_triggered = False
             self.emergency_light.deactivate()
-            self.add_to_status_log("Emergency brake deactivated")
+            self.add_to_status_log(" Emergency brake released")
             print("Emergency brake deactivated")
     
     def toggle_cabin_lights(self, state):
