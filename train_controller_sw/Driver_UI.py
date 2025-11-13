@@ -157,6 +157,7 @@ class Main_Window:
                 bg="white").pack(pady=5)
         
         # Track Info Button
+        
         track_btn = tk.Button(self.root, text="Track Info", font=("Arial", 12, "bold"),
                               bg="lightblue", fg="black", relief=tk.RAISED, bd=2,
                               command=self.open_track_info)
@@ -463,21 +464,25 @@ class Main_Window:
                                 command=self.toggle_engineer_ui)
         engineer_btn.place(relx=0.72, rely=0.015, relwidth=0.1, relheight=0.045)
 
-        # State variables
-        self.current_speed = 0
+         # State variables
+        self.current_speed = 0  # Will be in mph (converted from m/s for display)
+        self.current_speed_ms = 0  # Store original m/s value for calculations
+        self.commanded_speed_ms = 0  # Store commanded speed in m/s for calculations
         self.set_speed = 45
         self.set_temp = 68
         self.is_auto_mode = True
-        #self.service_brake_percentage = 50  # Default to 50%
         self.service_brake_active = False
         self.emergency_brake_active = False
         self.door_safety_lock = True
         self.emergency_brake_auto_triggered = False
-        #PID control param
-        self.kp = 10.0  # Default proportional gain
-        self.ki = 2.0   # Default integral gain
-        self.integral_error = 0.0  # For PID calculation
-        self.previous_error = 0.0  # For tracking error
+        
+        # PID Control Parameters
+        self.kp = 10.0  # Default proportional gain (will be updated from Engineer UI)
+        self.ki = 2.0   # Default integral gain (will be updated from Engineer UI)
+        self.max_power_kw = 120.0  # Maximum power in kW
+        self.integral_error = 0.0  # For PI calculation (in m/s)
+        self.sample_time = 0.1  # 100ms update rate
+        self.last_power_sent = None  # Track last power to avoid duplicates
 
         #create engineer UI
         self.engineer_ui = EngineerUI(self, callback=self.on_pid_change)
@@ -492,88 +497,97 @@ class Main_Window:
     def _process_message(self, message, source_ui_id):
         """Process incoming messages and update train state"""
         try:
-            print(f"Received message from {source_ui_id}: {message}")
-
             command = message.get('command')
             value = message.get('value')
             
-            #only need to display the commanded authority
-            if command == 'Commanded Authority':
-                #set authority command
-                self.set_authority(value)
-                self.add_to_status_log(f"Authority updated: {value} blocks")
-
-            #only need to display the commanded speed in frame
-            elif command == 'Commanded Speed': 
-                #set commanded
-                speed_ms = float(value)
-                speed_mph = speed_ms * METERS_PER_SEC_TO_MPH #conversion
+            # ========== COMMANDED SPEED ==========
+            if command == 'Commanded Speed':
+                # Input: m/s from Train Model
+                self.commanded_speed_ms = float(value)  # Store original m/s
+                speed_mph = self.commanded_speed_ms * METERS_PER_SEC_TO_MPH
                 self.set_commanded_speed(round(speed_mph, 1))
-
-            #upon receiving an emergency signal, we should also automatically apply E-brake
+                self.add_to_status_log(f"Commanded: {speed_mph:.1f} mph ({self.commanded_speed_ms:.2f} m/s)")
+            
+            # ========== COMMANDED AUTHORITY ==========
+            elif command == 'Commanded Authority':
+                blocks = int(value)
+                self.set_authority(blocks)
+                self.add_to_status_log(f"Authority: {blocks} blocks")
+            
+            # ========== PASSENGER EMERGENCY SIGNAL ==========
             elif command == "Passenger Emergency Signal":
-                #set signal light
                 is_active = bool(value)
                 self.set_emergency_signal(is_active)
-            
-                if is_active:
-                    # Auto-activate emergency brake when signal received
-                    if not self.emergency_brake_active:
-                        self.emergency_brake_action(True)
-                        self.add_to_status_log("🚨 Passenger emergency signal: E-brake activated!")
-                else:
+                if is_active and not self.emergency_brake_active:
+                    self.emergency_brake_action(True)
+                    self.add_to_status_log("🚨 Passenger emergency: E-brake activated!")
+                elif not is_active:
                     self.add_to_status_log("Passenger emergency signal cleared")
-
-            #from this actual velocity (speedometer showing), we need to do backend which will take this and commanded speed and 
-                #generate the proper power output to train model
+            
+            # ========== ACTUAL VELOCITY ==========
             elif command == "Actual Velocity":
-                #set speedometer
-                self.set_current_speed(value)
-                
-            #only need to set the cabin temperature to display updated temp
-            elif command == "Cabin Temperature": 
-                #set cabin temp
-                velocity_ms = float(value)  # m/s from train model
-                velocity_mph = velocity_ms * METERS_PER_SEC_TO_MPH  # Convert to mph
+                # Input: m/s from Train Model
+                self.current_speed_ms = float(value)  # Store original m/s
+                velocity_mph = self.current_speed_ms * METERS_PER_SEC_TO_MPH
                 self.set_current_speed(velocity_mph)
-                # Don't log every update (too frequent), but store for PID
-                self.actual_velocity_ms = velocity_ms  # Store original for calculations if needed
-
-            elif command == "Brake Failure": 
-                #set failure lights
+                # Don't log every update - handled in power calculation
+            
+            # ========== CABIN TEMPERATURE ==========
+            elif command == "Cabin Temperature":
+                temp_f = float(value)
+                self.set_cabin_temp(round(temp_f, 1))
+                if not hasattr(self, '_last_logged_temp') or abs(temp_f - self._last_logged_temp) >= 2:
+                    self.add_to_status_log(f"Cabin temp: {temp_f:.1f}°F")
+                    self._last_logged_temp = temp_f
+            
+            # ========== FAILURE MODES ==========
+            elif command == "Brake Failure":
+                is_failed = bool(value)
+                self.handle_failure_mode("Brake Failure", is_failed)
+                self.brake_failure.set_state(is_failed)
+            
+            elif command == "Signal Pickup Failure":
                 is_failed = bool(value)
                 self.handle_failure_mode("Signal Pickup Failure", is_failed)
                 self.signal_failure.set_state(is_failed)
-
-            elif command == "Signal Pickup Failure":
-                sis_failed = bool(value)
-                self.handle_failure_mode("Train Engine Failure", is_failed)
-                self.engine_failure.set_state(is_failed)
-
+            
             elif command == "Train Engine Failure":
                 is_failed = bool(value)
                 self.handle_failure_mode("Train Engine Failure", is_failed)
                 self.engine_failure.set_state(is_failed)
-
-            elif command == "Beacon Data": 
-                #update beacon information
-                print("helloworld")
+            
+            # ========== ADDITIONAL COMMANDS ==========
+            elif command == "Beacon Data":
+                self.add_to_status_log(f"Beacon: {value}")
+            
             elif command == "Preloaded Track Information":
-                #update track information
-                print("helloworld")
-            elif command == "Light States": 
-                #display lights states
-                print("helloworld")
+                self.add_to_status_log("Track info updated")
+            
+            elif command == "Light States":
+                self.add_to_status_log(f"Lights: {value}")
+            
+            else:
+                print(f"Unknown command: {command}")
+                
+        except ValueError as e:
+            print(f"Value conversion error for {command}: {e}")
+            self.add_to_status_log(f"Invalid data for {command}")
         except Exception as e:
-            print(f"Error processing message: {e}")
+            print(f"Message processing error: {e}")
+            self.add_to_status_log(f"Processing error")
 
     def set_pid_parameters(self, kp, ki):
         """Set PID parameters from engineer UI"""
         self.kp = kp
         self.ki = ki
         self.integral_error = 0.0  # Reset integral when parameters change
-        print(f"PID parameters updated - Kp: {kp}, Ki: {ki}")
-    
+        self.add_to_status_log(f"PI params: Kp={kp:.1f}, Ki={ki:.2f}")
+        print(f"PI parameters updated - Kp: {kp}, Ki: {ki}")
+
+    def on_pid_change(self, kp, ki):
+        """Callback when PID parameters change"""
+        self.add_to_status_log(f"Engineer: Kp={kp:.1f}, Ki={ki:.2f}")
+
     def on_pid_change(self, kp, ki):
         """Callback when PID parameters change"""
         self.add_to_status_log(f"Engineer adjusted PID: Kp={kp:.1f}, Ki={ki:.1f}")
@@ -585,74 +599,63 @@ class Main_Window:
         else:
             self.engineer_ui.show()
     
-    def calculate_power_command(self, commanded_speed_mph, actual_speed_mph):
+    def calculate_power_command(self):
         """
-        Calculate power command using PI controller
+        Calculate power command using PI controller.
         
-        Args:
-            commanded_speed_mph: Target speed in mph
-            actual_speed_mph: Current speed in mph
-            
+        Uses Kp and Ki from Engineer UI.
+        All internal calculations done in METRIC (m/s).
+        
         Returns:
-            power_command: Power value in Watts to send to train model
+            Power in kW (kilowatts)
         """
-        # Calculate error in mph
-        error = commanded_speed_mph - actual_speed_mph
+        # Get PI gains from Engineer UI
+        kp = self.engineer_ui.get_kp() if hasattr(self, 'engineer_ui') else self.kp
+        ki = self.engineer_ui.get_ki() if hasattr(self, 'engineer_ui') else self.ki
         
-        # Update integral error (with anti-windup)
-        self.integral_error += error
+        # Determine commanded speed based on mode
+        if self.is_auto_mode:
+            # In automatic mode, use commanded speed from Track Model (already in m/s)
+            commanded_speed_ms = self.commanded_speed_ms
+        else:
+            # In manual mode, use set speed (convert from mph to m/s)
+            commanded_speed_mph = float(self.set_speed_value.cget("text"))
+            commanded_speed_ms = commanded_speed_mph * MPH_TO_METERS_PER_SEC
         
-        # Anti-windup: Limit integral term
-        max_integral = 100.0
+        # Get current actual speed (in m/s for calculation)
+        current_speed_ms = self.current_speed_ms
+        
+        # Calculate velocity error in METRIC (m/s)
+        velocity_error = commanded_speed_ms - current_speed_ms
+        
+        # Update integral error with anti-windup (in m/s)
+        self.integral_error += velocity_error * self.sample_time
+        
+        # Anti-windup: limit integral term
+        max_integral = self.max_power_kw / (ki if ki > 0 else 1.0)
         self.integral_error = max(-max_integral, min(max_integral, self.integral_error))
         
-        # PI Control: P = Kp * error, I = Ki * integral_error
-        proportional = self.kp * error
-        integral = self.ki * self.integral_error
+        # Calculate PI control output
+        # Power = Kp * error + Ki * integral_error
+        p_term = kp * velocity_error
+        i_term = ki * self.integral_error
+        power_kw = p_term + i_term
         
-        # Calculate total power command
-        power_command = proportional + integral
-        
-        # Limit power output (adjust range based on train model specs)
-        # Example: 0-120000 Watts (120 kW max)
-        max_power = 120000  # Watts
-        power_command = max(0, min(max_power, power_command))
+        # Limit power to max and ensure non-negative
+        power_kw = max(0.0, min(self.max_power_kw, power_kw))
         
         # Log periodically (every 1 second instead of every update)
         current_time = time.time()
-        if not hasattr(self, '_last_pid_log_time') or (current_time - self._last_pid_log_time) >= 1.0:
+        if not hasattr(self, '_last_power_log_time') or (current_time - self._last_power_log_time) >= 1.0:
+            velocity_error_mph = velocity_error * METERS_PER_SEC_TO_MPH
             self.add_to_status_log(
-                f"PID: Power={power_command:.0f}W, Error={error:.1f}mph, P={proportional:.1f}, I={integral:.1f}"
+                f"PI: Power={power_kw:.1f}kW, Error={velocity_error_mph:.1f}mph, "
+                f"P={p_term:.1f}, I={i_term:.1f}"
             )
-            self._last_pid_log_time = current_time
+            self._last_power_log_time = current_time
         
-        return power_command
-    
-    def update_displays(self):
-        """Update all displays periodically"""
-        # Update brake effect on speed
-        self.apply_brake_effect()
-        
-        # Update door safety
-        self.update_door_safety()
-        
-        # Calculate and send power command in AUTO mode
-        if self.is_auto_mode and not self.emergency_brake_active:
-            try:
-                # Get commanded speed (already in mph from display)
-                commanded_mph = float(self.commanded_speed_value.cget("text"))
-                
-                # Calculate power using PID
-                power_watts = self.calculate_power_command(commanded_mph, self.current_speed)
-                
-                # Send to train model
-                self.send_power_command(power_watts)
-            except Exception as e:
-                print(f"Error in PID control: {e}")
-        
-        # Schedule next update
-        self.root.after(100, self.update_displays)
-    
+        return power_kw
+
     def on_closing(self):
         """Handle application closing"""
         print("Closing application...")
@@ -722,27 +725,45 @@ class Main_Window:
         
         # Update door safety
         self.update_door_safety()
-
-        #safety critical implementation
-        #self.safety_monitor.check_vital_conditions()
-
-        # Schedule next update
+        
+        # Calculate and send power command
+        # Only send power when NOT in emergency brake and NOT in service brake
+        if not self.emergency_brake_active and not self.service_brake_active:
+            try:
+                # Calculate power using PI controller
+                power_kw = self.calculate_power_command()
+                
+                # Convert kW to Watts for Train Model
+                power_watts = power_kw * KW_TO_WATTS
+                
+                # Only send if power changed significantly (more than 100W / 0.1kW)
+                # This reduces message flooding
+                if self.last_power_sent is None or abs(power_watts - self.last_power_sent) > 100:
+                    self.send_setpoint_power(power_kw)
+                    self.last_power_sent = power_watts
+            
+            except Exception as e:
+                print(f"Error in power calculation: {e}")
+        else:
+            # Braking active - send zero power
+            if self.last_power_sent != 0:
+                self.send_setpoint_power(0.0)
+                self.last_power_sent = 0
+        
+        # Schedule next update (100ms = 0.1s sample time)
         self.root.after(100, self.update_displays)
-
     
     def apply_brake_effect(self):
         """Apply brake effects to current speed"""
         if self.emergency_brake_active:
-            # Emergency brake: immediate full deceleration
-            if self.current_speed > 0:
-                self.current_speed = max(0, self.current_speed - 20)  # Rapid deceleration
-                self.set_current_speed(self.current_speed)
+            # Emergency brake active - ensure integral error resets
+            self.integral_error = 0.0
+            # Note: actual deceleration handled by Train Model (2.73 m/s²)
+            
         elif self.service_brake_active:
-            # Service brake: gradual deceleration based on percentage
-            deceleration_rate = 1 #apply decelaration rate here!!!
-            if self.current_speed > 0:
-                self.current_speed = max(0, self.current_speed - deceleration_rate)
-                self.set_current_speed(self.current_speed)
+            # Service brake active - ensure integral error resets
+            self.integral_error = 0.0
+            # Note: actual deceleration handled by Train Model (1.2 m/s²)
     
     def update_door_safety(self):
         """Update door safety based on current speed"""
@@ -790,11 +811,14 @@ class Main_Window:
         self.add_to_status_log(f"Set speed decreased to: {self.set_speed} mph")
     
     def confirm_speed(self):
+        """Callback when speed is confirmed in manual mode"""
         if not self.is_auto_mode:
             self.commanded_speed_value.config(text=str(self.set_speed))
-            self.add_to_status_log(f"Commanded speed confirmed: {self.set_speed} mph")
-            print(f"Commanded speed set to: {self.set_speed}")
-    
+            # Reset integral error when manually changing speed
+            self.integral_error = 0.0
+            self.add_to_status_log(f"Manual speed: {self.set_speed} mph")
+            print(f"Manual commanded speed: {self.set_speed} mph")
+
     def increase_temp(self):
         """Increase temperature setpoint"""
         self.set_temp = min(85, self.set_temp + 1)
@@ -981,16 +1005,17 @@ class Main_Window:
         """
         Send setpoint power to Train Model
         Input: power in kW
-        Output: power in kW (no conversion needed)
+        Output: power in kW (Train Model expects kW)
         """
         try:
             self.server.send_to_ui("Train Model", {
                 'command': "Setpoint Power",
                 'value': float(power_kw)
             })
-            print(f"Sent setpoint power: {power_kw} kW")
+            # Don't print every power command to avoid spam
+            # print(f"Sent power: {power_kw:.2f} kW")
         except Exception as e:
-            print(f"Error sending setpoint power: {e}")
+            print(f"Error sending power: {e}")
             self.add_to_status_log("⚠️ Failed to send power command")
 
 
