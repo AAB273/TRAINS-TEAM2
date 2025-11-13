@@ -232,28 +232,21 @@ class LeftPanel(tk.Frame):
         selected = self.switch_selector.get()
         if selected:
             new_direction = self.switch_direction.get()
-            self.data.update_track_data("switch_positions", selected, "direction", new_direction)  # Changed category
-            self.data.update_track_data("switch_positions", selected, "condition", f"Set to {new_direction}")  # Changed category
+            self.data.update_track_data("switch_positions", selected, "direction", new_direction)
+            self.data.update_track_data("switch_positions", selected, "condition", f"Set to {new_direction}")
             self.update_switch_display()
 
-            # Log the action - use the direct callback - JUST LIKE YOUR TEST PANEL
+            # Extract block number from switch name (e.g., "Switch 5" -> "5")
+            block = selected.split(" ")[1] if " " in selected else selected
+            
+            # Send switch state to Track Model via Main UI
+            if hasattr(self.data, 'app') and self.data.app:
+                self.data.app.send_switch_to_track_model(self.data.current_line, block, new_direction)
+            
+            # Log the action (ONCE)
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             if self.log_callback:
                 self.log_callback(f"{current_time} UPDATE: Switch {selected} set to {new_direction} on {self.data.current_line} track")
-
-
-
-        # Extract block number from switch name (e.g., "Switch 5" -> "5")
-        block = selected.split(" ")[1] if " " in selected else selected
-        
-        # Send switch state to Track Model via Main UI
-        if hasattr(self.data, 'app') and self.data.app:
-            self.data.app.send_switch_to_track_model(self.data.current_line, block, new_direction)
-        
-        # Log the action
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        if self.log_callback:
-            self.log_callback(f"{current_time} UPDATE: Switch {selected} set to {new_direction} on {self.data.current_line} track")
     # ------------------------------
     # LIGHTS
     # ------------------------------

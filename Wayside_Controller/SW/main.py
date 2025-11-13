@@ -98,8 +98,8 @@ class RailwayControlSystem:
         
         # Get all switch directions
         for switch_data in self.data.switch_positions.values():
-            direction = switch_data["direction"]
-            switch_list.append(direction)
+            switch_direction = switch_data["direction"]  # Changed from 'direction' to 'switch_direction'
+            switch_list.append(switch_direction)
         
         switch_message = {
             "command": "switch_states",
