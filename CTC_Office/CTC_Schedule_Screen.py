@@ -199,7 +199,7 @@ class ScheduleScreen:
     def updateTime(self):
     #continuously recall itself every second to update the time variable
 
-        time = strftime("%I:%M %p")
+        time = clock.clock.getTime()
         self.clockText.configure(text = time)
         self.clockTimer = self.root.after(1000, self.updateTime)
 
@@ -209,7 +209,7 @@ class ScheduleScreen:
     #update the screen if "System Information" tab is clicked
         if (event.widget.tab(event.widget.select(), "text") == "System Information"):
         #prevents errors on boot
-            self.root.after_cancel(self.clockTimer)
+            #self.root.after_cancel(self.clockTimer)
             #cancel this call if active
             self.notebook.select(0)
 
