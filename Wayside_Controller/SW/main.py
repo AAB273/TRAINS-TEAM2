@@ -29,7 +29,7 @@ class RailwayControlSystem:
         self.data = RailwayData()
         
         # Load socket configuration first
-        module_config = load_socket_config().get("Track SW", {"port": 22342})
+        module_config = load_socket_config().get("Track SW", {"port": 2})
         
         # Initialize socket server with the loaded configuration
         self.server = TrainSocketServer(

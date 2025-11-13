@@ -81,7 +81,6 @@ class MainScreen:
 ###############################################################################################################################################################
 
     def send_to_ui(self, target, data):
-        pass
         """Send command to the target UI (creates dict for socket server)"""
         message = {'command': data["command"]}
         if data["value"] is not None:
