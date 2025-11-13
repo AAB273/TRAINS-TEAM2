@@ -74,6 +74,13 @@ class LeftPanel(tk.Frame):
 
     def run_plc(self):
         """Start or stop the uploaded PLC program"""
+        
+        #check if in maintenance mode
+        if not self.data.maintenance_mode:
+            messagebox.showwarning("Maintenance Mode Required", 
+                                "PLC operations can only be performed in Maintenance Mode.")
+            return
+    
         from ui.plc_engine import PLCProgram
         if not hasattr(self, "plc_instance"):
             self.plc_instance = PLCProgram(self.data, self.log_callback)
@@ -156,6 +163,13 @@ class LeftPanel(tk.Frame):
 
     def set_crossing(self):
         """Set crossing lights/bar and update model"""
+
+         # Check if in maintenance mode
+        if not self.data.maintenance_mode:
+            messagebox.showwarning("Maintenance Mode Required", 
+                                "Crossing controls can only be modified in Maintenance Mode.")
+            return
+        
         selected = self.crossing_selector.get()
         if selected:
             new_light = self.crossing_lights.get()
@@ -229,6 +243,11 @@ class LeftPanel(tk.Frame):
 
     def set_switch(self):
         """Set switch direction and update model"""
+        # Check if in maintenance mode
+        if not self.data.maintenance_mode:
+            messagebox.showwarning("Maintenance Mode Required", 
+                                "Switch controls can only be modified in Maintenance Mode.")
+            return
         selected = self.switch_selector.get()
         if selected:
             new_direction = self.switch_direction.get()
@@ -301,6 +320,12 @@ class LeftPanel(tk.Frame):
 
     def set_light(self):
         """Set light signal and update model"""
+        # Check if in maintenance mode
+        if not self.data.maintenance_mode:
+            messagebox.showwarning("Maintenance Mode Required", 
+                                "Light controls can only be modified in Maintenance Mode.")
+            return
+        
         selected = self.light_selector.get()
         if selected:
             new_signal = self.light_signal.get()
