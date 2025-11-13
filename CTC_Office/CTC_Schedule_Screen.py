@@ -199,7 +199,7 @@ class ScheduleScreen:
     def updateTime(self):
     #continuously recall itself every second to update the time variable
 
-        time = strftime("%I:%M %p")
+        time = clock.clock.getTime()
         self.clockText.configure(text = time)
         self.clockTimer = self.root.after(1000, self.updateTime)
 
@@ -209,7 +209,7 @@ class ScheduleScreen:
     #update the screen if "System Information" tab is clicked
         if (event.widget.tab(event.widget.select(), "text") == "System Information"):
         #prevents errors on boot
-            self.root.after_cancel(self.clockTimer)
+            #self.root.after_cancel(self.clockTimer)
             #cancel this call if active
             self.notebook.select(0)
 
@@ -290,9 +290,9 @@ class ScheduleScreen:
             auth += self.blocksToNext[key]
         speed = float(distToStation) / arrTime
 
-        #self.mainScreen.send_to_ui("TL", str(self.trainNum - 1) + ", " + f"{speed:.3f}\n" + ", " + str(auth) + ", " + line)
+        self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(self.trainNum - 1), f"{speed:.3f}", str(auth), line]})
         #self.mainScreen.send_to_ui("Track HW", {"command": "suggested_speed", "value": {f"{speed:.3f}\n"}})
-        self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": "Green", "block": 63, "speed": speed, "authority": auth, "value_type": "suggested"}})
+        #self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": "Green", "block": "63", "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
 
 ###############################################################################################################################################################
 
@@ -401,18 +401,9 @@ class ScheduleScreen:
     def timeToSeconds(self, arrTimeStr):
     #convert a given time into seconds
 
-        currTimeStr = strftime("%I:%M %p")
+        currTimeStr = clock.clock.getTime()
 
         arrTime = 0
-        arrAbb = ""
-        for char in arrTimeStr:
-            if (char.isalpha()):
-                arrAbb += char
-        #grab AM/PM
-        if (arrAbb == "PM"):
-            arrTime += (12 * 3600)
-        #if PM, add 12 hours
-
         found = False
         #flag for finding colon
         arrHoursStr = ""
@@ -432,15 +423,6 @@ class ScheduleScreen:
         arrTime += (arrHours + arrMins)
 
         currTime = 0
-        currAbb = ""
-        for char in currTimeStr:
-            if (char.isalpha()):
-                currAbb += char
-        #grab AM/PM
-        if (currAbb == "PM"):
-            currTime += (12 * 3600)
-        #if PM, add 12 hours
-
         found = False
         #flag for finding colon
         currHoursStr = ""

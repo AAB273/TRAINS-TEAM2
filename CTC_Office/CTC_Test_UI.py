@@ -99,29 +99,11 @@ class TestUI:
 
         if (code == "TL"):
         #train location/deployed train case
-            train = ""
-            speed = ""
-            auth = ""
+            train = data[0]
+            speed = data[1]
+            auth = data[2]
 
-            #grab data from message
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                train += data[i]
-            data = data[commaInd + 2:]
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                speed += data[i]
-            data = data[commaInd + 2:]
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                auth += data[i]
-            line = data[commaInd + 2:]
+            line = data[3]
 
             speed = float(speed)
             speed *= 2.237 
@@ -322,6 +304,32 @@ class TestUI:
         getRC = ttk.Button(rcFrame, text = "Submit", style = "normal.TButton", command = lambda: self.send_to_ui("RC", crossingLocation.get() + ", " + self.getRC(crossingState.get()) + ", blue"))
         getRC.pack(side = "top")
         #button to send data to data file
+
+        '''
+        block occupancy area
+        '''
+        blockNum = tk.StringVar()
+        #changeable string variables for dynamic updating
+
+        boFrame = ttk.Frame(self.leftFrame)
+        boFrame.pack(pady = 15, side = "top")
+        #sub-frame to hold all throughput widgets
+        boText = ttk.Label(boFrame, text = "Block Occupancy")
+        boText.pack(side = "top")
+        #"Throughput" title Label
+
+        blockFrame = ttk.Frame(boFrame)
+        blockFrame.pack(side = "top", fill = "x")
+        #sub-frame to hold schedule people disembarking input data
+        blockText = ttk.Label(blockFrame, text = "Enter block occupied:")
+        blockText.pack(padx = 5, fill = "x")
+        blockEntry = ttk.Entry(blockFrame, textvariable = blockNum)
+        blockEntry.pack(padx = 5, fill = "x")
+        #text to describe what to input, and an Entry to grab user data
+
+        getBO = ttk.Button(boFrame, text = "Submit", style = "normal.TButton", command = lambda: self.send_to_ui("CTC", {"command": "TL", "value": [blockNum.get(), "green"]}))
+        getBO.pack(side = "top")
+
 
 ###############################################################################################################################################################
 

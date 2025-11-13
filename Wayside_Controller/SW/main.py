@@ -133,7 +133,6 @@ class RailwayControlSystem:
             # Send switch state to Track Model
             self.send_switch_to_track_model(track, block, direction)
 
-            print(f"Switch updated successfully")
 
     def _handle_light_update(self, data):
         """Handle light updates from Test UI"""
@@ -142,13 +141,12 @@ class RailwayControlSystem:
         color = data.get('color')
         
         if track and block and color:
-            print(f"💡 Processing light update: {track} Block {block} -> {color}")
+            print(f"Processing light update: {track} Block {block} -> {color}")
             
             light_name = f"Light {block}"
             self.data.update_track_data("light_states", light_name, "signal", color)
             self.data.update_track_data("light_states", light_name, "condition", f"Signal: {color}")
-            
-            print(f"Light updated successfully")
+
 
     def _handle_crossing_update(self, data):
         """Handle crossing updates from Test UI"""
@@ -158,14 +156,13 @@ class RailwayControlSystem:
         crossbar = data.get('crossbar')
         
         if track and block and lights and crossbar:
-            print(f" Processing crossing update: {track} Block {block} -> Lights:{lights}, Bar:{crossbar}")
+            print(f"Processing crossing update: {track} Block {block} -> Lights:{lights}, Bar:{crossbar}")
             
             crossing_name = f"Railway {block}"
             self.data.update_track_data("railway_crossings", crossing_name, "lights", lights)
             self.data.update_track_data("railway_crossings", crossing_name, "bar", crossbar)
             self.data.update_track_data("railway_crossings", crossing_name, "condition", f"Lights: {lights}, Bar: {crossbar}")
             
-            print(f" Crossing updated successfully")
 
     def _handle_speed_auth_update(self, data):
         """Handle speed/authority updates from Test UI"""
@@ -194,9 +191,8 @@ class RailwayControlSystem:
             if hasattr(self, 'right_panel'):
                 self.right_panel.update_commanded_display()
                 self.right_panel.update_suggested_display()
-                print(f"✅ Right panel refreshed for {value_type} values")
-                
-                print(f"{value_type.capitalize()} values updated successfully")
+                print(f"Right panel refreshed for {value_type} values")
+
 
     def _handle_occupancy_update(self, data):
         """Handle occupancy updates from Test UI"""
@@ -212,8 +208,6 @@ class RailwayControlSystem:
             for idx, row in enumerate(self.data.block_data_original):
                 if row[1] == track and str(row[2]) == str(block):
                     new_occupied = "Yes" if occupied else "No"
-                    print(f"📍 DEBUG: Found block at index {idx}: {row}")
-                    print(f"📍 DEBUG: Calling update_block_data({idx}, 0, '{new_occupied}')")
                     self.data.update_block_data(idx, 0, new_occupied)
                     found = True
                     break
@@ -226,7 +220,7 @@ class RailwayControlSystem:
             # ADD THIS: Force refresh the center panel table
             if hasattr(self, 'center_panel') and hasattr(self.center_panel, 'refresh_table'):
                 self.center_panel.refresh_table()
-                print(f"✅ Center panel refreshed for occupancy update")
+                print(f"Center panel refreshed for occupancy update")
             
             # Also trigger data update callbacks
             if hasattr(self.data, 'trigger_data_update'):
