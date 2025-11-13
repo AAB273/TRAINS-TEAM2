@@ -5,7 +5,7 @@ import os
 
 def launch_both_guis():
     # Replace these with your exact filepaths
-    PASSENGER_UI_PATH = "CTC_Office/CTC_UI.py"
+    PASSENGER_UI_PATH = "Wayside_Controller/SW/main.py"
     TEST_UI_PATH = "Track Model/UI_Structure.py"
     
     # Verify files exist
