@@ -6,6 +6,8 @@ from plc_controller import PLCController
 import os, sys
 # import green_line
 # import red_line
+import clock
+# from Clock import clock
 sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from TrainSocketServer import TrainSocketServer
 ########################################################################################################################
@@ -196,7 +198,44 @@ def _process_message(self, data, connection=None, server_instance=None):
                 self.server1.send_to_ui("WC_HW_TestUI", message)
         except Exception as e:
             print(f"Error syncing speed to Test UI: {e}")
-        
+
+class Clock:
+    def __init__(self):
+        self._fastTime = strftime("%H:%M:%S")
+        self._incTimer = Timer(0.1, self._incTime)
+        self._incTimer.start()
+
+    def _incTime(self):
+        self._incTimer = Timer(0.1, self._incTime)
+        self._incTimer.start()
+
+        hours = int(self._fastTime[:2])
+        mins = int(self._fastTime[3:5])
+        secs = int(self._fastTime[6:])
+
+        secs += 1
+        #increment fast time by 1 second every 100 ms
+
+        if (secs == 60):
+            secs = 0
+            mins += 1
+
+            if (mins == 60):
+                mins = 0
+                hours += 1
+
+                if (hours == 24):
+                    hours = 0
+
+        self._fastTime = f"{hours:02d}:{mins:02d}:{secs:02d}"
+    
+    def getTime(self):
+        return self._fastTime[:5]
+    
+    def endTimer(self):
+        self._incTimer.cancel()
+
+
 # Enhanced Mock data class for both panels
 class UITestData:
     def __init__(self):
@@ -338,9 +377,39 @@ class UITestData:
                 print(f"Socket bound: {self.server1.server_socket.fileno() != -1}")
         print(f"=== END VERIFICATION ===")
 
+    def create_clock_display(self, parent_frame):
+        """Create a clock display in the UI"""
+        clock_frame = tk.Frame(parent_frame, bg='#1a1a4d')
+        clock_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
+        
+        # Clock label
+        self.clock_label = tk.Label(clock_frame, text="", 
+                                   font=("Arial", 12, "bold"), 
+                                   bg='#1a1a4d', fg='white')
+        self.clock_label.pack(side=tk.RIGHT, padx=10)
+        
+        # Start updating the clock display
+        self.update_clock_display()
+    
+    def update_clock_display(self):
+        """Update the clock display every second"""
+        try:
+            current_time = self.clock.getTime()
+            self.clock_label.config(text=f"Time: {current_time}")
+        except Exception as e:
+            print(f"Clock error: {e}")
+            self.clock_label.config(text="Time: --:--")
+        
+        # Update every second
+        self.clock_label.after(1000, self.update_clock_display)
+
     def on_closing(self):
         print("Closing application...")
-        
+        try:
+            self.clock.endTimer()
+        except:
+            pass
+
         # Properly stop the socket server with comprehensive cleanup
         if hasattr(self, 'server1') and self.server1:
             try:
@@ -478,6 +547,29 @@ except Exception as e:
     logo = tk.Label(header_frame, text="🚉", bg="#0b1443", fg="white", font=("Arial", 20))
     logo.pack(side="left", padx=15)
 
+#creating a frame to contain buttons and status of PLC
+plc_upload_btn = tk.Button(header_frame, text="Select PLC File", font=("Arial", 11, "bold"),
+    width=16, height=2, command=lambda: select_plc_file())
+plc_upload_btn.pack(side="left", padx=20)
+
+run_plc_btn = tk.Button(
+    header_frame,
+    text="Run PLC",
+    font=("Arial", 11, "bold"),
+    width=16,
+    height=2,
+    bg="#008000",
+    fg="white",
+    command=lambda: run_plc_file()
+)
+run_plc_btn.pack(side="left", padx=10)
+
+# Clock - positioned between PLC buttons and LEDs
+clock_label = tk.Label(header_frame, text="Time: --:--", 
+                           font=("Arial", 12, "bold"), 
+                           bg="#0b1443", fg="white")
+clock_label.pack(side="left", padx=0)
+
 # Fault LED indicator
 fault_led = tk.Label(header_frame, text="Fault LED", bg="gray", fg="white", width=10, font=("Arial", 10, "bold"))
 fault_led.pack(side="right", padx=30)
@@ -504,22 +596,7 @@ def clear_plc_fault():
 selected_plc_file = None
 plc_instance = None
 
-#creating a frame to contain buttons and status of PLC
-plc_upload_btn = tk.Button(header_frame, text="Select PLC File", font=("Arial", 11, "bold"),
-    width=16, height=2, command=lambda: select_plc_file())
-plc_upload_btn.pack(side="left", padx=20)
-
-run_plc_btn = tk.Button(
-    header_frame,
-    text="Run PLC",
-    font=("Arial", 11, "bold"),
-    width=16,
-    height=2,
-    bg="#008000",
-    fg="white",
-    command=lambda: run_plc_file()
-)
-run_plc_btn.pack(side="left", padx=10)
+# update_clock_display()
 
 #######################################################################################
 #######################################################################################
@@ -1212,7 +1289,7 @@ class RightPanel(tk.Frame):
     # Create scrollable table with fixed height
         table_container = tk.Frame(self, bg='white', relief=tk.SUNKEN, borderwidth=2, height=300)
         table_container.pack(fill=tk.BOTH, expand=True, pady=5)
-        table_container.pack_propagate(False)  # Prevent container from shrinking
+        # table_container.pack_propagate(False)  # Prevent container from shrinking
    
     # Create a frame for canvas and scrollbar
         scroll_frame = tk.Frame(table_container, bg='white')
