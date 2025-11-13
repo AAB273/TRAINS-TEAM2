@@ -119,10 +119,14 @@ def update_callback(message):
 #Example of Process Function:
 def _process_message(self, message, source_ui_id):
     try:
-        print(f"Received message from {source_ui_id}: {message}")
+        print(f"=== MAIN UI DEBUG ===")
+        print(f"Received connection/message from: {source_ui_id}")
+        print(f"Message: {message}")
+        print(f"Allowed connections: {self.server1.allowed_connections}")
+        print(f"=== END DEBUG ===")
         command = message.get('command')
         value = message.get('value') 
-        if command == 'test':
+        if command == 'some_command':
             print(f"Test command received with value: {value}")
     except Exception as e:
             print(f"Error processing message: {e}")
@@ -132,12 +136,34 @@ class UITestData:
     def __init__(self):
 
         # SOCKET SERVER
-        self.server1 = TrainSocketServer(port=12344, ui_id="Track HW")
-        self.server1.set_allowed_connections(["Track HW", "ui_3"])
+        self.server1 = TrainSocketServer(port=12345, ui_id="WC_HW_MainUI")
+        self.server1.set_allowed_connections(["WC_HW_TestUI", "ui_3"])
         self.server1.start_server(_process_message)
         
         # Connect to other UIs
-        self.server1.connect_to_ui('localhost', 12341, "CTC_Main_Screen")
+        self.server1.connect_to_ui('localhost', 12346, "WC_HW_TestUI")  # Test UI
+
+        # Add this to your Main UI after starting the socket server
+    def verify_server_running():
+        """Verify the socket server is actually running"""
+        if hasattr(self, 'server1') and self.server1:
+            print(f"=== SERVER VERIFICATION ===")
+            print(f"Server running: {self.server1.running}")
+            print(f"Server port: 12345")
+            print(f"UI ID: {self.server1.ui_id}")
+            print(f"Allowed connections: {self.server1.allowed_connections}")
+        
+        # Test if server socket is bound
+        if hasattr(self.server1, 'server_socket'):
+            print(f"Server socket: {self.server1.server_socket}")
+            if self.server1.server_socket:
+                print(f"Socket bound: {self.server1.server_socket.fileno() != -1}")
+        print(f"=== END VERIFICATION ===")
+
+# Call this after a short delay
+        if hasattr(self, 'root'):
+            self.root.after(2000, verify_server_running)
+
 
         # Current line
         # self.current_line = "Blue"
@@ -256,25 +282,65 @@ class UITestData:
 
     def on_closing(self):
         print("Closing application...")
-        ##########################################################
-        # properly stop the socket server
-        if hasattr(self, 'server1') and self.server1:
+    
+    # Properly stop the socket server with comprehensive cleanup
+    if hasattr(self, 'server1') and self.server1:
+        try:
+            # 1. First, notify connected clients
+            if hasattr(server1, 'connections'):
+                disconnect_msg = {
+                    'command': 'server_shutdown',
+                    'message': 'Main UI is closing',
+                    'timestamp': time.time()
+                }
+                for ui_id, connection in list(self.server1.connections.items()):
+                    try:
+                        self.server1.send_to_ui(ui_id, disconnect_msg)
+                    except:
+                        pass
+            
+            # 2. Stop accepting new connections
             self.server1.running = False
+            
+            # 3. Close all active connections
+            if hasattr(self.server1, 'connections'):
+                for ui_id, connection in list(self.server1.connections.items()):
+                    try:
+                        if hasattr(connection, 'close'):
+                            connection.close()
+                    except Exception as e:
+                        print(f"Error closing connection to {ui_id}: {e}")
+                self.server1.connections.clear()
+            
+            # 4. Close the server socket
             if hasattr(self.server1, 'server_socket') and self.server1.server_socket:
                 try:
                     self.server1.server_socket.close()
-                except:
-                    pass
-            if hasattr(self, 'root'):
-                self.root.destroy()
-        ###########################################################
-        self.server1.running = False
-        if self.server1.server_socket:
-            try:
-                self.server1.server_socket.close()
-            except:
-                pass
-        root.destroy()
+                    print("Server socket closed")
+                except Exception as e:
+                    print(f"Error closing server socket: {e}")
+            
+            # 5. Stop any running threads
+            if hasattr(self.server1, 'listen_thread') and self.server1.listen_thread:
+                try:
+                    self.server1.listen_thread.join(timeout=2.0)  # Wait for thread to finish
+                except Exception as e:
+                    print(f"Error joining listen thread: {e}")
+            
+            print("Socket server shutdown complete")
+            
+        except Exception as e:
+            print(f"Error during socket server shutdown: {e}")
+    
+    # 6. Finally, destroy the root window
+    if hasattr(self, 'root') and self.root:
+        try:
+            self.root.destroy()
+            print("Root window destroyed")
+        except Exception as e:
+            print(f"Error destroying root window: {e}")
+    
+    print("Application closed successfully")
 
     # Method to return block table data
     def get_block_table_data(self):

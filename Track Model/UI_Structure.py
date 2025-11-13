@@ -176,7 +176,7 @@ class TrackModelUI(tk.Tk):
             # COMMANDED SPEED AND AUTHORITY - Update train speed
             # ============================================================
             if command == 'Speed and Authority':
-                block_occupancy = message.get('occupied_blocks')
+                block_occupancy = message.get('block_number')
                 commanded_speed = message.get('commanded_speed') 
                 commanded_authority = message.get('commanded_authority')
                 if train_id in self.data_manager.active_trains:

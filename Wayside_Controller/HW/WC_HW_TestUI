@@ -171,6 +171,55 @@ connection_status.pack()
 main_frame = tk.Frame(root, bg='white')
 main_frame.place(x=50, y=150, width=1300, height=700)
 
+data_gen_frame = tk.Frame(root, bg='white', width=350)
+data_gen_frame.pack(side='left', fill='y', padx=10, pady=10)
+
+# CTC Input Simulation Section
+ctc_frame = tk.Frame(data_gen_frame, bg='white', relief='raised', bd=2)
+ctc_frame.pack(fill='x', pady=10)
+
+tk.Label(ctc_frame, text="CTC Control Panel", font=("Arial", 14, "bold"), bg='white').pack(anchor='w', pady=5)
+
+# Suggested Speed
+speed_frame = tk.Frame(ctc_frame, bg='white')
+speed_frame.pack(fill='x', pady=3)
+
+tk.Label(speed_frame, text="Suggested Speed (mph):", font=("Arial", 10), bg='white').pack(side='left', padx=5)
+suggested_speed_var = tk.StringVar(value="35")
+speed_entry = tk.Entry(speed_frame, textvariable=suggested_speed_var, width=10)
+speed_entry.pack(side='left', padx=5)
+
+# Authority
+auth_frame = tk.Frame(ctc_frame, bg='white')
+auth_frame.pack(fill='x', pady=3)
+
+tk.Label(auth_frame, text="Authority (blocks):", font=("Arial", 10), bg='white').pack(side='left', padx=5)
+authority_var = tk.StringVar(value="4")
+authority_entry = tk.Entry(auth_frame, textvariable=authority_var, width=10)
+authority_entry.pack(side='left', padx=5)
+
+def send_ctc_suggestion():
+    """Send CTC speed/authority suggestion as a string"""
+    try:
+        speed = suggested_speed_var.get().strip()
+        authority = authority_var.get().strip()
+
+        if not speed or not authority:
+            messagebox.showwarning("Missing Data", "Please enter both speed and authority.")
+            return
+
+        # Create string message
+        suggestion_str = f"Speed: {speed}, Authority: {authority}"
+        send_test_command("ctc_suggestion", suggestion_str)
+        add_to_message_log(f"CTC Suggestion sent -> Speed={speed}, Authority{authority}")
+
+    except Exception as e:
+        add_to_message_log(f"Error sending CTC suggestion: {e}")
+
+send_ctc_btn = tk.Button(ctc_frame, text="Send Suggestion", command=send_ctc_suggestion,
+                        bg="#003366", fg="white", width=15)
+send_ctc_btn.pack(pady=5)
+
 # LEFT COLUMN - Test Data Generation
 left_frame = tk.Frame(main_frame, bg='white')
 left_frame.place(x=20, y=20, width=400, height=650)
@@ -459,22 +508,69 @@ def initialize_socket_server():
         server.start_server(update_callback)
         root.socket_server = server
         
-        # Update connection status
-        connection_status.config(text="🟢 Connected", fg='green')
-        add_to_message_log("Socket server started on port 12346")
+        connection_status.config(text="🟡 Test UI Server Ready", fg='orange')
+        add_to_message_log("Test UI socket server started on port 12346")
         
-        # Try to connect to Main UI
+        # Wait for Main UI to be ready
+        def wait_for_main_ui(attempt=0, max_attempts=10):
+            if attempt >= max_attempts:
+                connection_status.config(text="🔴 Main UI Not Found", fg='red')
+                add_to_message_log("❌ Could not find Main UI after maximum attempts")
+                return
+                
+            add_to_message_log(f"Checking for Main UI... (Attempt {attempt + 1}/{max_attempts})")
+            
+            # Check if Main UI port is open
+            if check_port_open('localhost', 12345):
+                add_to_message_log("✅ Main UI detected, attempting connection...")
+                connect_to_main_ui()
+            else:
+                add_to_message_log("Main UI not ready yet, waiting...")
+                root.after(2000, lambda: wait_for_main_ui(attempt + 1, max_attempts))
+        
+        def check_port_open(host, port):
+            """Check if a port is open and accepting connections"""
+            import socket
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(2)
+                result = sock.connect_ex((host, port))
+                sock.close()
+                return result == 0
+            except:
+                return False
+        
         def connect_to_main_ui():
             try:
-                server.connect_to_ui('localhost', 12345, "WC_HW_MainUI")
-                add_to_message_log("Connected to Main UI")
+                success = server.connect_to_ui('localhost', 12345, "WC_HW_MainUI")
+                if success:
+                    connection_status.config(text="🟢 Connected to Main UI", fg='green')
+                    add_to_message_log("✅ Successfully connected to Main UI")
+                    
+                    # Send confirmation message
+                    test_message = {
+                        'command': 'test_connection',
+                        'value': 'Test UI connected successfully', 
+                        'source': 'WC_HW_TestUI',
+                        'timestamp': time.time()
+                    }
+                    server.send_to_ui("WC_HW_MainUI", test_message)
+                    
+                else:
+                    connection_status.config(text="🔴 Connection Failed", fg='red')
+                    add_to_message_log("❌ Connection to Main UI failed")
+                    
             except Exception as e:
-                add_to_message_log(f"Failed to connect to Main UI: {e}")
+                connection_status.config(text="🔴 Connection Error", fg='red')
+                add_to_message_log(f"Connection error: {e}")
         
-        root.after(2000, connect_to_main_ui)
+        # Start checking for Main UI after a delay
+        root.after(3000, lambda: wait_for_main_ui(0))
         return server
+        
     except Exception as e:
         add_to_message_log(f"Socket server error: {e}")
+        connection_status.config(text="🔴 Server Error", fg='red')
         return None
 
 # Initialize socket server when UI starts

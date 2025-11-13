@@ -1,25 +1,6 @@
-DEBUG: Finished creating block table
-DEBUG: Maintenance mode: False
-DEBUG: Has filtered_block_data: True
-DEBUG: Display data length: 17
-DEBUG: First few rows: [['No', 'Green', '78', 'N'], ['No', 'Green', '80', 'N'], ['No', 'Green', '81', 'N']]
-DEBUG: Maintenance mode: False
-DEBUG: Has filtered_block_data: True
-DEBUG: Display data length: 1
-DEBUG: First few rows: [['No', 'Green', '87', 'O']]
-DEBUG: Maintenance mode: True
-DEBUG: Has filtered_block_data: True
-DEBUG: Display data length: 1
-DEBUG: First few rows: [['No', 'Green', '87', 'O']]
-DEBUG: Maintenance mode: True
-DEBUG: Has filtered_block_data: True
-DEBUG: Display data length: 1
-DEBUG: First few rows: [['No', 'Green', '87', 'O']]
-DEBUG: Maintenance mode: False
-DEBUG: Has filtered_block_data: True
-DEBUG: Display data length: 1
-DEBUG: First few rows: [['No', 'Green', '87', 'O']]
-DEBUG: Maintenance mode: False
-DEBUG: Has filtered_block_data: True
-DEBUG: Display data length: 1
-DEBUG: First few rows: [['No', 'Green', '87', 'O']]
+UI WC_HW_TestUI can communicate with: {'ui_3', 'WC_HW_MainUI'}
+Train GUI Server WC_HW_TestUI listening on port 12346
+Failed to connect to WC_HW_MainUI: [Errno 111] Connection refused
+Failed to connect to WC_HW_MainUI: [Errno 111] Connection refused
+Not connected to WC_HW_MainUI
+Failed to connect to WC_HW_MainUI: [Errno 111] Connection refused
