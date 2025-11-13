@@ -5,7 +5,7 @@ import os
 
 def launch_both_guis():
     # cleplace these with your exact filepaths
-    PASSENGER_UI_PATH = "Wayside_Controller/SW/main.py"
+    PASSENGER_UI_PATH = "Train Model/Passenger_UI.py"
     TEST_UI_PATH = "Track Model/UI_Structure.py"
     
     # Verify files exist
