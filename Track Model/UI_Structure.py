@@ -110,10 +110,12 @@ class TrackModelUI(tk.Tk):
         # --- POPULATE INFRASTRUCTURE SETS AFTER LOADING ---
         self._populate_infrastructure_sets()
 
-        # Initialize traffic light states for all blocks
+        # Initialize traffic light states and occupancy for all blocks
         for b in self.data_manager.blocks:
             if not hasattr(b, "traffic_light_state"):
                 b.traffic_light_state = 0
+            if not hasattr(b, "occupancy"):
+                b.occupancy = 0
 
         # Set initial environmental temperature
         if self.data_manager.environmental_temp is None:
@@ -163,6 +165,14 @@ class TrackModelUI(tk.Tk):
 
         # Start temperature loop
         self.after(100, self.start_temperature_update_loop)
+        
+        # Initialize train tracking data for actual speed and movement
+        self.train_actual_speeds = {}  # Dictionary to store actual speeds by train ID
+        self.train_positions_in_block = {}  # Track distance traveled in current block (meters)
+        self.last_movement_update = {}  # Track last update time for each train
+        
+        # Start train movement update loop (runs every 100ms for smooth movement)
+        self.after(100, self.update_train_movements)
         
         # Refresh UI periodically
         self.after(1000, self.refresh_ui)
@@ -338,99 +348,6 @@ class TrackModelUI(tk.Tk):
     # ============================================================
     # Add these methods to handle block occupancy
     # ============================================================
-
-    def set_block_occupancy(self):
-        """Set occupancy for a specific block."""
-        try:
-            block_num = int(self.occupancy_block_var.get())
-            train_id = int(self.occupancy_train_var.get())
-            
-            if block_num < 1 or block_num > len(self.data_manager.blocks):
-                self.occupancy_status_label.config(text=f"❌ Invalid block number", fg="red")
-                return
-            
-            # Set occupancy
-            block = self.data_manager.blocks[block_num - 1]
-            block.occupancy = train_id
-            
-            # Update status
-            if train_id == 0:
-                self.occupancy_status_label.config(
-                    text=f"✅ Block {block_num} cleared",
-                    fg="green"
-                )
-            else:
-                self.occupancy_status_label.config(
-                    text=f"✅ Block {block_num} occupied by Train {train_id}",
-                    fg="green"
-                )
-            
-            # Send update to other UIs
-            if hasattr(self, 'send_block_occupancy_to_wayside'):
-                self.send_block_occupancy_to_wayside()
-            if hasattr(self, 'send_block_occupancy_to_train_model'):
-                self.send_block_occupancy_to_train_model()
-            
-            # Refresh UI
-            self.refresh_ui()
-            
-        except ValueError:
-            self.occupancy_status_label.config(
-                text="❌ Invalid input - use numbers only",
-                fg="red"
-            )
-
-    def clear_block_occupancy(self):
-        """Clear occupancy for the selected block."""
-        try:
-            block_num = int(self.occupancy_block_var.get())
-            
-            if block_num < 1 or block_num > len(self.data_manager.blocks):
-                self.occupancy_status_label.config(text=f"❌ Invalid block number", fg="red")
-                return
-            
-            # Clear occupancy
-            block = self.data_manager.blocks[block_num - 1]
-            block.occupancy = 0
-            
-            # Update status
-            self.occupancy_status_label.config(
-                text=f"✅ Block {block_num} cleared",
-                fg="green"
-            )
-            
-            # Send update to other UIs
-            if hasattr(self, 'send_block_occupancy_to_wayside'):
-                self.send_block_occupancy_to_wayside()
-            if hasattr(self, 'send_block_occupancy_to_train_model'):
-                self.send_block_occupancy_to_train_model()
-            
-            # Refresh UI
-            self.refresh_ui()
-            
-        except ValueError:
-            self.occupancy_status_label.config(
-                text="❌ Invalid block number",
-                fg="red"
-            )
-
-    def clear_all_occupancy(self):
-        """Clear occupancy for all blocks."""
-        for block in self.data_manager.blocks:
-            block.occupancy = 0
-        
-        self.occupancy_status_label.config(
-            text="✅ All blocks cleared",
-            fg="green"
-        )
-        
-        # Send updates
-        if hasattr(self, 'send_block_occupancy_to_wayside'):
-            self.send_block_occupancy_to_wayside()
-        if hasattr(self, 'send_block_occupancy_to_train_model'):
-            self.send_block_occupancy_to_train_model()
-        
-        self.refresh_ui()
 
     def update_train_info(self, event):
         idx = self.train_combo.current()
@@ -1192,84 +1109,93 @@ class TrackModelUI(tk.Tk):
                     else:
                         self.data_manager.passengers_boarding[idx] = 0
 
-    def _update_switch_positions(self, positions):
-        """Update the switch positions received from Wayside Controller."""
-        if not hasattr(self, "switch_blocks") or not self.switch_blocks:
-            print("[WARN] No switch blocks loaded — cannot apply switch positions.")
-            return
-
-        sorted_switch_blocks = sorted(self.switch_blocks)
-        if len(positions) != len(sorted_switch_blocks):
-            print(f"[WARN] Switch array length mismatch — got {len(positions)}, expected {len(sorted_switch_blocks)}")
-            return
-
-        print("🔀 Applying switch updates:")
-        for idx, block_num in enumerate(sorted_switch_blocks):
-            state = bool(positions[idx])  # 1 = right, 0 = left
-            block = self.data_manager.blocks[block_num - 1]
-            block.switch_state = state
-            print(f"  Block {block_num}: {'RIGHT' if state else 'LEFT'}")
-
-        # Update Track Elements table to reflect changes
-        self.update_track_system_table()
-
-        print("✅ Switch states updated and Track Elements table refreshed.")
-
-
     def create_block_occupancy_panel(self, parent):
-        """Create Block Occupancy control panel for center area."""
+        """Create Block Occupancy display panel for center area."""
         occupancy_frame = tk.Frame(parent, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
         occupancy_frame.pack(fill="x", padx=5, pady=(0, 8))
         
         tk.Label(
             occupancy_frame,
-            text="Block Occupancy Control",
+            text="Occupied Blocks",
             font=("Arial", 9, "bold"),
             bg="white",
             fg="black"
         ).pack(pady=(5, 3))
         
-        # Input row
-        input_frame = tk.Frame(occupancy_frame, bg="white")
-        input_frame.pack(fill="x", pady=5, padx=10)
+        # Create a frame for the list of occupied blocks
+        list_frame = tk.Frame(occupancy_frame, bg="white")
+        list_frame.pack(fill="x", pady=5, padx=10)
         
-        # Block number
-        tk.Label(input_frame, text="Block #:", bg="white", font=("Arial", 9)).pack(side="left", padx=5)
-        self.occupancy_block_var = tk.StringVar(value="1")
-        tk.Entry(input_frame, textvariable=self.occupancy_block_var, width=8).pack(side="left", padx=5)
-        
-        # Train ID
-        tk.Label(input_frame, text="Train ID:", bg="white", font=("Arial", 9)).pack(side="left", padx=5)
-        self.occupancy_train_var = tk.StringVar(value="0")
-        tk.Entry(input_frame, textvariable=self.occupancy_train_var, width=8).pack(side="left", padx=5)
-        
-        # Buttons row
-        button_frame = tk.Frame(occupancy_frame, bg="white")
-        button_frame.pack(fill="x", pady=5, padx=10)
-        
-        ttk.Button(
-            button_frame,
-            text="Set Occupancy",
-            command=self.set_block_occupancy
-        ).pack(side="left", padx=5)
-        
-        ttk.Button(
-            button_frame,
-            text="Clear Occupancy",
-            command=self.clear_block_occupancy
-        ).pack(side="left", padx=5)
-        
-        # Status label
-        self.occupancy_status_label = tk.Label(
-            occupancy_frame,
-            text="Status: Ready",
+        # Create a label to display occupied blocks (will be updated dynamically)
+        self.occupied_blocks_label = tk.Label(
+            list_frame,
+            text="No blocks currently occupied",
             bg="white",
-            font=("Arial", 8),
-            fg="gray"
+            font=("Arial", 9),
+            fg="gray",
+            wraplength=200,
+            justify="left"
         )
-        self.occupancy_status_label.pack(pady=3)
+        self.occupied_blocks_label.pack(pady=5)
+        
+        # Update the occupied blocks display
+        self.update_occupied_blocks_display()
         
         return occupancy_frame
+    
+    def update_occupied_blocks_display(self):
+        """Update the display of occupied blocks."""
+        print(f"[DEBUG] update_occupied_blocks_display called")
+        
+        if not hasattr(self, 'occupied_blocks_label'):
+            print("[DEBUG] occupied_blocks_label doesn't exist yet")
+            return
+            
+        if not hasattr(self, 'data_manager') or not hasattr(self.data_manager, 'blocks'):
+            print("[DEBUG] data_manager or blocks not available")
+            return
+        
+        print(f"[DEBUG] Checking {len(self.data_manager.blocks)} blocks for occupancy")
+        occupied = []
+        
+        # Check all blocks for occupancy
+        for i, block in enumerate(self.data_manager.blocks):
+            # Initialize occupancy attribute if it doesn't exist
+            if not hasattr(block, 'occupancy'):
+                block.occupancy = 0
+            
+            # Special check for block 63
+            if i == 62:  # Block 63 is at index 62
+                print(f"[DEBUG] Block 63 occupancy value: {block.occupancy}")
+            
+            if block.occupancy != 0:
+                occupied.append(f"Block {i+1}: Train {block.occupancy}")
+                print(f"[DEBUG] Found occupied block {i+1} with train {block.occupancy}")
+        
+        print(f"[DEBUG] Total occupied blocks found: {len(occupied)}")
+        print(f"[DEBUG] Occupied list: {occupied}")
+        
+        if occupied:
+            display_text = "\n".join(occupied)
+            self.occupied_blocks_label.config(
+                text=display_text,
+                fg="black"
+            )
+            print(f"[DEBUG] Updated occupied blocks display with {len(occupied)} blocks")
+            print(f"[DEBUG] Display text: {display_text}")
+        else:
+            self.occupied_blocks_label.config(
+                text="No blocks currently occupied",
+                fg="gray"
+            )
+            print("[DEBUG] Set display to 'No blocks currently occupied'")
+        
+        # Force UI update
+        try:
+            self.occupied_blocks_label.update()
+            print("[DEBUG] Forced label update")
+        except Exception as e:
+            print(f"[DEBUG] Could not force update: {e}")
 
     def create_PLCupload_panel(self, parent):
         """Creates block occupancy, bidirectional controls and terminal panel (PLC upload moved to left panel)."""
@@ -1381,14 +1307,80 @@ class TrackModelUI(tk.Tk):
         self.update_bidirectional_status(group_name)
 
     def update_bidirectional_status(self, group_name):
-        """Update the status display for a bidirectional group"""
+        """Update the status display for a bidirectional group based on switches and signals"""
         if (hasattr(self.data_manager, 'bidirectional_directions') and 
             group_name in self.data_manager.bidirectional_directions and
             group_name in self.bidir_controls):
             
-            direction = self.data_manager.bidirectional_directions[group_name]
+            # Automatically determine direction based on switches and signals
+            direction = self.determine_bidirectional_direction(group_name)
+            self.data_manager.bidirectional_directions[group_name] = direction
+            
             status_text = "← Left" if direction == 0 else "Right →"
             self.bidir_controls[group_name].set(status_text)
+    
+    def determine_bidirectional_direction(self, group_name):
+        """
+        Automatically determine the direction for bidirectional blocks based on:
+        - Switch positions (if applicable)
+        - Traffic light states (green signals indicate allowed direction)
+        
+        Returns: 0 for left/backwards, 1 for right/forwards
+        """
+        if not hasattr(self.data_manager, 'blocks') or not self.data_manager.blocks:
+            return 0  # Default to left if no data
+        
+        # Parse the block range from group name (e.g., "Blocks 1-5" -> [1,2,3,4,5])
+        import re
+        match = re.match(r"Blocks?\s+(\d+)-(\d+)", group_name)
+        if not match:
+            return 0  # Default to left if can't parse
+        
+        start_block = int(match.group(1))
+        end_block = int(match.group(2))
+        
+        # Check switches and signals in the block range
+        forward_signals = 0
+        backward_signals = 0
+        switch_votes_forward = 0
+        switch_votes_backward = 0
+        
+        for block_num in range(start_block, end_block + 1):
+            if block_num <= len(self.data_manager.blocks):
+                block = self.data_manager.blocks[block_num - 1]
+                
+                # Check traffic light state
+                # State 0 (Red) = no direction allowed
+                # State 1 (Yellow) = caution, typically forward
+                # State 2 (Green) = clear, forward direction
+                # State 3 (Super Green) = high speed forward
+                if hasattr(block, 'traffic_light_state'):
+                    state = block.traffic_light_state
+                    if state in [1, 2, 3]:  # Yellow, Green, or Super Green
+                        forward_signals += 1
+                    # Note: We could add logic for backward signals if needed
+                
+                # Check switch positions if this block has a switch
+                if hasattr(block, 'switch_state') and block.switch_state is not None:
+                    # True/1 = Right/Forward, False/0 = Left/Backward
+                    if block.switch_state:
+                        switch_votes_forward += 1
+                    else:
+                        switch_votes_backward += 1
+        
+        # Determine direction based on signals and switches
+        # Priority: Traffic signals > Switch positions
+        if forward_signals > backward_signals:
+            return 1  # Forward/Right
+        elif backward_signals > forward_signals:
+            return 0  # Backward/Left
+        elif switch_votes_forward > switch_votes_backward:
+            return 1  # Forward/Right based on switches
+        elif switch_votes_backward > switch_votes_forward:
+            return 0  # Backward/Left based on switches
+        else:
+            # If no clear direction, maintain current or default to left
+            return self.data_manager.bidirectional_directions.get(group_name, 0)
 
     def toggle_bidirectional_direction(self, group_name):
         """Main UI toggle - now just a placeholder since Test UI controls"""
@@ -1399,11 +1391,227 @@ class TrackModelUI(tk.Tk):
         print(f"ℹ️ Main UI save for {group_name} - Test UI controls changes")
 
     def refresh_bidirectional_controls(self):
-        """Refresh all bidirectional controls - called by Test UI"""
-        print("🔄 Main UI refreshing bidirectional controls from Test UI")
+        """Refresh all bidirectional controls based on current switches and signals"""
+        print("🔄 Refreshing bidirectional controls based on switches and signals")
         if hasattr(self.data_manager, 'bidirectional_directions'):
             for group_name in self.data_manager.bidirectional_directions.keys():
                 self.update_bidirectional_status(group_name)
+    
+    def update_train_movements(self):
+        """Update train positions based on actual speed and block lengths."""
+        import time
+        current_time = time.time()
+        
+        # Process each active train
+        for train_idx, train_id in enumerate(self.data_manager.active_trains):
+            if train_idx >= len(self.data_manager.train_locations):
+                continue
+                
+            current_block_num = self.data_manager.train_locations[train_idx]
+            if current_block_num == 0:  # Train not on track
+                continue
+            
+            # Get actual speed for this train (m/s)
+            actual_speed = self.train_actual_speeds.get(train_id, 0)
+            if actual_speed <= 0:
+                continue  # Train not moving
+            
+            # Initialize tracking for this train if needed
+            if train_id not in self.train_positions_in_block:
+                self.train_positions_in_block[train_id] = 0
+                self.last_movement_update[train_id] = current_time
+                print(f"[MOVEMENT] Initialized tracking for {train_id} at block {current_block_num}")
+            
+            # Calculate time elapsed since last update (seconds)
+            time_delta = current_time - self.last_movement_update[train_id]
+            self.last_movement_update[train_id] = current_time
+            
+            # Calculate distance traveled (meters)
+            distance_traveled = actual_speed * time_delta
+            self.train_positions_in_block[train_id] += distance_traveled
+            
+            # Get block length (meters)
+            block_length = self.get_block_length(current_block_num)
+            
+            # Check if train has traveled the full block length
+            if self.train_positions_in_block[train_id] >= block_length:
+                # Move to next block
+                next_block = self.get_next_block(current_block_num, train_idx)
+                
+                if next_block and next_block <= len(self.data_manager.blocks):
+                    # Clear current block occupancy
+                    if current_block_num <= len(self.data_manager.blocks):
+                        current_block = self.data_manager.blocks[current_block_num - 1]
+                        current_block.occupancy = 0
+                        print(f"[MOVEMENT] {train_id} leaving block {current_block_num}")
+                    
+                    # Set new block occupancy
+                    new_block = self.data_manager.blocks[next_block - 1]
+                    train_num = int(train_id.split('_')[1]) if '_' in train_id else int(train_id.replace('Train', '').strip())
+                    new_block.occupancy = train_num
+                    
+                    # Update train location
+                    self.data_manager.train_locations[train_idx] = next_block
+                    
+                    # Reset position in new block (account for overflow)
+                    overflow = self.train_positions_in_block[train_id] - block_length
+                    self.train_positions_in_block[train_id] = overflow
+                    
+                    print(f"[MOVEMENT] {train_id} entered block {next_block} (speed: {actual_speed:.1f} m/s)")
+                    
+                    # Send occupancy updates to other modules
+                    self.send_block_occupancy_update(current_block_num, 0)
+                    self.send_block_occupancy_update(next_block, train_num)
+                    
+                    # Update the display
+                    self.update_occupied_blocks_display()
+                else:
+                    print(f"[MOVEMENT] {train_id} reached end of authority at block {current_block_num}")
+            
+        # Schedule next update
+        self.after(100, self.update_train_movements)  # Update every 100ms
+    
+    def get_block_length(self, block_num):
+        """Get the length of a block in meters."""
+        if block_num <= 0 or block_num > len(self.data_manager.blocks):
+            return 50.0  # Default block length
+        
+        block = self.data_manager.blocks[block_num - 1]
+        # Try to get actual block length from block data
+        if hasattr(block, 'length'):
+            return float(block.length)
+        elif hasattr(block, 'block_length'):
+            return float(block.block_length)
+        else:
+            return 50.0  # Default 50 meters if no length data
+    
+    def get_next_block(self, current_block, train_idx):
+        """Determine the next block based on current position and authority."""
+        # Check commanded authority
+        if train_idx < len(self.data_manager.commanded_authority):
+            authority = self.data_manager.commanded_authority[train_idx]
+            
+            # Calculate how many blocks the train has traveled from its starting point
+            # For now, use a simple counter (can be enhanced with actual tracking)
+            if not hasattr(self, 'train_blocks_traveled'):
+                self.train_blocks_traveled = {}
+            
+            train_id = self.data_manager.active_trains[train_idx]
+            if train_id not in self.train_blocks_traveled:
+                self.train_blocks_traveled[train_id] = 0
+            
+            # Check if we've reached authority limit
+            if self.train_blocks_traveled[train_id] >= authority:
+                print(f"[AUTHORITY] {train_id} has reached authority limit ({authority} blocks)")
+                return None  # Stop at authority limit
+            
+            # Increment blocks traveled
+            self.train_blocks_traveled[train_id] += 1
+        
+        # Handle special track sections and switches
+        # Green Line routing logic
+        if current_block == 150:  # End of Green Line loops back to beginning
+            return 1
+        elif current_block == 63:  # From yard entry, go to next block
+            return 64
+        elif current_block == 100:  # Before switch at 85-86
+            return 85  # Go through switch section
+        elif current_block == 85:
+            return 86  # Continue through switch
+        elif current_block == 86:
+            return 87  # Exit switch section
+        elif current_block == 57:  # Near yard exit
+            # Could go to yard (58) or continue (59) - for now continue
+            return 59
+        elif current_block == 76:  # Switch at 76-77
+            return 77  # Go through station
+        else:
+            # Normal sequential movement
+            next_block = current_block + 1
+            
+            # Ensure we don't go past the end of the line
+            if next_block > 150:
+                return 1  # Loop back to beginning
+            
+            return next_block
+    
+    def send_block_occupancy_update(self, block_num, occupancy):
+        """Send block occupancy update to other modules."""
+        try:
+            update = {block_num: occupancy}
+            
+            # Send to Train Model
+            self.server.send_to_ui("Train Model", {
+                "command": "block_occupancy",
+                "value": update
+            })
+            
+            # Send to Track Controllers
+            self.server.send_to_ui("Track SW", {
+                "command": "block_occupancy",
+                "value": update
+            })
+            self.server.send_to_ui("Track HW", {
+                "command": "block_occupancy",
+                "value": update
+            })
+            
+            # If a train is entering this block, send block info to Train Model
+            if occupancy != 0:
+                # Find the train
+                train_id = f"Train_{occupancy}"
+                if block_num <= len(self.data_manager.blocks):
+                    block = self.data_manager.blocks[block_num - 1]
+                    block_length = self.get_block_length(block_num)
+                    
+                    # Send block characteristics to Train Model
+                    self.server.send_to_ui("Train Model", {
+                        "command": "block_info",
+                        "train_id": train_id,
+                        "block_number": block_num,
+                        "block_length": block_length,
+                        "speed_limit": getattr(block, 'speed_limit', 70),
+                        "grade": getattr(block, 'grade', 0)
+                    })
+                    
+            print(f"📤 Sent occupancy update: Block {block_num} = {occupancy}")
+            
+        except Exception as e:
+            print(f"⚠️ Error sending occupancy update: {e}")
+    
+    def is_beacon_active(self, block):
+        """Check if a beacon is active for a given block."""
+        # For now, beacons are always active at stations
+        if hasattr(block, 'block_number'):
+            return block.block_number in self.station_blocks
+        return False
+    
+    def log_switch_change(self, block_num, from_block, to_block, state):
+        """Log switch state changes with descriptive information"""
+        direction = "Right/Straight" if state else "Left/Diverging"
+        path_description = f"from Block {from_block} to Block {to_block}"
+        
+        # Add more context if this is a known switch
+        if block_num in self.switch_blocks:
+            if abs(to_block - from_block) == 1:
+                path_type = "main line"
+            elif abs(to_block - from_block) > 10:
+                path_type = "branch/crossover"
+            else:
+                path_type = "alternate route"
+            
+            print(f"🔀 Switch at Block {block_num}: Set to {direction} ({path_type})")
+            print(f"   Route: {path_description}")
+        else:
+            print(f"✅ Updated switch at Block {block_num}: {direction}")
+            print(f"   Route: {path_description}")
+        
+        # Log to terminal if available
+        for terminal in self.terminals:
+            terminal.config(state="normal")
+            terminal.insert("end", f"Switch {block_num}: {direction} ({from_block}→{to_block})\n")
+            terminal.see("end")
+            terminal.config(state="disabled")
     
     def force_bidirectional_table_visible(self):
         """Force the bidirectional table to be visible - debugging method"""
@@ -1896,60 +2104,39 @@ class TrackModelUI(tk.Tk):
             terminal.config(state="disabled")
 
     def create_block_occupancy_panel(self, parent):
-        """Create Block Occupancy control panel for center area."""
+        """Create Block Occupancy display panel for center area."""
         occupancy_frame = tk.Frame(parent, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
         occupancy_frame.pack(fill="x", padx=5, pady=(0, 8))
         
         tk.Label(
             occupancy_frame,
-            text="Block Occupancy Control",
+            text="Occupied Blocks",
             font=("Arial", 9, "bold"),
             bg="white",
             fg="black"
         ).pack(pady=(5, 3))
         
-        # Input row
-        input_frame = tk.Frame(occupancy_frame, bg="white")
-        input_frame.pack(fill="x", pady=5, padx=10)
+        # Create a frame for the list of occupied blocks
+        list_frame = tk.Frame(occupancy_frame, bg="white")
+        list_frame.pack(fill="x", pady=5, padx=10)
         
-        # Block number
-        tk.Label(input_frame, text="Block #:", bg="white", font=("Arial", 9)).pack(side="left", padx=5)
-        self.occupancy_block_var = tk.StringVar(value="1")
-        tk.Entry(input_frame, textvariable=self.occupancy_block_var, width=8).pack(side="left", padx=5)
-        
-        # Train ID
-        tk.Label(input_frame, text="Train ID:", bg="white", font=("Arial", 9)).pack(side="left", padx=5)
-        self.occupancy_train_var = tk.StringVar(value="0")
-        tk.Entry(input_frame, textvariable=self.occupancy_train_var, width=8).pack(side="left", padx=5)
-        
-        # Buttons row
-        button_frame = tk.Frame(occupancy_frame, bg="white")
-        button_frame.pack(fill="x", pady=5, padx=10)
-        
-        ttk.Button(
-            button_frame,
-            text="Set Occupancy",
-            command=self.set_block_occupancy
-        ).pack(side="left", padx=5)
-        
-        ttk.Button(
-            button_frame,
-            text="Clear Occupancy",
-            command=self.clear_block_occupancy
-        ).pack(side="left", padx=5)
-        
-        # Status label
-        self.occupancy_status_label = tk.Label(
-            occupancy_frame,
-            text="Status: Ready",
+        # Create a label to display occupied blocks (will be updated dynamically)
+        self.occupied_blocks_label = tk.Label(
+            list_frame,
+            text="No blocks currently occupied",
             bg="white",
-            font=("Arial", 8),
-            fg="gray"
+            font=("Arial", 9),
+            fg="gray",
+            wraplength=200,
+            justify="left"
         )
-        self.occupancy_status_label.pack(pady=3)
+        self.occupied_blocks_label.pack(pady=5)
+        
+        # Update the occupied blocks display
+        self.update_occupied_blocks_display()
         
         return occupancy_frame
-
+    
     def refresh_trains(self):
         # Remove old train icons first
         if hasattr(self, "train_items"):
@@ -1988,6 +2175,12 @@ class TrackModelUI(tk.Tk):
             else:
                 self.temp_label.config(text="Temperature: --°F")
 
+        # Update occupied blocks display
+        self.update_occupied_blocks_display()
+        
+        # Update bidirectional directions based on switches and signals
+        self.refresh_bidirectional_controls()
+        
         # Refresh the current view in the bottom table
         if hasattr(self, 'view_mode') and self.view_mode.get() == "station":
             self.populate_station_view()
@@ -2366,6 +2559,83 @@ class TrackModelUI(tk.Tk):
         self.train_combo["values"] = self.data_manager.active_trains
         self.train_combo.set(f"Train {train_id}")
         self.send_outputs()
+    
+    def _create_train_from_yard(self, speed, authority):
+        """Create a new train specifically from the Yard/Block 63, starting at block 63."""
+        # Initialize starting ID if not set yet
+        if not hasattr(self.data_manager, "next_train_id"):
+            self.data_manager.next_train_id = 11000
+
+        # Assign new train ID
+        train_id = self.data_manager.next_train_id
+        self.data_manager.next_train_id += 1
+        
+        # Create train identifier
+        train_name = f"Train_{train_id}"
+
+        # Register new train in data manager
+        self.data_manager.active_trains.append(train_name)
+        
+        # Ensure train_locations list exists and is properly sized
+        if not hasattr(self.data_manager, 'train_locations'):
+            self.data_manager.train_locations = []
+        
+        # Ensure the list is the same size as active_trains
+        while len(self.data_manager.train_locations) < len(self.data_manager.active_trains) - 1:
+            self.data_manager.train_locations.append(0)
+        
+        # Add this train at block 63
+        self.data_manager.train_locations.append(63)  # Start at block 63
+        
+        # Set commanded speed and authority
+        self.data_manager.commanded_speed.append(speed if speed is not None else 0)
+        self.data_manager.commanded_authority.append(authority if authority is not None else 0)
+        
+        # Initialize train occupancy (passengers)
+        self.data_manager.train_occupancy.append(0)
+
+        print(f"🚂 [YARD/BLOCK 63 TRAIN CREATED] ID={train_id}, Starting at Block 63")
+        print(f"   Initial Speed={speed} m/s, Authority={authority} blocks")
+        print(f"   Active trains: {self.data_manager.active_trains}")
+        print(f"   Train locations: {self.data_manager.train_locations}")
+
+        # Update UI elements if they exist
+        if hasattr(self, 'train_combo'):
+            self.train_combo["values"] = self.data_manager.active_trains
+            self.train_combo.set(train_name)
+        
+        # Send creation notification to other modules
+        try:
+            self.server.send_to_ui("Train Model", {
+                "command": "new_train",
+                "train_id": train_name,
+                "block_number": 63,
+                "commanded_speed": speed,
+                "commanded_authority": authority
+            })
+            
+            self.server.send_to_ui("CTC", {
+                "command": "train_dispatched",
+                "train_id": train_name,
+                "from": "Yard/Block63",
+                "entry_block": 63
+            })
+        except Exception as e:
+            print(f"⚠️ Error sending train creation notifications: {e}")
+        
+        # Refresh UI - but don't let errors stop us
+        try:
+            self.refresh_ui()
+        except Exception as e:
+            print(f"⚠️ Error during refresh_ui: {e}")
+        
+        # Send outputs - but catch any errors
+        try:
+            self.send_outputs()
+        except Exception as e:
+            print(f"⚠️ Error during send_outputs: {e}")
+        
+        return train_name
 
 
     def prompt_and_activate_broken_rail(self):
@@ -2634,16 +2904,16 @@ class TrackModelUI(tk.Tk):
             # COMMANDED SPEED AND AUTHORITY - Combined command
             # Receives from Wayside: separate fields (block_number, commanded_speed, commanded_authority)
             # Sends to Train Model: array format [block_number, commanded_speed, commanded_authority]
+            # Special case: If block_number is "Yard", create a new train that starts from Yard to block 63
             # ============================================================
             if command == 'Speed and Authority':
                 # Accept Wayside Controller format: separate fields in message
                 commanded_speed = message.get('commanded_speed')
                 commanded_authority = message.get('commanded_authority')
                 block_num = message.get('block_number')
-                # train_id = message.get('train_id')
-                self._create_train_from_wayside(commanded_speed, commanded_authority)
+                train_id = message.get('train_id')
                 
-                # Convert numeric values from strings if needed
+                # Convert numeric values from strings if needed (do this first)
                 if commanded_speed is not None and isinstance(commanded_speed, str):
                     try:
                         commanded_speed = float(commanded_speed)
@@ -2658,12 +2928,119 @@ class TrackModelUI(tk.Tk):
                         print(f"⚠️ Could not convert commanded_authority '{commanded_authority}' to int")
                         commanded_authority = None
                 
-                if block_num is not None and isinstance(block_num, str):
+                # Check if this is a Yard dispatch (new train creation)
+                # Accept either "Yard" string or block number 63
+                is_yard_dispatch = False
+                
+                # Check for "Yard" string
+                if isinstance(block_num, str) and block_num.upper() == "YARD":
+                    is_yard_dispatch = True
+                    print(f"🚂 YARD DISPATCH DETECTED (from 'Yard') - Creating new train")
+                # Check for block 63 (with no existing train)
+                elif block_num == 63 or (isinstance(block_num, str) and block_num == "63"):
+                    # Check if there's already a train at block 63
+                    block_63_occupied = False
+                    if 63 <= len(self.data_manager.blocks):
+                        block_63 = self.data_manager.blocks[62]  # Block 63 (index 62)
+                        if hasattr(block_63, 'occupancy') and block_63.occupancy != 0:
+                            block_63_occupied = True
+                    
+                    # Only treat as yard dispatch if block 63 is not occupied
+                    if not block_63_occupied and not train_id:
+                        is_yard_dispatch = True
+                        print(f"🚂 YARD DISPATCH DETECTED (from Block 63) - Creating new train")
+                        # Convert block_num to int if it's a string
+                        if isinstance(block_num, str):
+                            block_num = 63
+                
+                if is_yard_dispatch:
+                    # Create a new train for yard dispatch
+                    new_train_id = self._create_train_from_yard(commanded_speed, commanded_authority)
+                    train_id = new_train_id
+                    
+                    # Set initial actual speed for the new train (starts at commanded speed)
+                    if commanded_speed and commanded_speed > 0:
+                        self.train_actual_speeds[new_train_id] = float(commanded_speed)
+                        self.train_positions_in_block[new_train_id] = 0
+                        import time
+                        self.last_movement_update[new_train_id] = time.time()
+                        print(f"🚄 Set initial actual speed for {new_train_id}: {commanded_speed} m/s")
+                    
+                    # Set/ensure position at block 63 (entry from yard)
+                    block_num = 63
+                    
+                    # Set occupancy at block 63 - CRITICAL: This must happen
+                    try:
+                        if 63 <= len(self.data_manager.blocks):
+                            yard_entry_block = self.data_manager.blocks[62]  # Block 63 (index 62)
+                            # Initialize occupancy if it doesn't exist
+                            if not hasattr(yard_entry_block, 'occupancy'):
+                                yard_entry_block.occupancy = 0
+                                print(f"[DEBUG] Initialized occupancy attribute for block 63")
+                            
+                            # Extract train number from train_id (e.g., "Train_11000" -> 11000)
+                            train_num = int(new_train_id.split('_')[1]) if '_' in new_train_id else 1
+                            yard_entry_block.occupancy = train_num
+                            print(f"✅ Set initial occupancy at Block 63 for {new_train_id}")
+                            print(f"[DEBUG] Block 63 occupancy is now: {yard_entry_block.occupancy}")
+                            
+                            # Send occupancy update to other modules
+                            try:
+                                self.server.send_to_ui("Train Model", {
+                                    "command": "block_occupancy",
+                                    "value": {63: train_num}
+                                })
+                                self.server.send_to_ui("Track SW", {
+                                    "command": "block_occupancy", 
+                                    "value": {63: train_num}
+                                })
+                                self.server.send_to_ui("Track HW", {
+                                    "command": "block_occupancy",
+                                    "value": {63: train_num}
+                                })
+                            except Exception as e:
+                                print(f"⚠️ Error sending occupancy updates: {e}")
+                    except Exception as e:
+                        print(f"❌ CRITICAL: Failed to set block 63 occupancy: {e}")
+                        import traceback
+                        traceback.print_exc()
+                    
+                    # Log the yard dispatch
+                    try:
+                        for terminal in self.terminals:
+                            terminal.config(state="normal")
+                            terminal.insert("end", f"🚂 YARD DISPATCH: {new_train_id} → Block 63\n")
+                            terminal.insert("end", f"   Speed: {commanded_speed} m/s, Authority: {commanded_authority} blocks\n")
+                            terminal.see("end")
+                            terminal.config(state="disabled")
+                    except Exception as e:
+                        print(f"⚠️ Error updating terminal: {e}")
+                    
+                    # Update the occupied blocks display - CRITICAL
+                    try:
+                        self.update_occupied_blocks_display()
+                        print("[DEBUG] Called update_occupied_blocks_display after yard dispatch")
+                    except Exception as e:
+                        print(f"❌ Error updating occupied blocks display: {e}")
+                    
+                    # Force a full UI refresh to ensure everything updates
+                    try:
+                        self.refresh_ui()
+                        print("[DEBUG] Called refresh_ui after yard dispatch")
+                    except Exception as e:
+                        print(f"⚠️ Error during refresh_ui: {e}")
+                    
+                # Convert block_num to int if it's not already (and not "Yard")
+                elif block_num is not None and isinstance(block_num, str):
                     try:
                         block_num = int(block_num)
                     except (ValueError, TypeError):
                         print(f"⚠️ Could not convert block_num '{block_num}' to int")
                         block_num = None
+                
+                # If not a yard dispatch and no train_id, create train using existing logic
+                if not is_yard_dispatch and not train_id:
+                    self._create_train_from_wayside(commanded_speed, commanded_authority)
                 
                 # Also support legacy array format for backwards compatibility
                 if commanded_speed is None and isinstance(value, list) and len(value) == 3:
@@ -2717,11 +3094,87 @@ class TrackModelUI(tk.Tk):
             
             # ============================================================
             # SWITCH POSITIONS - Update switch states
-            # value should be a dict like {5: True, 10: False} where True=Right, False=Left
+            # value should be a string like "76-77" where 76 is current block, 77 is next block
+            # OR a dict like {5: "76-77", 10: "85-86"} for multiple switches
             # ============================================================
             elif command == 'Switch Positions':
+                def parse_switch_direction(switch_string, switch_block_num=None):
+                    """
+                    Parse a switch direction string like "76-77" to determine switch state.
+                    Returns True for one direction, False for the other.
+                    
+                    The logic determines which way the switch should be set based on:
+                    - The from-block and to-block numbers
+                    - The switch block's typical connections
+                    - Known switch configurations from track layout
+                    """
+                    if not isinstance(switch_string, str) or '-' not in switch_string:
+                        print(f"⚠️ Invalid switch format: {switch_string} (expected 'from-to' format)")
+                        return None
+                    
+                    parts = switch_string.split('-')
+                    if len(parts) != 2:
+                        print(f"⚠️ Invalid switch format: {switch_string} (expected exactly two parts)")
+                        return None
+                    
+                    try:
+                        from_block = int(parts[0].strip())
+                        to_block = int(parts[1].strip())
+                    except (ValueError, TypeError):
+                        print(f"⚠️ Could not parse blocks from: {switch_string}")
+                        return None
+                    
+                    # Determine switch direction based on from/to blocks
+                    # The switch state depends on the track layout and connections
+                    
+                    # Special handling for known switch configurations
+                    # These are common switch patterns in track systems:
+                    
+                    # 1. Fork switches (one track splitting into two)
+                    #    - Main line continues straight (usually higher block number) = True
+                    #    - Diverging line (branch) = False
+                    
+                    # 2. Merge switches (two tracks joining into one)  
+                    #    - From main line = True
+                    #    - From branch line = False
+                    
+                    # 3. Crossover switches (between parallel tracks)
+                    #    - Staying on same track = True
+                    #    - Crossing to other track = False
+                    
+                    # Check if this is a known switch block with specific routing
+                    if switch_block_num and switch_block_num in self.switch_blocks:
+                        # Add specific switch logic here based on your track layout
+                        # Example patterns:
+                        
+                        # Switches that connect sequential blocks vs branches
+                        if abs(to_block - from_block) == 1:
+                            # Sequential blocks - likely main line
+                            # Forward direction (increasing) = True, Backward = still sequential
+                            return to_block > from_block
+                        elif abs(to_block - from_block) > 10:
+                            # Large jump in block numbers - likely a branch/crossover
+                            return False
+                    
+                    # Default logic: 
+                    # - Forward progression (increasing block numbers) = True (main/straight)
+                    # - Backward or large jumps = False (diverging/branch)
+                    if to_block == from_block + 1:
+                        # Direct forward progression
+                        return True
+                    elif to_block == from_block - 1:
+                        # Direct backward progression  
+                        return False
+                    elif to_block > from_block:
+                        # Forward but not sequential - likely branching forward
+                        return True
+                    else:
+                        # Backward or branching backward
+                        return False
+                
                 if isinstance(value, dict):
-                    for block_num, state in value.items():
+                    # Multiple switches: {block_num: "from-to", ...}
+                    for block_num, switch_string in value.items():
                         # Convert block_num from string to int if needed
                         if isinstance(block_num, str):
                             try:
@@ -2732,22 +3185,74 @@ class TrackModelUI(tk.Tk):
                         
                         if 1 <= block_num <= len(self.data_manager.blocks):
                             block = self.data_manager.blocks[block_num - 1]
-                            # Convert state to bool if it's a string
-                            if isinstance(state, str):
-                                state = state.lower() in ('true', '1', 'yes', 'right')
-                            block.switch_state = state
-                            print(f"✅ Updated switch at block {block_num}: {'Right' if state else 'Left'}")
+                            # Parse the from-to string to get context
+                            parts = switch_string.split('-') if '-' in switch_string else []
+                            from_block = int(parts[0].strip()) if len(parts) == 2 else 0
+                            to_block = int(parts[1].strip()) if len(parts) == 2 else 0
+                            
+                            state = parse_switch_direction(switch_string, block_num)
+                            if state is not None:
+                                block.switch_state = state
+                                if from_block and to_block:
+                                    self.log_switch_change(block_num, from_block, to_block, state)
+                                else:
+                                    print(f"✅ Updated switch at block {block_num}: {'Right/Forward' if state else 'Left/Backward'} (from {switch_string})")
+                    self.refresh_bidirectional_controls()  # Update bidirectional directions
                     self.refresh_ui()
-                elif block_number:
-                    # Single switch update
+                    
+                elif isinstance(value, str) and '-' in value:
+                    # Single switch update with "from-to" format
+                    # If block_number is provided, use it as the switch block
+                    # Otherwise, try to determine the switch block from the from/to blocks
+                    
+                    if block_number:
+                        # Switch block explicitly specified
+                        if 1 <= block_number <= len(self.data_manager.blocks):
+                            block = self.data_manager.blocks[block_number - 1]
+                            # Parse the from-to string to get context
+                            parts = value.split('-')
+                            from_block = int(parts[0].strip()) if len(parts) == 2 else 0
+                            to_block = int(parts[1].strip()) if len(parts) == 2 else 0
+                            
+                            state = parse_switch_direction(value, block_number)
+                            if state is not None:
+                                block.switch_state = state
+                                if from_block and to_block:
+                                    self.log_switch_change(block_number, from_block, to_block, state)
+                                else:
+                                    print(f"✅ Updated switch at block {block_number}: {'Right/Forward' if state else 'Left/Backward'} (from {value})")
+                                self.refresh_bidirectional_controls()
+                                self.refresh_ui()
+                    else:
+                        # Try to determine switch block from the from-to string
+                        parts = value.split('-')
+                        if len(parts) == 2:
+                            try:
+                                from_block = int(parts[0].strip())
+                                to_block = int(parts[1].strip())
+                                # The switch is typically at or near the from_block
+                                if 1 <= from_block <= len(self.data_manager.blocks):
+                                    block = self.data_manager.blocks[from_block - 1]
+                                    state = parse_switch_direction(value, from_block)
+                                    if state is not None:
+                                        block.switch_state = state
+                                        self.log_switch_change(from_block, from_block, to_block, state)
+                                        self.refresh_bidirectional_controls()
+                                        self.refresh_ui()
+                            except (ValueError, TypeError):
+                                print(f"⚠️ Could not parse switch position from: {value}")
+                
+                # Keep backward compatibility with old boolean format
+                elif isinstance(value, bool) and block_number:
                     if 1 <= block_number <= len(self.data_manager.blocks):
                         block = self.data_manager.blocks[block_number - 1]
-                        # Convert state to bool if it's a string
-                        if isinstance(value, str):
-                            value = value.lower() in ('true', '1', 'yes', 'right')
                         block.switch_state = value
-                        print(f"✅ Updated switch at block {block_number}: {'Right' if value else 'Left'}")
+                        print(f"✅ Updated switch at block {block_number}: {'Right' if value else 'Left'} (legacy boolean format)")
+                        self.refresh_bidirectional_controls()
                         self.refresh_ui()
+                        
+                else:
+                    print(f"⚠️ Unrecognized switch position format. Expected 'from-to' string or dict, got: {type(value)} = {value}")
             
             # ============================================================
             # LIGHT STATES / SIGNALS - From Wayside Controller
@@ -2775,6 +3280,7 @@ class TrackModelUI(tk.Tk):
                                 print(f"✅ Updated signal at block {block_num}: State {state} from bits {bit_array}")
                             else:
                                 print(f"⚠️ Invalid bit array format for block {block_num}: {bit_array}")
+                    self.refresh_bidirectional_controls()  # Update bidirectional directions
                     self.refresh_ui()
                 elif isinstance(value, dict):
                     for block_num, bit_array in value.items():
@@ -2795,6 +3301,7 @@ class TrackModelUI(tk.Tk):
                                 print(f"✅ Updated signal at block {block_num}: State {state} from bits {bit_array}")
                             else:
                                 print(f"⚠️ Invalid bit array format for block {block_num}: {bit_array}")
+                    self.refresh_bidirectional_controls()  # Update bidirectional directions
                     self.refresh_ui()
                 elif block_number and value is not None:
                     if 1 <= block_number <= len(self.data_manager.blocks):
@@ -2806,6 +3313,7 @@ class TrackModelUI(tk.Tk):
                             print(f"✅ Updated signal at block {block_number}: State {state} from bits {value}")
                         else:
                             print(f"⚠️ Invalid bit array format for block {block_number}: {value}")
+                        self.refresh_bidirectional_controls()  # Update bidirectional directions
                         self.refresh_ui()
             
             # ============================================================
@@ -2857,6 +3365,42 @@ class TrackModelUI(tk.Tk):
                 print(f"🧪 Test message received: {value}")
             
             # ============================================================
+            # ACTUAL SPEED - From Train Model
+            # Receives actual speed for a train to calculate movement
+            # ============================================================
+            elif command == 'actual_speed' or command == 'actualSpeed':
+                train_id = message.get('train_id')
+                speed = value  # Speed in m/s
+                
+                if train_id and speed is not None:
+                    # Convert speed to float if needed
+                    if isinstance(speed, str):
+                        try:
+                            speed = float(speed)
+                        except (ValueError, TypeError):
+                            print(f"⚠️ Could not convert speed '{speed}' to float")
+                            speed = 0
+                    
+                    # Store actual speed for this train
+                    self.train_actual_speeds[train_id] = speed
+                    print(f"🚄 Updated actual speed for {train_id}: {speed:.1f} m/s")
+                    
+                    # If this is a new train, initialize its position tracking
+                    if train_id not in self.train_positions_in_block:
+                        self.train_positions_in_block[train_id] = 0
+                        import time
+                        self.last_movement_update[train_id] = time.time()
+                        
+                        # Find which block this train is on
+                        if train_id in self.data_manager.active_trains:
+                            idx = self.data_manager.active_trains.index(train_id)
+                            if idx < len(self.data_manager.train_locations):
+                                block_num = self.data_manager.train_locations[idx]
+                                print(f"   Train {train_id} is on block {block_num}")
+                else:
+                    print(f"⚠️ Invalid actual speed message: train_id={train_id}, speed={speed}")
+            
+            # ============================================================
             # REQUEST DATA - Another UI wants our data
             # ============================================================
             elif command == 'request_all_data':
@@ -2864,8 +3408,68 @@ class TrackModelUI(tk.Tk):
                 self.send_all_outputs()
             
             # ============================================================
-            # UNKNOWN COMMAND
+            # BLOCK OCCUPANCY - From Train Model
+            # Updates which blocks are occupied by trains
+            # Can be: single value, [block_num, occupancy], or {block_num: occupancy}
             # ============================================================
+            elif command == 'block_occupancy':
+                if isinstance(value, list) and len(value) == 2:
+                    # Format: [block_number, occupancy_value]
+                    block_num = value[0]
+                    occupancy = value[1]
+                    
+                    if isinstance(block_num, str):
+                        block_num = int(block_num)
+                    
+                    if 1 <= block_num <= len(self.data_manager.blocks):
+                        block = self.data_manager.blocks[block_num - 1]
+                        block.occupancy = occupancy
+                        print(f"✅ Updated block {block_num} occupancy: {occupancy}")
+                        
+                        # Update train location tracking if train moved
+                        if occupancy != 0:
+                            # Find train with this occupancy number
+                            train_id = f"Train_{occupancy}"
+                            if train_id in self.data_manager.active_trains:
+                                idx = self.data_manager.active_trains.index(train_id)
+                                old_location = self.data_manager.train_locations[idx] if idx < len(self.data_manager.train_locations) else 0
+                                
+                                if old_location != block_num:
+                                    self.data_manager.train_locations[idx] = block_num
+                                    print(f"   Train {train_id} moved from block {old_location} to block {block_num}")
+                                    
+                                    # Reset position tracking for new block
+                                    if train_id in self.train_positions_in_block:
+                                        self.train_positions_in_block[train_id] = 0
+                        
+                        self.update_occupied_blocks_display()
+                        
+                elif isinstance(value, dict):
+                    # Format: {block_num: occupancy, ...}
+                    for block_num, occupancy in value.items():
+                        if isinstance(block_num, str):
+                            block_num = int(block_num)
+                        
+                        if 1 <= block_num <= len(self.data_manager.blocks):
+                            block = self.data_manager.blocks[block_num - 1]
+                            block.occupancy = occupancy
+                            print(f"✅ Updated block {block_num} occupancy: {occupancy}")
+                            
+                            # Update train tracking
+                            if occupancy != 0:
+                                train_id = f"Train_{occupancy}"
+                                if train_id in self.data_manager.active_trains:
+                                    idx = self.data_manager.active_trains.index(train_id)
+                                    if idx < len(self.data_manager.train_locations):
+                                        self.data_manager.train_locations[idx] = block_num
+                                        
+                                        # Reset position tracking
+                                        if train_id in self.train_positions_in_block:
+                                            self.train_positions_in_block[train_id] = 0
+                    
+                    self.update_occupied_blocks_display()
+                else:
+                    print(f"⚠️ Unknown block occupancy format: {type(value)} = {value}")
             else:
                 print(f"⚠️ Unknown command: {command}")
         
