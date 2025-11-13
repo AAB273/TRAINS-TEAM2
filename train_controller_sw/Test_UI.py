@@ -92,13 +92,13 @@ class TestPanel(tk.Toplevel):
         val = self.temp_entry.get()
         self.main_window.set_cabin_temp(val)
         self.main_window.add_to_status_log(f"Temperature set to {val}°F")
-        self.log_action(f"✅ Temperature input set to {val}°F")
+        self.log_action(f" Temperature input set to {val}°F")
 
     def set_authority(self):
         val = self.auth_entry.get()
         self.main_window.set_authority(val)
         self.main_window.add_to_status_log(f"Authority set to {val} blocks")
-        self.log_action(f"✅ Commanded authority set to {val} Blocks")
+        self.log_action(f" Commanded authority set to {val} Blocks")
 
     def set_speed(self):
         val = self.speed_entry.get()
@@ -106,43 +106,43 @@ class TestPanel(tk.Toplevel):
         if self.main_window.mode_select.active_mode == "auto":
             self.main_window.set_commanded_speed(val)
             self.main_window.add_to_status_log(f"Commanded speed set to {val} mph (auto mode)")
-            self.log_action(f"✅ Commanded speed set to {val} mph (auto mode)")
+            self.log_action(f" Commanded speed set to {val} mph (auto mode)")
         else:
-            self.log_action("⚠️ Ignored commanded speed (not in auto mode)")
+            self.log_action(" Ignored commanded speed (not in auto mode)")
 
     def update_speedometer(self, val):
         val = int(val)
         self.main_window.set_current_speed(val)
-        self.log_action(f"✅ Speedometer updated to {val} mph")
+        self.log_action(f" Speedometer updated to {val} mph")
 
     def update_brake_percentage(self, val):
         self.main_window.set_service_brake_percentage(int(val))
-        self.log_action(f"🛑 Service brake percentage set to {val}%")
+        self.log_action(f" Service brake percentage set to {val}%")
 
     def activate_emergency(self):
         self.main_window.emergency_brake_action(True)
-        self.log_action("🚨 Emergency signal activated")
+        self.log_action(" Emergency signal activated")
 
     def deactivate_emergency(self):
         self.main_window.emergency_brake_action(False)
-        self.log_action("🟢 Emergency signal cleared")
+        self.log_action(" Emergency signal cleared")
 
     def set_failure(self, failure_type, state):
         if failure_type == "engine":
             self.main_window.engine_failure.set_state(state)
             status = "ON" if state else "OFF"
             self.main_window.add_to_status_log(f"Train Engine Failure: {status}")
-            self.log_action(f"🔧 Train Engine Failure: {status}")
+            self.log_action(f" Train Engine Failure: {status}")
         elif failure_type == "signal":
             self.main_window.signal_failure.set_state(state)
             status = "ON" if state else "OFF"
             self.main_window.add_to_status_log(f"Signal Pickup Failure: {status}")
-            self.log_action(f"📡 Signal Pickup Failure: {status}")
+            self.log_action(f" Signal Pickup Failure: {status}")
         elif failure_type == "brake":
             self.main_window.brake_failure.set_state(state)
             status = "ON" if state else "OFF"
             self.main_window.add_to_status_log(f"Brake Failure: {status}")
-            self.log_action(f"🛑 Brake Failure: {status}")
+            self.log_action(f" Brake Failure: {status}")
 
 
 

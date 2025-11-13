@@ -22,6 +22,7 @@ from SA_window import StationAnnouncementWindow
 from Test_UI import TestPanel
 from SafetyMonitor import SafetyMonitor
 from TC_SW_TrackInfo import TrackInformationPanel
+from Engineer_UI import EngineerUI
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
