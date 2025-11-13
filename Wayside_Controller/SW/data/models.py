@@ -5,18 +5,21 @@ class RailwayData:
     def __init__(self):
         """Data model for railway control system - manages track data, blocks, and commands"""
         self.maintenance_mode = False
-        self.current_line = "Blue"  # Default line
+        self.current_line = "Green"  # Default line
         
         # Callbacks for UI updates
         self.on_line_change = []  # Called when line changes
         self.on_maintenance_mode_change = []  # Called when maintenance mode changes
         self.on_data_update = []  # Called when any data updates (PLC/UI updates)
+
+        #Section mapping based on  datasheet
+        self.block_to_section = self.create_section_mapping()
         
         # Command and suggestion storage
-        self.commanded_authority = {"Blue": {}, "Green": {}, "Red": {}}
-        self.commanded_speed = {"Blue": {}, "Green": {}, "Red": {}}
-        self.suggested_authority = {"Blue": {}, "Green": {}, "Red": {}}
-        self.suggested_speed = {"Blue": {}, "Green": {}, "Red": {}}
+        self.commanded_authority = {"Green": {}, "Red": {}}
+        self.commanded_speed = {"Green": {}, "Red": {}}
+        self.suggested_authority = {"Green": {}, "Red": {}}
+        self.suggested_speed = {"Green": {}, "Red": {}}
         
         # SEPARATE variables for track infrastructure (no longer nested under track_data)
         self.light_states = {}
@@ -48,7 +51,62 @@ class RailwayData:
 
         # System log reference for broadcasting messages
         self.system_log = None
-
+    def create_section_mapping(self):
+        """Create mapping from block numbers to section letters based on your data"""
+        section_mapping = {}
+        
+        # Green Line sections (from your data)
+        sections = {
+            'A': [1, 2, 3],
+            'B': [4, 5, 6], 
+            'C': [7, 8, 9, 10, 11, 12],
+            'D': [13, 14, 15, 16],
+            'E': [17, 18, 19, 20],
+            'F': [21, 22, 23, 24, 25, 26, 27, 28],
+            'G': [29, 30, 31, 32],
+            'H': [33, 34, 35],
+            'I': [36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57],
+            'J': [58, 59, 60, 61, 62],
+            'K': [63, 64, 65, 66, 67, 68],
+            'L': [69, 70, 71, 72, 73],
+            'M': [74, 75, 76],
+            'N': [77, 78, 79, 80, 81, 82, 83, 84, 85],
+            'O': [86, 87, 88],
+            'P': [89, 90, 91, 92, 93, 94, 95, 96, 97],
+            'Q': [98, 99, 100],
+            'R': [101],
+            'S': [102, 103, 104],
+            'T': [105, 106, 107, 108, 109],
+            'U': [110, 111, 112, 113, 114, 115, 116],
+            'V': [117, 118, 119, 120, 121],
+            'W': [122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141],
+            'X': [144, 145, 146],
+            'Y': [147, 148, 149],
+            'Z': [150]
+        }
+        
+        for section, blocks in sections.items():
+            for block in blocks:
+                section_mapping[f"Green-{block}"] = section
+                # Add Red line if you have similar data for Red line
+                # section_mapping[f"Red-{block}"] = section  
+        
+        return section_mapping
+    
+    def get_section_for_block(self, line, block_number):
+        """Get section letter for a specific block"""
+        return self.block_to_section.get(f"{line}-{block_number}", "Unknown")
+    
+    def get_blocks_in_section(self, line, section):
+        """Get all blocks in a specific section"""
+        blocks = []
+        for key, sect in self.block_to_section.items():
+            if sect == section and key.startswith(line):
+                # Extract block number from key (format: "Green-1")
+                block_num = key.split('-')[1]
+                blocks.append(block_num)
+        return blocks
+    
     def ensure_faulted_column(self):
         """Ensure all blocks have the Faulted column (index 3) for data consistency"""
         for row in self.block_data:
@@ -100,7 +158,6 @@ class RailwayData:
 
         # Map line names to their data files
         txt_files = {
-            "Blue": "Wayside_Controller/SW/data/blue_line.txt",
             "Green": "Wayside_Controller/SW/data/green_line.txt", 
             "Red": "Wayside_Controller/SW/data/red_line.txt"
         }
@@ -153,7 +210,6 @@ class RailwayData:
         """Load all block data from TXT files - each block starts unoccupied and not faulted"""
         all_block_data = []
         txt_files = {
-            "Blue": "Wayside_Controller/SW/data/blue_line.txt",
             "Green": "Wayside_Controller/SW/data/green_line.txt", 
             "Red": "Wayside_Controller/SW/data/red_line.txt"
         }

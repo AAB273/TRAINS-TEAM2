@@ -69,9 +69,8 @@ class CenterPanel(tk.Frame):
     def update_track_image(self):
         """Change track image based on selected line"""
         image_files = {
-            "Green": "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/GreenRedTrack.png",
-            "Red": "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/GreenRedTrack.png", 
-            "Blue": "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/BlueTrack.png"
+            "Green": "Red and Green Line.png",
+            "Red": "Red and Green Line.png", 
         }
         
         try:
