@@ -126,6 +126,8 @@ class TrackModelUI(tk.Tk):
         # NOW initialize ticket sales AFTER blocks are loaded
         self._initialize_station_ticket_sales()
 
+        self.update_station_boarding_data()
+
         # Start monitoring station occupancy AFTER everything is ready
         self.after(1000, self.monitor_station_occupancy)
 
@@ -164,182 +166,6 @@ class TrackModelUI(tk.Tk):
         
         # Refresh UI periodically
         self.after(1000, self.refresh_ui)
-
-    def _process_message(self, message, source_ui_id):
-        """Process incoming messages from other UIs"""
-        try:
-            print(f"Received from {source_ui_id}: {message}")
-            
-            command = message.get('command')
-            value = message.get('value')
-            block_number = message.get('block_number')
-            
-            # ============================================================
-            # COMMANDED SPEED AND AUTHORITY - Update train speed
-            # ============================================================
-            if command == 'Speed and Authority':
-                block_occupancy = message.get('block_number')
-                commanded_speed = message.get('commanded_speed') 
-                commanded_authority = message.get('commanded_authority')
-                if train_id in self.data_manager.active_trains:
-                    idx = self.data_manager.active_trains.index(block_occupancy)
-                    self.data_manager.commanded_speed[idx] = commanded_speed
-                    self.data_manager.commanded_authority[idx] = commanded_authority
-                    print(f"Updated commanded speed for {train_id}: {commanded_speed} m/s")
-                    print(f"Updated commanded authority for {train_id}: {commanded_authority} blocks")
-                    # Optionally send to Train Model
-                    # self.server.send_to_ui("Train Model", {"command": "commanded_speed", "train_id": train_id, "value": value})
-            
-            # ============================================================
-            # SWITCH POSITIONS - Update switch states
-            # ============================================================
-            elif command == 'Switch Positions':
-                # value should be a dict like {5: True, 10: False} where True=Right, False=Left
-                if isinstance(value, dict):
-                    for block_num, state in value.items():
-                        if 1 <= block_num <= len(self.data_manager.blocks):
-                            block = self.data_manager.blocks[block_num - 1]
-                            block.switch_state = state
-                            print(f"Updated switch at block {block_num}: {'Right' if state else 'Left'}")
-                    self.refresh_ui()
-                elif block_number:
-                    # Single switch update
-                    if 1 <= block_number <= len(self.data_manager.blocks):
-                        block = self.data_manager.blocks[block_number - 1]
-                        block.switch_state = value
-                        print(f"Updated switch at block {block_number}: {'Right' if value else 'Left'}")
-                        self.refresh_ui()
-            
-            # ============================================================
-            # LIGHT STATES / SIGNALS - Update traffic light states
-            # ============================================================
-            elif command == 'light_states' or command == 'signal_states':
-                # value should be a dict like {6: 0, 11: 2} where 0-3 are signal states
-                if isinstance(value, dict):
-                    for block_num, state in value.items():
-                        if 1 <= block_num <= len(self.data_manager.blocks):
-                            block = self.data_manager.blocks[block_num - 1]
-                            block.traffic_light_state = state
-                            print(f"Updated signal at block {block_num}: State {state}")
-                    self.refresh_ui()
-                elif block_number and value is not None:
-                    # Single signal update
-                    if 1 <= block_number <= len(self.data_manager.blocks):
-                        block = self.data_manager.blocks[block_number - 1]
-                        block.traffic_light_state = value
-                        print(f"Updated signal at block {block_number}: State {value}")
-                        self.refresh_ui()
-            
-            # ============================================================
-            # BLOCK OCCUPANCY - Update which blocks have trains
-            # ============================================================
-            elif command == 'block_occupancy':
-                # value should be a dict like {5: 1, 10: 1} where 1=occupied, 0=empty
-                if isinstance(value, dict):
-                    for block_num, occupancy in value.items():
-                        if 1 <= block_num <= len(self.data_manager.blocks):
-                            block = self.data_manager.blocks[block_num - 1]
-                            block.occupancy = occupancy
-                            print(f"Updated occupancy for block {block_num}: {occupancy}")
-                    self.refresh_ui()
-                elif block_number is not None:
-                    # Single block occupancy update
-                    if 1 <= block_number <= len(self.data_manager.blocks):
-                        block = self.data_manager.blocks[block_number - 1]
-                        block.occupancy = value
-                        print(f"Updated occupancy for block {block_number}: {value}")
-                        self.refresh_ui()
-            
-            # ============================================================
-            # PASSENGERS DISEMBARKING - Update passenger counts leaving trains
-            # ============================================================def send_ticket_sales_to_ctc(self, block_num):
-            """
-            Send ticket sales for a specific station block to CTC.
-            Call this when ticket sales change for a station.
-            
-            Args:
-                block_num (int): Block number of the station
-            """
-            idx = block_num - 1
-            if 0 <= idx < len(self.data_manager.ticket_sales):
-                ticket_count = int(self.data_manager.ticket_sales[idx])
-                
-                self.server.send_to_ui("CTC", {
-                    'command': 'ticket_sales',
-                    'value': ticket_count
-                })
-                print(f"📤 Sent ticket sales to CTC: {ticket_count} tickets (Block {block_num})")
-
-            # ============================================================
-            # PASSENGERS BOARDING - Update passenger counts entering trains
-            # ============================================================
-            elif command == 'Passengers Boarding':
-                if block_number is not None:
-                    idx = block_number - 1
-                    if 0 <= idx < len(self.data_manager.passengers_boarding):
-                        self.data_manager.passengers_boarding[idx] = value
-                        print(f"Updated passengers boarding at block {block_number}: {value}")
-                        if self.view_mode.get() == "station":
-                            self.populate_station_view()
-            
-            # ============================================================
-            # TRAIN OCCUPANCY - Update how many passengers are on a train
-            # ============================================================
-            elif command == 'Train Occupancy':
-                train_id = message.get('train_id')
-                if train_id in self.data_manager.active_trains:
-                    idx = self.data_manager.active_trains.index(train_id)
-                    self.data_manager.train_occupancy[idx] = value
-                    print(f"Updated train occupancy for {train_id}: {value} passengers")
-            
-            # ============================================================
-            # CROSSING STATE - Update railway crossing activation
-            # ============================================================
-            elif command == 'crossing_state':
-                if block_number is not None:
-                    if 1 <= block_number <= len(self.data_manager.blocks):
-                        block = self.data_manager.blocks[block_number - 1]
-                        block.crossing = value
-                        print(f"Updated crossing at block {block_number}: {'Active' if value else 'Inactive'}")
-                        self.refresh_ui()
-            
-            # ============================================================
-            # HEATER STATE - Update track heater on/off/broken
-            # ============================================================
-            elif command == 'heater_state':
-                if block_number is not None:
-                    if 1 <= block_number <= len(self.data_manager.blocks):
-                        block = self.data_manager.blocks[block_number - 1]
-                        is_on = message.get('is_on', False)
-                        is_working = message.get('is_working', True)
-                        self.set_heater_state(block, is_on, is_working)
-                        print(f"Updated heater at block {block_number}: {'ON' if is_on else 'OFF'}, {'Working' if is_working else 'Broken'}")
-                        self.refresh_ui()
-            
-            # ============================================================
-            # ENVIRONMENTAL TEMPERATURE - Update ambient temperature
-            # ============================================================
-            elif command == 'environmental_temp':
-                self.data_manager.environmental_temp = value
-                self.temp_label.config(text=f"Temperature: {value}°F")
-                print(f"Updated environmental temperature: {value}°F")
-            
-            # ============================================================
-            # TEST COMMAND - For testing connectivity
-            # ============================================================
-            elif command == 'test_command':
-                print(f"Test message received: {value}")
-            
-            # ============================================================
-            # UNKNOWN COMMAND
-            # ============================================================
-            else:
-                print(f"Unknown command: {command}")
-        
-        except Exception as e:
-            print(f"Error processing message: {e}")
-            import traceback
-            traceback.print_exc()
 
     # ---------------- Helper ----------------
     def make_card(self, parent, title=None):
@@ -617,53 +443,47 @@ class TrackModelUI(tk.Tk):
         
     # ---------------- Center Panel ----------------
     def create_center_panel(self, parent):
-        # Create card for notebook with fixed height (same as before)
+        # Create card for center panel with fixed height
         card = self.make_card(parent)
         card.pack(fill="both", expand=True)
         card.config(height=500)  # fixed height to prevent shrinking
         card.pack_propagate(False)
 
-        # Use a simple notebook layout
-        notebook = ttk.Notebook(card)
-        notebook.pack(fill="both", expand=True, padx=10, pady=10)
-
-        # Tab 1: Track Diagram
-        frame1 = tk.Frame(notebook, bg="white")
-        notebook.add(frame1, text="Track Switches and Signals")
-        self.diagram_frame = frame1
+        # NO NOTEBOOK/TABS - Just use the card directly as diagram frame
+        self.diagram_frame = card
         
         # Build track diagram (using the existing method that uses self.diagram_frame)
         self.build_track_diagram()
 
-        # ADD PLC PANEL TO TAB 1 - place it in the top-right corner
-        plc_panel1 = self.create_PLCupload_panel(frame1)
+        # ADD PLC PANEL - place it in the top-right corner
+        plc_panel1 = self.create_PLCupload_panel(card)
         plc_panel1.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
 
-        # Tab 2: Block/Station Occupancy
-        frame2 = tk.Frame(notebook, bg="white")
-        notebook.add(frame2, text="Block and Station Occupancy")
+        # COMMENTED OUT - Tab 2: Block/Station Occupancy
+        # frame2 = tk.Frame(notebook, bg="white")
+        # notebook.add(frame2, text="Block and Station Occupancy")
 
-        # --- Add Red and Green Line image to tab 2 ---
-        try:
-            bg_img2 = Image.open("Red and Green Line.png").resize((550, 450), Image.LANCZOS)
-            self.block_view_bg = ImageTk.PhotoImage(bg_img2)
-            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=550, highlightthickness=0)
-            self.block_canvas.pack(fill="x", padx=10, pady=10)
-            self.block_canvas.create_image(0, 0, image=self.block_view_bg, anchor="nw")
-            self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
-            
-            # Initialize train items for the center panel occupancy tab
-            self.train_items_center = []
-            
-        except Exception as e:
-            print("⚠️ Could not load Red and Green Line.png for Block/Station tab:", e)
-            self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=550)
-            self.block_canvas.pack(fill="x", padx=10, pady=10)
-            self.train_items_center = []
+        # # --- Add Red and Green Line image to tab 2 ---
+        # try:
+        #     bg_img2 = Image.open("Red and Green Line.png").resize((550, 450), Image.LANCZOS)
+        #     self.block_view_bg = ImageTk.PhotoImage(bg_img2)
+        #     self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=550, highlightthickness=0)
+        #     self.block_canvas.pack(fill="x", padx=10, pady=10)
+        #     self.block_canvas.create_image(0, 0, image=self.block_view_bg, anchor="nw")
+        #     self.block_canvas.config(scrollregion=self.block_canvas.bbox("all"))
+        #     
+        #     # Initialize train items for the center panel occupancy tab
+        #     self.train_items_center = []
+        #     
+        # except Exception as e:
+        #     print("⚠️ Could not load Red and Green Line.png for Block/Station tab:", e)
+        #     self.block_canvas = tk.Canvas(frame2, bg="white", height=450, width=550)
+        #     self.block_canvas.pack(fill="x", padx=10, pady=10)
+        #     self.train_items_center = []
 
-        # ADD PLC PANEL TO TAB 2 - place it in the top-right corner
-        plc_panel2 = self.create_PLCupload_panel(frame2)
-        plc_panel2.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
+        # # ADD PLC PANEL TO TAB 2 - place it in the top-right corner
+        # plc_panel2 = self.create_PLCupload_panel(frame2)
+        # plc_panel2.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
 
 
     def create_track_system_table(self, parent):
@@ -693,77 +513,8 @@ class TrackModelUI(tk.Tk):
         # Populate for the first time
         self.update_track_system_table()
 
-    def update_track_system_table(self):
-        """Refresh the Switch/Signal/Crossing/Heater table with live data - ONLY infrastructure blocks."""
-        if not hasattr(self, "track_sys_tree"):
-            return  # Not yet built
-
-        self.track_sys_tree.delete(*self.track_sys_tree.get_children())
-
-        # Get infrastructure data map
-        infra_map = getattr(self.data_manager, "infrastructure_data", {})
-        
-        # Collect all rows first before inserting
-        rows = []
-        
-        for b in self.data_manager.blocks:
-            # Check if block has any infrastructure (switch, signal, crossing, or station)
-            has_switch = b.block_number in self.switch_blocks or getattr(b, "switch_state", False)
-            has_signal = b.block_number in self.light_states or getattr(b, "light_state", None) is not None
-            has_crossing = b.block_number in self.crossing_blocks or getattr(b, "crossing", False)
-            
-            # Check if block has station infrastructure
-            has_station = False
-            infra = str(infra_map.get(b.block_number, "")).upper()
-            if "STATION" in infra:
-                has_station = True
-            
-            # Also check station_location list
-            if any(block_num == b.block_number for block_num, _ in self.data_manager.station_location):
-                has_station = True
-            
-            # Only add row if block has ANY infrastructure
-            if has_switch or has_signal or has_crossing or has_station:
-                switch_state = "Right" if getattr(b, "switch_state", False) else "Left" if has_switch else "N/A"
-                
-                # Handle signal state
-                if has_signal:
-                    signal_state = getattr(b, "traffic_light_state", 0)
-                    signal_display = f"{signal_state}"
-                else:
-                    signal_display = "N/A"
-                
-                crossing_state = "Active" if getattr(b, "crossing", False) else "Inactive" if has_crossing else "N/A"
-                
-                # Only show heater status for station blocks
-                if has_station and hasattr(self, 'heater_manager'):
-                    # Get heater state
-                    heater_on = self.heater_manager.is_heater_on(b)
-                    heater_working = self.heater_manager.is_heater_working(b)
-                    
-                    # Get block temperature in Fahrenheit and convert to Celsius for display
-                    block_temp_f = self.heater_manager.get_block_temperature(b.block_number)
-                    block_temp_c = (block_temp_f - 32) * 5/9
-                    
-                    # Format heater status with temperature
-                    heater_status = "🔥 ON" if heater_on else "❄️ OFF"
-                    heater_work = "✅" if heater_working else "⚠️ BROKEN"
-                    heater_display = f"{heater_status} {heater_work} ({block_temp_c:.1f}°F)"
-                else:
-                    heater_display = "N/A"
-
-                rows.append((b.block_number, switch_state, signal_display, crossing_state, heater_display))
-        
-        # Apply sorting if needed
-        if hasattr(self, 'track_system_sort_column') and self.track_system_sort_column:
-            rows = self.apply_track_system_sort(rows, self.track_system_sort_column, self.track_system_sort_reverse)
-        
-        # Insert sorted rows
-        for row in rows:
-            self.track_sys_tree.insert("", "end", values=row)
-
     def sort_track_data_table(self, column):
-        """Sort Track/Station Data table by the clicked column."""
+        """Sort Track and Station Data table by the clicked column."""
         # Toggle sort direction if same column clicked again
         if self.track_data_sort_column == column:
             self.track_data_sort_reverse = not self.track_data_sort_reverse
@@ -807,7 +558,7 @@ class TrackModelUI(tk.Tk):
 
 
     def sort_track_system_table(self, column):
-        """Sort Track System Status table by the clicked column."""
+        """Sort Track Elements table by the clicked column."""
         # Toggle sort direction if same column clicked again
         if self.track_system_sort_column == column:
             self.track_system_sort_reverse = not self.track_system_sort_reverse
@@ -851,12 +602,19 @@ class TrackModelUI(tk.Tk):
                     return 1
             
             elif column == "Lights":
-                # Sort: N/A < Signal 0 < Signal 1 < Signal 2 < Signal 3
+                # Sort by the signal state: N/A < Red < Yellow < Green < Super Green
                 if val == "N/A":
                     return -1
+                elif "Red" in val:  # Handles "Red" and "Red (NO POWER)"
+                    return 0
+                elif val == "Yellow":
+                    return 1
+                elif val == "Green":
+                    return 2
+                elif val == "Super Green":
+                    return 3
                 else:
-                    # Extract signal number
-                    return int(val.split()[1])
+                    return 0  # Unknown defaults to Red
             
             elif column == "Crossings":
                 # Sort: N/A < Inactive < Active
@@ -883,46 +641,89 @@ class TrackModelUI(tk.Tk):
         return sorted(rows, key=sort_key, reverse=reverse)
     
     def populate_track_view(self):
-        """Populate the left table with track block data."""
-        # Configure columns for track view
-        self.tree.config(columns=self.columns_track)
-        for col in self.columns_track:
-            self.tree.heading(col, text=col, command=lambda c=col: self.sort_track_data_table(c))
-            self.tree.column(col, anchor="center", width=110)
+        """Populate the table with track block data, preserving scroll position."""
+        # Check if we need to create the table or if we're switching from station view
+        needs_recreation = False
         
-        # Clear existing rows
-        self.tree.delete(*self.tree.get_children())
+        if not hasattr(self, 'tree'):
+            needs_recreation = True
+        elif not hasattr(self, '_current_view') or self._current_view != 'track':
+            # Switching from station view to track view - need to recreate
+            needs_recreation = True
         
-        # Filter and populate only infrastructure blocks
-        infra_map = getattr(self.data_manager, "infrastructure_data", {})
-        allowed_keywords = ["STATION", "SWITCH", "RAILWAY CROSSING", "CROSSING"]
-
+        if needs_recreation:
+            # Clear existing track tab content
+            for widget in self.track_tab.winfo_children():
+                widget.destroy()
+            
+            # Create fresh table frame
+            self.table_frame = tk.Frame(self.track_tab, bg="white")
+            self.table_frame.pack(fill="both", expand=True)
+            
+            # Create the tree with track columns
+            self.tree = ttk.Treeview(self.table_frame, columns=self.columns_track, show="headings")
+            self.tree.pack(fill="both", expand=True, padx=10, pady=10)
+            
+            for col in self.columns_track:
+                self.tree.heading(col, text=col, command=lambda c=col: self.sort_track_data_table(c))
+                self.tree.column(col, anchor="center", width=110)
+            
+            # Mark that we're now in track view
+            self._current_view = 'track'
+        else:
+            # Table already exists for track view - just clear rows
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+        
+        # Populate ALL blocks (removed infrastructure filter)
         for b in self.data_manager.blocks:
-            infra = str(infra_map.get(b.block_number, "")).upper()
-            if any(keyword in infra for keyword in allowed_keywords):
-                self.tree.insert(
-                    "",
-                    "end",
-                    values=(
-                        b.block_number,
-                        f"{b.grade}%",
-                        f"{b.elevation} m",
-                        f"{b.length} m",
-                        f"{b.speed_limit} km/h",
-                    ),
-                )
+            self.tree.insert(
+                "",
+                "end",
+                values=(
+                    b.block_number,
+                    f"{b.grade}%",
+                    f"{b.elevation} m",
+                    f"{b.length} m",
+                    f"{b.speed_limit} km/h",
+                ),
+            )
 
 
     def populate_station_view(self):
-        """Populate the left table with station data."""
-        # Configure columns for station view
-        self.tree.config(columns=self.columns_station)
-        for col in self.columns_station:
-            self.tree.heading(col, text=col, command=lambda c=col: self.sort_track_data_table(c))
-            self.tree.column(col, anchor="center", width=110)
+        """Populate the table with station data, preserving scroll position."""
+        # Check if we need to create the table or if we're switching from track view
+        needs_recreation = False
         
-        # Clear existing rows
-        self.tree.delete(*self.tree.get_children())
+        if not hasattr(self, 'tree'):
+            needs_recreation = True
+        elif not hasattr(self, '_current_view') or self._current_view != 'station':
+            # Switching from track view to station view - need to recreate
+            needs_recreation = True
+        
+        if needs_recreation:
+            # Clear existing station tab content
+            for widget in self.station_tab.winfo_children():
+                widget.destroy()
+            
+            # Create fresh table frame in station tab
+            station_table_frame = tk.Frame(self.station_tab, bg="white")
+            station_table_frame.pack(fill="both", expand=True)
+            
+            # Create the tree with station columns
+            self.tree = ttk.Treeview(station_table_frame, columns=self.columns_station, show="headings")
+            self.tree.pack(fill="both", expand=True, padx=10, pady=10)
+            
+            for col in self.columns_station:
+                self.tree.heading(col, text=col, command=lambda c=col: self.sort_track_data_table(c))
+                self.tree.column(col, anchor="center", width=110)
+            
+            # Mark that we're now in station view
+            self._current_view = 'station'
+        else:
+            # Table already exists for station view - just clear rows
+            for item in self.tree.get_children():
+                self.tree.delete(item)
         
         # Populate station data
         for block_num, station_name in self.data_manager.station_location:
@@ -934,7 +735,7 @@ class TrackModelUI(tk.Tk):
                     block_num,
                     station_name,
                     f"{int(self.data_manager.ticket_sales[idx])} Tickets",
-                    f"{int(self.data_manager.passengers_boarding[idx])} Boarding",
+                    f"{int(self.data_manager.passengers_boarding[idx])} Boarding", 
                     f"{int(self.data_manager.passengers_disembarking[idx])} Leaving",
                 ),
             )
@@ -953,13 +754,23 @@ class TrackModelUI(tk.Tk):
 
     # ---------------- Bottom Table ----------------
     def create_bottom_table(self, parent):
-        # Create frame for table
-        table_frame = tk.Frame(parent, bg="navy")
-        table_frame.pack(fill="both", expand=True)
-        
-        # Add tabs at the top of the table frame
+        """Creates the bottom section with Track and Station Data on the left 
+        and Track Elements on the right."""
+        container = tk.Frame(parent, bg="navy")
+        container.pack(fill="both", expand=True)
+
+        self.columns_station = ("Block", "Station Name", "Tickets Sold", "Boarding", "Disembarking")
+
+        # --- Left side: Track and Station Data table ---
+        left_card = self.make_card(container, "Track and Station Data")
+        left_card.pack(side="left", fill="both", expand=True, padx=(0, 5), pady=5)
+
+        left_card.config(width=550)  # Set fixed width
+        left_card.pack_propagate(False)  # Prevent resizing based on content
+
+        # Add tabs INSIDE the Track and Station Data card
         self.view_mode = tk.StringVar(value="track")
-        self.view_tabs = ttk.Notebook(table_frame)
+        self.view_tabs = ttk.Notebook(left_card)
         
         # Track view tab
         self.track_tab = tk.Frame(self.view_tabs, bg="white")
@@ -972,21 +783,8 @@ class TrackModelUI(tk.Tk):
         self.view_tabs.pack(fill="both", expand=True, padx=5, pady=5)
         self.view_tabs.bind("<<NotebookTabChanged>>", self.on_view_tab_change)
 
-        """Creates the bottom section with Track/Station Data on the left 
-        and Track System Status on the right."""
-        container = tk.Frame(parent, bg="navy")
-        container.pack(fill="both", expand=True)
-
-        self.columns_station = ("Block", "Station Name", "Tickets Sold", "Boarding", "Disembarking")
-
-        # --- Left side: Track/Station Data table ---
-        left_card = self.make_card(container, "Track / Station Data")
-        left_card.pack(side="left", fill="both", expand=True, padx=(0, 5), pady=5)
-
-        left_card.config(width=550)  # Set fixed width
-        left_card.pack_propagate(False)  # Prevent resizing based on content
-
-        self.table_frame = tk.Frame(left_card, bg="white")
+        # Create table frame inside the track tab
+        self.table_frame = tk.Frame(self.track_tab, bg="white")
         self.table_frame.pack(fill="both", expand=True)
 
         # Define columns (you can add Infrastructure column if desired)
@@ -1026,8 +824,8 @@ class TrackModelUI(tk.Tk):
                     ),
                 )
 
-        # --- Right side: Track System Status table ---
-        right_card = self.make_card(container, "Track System Status")
+        # --- Right side: Track Elements table ---
+        right_card = self.make_card(container, "Track Elements")
         right_card.pack(side="left", fill="both", expand=True, padx=(5, 0), pady=5)
         self.track_sys_tree = ttk.Treeview(
             right_card,
@@ -1305,19 +1103,29 @@ class TrackModelUI(tk.Tk):
         self.after(1000, self.start_temperature_update_loop)
 
     def _initialize_station_ticket_sales(self):
-        """Initialize random ticket sales for all stations (0-70)."""
-        print("🎫 === INITIALIZING STATION TICKET SALES ===")
-        print(f"   Station locations: {self.data_manager.station_location}")
-        print(f"   Total blocks: {len(self.data_manager.blocks)}")
+        """Initialize random ticket sales and boarding/disembarking for all stations."""
+        print("🎫 === INITIALIZING STATION DATA ===")
+        
+        # Ensure arrays are the correct length
+        num_blocks = len(self.data_manager.blocks)
+        self.data_manager.ticket_sales = [0] * num_blocks
+        self.data_manager.passengers_boarding = [0] * num_blocks
+        self.data_manager.passengers_disembarking = [0] * num_blocks
         
         for block_num, station_name in self.data_manager.station_location:
             idx = block_num - 1
-            # Generate random ticket sales between 0-70
-            ticket_count = self.random.randint(0, 70)
-            self.data_manager.ticket_sales[idx] = ticket_count
-            print(f"   Station {station_name} (Block {block_num}, idx={idx}): {ticket_count} tickets waiting")
+            if 0 <= idx < num_blocks:
+                # Generate random ticket sales between 0-70
+                ticket_count = self.random.randint(0, 70)
+                self.data_manager.ticket_sales[idx] = ticket_count
+                
+                # Generate random boarding count (0 to ticket_sales)
+                boarding_count = self.random.randint(0, ticket_count)
+                self.data_manager.passengers_boarding[idx] = boarding_count
+                
+                print(f"   Station {station_name} (Block {block_num}): {ticket_count} tickets, {boarding_count} boarding")
         
-        print("   === TICKET SALES INITIALIZATION COMPLETE ===\n")
+        print("   === STATION DATA INITIALIZATION COMPLETE ===\n")
         
         # Send initial ticket sales to CTC
         for block_num, _ in self.data_manager.station_location:
@@ -1341,6 +1149,24 @@ class TrackModelUI(tk.Tk):
                     
                     if new_tickets > 0:
                         print(f"🎫 {station_name} (Block {block_num}): {current_tickets} → {self.data_manager.ticket_sales[idx]} (+{new_tickets})")
+
+    def update_station_boarding_data(self):
+        """Update boarding data for all stations - called during refresh"""
+        for block_num, station_name in self.data_manager.station_location:
+            idx = block_num - 1
+            if 0 <= idx < len(self.data_manager.ticket_sales):
+                current_tickets = self.data_manager.ticket_sales[idx]
+                current_boarding = self.data_manager.passengers_boarding[idx]
+                
+                # If no train is at the station, generate random boarding data
+                block = self.data_manager.blocks[idx]
+                if getattr(block, 'occupancy', 0) == 0:
+                    # Generate new boarding count based on current tickets
+                    if current_tickets > 0:
+                        new_boarding = self.random.randint(0, min(50, current_tickets))  # Max 50 boarding at once
+                        self.data_manager.passengers_boarding[idx] = new_boarding
+                    else:
+                        self.data_manager.passengers_boarding[idx] = 0
 
     def create_block_occupancy_panel(self, parent):
         """Create Block Occupancy control panel for center area."""
@@ -2253,10 +2079,22 @@ class TrackModelUI(tk.Tk):
                 # Signal state (off if power failure)
                 if has_signal:
                     if not has_power:
-                        signal_display = "0 (NO POWER)"
+                        signal_display = "Red (NO POWER)"
                     else:
                         signal_state = getattr(b, "traffic_light_state", 0)
-                        signal_display = f"{signal_state}"
+                        # Convert state to color name based on two-bit representation
+                        # bit0 = signal_state & 1, bit1 = signal_state & 2
+                        # 00 (0) = Red, 01 (1) = Yellow, 10 (2) = Green, 11 (3) = Super Green
+                        if signal_state == 0:
+                            signal_display = "Red"
+                        elif signal_state == 1:
+                            signal_display = "Yellow"
+                        elif signal_state == 2:
+                            signal_display = "Green"
+                        elif signal_state == 3:
+                            signal_display = "Super Green"
+                        else:
+                            signal_display = f"Unknown ({signal_state})"
                 else:
                     signal_display = "N/A"
                 
@@ -2583,9 +2421,8 @@ class TrackModelUI(tk.Tk):
                 occupancy_data[block.block_number] = block.occupancy
         
         self.server.send_to_ui("Wayside Controller", {
-            'track': "Green",
-            'block': block,
-            'occupied': occupancy_data
+            'command': 'Block Occupancy',
+            'data': occupancy_data
         })
         print(f"📤 Sent block occupancy to Wayside Controller ({len(occupancy_data)} occupied)")
 
@@ -2659,22 +2496,26 @@ class TrackModelUI(tk.Tk):
         print(f"📤 Sent passengers boarding to Train Model")
 
     def send_light_states_to_train_controller(self):
-        """Send traffic light states to Train Controller."""
+        """Send traffic light states to Train Controller as two-bit boolean arrays."""
         light_data = {}
         for block_num in self.light_states:
             if block_num <= len(self.data_manager.blocks):
                 block = self.data_manager.blocks[block_num - 1]
                 # Check if block has power
                 if self.murphy_failures.has_power(block_num):
-                    light_data[block_num] = getattr(block, 'traffic_light_state', 0)
+                    state = getattr(block, 'traffic_light_state', 0)
+                    # Convert state (0-3) to two-bit boolean array [bit0, bit1]
+                    # State 0: [False, False], State 1: [True, False], 
+                    # State 2: [False, True], State 3: [True, True]
+                    light_data[block_num] = [bool(state & 1), bool(state & 2)]
                 else:
-                    light_data[block_num] = 0  # No power = lights off
+                    light_data[block_num] = [False, False]  # No power = lights off
         
         self.server.send_to_ui("Train Controller", {
-            'command': 'light_states',
+            'command': 'Light States',
             'data': light_data
         })
-        print(f"📤 Sent light states to Train Controller")
+        print(f"📤 Sent light states to Train Controller as two-bit boolean arrays")
 
 
     # ---------------- INPUT HANDLERS (Update _process_message) ----------------
@@ -2690,55 +2531,42 @@ class TrackModelUI(tk.Tk):
             block_number = message.get('block_number')
             
             # ============================================================
-            # COMMANDED SPEED - From Wayside/CTC
+            # COMMANDED SPEED AND AUTHORITY - Combined command
+            # Receives array: [block_number, commanded_speed, commanded_authority]
+            # Sends array in SAME format to Train Model: [block_number, commanded_speed, commanded_authority]
             # ============================================================
-            if command == 'commanded_speed':
-                if isinstance(data, dict):
-                    # Batch update: {train_id: speed, ...}
-                    for train_id, speed in data.items():
-                        if train_id in self.data_manager.active_trains:
-                            idx = self.data_manager.active_trains.index(train_id)
-                            self.data_manager.commanded_speed[idx] = speed
-                            print(f"✅ Updated commanded speed for {train_id}: {speed} m/s")
-                else:
-                    # Single update
+            if command == 'Speed and Authority':
+                # Expect value as array: [block_number, commanded_speed, commanded_authority]
+                if isinstance(value, list) and len(value) == 3:
+                    block_number = value[0]
+                    commanded_speed = value[1]
+                    commanded_authority = value[2]
                     train_id = message.get('train_id')
-                    if train_id in self.data_manager.active_trains:
+                    
+                    if train_id and train_id in self.data_manager.active_trains:
                         idx = self.data_manager.active_trains.index(train_id)
-                        self.data_manager.commanded_speed[idx] = value
-                        print(f"✅ Updated commanded speed for {train_id}: {value} m/s")
+                        self.data_manager.commanded_speed[idx] = commanded_speed
+                        self.data_manager.commanded_authority[idx] = commanded_authority
+                        print(f"✅ Updated commanded speed for {train_id}: {commanded_speed} m/s")
+                        print(f"✅ Updated commanded authority for {train_id}: {commanded_authority} blocks")
+                        
+                        # Send array in SAME format [block_number, commanded_speed, commanded_authority] to Train Model
+                        speed_authority_array = [block_number, commanded_speed, commanded_authority]
+                        self.server.send_to_ui("Train Model", {
+                            "command": "Speed and Authority",
+                            "train_id": train_id,
+                            "value": speed_authority_array
+                        })
+                        print(f"📤 Sent Speed and Authority array to Train Model: {speed_authority_array}")
+                else:
+                    print(f"⚠️ Invalid Speed and Authority format. Expected [block_number, speed, authority], got: {value}")
             
             # ============================================================
-            # COMMANDED AUTHORITY - From Wayside/CTC
+            # SWITCH POSITIONS - Update switch states
+            # value should be a dict like {5: True, 10: False} where True=Right, False=Left
             # ============================================================
-            elif command == 'commanded_authority':
-                if isinstance(data, dict):
-                    # Batch update: {train_id: authority, ...}
-                    for train_id, authority in data.items():
-                        if train_id in self.data_manager.active_trains:
-                            idx = self.data_manager.active_trains.index(train_id)
-                            self.data_manager.commanded_authority[idx] = authority
-                            print(f"✅ Updated commanded authority for {train_id}: {authority} blocks")
-                else:
-                    # Single update
-                    train_id = message.get('train_id')
-                    if train_id in self.data_manager.active_trains:
-                        idx = self.data_manager.active_trains.index(train_id)
-                        self.data_manager.commanded_authority[idx] = value
-                        print(f"✅ Updated commanded authority for {train_id}: {value} blocks")
-            
-            # ============================================================
-            # SWITCH POSITIONS - From Wayside Controller
-            # ============================================================
-            elif command == 'switch_positions':
-                if isinstance(data, dict):
-                    for block_num, state in data.items():
-                        if 1 <= block_num <= len(self.data_manager.blocks):
-                            block = self.data_manager.blocks[block_num - 1]
-                            block.switch_state = state
-                            print(f"✅ Updated switch at block {block_num}: {'Right' if state else 'Left'}")
-                    self.refresh_ui()
-                elif isinstance(value, dict):
+            elif command == 'Switch Positions':
+                if isinstance(value, dict):
                     for block_num, state in value.items():
                         if 1 <= block_num <= len(self.data_manager.blocks):
                             block = self.data_manager.blocks[block_num - 1]
@@ -2746,6 +2574,7 @@ class TrackModelUI(tk.Tk):
                             print(f"✅ Updated switch at block {block_num}: {'Right' if state else 'Left'}")
                     self.refresh_ui()
                 elif block_number:
+                    # Single switch update
                     if 1 <= block_number <= len(self.data_manager.blocks):
                         block = self.data_manager.blocks[block_number - 1]
                         block.switch_state = value
@@ -2754,55 +2583,46 @@ class TrackModelUI(tk.Tk):
             
             # ============================================================
             # LIGHT STATES / SIGNALS - From Wayside Controller
+            # Receives as two-bit boolean arrays: [bit0, bit1]
             # ============================================================
-            elif command == 'light_states' or command == 'signal_states':
+            elif command == 'Light States':
                 if isinstance(data, dict):
-                    for block_num, state in data.items():
+                    for block_num, bit_array in data.items():
                         if 1 <= block_num <= len(self.data_manager.blocks):
                             block = self.data_manager.blocks[block_num - 1]
-                            block.traffic_light_state = state
-                            print(f"✅ Updated signal at block {block_num}: State {state}")
+                            # Convert two-bit boolean array to state (0-3)
+                            # [False, False] = 0, [True, False] = 1,
+                            # [False, True] = 2, [True, True] = 3
+                            if isinstance(bit_array, list) and len(bit_array) == 2:
+                                state = (1 if bit_array[0] else 0) + (2 if bit_array[1] else 0)
+                                block.traffic_light_state = state
+                                print(f"✅ Updated signal at block {block_num}: State {state} from bits {bit_array}")
+                            else:
+                                print(f"⚠️ Invalid bit array format for block {block_num}: {bit_array}")
                     self.refresh_ui()
                 elif isinstance(value, dict):
-                    for block_num, state in value.items():
+                    for block_num, bit_array in value.items():
                         if 1 <= block_num <= len(self.data_manager.blocks):
                             block = self.data_manager.blocks[block_num - 1]
-                            block.traffic_light_state = state
-                            print(f"✅ Updated signal at block {block_num}: State {state}")
+                            # Convert two-bit boolean array to state (0-3)
+                            if isinstance(bit_array, list) and len(bit_array) == 2:
+                                state = (1 if bit_array[0] else 0) + (2 if bit_array[1] else 0)
+                                block.traffic_light_state = state
+                                print(f"✅ Updated signal at block {block_num}: State {state} from bits {bit_array}")
+                            else:
+                                print(f"⚠️ Invalid bit array format for block {block_num}: {bit_array}")
                     self.refresh_ui()
                 elif block_number and value is not None:
                     if 1 <= block_number <= len(self.data_manager.blocks):
                         block = self.data_manager.blocks[block_number - 1]
-                        block.traffic_light_state = value
-                        print(f"✅ Updated signal at block {block_number}: State {value}")
+                        # Convert two-bit boolean array to state (0-3)
+                        if isinstance(value, list) and len(value) == 2:
+                            state = (1 if value[0] else 0) + (2 if value[1] else 0)
+                            block.traffic_light_state = state
+                            print(f"✅ Updated signal at block {block_number}: State {state} from bits {value}")
+                        else:
+                            print(f"⚠️ Invalid bit array format for block {block_number}: {value}")
                         self.refresh_ui()
-            
-            # ============================================================
-            # BLOCK OCCUPANCY - From Train Model
-            # ===========================================================
-
-            elif command == 'update_occupancy':
-                if isinstance(data, dict):
-                    for block_num, occupancy in data.items():
-                        if 1 <= block_num <= len(self.data_manager.blocks):
-                            block = self.data_manager.blocks[block_num - 1]
-                            block.occupancy = occupancy
-                            print(f"✅ Updated occupancy for block {block_num}: {occupancy}")
-                    self.refresh_ui()
-                elif isinstance(value, dict):
-                    for block_num, occupancy in value.items():
-                        if 1 <= block_num <= len(self.data_manager.blocks):
-                            block = self.data_manager.blocks[block_num - 1]
-                            block.occupancy = occupancy
-                            print(f"✅ Updated occupancy for block {block_num}: {occupancy}")
-                    self.refresh_ui()
-                elif block_number is not None:
-                    if 1 <= block_number <= len(self.data_manager.blocks):
-                        block = self.data_manager.blocks[block_number - 1]
-                        block.occupancy = value
-                        print(f"✅ Updated occupancy for block {block_number}: {value}")
-                        self.refresh_ui()
-
             
             # ============================================================
             # PASSENGERS DISEMBARKING - From Train Model
@@ -2822,18 +2642,6 @@ class TrackModelUI(tk.Tk):
                             self.populate_station_view()
             
             # ============================================================
-            # PASSENGERS BOARDING - From Train Model
-            # ============================================================
-            elif command == 'passengers_boarding':
-                if block_number is not None:
-                    idx = block_number - 1
-                    if 0 <= idx < len(self.data_manager.passengers_boarding):
-                        self.data_manager.passengers_boarding[idx] = value
-                        print(f"✅ Updated passengers boarding at block {block_number}: {value}")
-                        if self.view_mode.get() == "station":
-                            self.populate_station_view()
-            
-            # ============================================================
             # TRAIN OCCUPANCY - From Train Model
             # ============================================================
             elif command == 'train_occupancy':
@@ -2842,17 +2650,6 @@ class TrackModelUI(tk.Tk):
                     idx = self.data_manager.active_trains.index(train_id)
                     self.data_manager.train_occupancy[idx] = value
                     print(f"✅ Updated train occupancy for {train_id}: {value} passengers")
-            
-            # ============================================================
-            # CROSSING STATE - From Wayside Controller
-            # ============================================================
-            elif command == 'crossing_state':
-                if block_number is not None:
-                    if 1 <= block_number <= len(self.data_manager.blocks):
-                        block = self.data_manager.blocks[block_number - 1]
-                        block.crossing = value
-                        print(f"✅ Updated crossing at block {block_number}: {'Active' if value else 'Inactive'}")
-                        self.refresh_ui()
             
             # ============================================================
             # TEST COMMAND
