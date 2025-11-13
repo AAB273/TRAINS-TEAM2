@@ -29,7 +29,7 @@ class RailwayControlSystem:
         self.data = RailwayData()
         
         # Load socket configuration first
-        module_config = load_socket_config().get("Track SW", {"port": 22342})
+        module_config = load_socket_config().get("Track SW", {"port": 2})
         
         # Initialize socket server with the loaded configuration
         self.server = TrainSocketServer(
@@ -43,6 +43,8 @@ class RailwayControlSystem:
         
         # FIX: Connect with correct parameters
         self.server.connect_to_ui('localhost', 22342, "test_ui")
+        self.server.connect_to_ui('localhost', 12341, "CTC")
+        self.server.connect_to_ui('localhost', 12344, "Track Model")
 
         self.create_ui()
         self.setup_logging()
