@@ -725,6 +725,22 @@ class Main_Window:
         
         # Update door safety
         self.update_door_safety()
+
+            # Auto-release emergency brake once train fully stops and all failures cleared
+        if self.emergency_brake_active and self.current_speed <= 0.1:
+            no_failures = not (
+                self.engine_failure.active or
+                self.signal_failure.active or
+                self.brake_failure.active
+            )
+            if no_failures:
+                self.emergency_brake_active = False
+                self.emergency_brake_auto_triggered = False
+                self.emergency_light.deactivate()
+                self.send_emergency_brake_signal(False)
+                self.add_to_status_log("Emergency brake auto-released (train stopped)")
+                print("Emergency brake auto-released - train stopped")
+
         
         # Calculate and send power command
         # Only send power when NOT in emergency brake and NOT in service brake
