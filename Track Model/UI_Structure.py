@@ -74,6 +74,8 @@ class TrackModelUI(tk.Tk):
         }
         self.terminals = []
 
+        self.test_block_occupancy(4, 1)
+
         # Initialize sorting state variables
         self.track_data_sort_column = None
         self.track_data_sort_reverse = False
@@ -2572,8 +2574,9 @@ class TrackModelUI(tk.Tk):
             
             # ============================================================
             # BLOCK OCCUPANCY - From Train Model
-            # ============================================================
-            elif command == 'block_occupancy':
+            # ===========================================================
+
+            elif command == 'update_occupancy':
                 if isinstance(data, dict):
                     for block_num, occupancy in data.items():
                         if 1 <= block_num <= len(self.data_manager.blocks):
@@ -2594,6 +2597,8 @@ class TrackModelUI(tk.Tk):
                         block.occupancy = value
                         print(f"✅ Updated occupancy for block {block_number}: {value}")
                         self.refresh_ui()
+
+                        send_to_ui("Wayside Controller SW, ")
             
             # ============================================================
             # PASSENGERS DISEMBARKING - From Train Model
@@ -2676,6 +2681,35 @@ class TrackModelUI(tk.Tk):
         """Start periodic output updates (every 5 seconds)."""
         self.send_all_outputs()
         self.after(5000, self.start_output_updates)  # Send every 5 seconds
+
+    def test_block_occupancy(self, block_num, occupancy):
+        """Test method to simulate receiving block occupancy"""
+        if block_num is None:
+            block_num = self.random.randint(1, len(self.data_manager.blocks))
+        if occupancy is None:
+            occupancy = self.random.randint(0, 1)  # 0 or 1
+        
+        # Test with array format: [block_num, occupancy]
+        test_occupancy = [block_num, occupancy]
+        
+        print(f"\n🧪 TEST BLOCK OCCUPANCY:")
+        print(f"   Sending: {test_occupancy}")
+        
+        # Simulate receiving the occupancy command
+        self._process_message({
+            'command': 'block_occupancy',
+            'value': test_occupancy
+        }, "TEST_SIMULATION")
+        
+        # Also test the dictionary format
+        test_occupancy_dict = {block_num: occupancy}
+        print(f"\n🧪 TEST BLOCK OCCUPANCY (dict format):")
+        print(f"   Sending: {test_occupancy_dict}")
+        
+        self._process_message({
+            'command': 'block_occupancy',
+            'value': test_occupancy_dict
+        }, "TEST_SIMULATION")
 
 # ---------------- Run Application ----------------
 if __name__ == "__main__":
