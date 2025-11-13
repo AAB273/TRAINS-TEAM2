@@ -396,18 +396,12 @@ class TrackModelUI(tk.Tk):
         temp_card = self.make_card(parent, "Environment")
 
         def set_environment_temp():
-            """
-            Set the environmental (outside/ambient) temperature.
-            This is what blocks will cool down to when heaters are off.
-            """
+            """Set the environmental (outside/ambient) temperature."""
             new_temp = simpledialog.askfloat("Set Temperature", "Enter new environmental temperature (°F):")
             if new_temp is not None:
                 self.data_manager.environmental_temp = new_temp
                 self.temp_label.config(text=f"Temperature: {new_temp}°F")
-                
-                # Convert to Fahrenheit and update heater system
-                temp_fahrenheit = (new_temp * 9/5) + 32
-                self.heater_manager.set_environmental_temperature(temp_fahrenheit)
+                self.heater_manager.set_environmental_temperature(new_temp)
 
         tk.Button(temp_card, text="Set Environmental Temp", command=set_environment_temp).pack(padx=10, pady=10)
         self.temp_label = tk.Label(
@@ -433,7 +427,7 @@ class TrackModelUI(tk.Tk):
         self.train_info.pack(padx=10, pady=5)
         train_card.pack(fill="x", pady=10)
 
-        # Failure Modes
+        # Murphy Failure Modes
         fail_card = self.make_card(parent, "Murphy Failure Modes")
         self.failure_train_circuit_var = tk.BooleanVar(value=False)
         self.failure_rail_var = tk.BooleanVar(value=False)
@@ -471,9 +465,146 @@ class TrackModelUI(tk.Tk):
             font=("Arial", 10)
         )
         power_check.pack(pady=5)
+        fail_card.pack(fill="x", pady=10)
 
-        # ADD THIS LINE:
-        fail_card.pack(fill="x", pady=10)  # ← Pack the murphy failure panel!
+        # ============================================================
+        # PLC Upload Section (moved from right side)
+        # ============================================================
+        plc_card = self.make_card(parent, "PLC Upload")
+        
+        tk.Label(
+            plc_card,
+            text="Upload Track Data file\n(.png, .csv, .txt, .xlsx)",
+            font=("Arial", 9),
+            bg='white',
+            fg='gray',
+            justify="center"
+        ).pack(pady=5)
+
+        ttk.Button(
+            plc_card,
+            text="Choose File",
+            command=self.file_manager.upload_track_file,
+            width=18
+        ).pack(pady=5, padx=10)
+
+        self.file_status_label = tk.Label(
+            plc_card,
+            text="No file selected",
+            font=("Arial", 9),
+            bg='white',
+            fg='gray'
+        )
+        self.file_status_label.pack(pady=3)
+
+        self.history_label = tk.Label(
+            plc_card,
+            text="Last upload: Never",
+            font=("Arial", 8),
+            bg='white',
+            fg='darkgray'
+        )
+        self.history_label.pack(pady=3)
+        
+        plc_card.pack(fill="x", pady=10)
+
+
+    # ============================================================
+    # Add these methods to handle block occupancy
+    # ============================================================
+
+    def set_block_occupancy(self):
+        """Set occupancy for a specific block."""
+        try:
+            block_num = int(self.occupancy_block_var.get())
+            train_id = int(self.occupancy_train_var.get())
+            
+            if block_num < 1 or block_num > len(self.data_manager.blocks):
+                self.occupancy_status_label.config(text=f"❌ Invalid block number", fg="red")
+                return
+            
+            # Set occupancy
+            block = self.data_manager.blocks[block_num - 1]
+            block.occupancy = train_id
+            
+            # Update status
+            if train_id == 0:
+                self.occupancy_status_label.config(
+                    text=f"✅ Block {block_num} cleared",
+                    fg="green"
+                )
+            else:
+                self.occupancy_status_label.config(
+                    text=f"✅ Block {block_num} occupied by Train {train_id}",
+                    fg="green"
+                )
+            
+            # Send update to other UIs
+            if hasattr(self, 'send_block_occupancy_to_wayside'):
+                self.send_block_occupancy_to_wayside()
+            if hasattr(self, 'send_block_occupancy_to_train_model'):
+                self.send_block_occupancy_to_train_model()
+            
+            # Refresh UI
+            self.refresh_ui()
+            
+        except ValueError:
+            self.occupancy_status_label.config(
+                text="❌ Invalid input - use numbers only",
+                fg="red"
+            )
+
+    def clear_block_occupancy(self):
+        """Clear occupancy for the selected block."""
+        try:
+            block_num = int(self.occupancy_block_var.get())
+            
+            if block_num < 1 or block_num > len(self.data_manager.blocks):
+                self.occupancy_status_label.config(text=f"❌ Invalid block number", fg="red")
+                return
+            
+            # Clear occupancy
+            block = self.data_manager.blocks[block_num - 1]
+            block.occupancy = 0
+            
+            # Update status
+            self.occupancy_status_label.config(
+                text=f"✅ Block {block_num} cleared",
+                fg="green"
+            )
+            
+            # Send update to other UIs
+            if hasattr(self, 'send_block_occupancy_to_wayside'):
+                self.send_block_occupancy_to_wayside()
+            if hasattr(self, 'send_block_occupancy_to_train_model'):
+                self.send_block_occupancy_to_train_model()
+            
+            # Refresh UI
+            self.refresh_ui()
+            
+        except ValueError:
+            self.occupancy_status_label.config(
+                text="❌ Invalid block number",
+                fg="red"
+            )
+
+    def clear_all_occupancy(self):
+        """Clear occupancy for all blocks."""
+        for block in self.data_manager.blocks:
+            block.occupancy = 0
+        
+        self.occupancy_status_label.config(
+            text="✅ All blocks cleared",
+            fg="green"
+        )
+        
+        # Send updates
+        if hasattr(self, 'send_block_occupancy_to_wayside'):
+            self.send_block_occupancy_to_wayside()
+        if hasattr(self, 'send_block_occupancy_to_train_model'):
+            self.send_block_occupancy_to_train_model()
+        
+        self.refresh_ui()
 
     def update_train_info(self, event):
         idx = self.train_combo.current()
@@ -483,7 +614,7 @@ class TrackModelUI(tk.Tk):
         self.train_info.config(
             text=f"Occupancy: {occ} People\nCommanded Speed: {spd} m/s\nCommanded Authority: {auth} blocks"
         )
-
+        
     # ---------------- Center Panel ----------------
     def create_center_panel(self, parent):
         # Create card for notebook with fixed height (same as before)
@@ -1211,129 +1342,147 @@ class TrackModelUI(tk.Tk):
                     if new_tickets > 0:
                         print(f"🎫 {station_name} (Block {block_num}): {current_tickets} → {self.data_manager.ticket_sales[idx]} (+{new_tickets})")
 
+    def create_block_occupancy_panel(self, parent):
+        """Create Block Occupancy control panel for center area."""
+        occupancy_frame = tk.Frame(parent, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
+        occupancy_frame.pack(fill="x", padx=5, pady=(0, 8))
+        
+        tk.Label(
+            occupancy_frame,
+            text="Block Occupancy Control",
+            font=("Arial", 9, "bold"),
+            bg="white",
+            fg="black"
+        ).pack(pady=(5, 3))
+        
+        # Input row
+        input_frame = tk.Frame(occupancy_frame, bg="white")
+        input_frame.pack(fill="x", pady=5, padx=10)
+        
+        # Block number
+        tk.Label(input_frame, text="Block #:", bg="white", font=("Arial", 9)).pack(side="left", padx=5)
+        self.occupancy_block_var = tk.StringVar(value="1")
+        tk.Entry(input_frame, textvariable=self.occupancy_block_var, width=8).pack(side="left", padx=5)
+        
+        # Train ID
+        tk.Label(input_frame, text="Train ID:", bg="white", font=("Arial", 9)).pack(side="left", padx=5)
+        self.occupancy_train_var = tk.StringVar(value="0")
+        tk.Entry(input_frame, textvariable=self.occupancy_train_var, width=8).pack(side="left", padx=5)
+        
+        # Buttons row
+        button_frame = tk.Frame(occupancy_frame, bg="white")
+        button_frame.pack(fill="x", pady=5, padx=10)
+        
+        ttk.Button(
+            button_frame,
+            text="Set Occupancy",
+            command=self.set_block_occupancy
+        ).pack(side="left", padx=5)
+        
+        ttk.Button(
+            button_frame,
+            text="Clear Occupancy",
+            command=self.clear_block_occupancy
+        ).pack(side="left", padx=5)
+        
+        # Status label
+        self.occupancy_status_label = tk.Label(
+            occupancy_frame,
+            text="Status: Ready",
+            bg="white",
+            font=("Arial", 8),
+            fg="gray"
+        )
+        self.occupancy_status_label.pack(pady=3)
+        
+        return occupancy_frame
 
     def create_PLCupload_panel(self, parent):
-            """Creates separate PLC upload and terminal panels to the right of the track diagram."""
-            outer_frame = tk.Frame(parent, bg="white")
+        """Creates block occupancy, bidirectional controls and terminal panel (PLC upload moved to left panel)."""
+        outer_frame = tk.Frame(parent, bg="white")
 
-            # --- PLC UPLOAD SECTION ---
-            plc_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
-            plc_frame.pack(fill="x", padx=5, pady=(0, 8))
+        # --- BLOCK OCCUPANCY CONTROL (ADDED ABOVE BIDIRECTIONAL) ---
+        self.create_block_occupancy_panel(outer_frame)
 
-            tk.Label(
-                plc_frame,
-                text="Upload your Track Data file (.png, .csv, .txt, .xlsx)",
-                font=("Arial", 9),
-                bg='white',
-                fg='gray',
-                wraplength=200,
-                justify="center"
-            ).pack(pady=3)
+        # --- BIDIRECTIONAL BLOCK CONTROLS ---
+        bidir_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
+        bidir_frame.pack(fill="x", padx=5, pady=(0, 8))
 
-            ttk.Button(
-                plc_frame,
-                text="Choose File",
-                command=self.file_manager.upload_track_file,
-                width=18
-            ).pack(pady=5)
+        tk.Label(
+            bidir_frame,
+            text="Bidirectional Block Directions",
+            font=("Arial", 9, "bold"),
+            bg="white",
+            fg="black"
+        ).pack(pady=(5, 3))
 
-            file_status = tk.Label(
-                plc_frame,
-                text="No file selected",
-                font=("Arial", 9),
-                bg='white',
-                fg='gray'
-            )
-            file_status.pack(pady=3)
+        # Create control widgets for each bidirectional group
+        self.bidir_controls = {}
+        
+        # Use the shared data from TrackDataManager - ensure it exists
+        if not hasattr(self.data_manager, 'bidirectional_directions'):
+            # Initialize with default data if missing
+            self.data_manager.bidirectional_directions = {
+                "Blocks 1-5": 0,
+                "Blocks 6-10": 0, 
+                "Blocks 11-15": 0
+            }
+        
+        # Create controls for each group
+        for group_name in self.data_manager.bidirectional_directions.keys():
+            self.create_bidirectional_control(bidir_frame, group_name)
 
-            history_label = tk.Label(
-                plc_frame,
-                text="Last upload: Never",
-                font=("Arial", 8),
-                bg='white',
-                fg='darkgray'
-            )
-            history_label.pack(pady=3)
+        # --- TERMINAL / EVENT LOG SECTION ---
+        terminal_frame = tk.Frame(
+            outer_frame,
+            bg="white",
+            highlightbackground="#d0d0d0",
+            highlightthickness=1
+        )
+        terminal_frame.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 
-            # --- BIDIRECTIONAL BLOCK CONTROLS (WITH BUTTONS LIKE TEST UI) ---
-            bidir_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
-            bidir_frame.pack(fill="x", padx=5, pady=(0, 8))
+        # Header row with title on left and Send Outputs button on right
+        header_frame = tk.Frame(terminal_frame, bg="white")
+        header_frame.pack(fill="x", padx=5, pady=(3, 0))
 
-            tk.Label(
-                bidir_frame,
-                text="Bidirectional Block Directions",
-                font=("Arial", 9, "bold"),
-                bg="white",
-                fg="black"
-            ).pack(pady=(5, 3))
+        tk.Label(
+            header_frame,
+            text="Event Log / Terminal",
+            font=("Arial", 9, "bold"),
+            bg="white",
+            fg="black"
+        ).pack(side="left", anchor="w")
 
-            # Create control widgets for each bidirectional group (like Test UI)
-            self.bidir_controls = {}
-            
-            # Use the shared data from TrackDataManager - ensure it exists
-            if not hasattr(self.data_manager, 'bidirectional_directions'):
-                # Initialize with default data if missing
-                self.data_manager.bidirectional_directions = {
-                    "Blocks 1-5": 0,
-                    "Blocks 6-10": 0, 
-                    "Blocks 11-15": 0
-                }
-            
-            # Create controls for each group
-            for group_name in self.data_manager.bidirectional_directions.keys():
-                self.create_bidirectional_control(bidir_frame, group_name)
+        send_button = ttk.Button(
+            header_frame,
+            text="Check Outputs",
+            command=self.send_outputs
+        )
+        send_button.pack(side="right", anchor="e", padx=(0, 3))
 
-            # --- TERMINAL / EVENT LOG SECTION ---
-            terminal_frame = tk.Frame(
-                outer_frame,
-                bg="white",
-                highlightbackground="#d0d0d0",
-                highlightthickness=1
-            )
-            terminal_frame.pack(fill="both", expand=True, padx=5, pady=(0, 5))
+        # Inner frame holds text box and scrollbar
+        term_inner = tk.Frame(terminal_frame, bg="white")
+        term_inner.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 
-            # Header row with title on left and Send Outputs button on right
-            header_frame = tk.Frame(terminal_frame, bg="white")
-            header_frame.pack(fill="x", padx=5, pady=(3, 0))
+        terminal = tk.Text(
+            term_inner,
+            height=8,
+            width=30,
+            bg="#f5f5f5",
+            fg="black",
+            font=("Consolas", 9),
+            state="disabled",
+            wrap="word"
+        )
+        terminal.pack(side="left", fill="both", expand=True)
 
-            tk.Label(
-                header_frame,
-                text="Event Log / Terminal",
-                font=("Arial", 9, "bold"),
-                bg="white",
-                fg="black"
-            ).pack(side="left", anchor="w")
+        self.terminals.append(terminal)
 
-            send_button = ttk.Button(
-                header_frame,
-                text="Check Outputs",
-                command=self.send_outputs
-            )
-            send_button.pack(side="right", anchor="e", padx=(0, 3))
+        scrollbar = ttk.Scrollbar(term_inner, command=terminal.yview)
+        scrollbar.pack(side="right", fill="y")
+        terminal.config(yscrollcommand=scrollbar.set)
 
-            # Inner frame holds text box and scrollbar
-            term_inner = tk.Frame(terminal_frame, bg="white")
-            term_inner.pack(fill="both", expand=True, padx=5, pady=(0, 5))
-
-            terminal = tk.Text(
-                term_inner,
-                height=8,
-                width=30,
-                bg="#f5f5f5",
-                fg="black",
-                font=("Consolas", 9),
-                state="disabled",
-                wrap="word"
-            )
-            terminal.pack(side="left", fill="both", expand=True)
-
-            self.terminals.append(terminal)
-
-            scrollbar = ttk.Scrollbar(term_inner, command=terminal.yview)
-            scrollbar.pack(side="right", fill="y")
-            terminal.config(yscrollcommand=scrollbar.set)
-
-            return outer_frame
+        return outer_frame
     
     
     def create_bidirectional_control(self, parent, group_name):
@@ -1871,6 +2020,61 @@ class TrackModelUI(tk.Tk):
             terminal.insert("end", f"{message}\n")
             terminal.see("end")
             terminal.config(state="disabled")
+
+    def create_block_occupancy_panel(self, parent):
+        """Create Block Occupancy control panel for center area."""
+        occupancy_frame = tk.Frame(parent, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
+        occupancy_frame.pack(fill="x", padx=5, pady=(0, 8))
+        
+        tk.Label(
+            occupancy_frame,
+            text="Block Occupancy Control",
+            font=("Arial", 9, "bold"),
+            bg="white",
+            fg="black"
+        ).pack(pady=(5, 3))
+        
+        # Input row
+        input_frame = tk.Frame(occupancy_frame, bg="white")
+        input_frame.pack(fill="x", pady=5, padx=10)
+        
+        # Block number
+        tk.Label(input_frame, text="Block #:", bg="white", font=("Arial", 9)).pack(side="left", padx=5)
+        self.occupancy_block_var = tk.StringVar(value="1")
+        tk.Entry(input_frame, textvariable=self.occupancy_block_var, width=8).pack(side="left", padx=5)
+        
+        # Train ID
+        tk.Label(input_frame, text="Train ID:", bg="white", font=("Arial", 9)).pack(side="left", padx=5)
+        self.occupancy_train_var = tk.StringVar(value="0")
+        tk.Entry(input_frame, textvariable=self.occupancy_train_var, width=8).pack(side="left", padx=5)
+        
+        # Buttons row
+        button_frame = tk.Frame(occupancy_frame, bg="white")
+        button_frame.pack(fill="x", pady=5, padx=10)
+        
+        ttk.Button(
+            button_frame,
+            text="Set Occupancy",
+            command=self.set_block_occupancy
+        ).pack(side="left", padx=5)
+        
+        ttk.Button(
+            button_frame,
+            text="Clear Occupancy",
+            command=self.clear_block_occupancy
+        ).pack(side="left", padx=5)
+        
+        # Status label
+        self.occupancy_status_label = tk.Label(
+            occupancy_frame,
+            text="Status: Ready",
+            bg="white",
+            font=("Arial", 8),
+            fg="gray"
+        )
+        self.occupancy_status_label.pack(pady=3)
+        
+        return occupancy_frame
 
     def refresh_trains(self):
         # Remove old train icons first
