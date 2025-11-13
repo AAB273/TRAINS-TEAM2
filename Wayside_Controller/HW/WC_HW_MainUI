@@ -117,20 +117,84 @@ def update_callback(message):
 # target ui is test ui
 
 #Example of Process Function:
-def _process_message(self, message, source_ui_id):
+def _process_message(self, data, connection=None, server_instance=None):
+    """Process incoming messages from Test UI"""
     try:
         print(f"=== MAIN UI DEBUG ===")
-        print(f"Received connection/message from: {source_ui_id}")
-        print(f"Message: {message}")
-        print(f"Allowed connections: {self.server1.allowed_connections}")
+        print(f"Received data: {data}")
         print(f"=== END DEBUG ===")
+         # Parse the data if it's a string
+        if isinstance(data, str):
+            try:
+                # Try to parse as JSON
+                parsed_data = json.loads(data)
+                print(f"Parsed JSON data: {parsed_data}")
+                message_data = parsed_data
+            except json.JSONDecodeError:
+                # If it's not JSON, treat it as a plain string message
+                print(f"Data is plain string, not JSON: {data}")
+                message_data = {'message': data}
+        else:
+            # Data is already a dictionary
+            message_data = data
+        
+        # Handle different commands
+        if command == 'ctc_suggestion':
+            # Use your existing function
+            formatted_speed = self.handle_ctc_suggested_speed(value)
+            if formatted_speed is not None:
+                self.update_suggested_speed(formatted_speed)
+                # ADD THIS LINE - sync back to Test UI
+                self.sync_speed_to_test_ui(formatted_speed)
+        
+        # Extract the actual message
+        message = message_data.get('message', message_data)
+        source_ui_id = message_data.get('ui_id', 'Unknown')
+        
+        print(f"Processing message from {source_ui_id}: {message}")
+        
+        # Extract message and source UI ID
+        if isinstance(data, 'dict'):
+            message = data.get('message', data)
+            source_ui_id = data.get('WC_HW_TestUI', 'Unknown')
+        else:
+            message = data
+            source_ui_id = 'WC_HW_TestUI'
+        
+        print(f"Processing message from {source_ui_id}: {message}")
+        
         command = message.get('command')
-        value = message.get('value') 
-        if command == 'some_command':
+        value = message.get('value')
+        
+        # Handle different commands
+        if command == 'ctc_suggestion':
+            self.handle_ctc_suggestion(value)
+        elif command == 'set_block_occupancy':
+            self.handle_block_occupancy(value)
+        elif command == 'set_switch_position':
+            self.handle_switch_position(value)
+        elif command == 'some_command':
             print(f"Test command received with value: {value}")
+        else:
+            print(f"Unknown command: {command}")
+            
     except Exception as e:
-            print(f"Error processing message: {e}")
+        print(f"Error processing message: {e}")
     
+
+    def sync_speed_to_test_ui(self, speed_value):
+        """Sync speed changes back to Test UI"""
+        try:
+            if hasattr(self, 'server1') and self.server1:
+                message = {
+                'command': 'sync_suggested_speed',
+                'value': str(speed_value),
+                'ui_id': 'WC_HW_MainUI'
+            }
+                self.server1.send_to_ui("WC_HW_TestUI", message)
+        except Exception as e:
+            print(f"Error syncing speed to Test UI: {e}")
+        
 # Enhanced Mock data class for both panels
 class UITestData:
     def __init__(self):
