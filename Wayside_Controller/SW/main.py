@@ -27,6 +27,9 @@ class RailwayControlSystem:
         self.root.configure(bg='#1a1a4d')
         
         self.data = RailwayData()
+
+        # Add this line - gives RailwayData a reference to the main app
+        self.data.app = self
         
         # Load socket configuration first
         module_config = load_socket_config().get("Track SW", {"port": 2})
@@ -74,6 +77,46 @@ class RailwayControlSystem:
         except Exception as e:
             print(f"Error processing message: {e}")
 
+    def send_commanded_to_track_model(self, track, block, speed, authority):
+        """Send commanded speed and authority to Track Model"""
+        track_model_message = {
+            "command": "Speed and Authority",
+            "block_number": block,
+            "commanded_speed": speed,
+            "commanded_authority": authority,
+        }
+        success = self.send_to_track_model(track_model_message)
+        if success:
+            print(f"Sent to Track Model: Block {block}, Speed:{speed}, Auth:{authority}")
+        else:
+            print(f"Failed to send to Track Model: Block {block}")
+        return success
+    
+    def send_switch_to_track_model(self, track, block, direction):
+        """Send array of all switch directions to Track Model"""
+        switch_list = []
+        
+        # Get all switch directions
+        for switch_data in self.data.switch_positions.values():
+            switch_direction = switch_data["direction"]  # Changed from 'direction' to 'switch_direction'
+            switch_list.append(switch_direction)
+        
+        switch_message = {
+            "command": "switch_states",
+            "switches": switch_list
+        }
+        
+        success = self.send_to_track_model(switch_message)
+        if success:
+            print(f"Sent to Track Model: {len(switch_list)} switch states")
+        else:
+            print(f"Failed to send switch states to Track Model")
+        return success
+
+    def send_to_track_model(self, message):
+        """Send message to Track Model"""
+        return self.server.send_to_ui("Track Model", message)
+
     def _handle_switch_update(self, data):
         """Handle switch updates from Test UI"""
         track = data.get('track')
@@ -87,6 +130,9 @@ class RailwayControlSystem:
             self.data.update_track_data("switch_positions", switch_name, "direction", direction)
             self.data.update_track_data("switch_positions", switch_name, "condition", f"Set to {direction}")
             
+            # Send switch state to Track Model
+            self.send_switch_to_track_model(track, block, direction)
+
             print(f"Switch updated successfully")
 
     def _handle_light_update(self, data):
@@ -144,16 +190,13 @@ class RailwayControlSystem:
                 if authority is not None:
                     self.data.suggested_authority[track][block] = authority
             
-            # Update displays if we're viewing that track/block
+            # ALWAYS UPDATE RIGHT PANEL
             if hasattr(self, 'right_panel'):
-                current_track = self.data.current_line
-                current_block = self.right_panel.block_combo.get() if hasattr(self.right_panel, 'block_combo') else None
+                self.right_panel.update_commanded_display()
+                self.right_panel.update_suggested_display()
+                print(f"✅ Right panel refreshed for {value_type} values")
                 
-                if track == current_track and block == current_block:
-                    self.right_panel.update_commanded_display()
-                    self.right_panel.update_suggested_display()
-            
-            print(f"{value_type.capitalize()} values updated successfully")
+                print(f"{value_type.capitalize()} values updated successfully")
 
     def _handle_occupancy_update(self, data):
         """Handle occupancy updates from Test UI"""
@@ -169,6 +212,8 @@ class RailwayControlSystem:
             for idx, row in enumerate(self.data.block_data_original):
                 if row[1] == track and str(row[2]) == str(block):
                     new_occupied = "Yes" if occupied else "No"
+                    print(f"📍 DEBUG: Found block at index {idx}: {row}")
+                    print(f"📍 DEBUG: Calling update_block_data({idx}, 0, '{new_occupied}')")
                     self.data.update_block_data(idx, 0, new_occupied)
                     found = True
                     break
@@ -177,6 +222,15 @@ class RailwayControlSystem:
                 print(f"Block {block} not found on {track} track")
             else:
                 print(f"Occupancy update initiated")
+
+            # ADD THIS: Force refresh the center panel table
+            if hasattr(self, 'center_panel') and hasattr(self.center_panel, 'refresh_table'):
+                self.center_panel.refresh_table()
+                print(f"✅ Center panel refreshed for occupancy update")
+            
+            # Also trigger data update callbacks
+            if hasattr(self.data, 'trigger_data_update'):
+                self.data.trigger_data_update()
 
     def send_to_test_ui(self, message):
         """Send message to Test UI"""
