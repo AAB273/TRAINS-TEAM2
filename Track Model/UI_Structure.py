@@ -170,6 +170,7 @@ class TrackModelUI(tk.Tk):
         self.train_actual_speeds = {}  # Dictionary to store actual speeds by train ID
         self.train_positions_in_block = {}  # Track distance traveled in current block (meters)
         self.last_movement_update = {}  # Track last update time for each train
+        self.train_directions = {}  # Track train direction: 'forward' or 'backward'
         
         # Start train movement update loop (runs every 100ms for smooth movement)
         self.after(100, self.update_train_movements)
@@ -1500,7 +1501,15 @@ class TrackModelUI(tk.Tk):
             return 50.0  # Default 50 meters if no length data
     
     def get_next_block(self, current_block, train_idx):
-        """Determine the next block based on current position and authority."""
+        """
+        Determine the next block for train movement.
+        Rules:
+        1. Always go in ascending order (1→2→3→...→150) EXCEPT:
+        2. Bidirectional sections allow descending:
+           - Block 100 → 85 (entering N section backwards)
+           - Block 150 → 28 (loop return)
+        3. Switches route based on their state
+        """
         # Check commanded authority
         if train_idx < len(self.data_manager.commanded_authority):
             authority = self.data_manager.commanded_authority[train_idx]
@@ -1522,63 +1531,179 @@ class TrackModelUI(tk.Tk):
             # Increment blocks traveled
             self.train_blocks_traveled[train_id] += 1
         
-        # Handle special track sections and switches
-        # Green Line routing logic
-        if current_block == 150:  # End of Green Line loops back to beginning
+        # ============================================================
+        # SPECIAL ROUTING RULES - BIDIRECTIONAL AND SWITCHES
+        # ============================================================
+        
+        # RULE 1: End of line loop return (BIDIRECTIONAL: 150 → 28)
+        if current_block == 150:
+            # Check switch at block 28 for loop return
+            if len(self.data_manager.blocks) > 27:
+                block_28 = self.data_manager.blocks[27]  # Block 28 at index 27
+                if hasattr(block_28, 'switch_state'):
+                    if not block_28.switch_state:  # Switch set for loop return
+                        print(f"[ROUTING] Block 150 → 28 (Loop return via switch)")
+                        return 28  # DESCENDING: 150 → 28
+                    else:
+                        # Switch not set for loop, go to block 1
+                        return 1
+            # Default: restart at beginning
             return 1
-        elif current_block == 63:  # From yard entry, go to next block
-            return 64
-        elif current_block == 100:  # Before switch at 85-86
-            return 85  # Go through switch section
+        
+        # RULE 2: Switch at block 12-13
+        elif current_block == 12:
+            if len(self.data_manager.blocks) > 11:
+                block_12 = self.data_manager.blocks[11]  # Block 12 at index 11
+                if hasattr(block_12, 'switch_state'):
+                    if block_12.switch_state:
+                        return 13  # Normal progression
+                    else:
+                        # Switch might allow different routing
+                        return 13  # For now, continue to 13
+            return 13  # Default
+        
+        # RULE 3: After loop return at block 28
+        elif current_block == 28:
+            return 29  # Continue ascending after loop return
+        
+        # RULE 4: Switch at block 57 (Yard access)
+        elif current_block == 57:
+            if len(self.data_manager.blocks) > 56:
+                block_57 = self.data_manager.blocks[56]  # Block 57 at index 56
+                if hasattr(block_57, 'switch_state'):
+                    if not block_57.switch_state:  # Switch to yard
+                        return 58  # Enter yard section
+                    else:
+                        return 58  # Continue on main line
+            return 58  # Default progression
+        
+        # RULE 5: From yard return at block 62
+        elif current_block == 62:
+            return 63  # Return from yard to main line
+        
+        # RULE 6: Switch at block 76-77 (N section or bypass)
+        elif current_block == 76:
+            if len(self.data_manager.blocks) > 75:
+                block_76 = self.data_manager.blocks[75]  # Block 76 at index 75
+                if hasattr(block_76, 'switch_state'):
+                    if block_76.switch_state:  # True = To block 77
+                        return 77  # Enter N section
+                    else:  # False = To block 101
+                        print(f"[ROUTING] Block 76 → 101 (Bypassing N section)")
+                        return 101  # Skip N section entirely
+            return 77  # Default to N section
+        
+        # RULE 7: Normal progression through N section (77-84)
+        elif 77 <= current_block < 85:
+            return current_block + 1  # Normal ascending: 77→78→79→80→81→82→83→84→85
+        
+        # RULE 8: Switch at block 85-86
         elif current_block == 85:
-            # Check switch state at block 85
-            # The switch at 85 controls whether we go to 84 (backwards on N section) or 86
-            if len(self.data_manager.blocks) > 84:  # Ensure block 85 exists
-                block_85 = self.data_manager.blocks[84]  # Block 85 is at index 84 (0-based)
+            if len(self.data_manager.blocks) > 84:
+                block_85 = self.data_manager.blocks[84]  # Block 85 at index 84
                 if hasattr(block_85, 'switch_state'):
-                    # When switch is set for 100->85 route (coming from the loop),
-                    # we should go backwards to block 84 (ascending on N section)
-                    # Otherwise, continue forward to block 86
-                    if block_85.switch_state:  # True = Right/Forward to 86
-                        return 86  # Continue forward through switch
-                    else:  # False = Left/Backward to 84 (for trains coming from 100)
-                        return 84  # Go backwards on N section (ascending block numbers)
-            # Default if no switch state found
-            return 86  # Continue through switch
-        elif current_block == 84:
-            # If coming from 85 via switch, continue backwards on N section
-            return 83  # Continue ascending on N block set
-        elif current_block == 83:
-            return 82  # Continue backwards through N section
-        elif current_block == 82:
-            return 81  # Continue backwards through N section
-        elif current_block == 81:
-            return 80  # Continue backwards through N section
-        elif current_block == 80:
-            return 79  # Continue backwards through N section
-        elif current_block == 79:
-            return 78  # Continue backwards through N section
-        elif current_block == 78:
-            return 77  # Continue backwards through N section
-        elif current_block == 77:
-            # End of N section backwards, continue to next section
-            return 101  # Continue to next block after N section
-        elif current_block == 86:
-            return 87  # Exit switch section
-        elif current_block == 57:  # Near yard exit
-            # Could go to yard (58) or continue (59) - for now continue
-            return 59
-        elif current_block == 76:  # Switch at 76-77
-            return 77  # Go through station
+                    if block_85.switch_state:  # True = To block 86
+                        return 86  # Normal forward progression
+                    else:  # False = Would be for backward entry from 100
+                        # But when AT block 85, we always go forward
+                        return 86
+            return 86  # Default forward to 86
+        
+        # RULE 9: Normal progression from 86-99
+        elif 86 <= current_block <= 99:
+            return current_block + 1  # Continue ascending
+        
+        # RULE 10: Block 100 → 85 (BIDIRECTIONAL backward entry to N section)
+        elif current_block == 100:
+            # Check if switch at 85 is set for backward entry
+            if len(self.data_manager.blocks) > 84:
+                block_85 = self.data_manager.blocks[84]  # Block 85 at index 84
+                if hasattr(block_85, 'switch_state'):
+                    if not block_85.switch_state:  # False = Allow 100→85 backward route
+                        print(f"[ROUTING] Block 100 → 85 (BIDIRECTIONAL: Backward entry to N section)")
+                        # Mark this train as going backward through N section
+                        if train_idx < len(self.data_manager.active_trains):
+                            train_id = self.data_manager.active_trains[train_idx]
+                            self.train_directions[train_id] = 'backward_n_section'
+                        return 85  # DESCENDING: 100 → 85
+                    else:
+                        return 101  # Normal ascending to 101
+            # Default: continue ascending
+            return 101
+        
+        # RULE 10b: Handle backward traversal through N section (85→84→83→...→77)
+        elif current_block in [85, 84, 83, 82, 81, 80, 79, 78, 77]:
+            # Check if this train is traversing N section backward
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'backward_n_section':
+                    next_block = self.get_next_block_backward_n_section(current_block)
+                    if next_block == 101:
+                        # Exiting backward traversal, reset to forward
+                        self.train_directions[train_id] = 'forward'
+                        print(f"[ROUTING] Exiting N section backward traversal at block 77 → 101")
+                    elif next_block:
+                        print(f"[ROUTING] N section backward: Block {current_block} → {next_block}")
+                    return next_block
+            
+            # Otherwise, use normal rules (which handles forward traversal)
+            if current_block == 85:
+                # Already handled in RULE 8
+                if len(self.data_manager.blocks) > 84:
+                    block_85 = self.data_manager.blocks[84]
+                    if hasattr(block_85, 'switch_state'):
+                        if block_85.switch_state:
+                            return 86  # Normal forward
+                        else:
+                            return 86  # Still go forward when at 85
+                return 86
+            elif 77 <= current_block < 85:
+                return current_block + 1  # Normal forward through N section
+        
+        # RULE 11: Continue normal progression 101-149
+        elif 101 <= current_block <= 149:
+            return current_block + 1  # Normal ascending
+        
+        # ============================================================
+        # DEFAULT: NORMAL ASCENDING PROGRESSION
+        # ============================================================
         else:
-            # Normal sequential movement
+            # Standard ascending order for any other block
             next_block = current_block + 1
             
-            # Ensure we don't go past the end of the line
+            # Safety check
             if next_block > 150:
-                return 1  # Loop back to beginning
+                return 150  # Stay at 150
             
             return next_block
+    
+    def get_next_block_backward_n_section(self, current_block):
+        """
+        Handle backward progression through N section (85→84→83→...→77→101).
+        This is only used when a train enters from block 100 to block 85.
+        """
+        if current_block == 85:
+            return 84
+        elif current_block == 84:
+            return 83
+        elif current_block == 83:
+            return 82
+        elif current_block == 82:
+            return 81
+        elif current_block == 81:
+            return 80
+        elif current_block == 80:
+            return 79
+        elif current_block == 79:
+            return 78
+        elif current_block == 78:
+            return 77
+        elif current_block == 77:
+            # Exit N section backward traversal, continue to 101
+            return 101
+        else:
+            # Should not reach here in backward N section traversal
+            return None
     
     def send_block_occupancy_update(self, block_num, occupancy):
         """Send block occupancy update to other modules."""
@@ -1639,9 +1764,19 @@ class TrackModelUI(tk.Tk):
     
     def log_switch_change(self, block_num, from_block, to_block, state):
         """Log switch state changes with descriptive information"""
-        # Get the actual destination block
-        destination = self.get_switch_destination(block_num, state)
-        direction_text = f"To Block {destination}"
+        # Get the actual route info
+        route_info = self.get_switch_destination(block_num, state)
+        if isinstance(route_info, tuple) and len(route_info) == 2:
+            route_from, route_to = route_info
+            if route_from == "Yard":
+                direction_text = f"Yard to {route_to}"
+            elif route_to == "Yard":
+                direction_text = f"{route_from} to Yard"
+            else:
+                direction_text = f"{route_from} to {route_to}"
+        else:
+            direction_text = f"To {route_info}"
+        
         path_description = f"from Block {from_block} to Block {to_block}"
         
         # Add more context if this is a known switch
@@ -2360,8 +2495,8 @@ class TrackModelUI(tk.Tk):
 
     def get_switch_destination(self, block_number, switch_state):
         """
-        Determine which block a switch routes to based on block number and switch state.
-        Returns the destination block number.
+        Determine which blocks a switch connects based on block number and switch state.
+        Returns a tuple of (from_block, to_block) for display.
         Based on the track diagram switches:
         - Block 12: SWITCH (12-13, 1-13)
         - Block 28: SWITCH (28-29, 150-28)
@@ -2373,76 +2508,76 @@ class TrackModelUI(tk.Tk):
         # Handle switch at block 12 (12-13, 1-13)
         if block_number == 12:
             if switch_state:  # True = main route
-                return 13
+                return (12, 13)
             else:  # False = from block 1
-                return 13  # Both routes go to 13
+                return (1, 13)
         
         # Handle switch at block 28 (28-29, 150-28)
         elif block_number == 28:
             if switch_state:  # True = main route
-                return 29
+                return (28, 29)
             else:  # False = from block 150
-                return 29  # Both routes go to 29
+                return (150, 28)
         
         # Handle switch at block 57 (57-Yard)
         elif block_number == 57:
             if switch_state:  # True = continue on main line
-                return 58  # Next block in sequence
+                return (57, 58)
             else:  # False = to yard
-                return 0  # Yard (represented as 0 since it's not a numbered block)
+                return (57, "Yard")
         
         # Handle switch at block 62 (FROM YARD)
         elif block_number == 62:
             if switch_state:  # True = from main line
-                return 63  # Continue to next block
+                return (62, 63)
             else:  # False = from yard
-                return 63  # From yard also goes to 63
+                return ("Yard", 63)
         
         # Handle switch at block 76 (76-77, 77-101)
         elif block_number == 76:
             if switch_state:  # True = main route
-                return 77
+                return (76, 77)
             else:  # False = skip to 101
-                return 101
+                return (76, 101)
         
         # Handle switch at block 85 (85-86, 100-85)
         elif block_number == 85:
             if switch_state:  # True = main route forward
-                return 86
+                return (85, 86)
             else:  # False = backward route (for trains from 100)
-                return 84  # Go backwards on N section
+                return (100, 85)
         
         # Handle reverse direction for bidirectional switches
         elif block_number == 1:
             # Coming from block 1, can go to 2 or jump to 13 via switch
             if switch_state:
-                return 2  # Normal route
+                return (1, 2)  # Normal route
             else:
-                return 13  # Via switch at 12
+                return (1, 13)  # Via switch at 12
         
         elif block_number == 77:
             # Block 77 can go to 78 or back to 101
             if switch_state:
-                return 78  # Continue on N section
+                return (77, 78)  # Continue on N section
             else:
-                return 101  # Jump to block 101
+                return (77, 101)  # Jump to block 101
         
         elif block_number == 100:
             # Block 100 can go to 85 via switch
             if not switch_state:  # When switch at 85 is set for 100->85
-                return 85
+                return (100, 85)
             else:
-                return 101  # Normal route would be 101 but this depends on track layout
+                return (100, 101)  # Normal route
         
         elif block_number == 150:
             # Block 150 can loop back to 1 or go to 28 via switch
             if switch_state:
-                return 1  # Normal loop back
+                return (150, 1)  # Normal loop back
             else:
-                return 28  # Via switch
+                return (150, 28)  # Via switch
         
         # For any other blocks, default to next sequential block
-        return block_number + 1
+        return (block_number, block_number + 1)
 
 
     # 6. Update your update_track_system_table to show failure status:
@@ -2475,12 +2610,20 @@ class TrackModelUI(tk.Tk):
                 # Switch state
                 if has_switch:
                     current_switch_state = getattr(b, "switch_state", False)
-                    destination_block = self.get_switch_destination(b.block_number, current_switch_state)
-                    # Special case for yard
-                    if destination_block == 0:
-                        switch_state = "To Yard"
+                    route_info = self.get_switch_destination(b.block_number, current_switch_state)
+                    # route_info is now a tuple (from_block, to_block)
+                    if isinstance(route_info, tuple) and len(route_info) == 2:
+                        from_block, to_block = route_info
+                        # Format the display string
+                        if from_block == "Yard":
+                            switch_state = f"Yard to {to_block}"
+                        elif to_block == "Yard":
+                            switch_state = f"{from_block} to Yard"
+                        else:
+                            switch_state = f"{from_block} to {to_block}"
                     else:
-                        switch_state = f"To Block {destination_block}"
+                        # Fallback for any unexpected format
+                        switch_state = f"To {route_info}"
                 else:
                     switch_state = "N/A"
                 
@@ -3452,12 +3595,18 @@ class TrackModelUI(tk.Tk):
                     if 1 <= block_number <= len(self.data_manager.blocks):
                         block = self.data_manager.blocks[block_number - 1]
                         block.switch_state = value
-                        destination = self.get_switch_destination(block_number, value)
-                        if destination == 0:
-                            destination_text = "Yard"
+                        route_info = self.get_switch_destination(block_number, value)
+                        if isinstance(route_info, tuple) and len(route_info) == 2:
+                            from_block, to_block = route_info
+                            if from_block == "Yard":
+                                destination_text = f"Yard to {to_block}"
+                            elif to_block == "Yard":
+                                destination_text = f"{from_block} to Yard"
+                            else:
+                                destination_text = f"{from_block} to {to_block}"
                         else:
-                            destination_text = f"Block {destination}"
-                        print(f"✅ Updated switch at block {block_number}: To {destination_text} (legacy boolean format)")
+                            destination_text = f"To {route_info}"
+                        print(f"✅ Updated switch at block {block_number}: {destination_text} (legacy boolean format)")
                         self.refresh_bidirectional_controls()
                         self.refresh_ui()
                         
