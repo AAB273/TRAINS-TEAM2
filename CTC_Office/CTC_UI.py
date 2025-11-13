@@ -25,7 +25,7 @@ def main():
     #main function to create ui screens and create the interactions between them
 
     root = tk.Tk()
-    win = tk.Toplevel(root)
+    #win = tk.Toplevel(root)
     #declaring main window, as well as test ui and reference map windows as subwindows of the main
     root.title("CTC Office")
     root.geometry('1200x925+0+0')

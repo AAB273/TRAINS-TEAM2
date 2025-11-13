@@ -538,7 +538,7 @@ class MainScreen:
 
         if (event.widget.tab(event.widget.select(), "text") == "Schedule"):
         #prevents errors on boot
-            self.root.after_cancel(self.clockTimer)
+            #self.root.after_cancel(self.clockTimer)
             #cancel this call if active
             self.notebook.select(1)
 
