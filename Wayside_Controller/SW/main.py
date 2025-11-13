@@ -56,7 +56,7 @@ class RailwayControlSystem:
             print(f"Main UI received from {source_ui_id}: {message}")
             
             command = message.get('command')
-            data = message.get('data', {})
+            data = message.get('value', {})
             
             if command == 'update_switch':
                 self._handle_switch_update(data)
