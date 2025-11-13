@@ -291,8 +291,8 @@ class ScheduleScreen:
         speed = float(distToStation) / arrTime
 
         #self.mainScreen.send_to_ui("TL", str(self.trainNum - 1) + ", " + f"{speed:.3f}\n" + ", " + str(auth) + ", " + line)
-        #self.mainScreen.send_to_ui("Track HW", {"suggested_speed", f"{speed:.3f}\n"})
-        self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": "Green", "block": 1, "speed": speed, "authority": auth, "value_type": "suggested"}})
+        #self.mainScreen.send_to_ui("Track HW", {"command": "suggested_speed", "value": {f"{speed:.3f}\n"}})
+        self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": "Green", "block": 63, "speed": speed, "authority": auth, "value_type": "suggested"}})
 
 ###############################################################################################################################################################
 

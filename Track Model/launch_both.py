@@ -4,7 +4,7 @@ import sys
 import os
 
 def launch_both_guis():
-    # Replace these with your exact filepaths
+    # cleplace these with your exact filepaths
     PASSENGER_UI_PATH = "Wayside_Controller/SW/main.py"
     TEST_UI_PATH = "Track Model/UI_Structure.py"
     
