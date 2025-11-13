@@ -120,6 +120,7 @@ class MainScreen:
     #update any data according to the data file
 
         if (code == "TL"):
+            print("here")
             self.updateTrainLocations(data[0], "good", "good", "good", data[1], 1)
 
         elif (code == "TS"):
