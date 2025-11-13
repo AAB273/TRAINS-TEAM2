@@ -2217,10 +2217,8 @@ class TrackModelUI(tk.Tk):
             passenger_count = int(self.data_manager.passengers_boarding[idx])
             
             self.server.send_to_ui("Train Model", {
-                'command': 'Speed and Authority',
-                'block_number': block_num,
-                'speed_value': commanded_speed,
-                'authority_value': commanded_authority
+                'command': 'Passengers Boarding',
+                'value': passenger_count
             })
             print(f"📤 Sent passengers boarding to Train Model: Block {block_num} = {passenger_count}")
 
