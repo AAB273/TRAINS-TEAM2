@@ -52,6 +52,15 @@ class TrackModelUI(tk.Tk):
 
         self.switch_blocks = set()
         self.switch_states = {}  # Dictionary to track switch states {block_num: direction}
+        # Switch routing configuration for train path determination
+        self.switch_routing = {
+            13: {"normal": 12, "reverse": 101},  # Yard switch
+            29: {"normal": 30, "reverse": 150},  # J switch
+            57: {"normal": 58, "reverse": 151},  # N switch
+            63: {"normal": 64, "reverse": 77},   # O switch
+            77: {"normal": 78, "reverse": 101},  # P switch
+            85: {"normal": 86, "reverse": 100}   # Q switch
+        }
         self.crossing_blocks = set()
         self.light_states = {12, 29, 76, 86}
         self.station_blocks = set()
@@ -103,6 +112,11 @@ class TrackModelUI(tk.Tk):
         self.file_manager = FileUploadManager(self.data_manager, ui_reference=self)
         self.heater_manager = HeaterSystemManager(self.data_manager)
         self.diagram_drawer = TrackDiagramDrawer(self, self.data_manager)
+
+        # Initialize BeaconManager for station beacons
+        self.beacon_manager = BeaconManager()
+        print('[UI] BeaconManager initialized with station beacons')
+
 
         # --- Auto-load Green Line track data from Excel on startup ---
         if not self.file_manager.auto_load_green_line():
@@ -1787,6 +1801,29 @@ class TrackModelUI(tk.Tk):
                         "grade": getattr(block, 'grade', 0)
                     })
                     
+
+                    # Check for beacon data using BeaconManager
+                    if occupancy != 0 and hasattr(self, 'beacon_manager'):
+                        if self.beacon_manager.is_station_block(block_num):
+                            train_id = f"Train_{occupancy}"
+                            beacon_message = self.beacon_manager.format_beacon_message(block_num, train_id)
+                            if beacon_message:
+                                # Send beacon data to Train Model
+                                self.server.send_to_ui("Train Model", beacon_message)
+                                print(f"📡 BEACON ACTIVATED at Block {block_num} for {train_id}")
+                                print(f"   Next station: {beacon_message['beacon_info']['next_station_name']}")
+                                print(f"   Distance: {beacon_message['beacon_info']['distance_to_next_station']}m")
+                                # Send to Train SW for train controller
+                                self.server.send_to_ui("Train SW", beacon_message)
+                                print(f"📡 Beacon data sent to Train SW")
+                                # Report to CTC
+                                self.server.send_to_ui("CTC", {
+                                    "command": "beacon_activated",
+                                    "block": block_num,
+                                    "train_id": train_id,
+                                    "station_info": beacon_message['beacon_info']
+                                })
+                                print(f"📡 Beacon activation reported to CTC")
             print(f"📤 Sent occupancy update: Block {block_num} = {occupancy}")
             
         except Exception as e:
@@ -3898,7 +3935,18 @@ class TrackModelUI(tk.Tk):
                                 block_num = switch_block_mapping[idx]
                                 if 1 <= block_num <= len(self.data_manager.blocks):
                                     block = self.data_manager.blocks[block_num - 1]
+                                    # Normalize direction for consistency
+                                    if direction in ["normal", False, 0, "0"]:
+                                        direction = "normal"
+                                    elif direction in ["reverse", True, 1, "1"]:
+                                        direction = "reverse"
+                                    else:
+                                        direction = "normal"
                                     
+                                    # Show routing path if configured
+                                    if hasattr(self, "switch_routing") and block_num in self.switch_routing:
+                                        next_block = self.switch_routing[block_num][direction]
+                                        print(f"   Switch {block_num}: {direction} → routes to block {next_block}")
                                     # Store switch direction in block
                                     block.switch_direction = direction
                                     
@@ -3967,28 +4015,33 @@ class TrackModelUI(tk.Tk):
                     if 1 <= block_num <= len(self.data_manager.blocks):
                         block = self.data_manager.blocks[block_num - 1]
                         block.occupancy = occupancy
-                        print(f"✅ Updated block {block_num} occupancy: {occupancy}")
+                        # Check if train is at a switch and show routing
+                        if occupancy != 0 and hasattr(self, "switch_routing") and block_num in self.switch_routing:
+                            dir = self.switch_states.get(block_num, "normal")
+                            next = self.switch_routing[block_num][dir]
+                            print(f"   🚂 Train_{occupancy} at switch {block_num} ({dir}) → next block {next}")
+                    print(f"✅ Updated block {block_num} occupancy: {occupancy}")
                         
-                        # Update train location tracking if train moved
-                        if occupancy != 0:
-                            # Find train with this occupancy number
-                            train_id = f"Train_{occupancy}"
-                            if train_id in self.data_manager.active_trains:
-                                idx = self.data_manager.active_trains.index(train_id)
-                                old_location = self.data_manager.train_locations[idx] if idx < len(self.data_manager.train_locations) else 0
+                    # Update train location tracking if train moved
+                    if occupancy != 0:
+                        # Find train with this occupancy number
+                        train_id = f"Train_{occupancy}"
+                        if train_id in self.data_manager.active_trains:
+                            idx = self.data_manager.active_trains.index(train_id)
+                            old_location = self.data_manager.train_locations[idx] if idx < len(self.data_manager.train_locations) else 0
+                            
+                            if old_location != block_num:
+                                self.data_manager.train_locations[idx] = block_num
+                                print(f"   Train {train_id} moved from block {old_location} to block {block_num}")
                                 
-                                if old_location != block_num:
-                                    self.data_manager.train_locations[idx] = block_num
-                                    print(f"   Train {train_id} moved from block {old_location} to block {block_num}")
-                                    
-                                    # Reset position tracking for new block
-                                    if train_id in self.train_positions_in_block:
-                                        self.train_positions_in_block[train_id] = 0
-                        
-                        self.update_occupied_blocks_display()
-                        
-                        # Forward occupancy update to Wayside Controller
-                        self.send_block_occupancy_update(block_num, occupancy)
+                                # Reset position tracking for new block
+                                if train_id in self.train_positions_in_block:
+                                    self.train_positions_in_block[train_id] = 0
+                    
+                    self.update_occupied_blocks_display()
+                    
+                    # Forward occupancy update to Wayside Controller
+                    self.send_block_occupancy_update(block_num, occupancy)
                         
                 elif isinstance(value, dict):
                     # Format: {block_num: occupancy, ...}
@@ -3999,6 +4052,11 @@ class TrackModelUI(tk.Tk):
                         if 1 <= block_num <= len(self.data_manager.blocks):
                             block = self.data_manager.blocks[block_num - 1]
                             block.occupancy = occupancy
+                            # Check if train is at a switch and show routing
+                            if occupancy != 0 and hasattr(self, "switch_routing") and block_num in self.switch_routing:
+                                dir = self.switch_states.get(block_num, "normal")
+                                next = self.switch_routing[block_num][dir]
+                                print(f"   🚂 Train_{occupancy} at switch {block_num} ({dir}) → next block {next}")
                             print(f"✅ Updated block {block_num} occupancy: {occupancy}")
                             
                             # Update train tracking
