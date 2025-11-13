@@ -5,7 +5,7 @@ class RailwayData:
     def __init__(self):
         """Data model for railway control system - manages track data, blocks, and commands"""
         self.maintenance_mode = False
-        self.current_line = "Blue"  # Default line
+        self.current_line = "Green"  # Default line
         
         # Callbacks for UI updates
         self.on_line_change = []  # Called when line changes
@@ -13,10 +13,10 @@ class RailwayData:
         self.on_data_update = []  # Called when any data updates (PLC/UI updates)
         
         # Command and suggestion storage
-        self.commanded_authority = {"Blue": {}, "Green": {}, "Red": {}}
-        self.commanded_speed = {"Blue": {}, "Green": {}, "Red": {}}
-        self.suggested_authority = {"Blue": {}, "Green": {}, "Red": {}}
-        self.suggested_speed = {"Blue": {}, "Green": {}, "Red": {}}
+        self.commanded_authority = {"Green": {}, "Red": {}}
+        self.commanded_speed = {"Green": {}, "Red": {}}
+        self.suggested_authority = {"Green": {}, "Red": {}}
+        self.suggested_speed = {"Green": {}, "Red": {}}
         
         # SEPARATE variables for track infrastructure (no longer nested under track_data)
         self.light_states = {}
@@ -100,7 +100,6 @@ class RailwayData:
 
         # Map line names to their data files
         txt_files = {
-            "Blue": "Wayside_Controller/SW/data/blue_line.txt",
             "Green": "Wayside_Controller/SW/data/green_line.txt", 
             "Red": "Wayside_Controller/SW/data/red_line.txt"
         }
@@ -153,7 +152,6 @@ class RailwayData:
         """Load all block data from TXT files - each block starts unoccupied and not faulted"""
         all_block_data = []
         txt_files = {
-            "Blue": "Wayside_Controller/SW/data/blue_line.txt",
             "Green": "Wayside_Controller/SW/data/green_line.txt", 
             "Red": "Wayside_Controller/SW/data/red_line.txt"
         }
