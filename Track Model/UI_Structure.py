@@ -191,7 +191,7 @@ class TrackModelUI(tk.Tk):
             # ============================================================
             # SWITCH POSITIONS - Update switch states
             # ============================================================
-            elif command == 'switch_positions':
+            elif command == 'Switch Positions':
                 # value should be a dict like {5: True, 10: False} where True=Right, False=Left
                 if isinstance(value, dict):
                     for block_num, state in value.items():
