@@ -119,10 +119,14 @@ def update_callback(message):
 #Example of Process Function:
 def _process_message(self, message, source_ui_id):
     try:
-        print(f"Received message from {source_ui_id}: {message}")
+        print(f"=== MAIN UI DEBUG ===")
+        print(f"Received connection/message from: {source_ui_id}")
+        print(f"Message: {message}")
+        print(f"Allowed connections: {self.server1.allowed_connections}")
+        print(f"=== END DEBUG ===")
         command = message.get('command')
         value = message.get('value') 
-        if command == 'test':
+        if command == 'some_command':
             print(f"Test command received with value: {value}")
     except Exception as e:
             print(f"Error processing message: {e}")
@@ -132,12 +136,12 @@ class UITestData:
     def __init__(self):
 
         # SOCKET SERVER
-        self.server1 = TrainSocketServer(port=12344, ui_id="Track HW")
-        self.server1.set_allowed_connections(["Track HW", "ui_3"])
+        self.server1 = TrainSocketServer(port=12345, ui_id="WC_HW_MainUI")
+        self.server1.set_allowed_connections(["WC_HW_TestUI", "ui_3"])
         self.server1.start_server(_process_message)
         
         # Connect to other UIs
-        self.server1.connect_to_ui('localhost', 12341, "CTC_Main_Screen")
+        self.server1.connect_to_ui('localhost', 12346, "WC_HW_TestUI")  # Test UI
 
         # Current line
         # self.current_line = "Blue"
