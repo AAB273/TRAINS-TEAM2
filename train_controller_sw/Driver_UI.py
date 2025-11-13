@@ -1,3 +1,14 @@
+import json          # ← ADD
+from pathlib import Path  # ← ADD
+
+def load_socket_config():  # ← ADD
+    config_path = Path("config.json")
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config.get("modules", {})
+
+
 import tkinter as tk
 from tkinter import ttk
 import math
@@ -96,12 +107,30 @@ class Main_Window:
     def __init__(self, root):
         self.root = root
         self.root.title("Train Controller - Monitor Display")
-        
+        #add zoomed command to make screen fit 
+        #self.root.attributes('-zoomed', True)  # On macOS/Linux
+        self.root.configure(bg="navy")
+        self.root.attributes('-zoomed', True)  # On macOS/Linux
+        #self.root.state('zoomed') for windows
+
         # Make fullscreen
         self.screen_width = self.root.winfo_screenwidth()
         self.screen_height = self.root.winfo_screenheight()
-        self.root.geometry(f"{self.screen_width}x{self.screen_height}")
-        self.root.configure(bg="navy")
+        self.root.geometry(f"{self.screen_width}x{self.screen_height}+0+0")
+        
+        #make resizable
+        self.root.resizable(True, True)
+
+        # Socket server setup
+        #added socket server 
+        module_config = load_socket_config()
+        train_model_config = module_config.get("Train SW", {"port: 12346"})
+        self.server = TrainSocketServer(port=train_model_config["port"], ui_id="Train SW")
+        
+        self.server.set_allowed_connections(["Train Model", "Track Model"])
+        self.server.start_server(self._process_message)
+        self.server.connect_to_ui('localhost', 12345, "Train Model")
+        self.server.connect_to_ui('localhost', 12344, "Track Model")
         
         main_container = tk.Frame(self.root, bg="white", relief=tk.RAISED, bd=5)
         main_container.place(relx=0.02, rely=0.08, relwidth=0.96, relheight=0.9)
@@ -155,9 +184,9 @@ class Main_Window:
         self.current_speed_display.pack(pady=5)
         
         # Service Brake Percentage Display
-        self.brake_percentage_display = tk.Label(speedometer_frame, text="Service Brake: 0%", 
-                                                font=("Arial", 12, "bold"), bg="white", fg="red")
-        self.brake_percentage_display.pack(pady=2)
+        #self.brake_percentage_display = tk.Label(speedometer_frame, text="Service Brake: 0%", 
+                                                #font=("Arial", 12, "bold"), bg="white", fg="red")
+        #self.brake_percentage_display.pack(pady=2)
         
         # Commanded Speed Frame
         self.commanded_speed_frame = tk.Frame(main_container, bg="grey", relief=tk.RAISED, bd=2)
@@ -250,13 +279,13 @@ class Main_Window:
         
         # Train Horn Button
         try:
-            self.train_horn_icon = tk.PhotoImage(file="trainhorn.png")
+            self.train_horn_icon = tk.PhotoImage(file="train_controller_sw/trainhorn.png")
             self.train_horn_icon = self.train_horn_icon.subsample(5, 5)
             self.train_horn = tk.Button(main_container, image=self.train_horn_icon, 
                                        bg="burlywood1", activebackground="burlywood3",
                                        command=self.press_horn, relief=tk.RAISED, bd=3)
         except:
-            self.train_horn = tk.Button(main_container, text="Train Horn\n🎺", 
+            self.train_horn = tk.Button(main_container, text="Train Horn\n", 
                                        font=("Arial", 14, "bold"), bg="burlywood1", 
                                        activebackground="burlywood3",
                                        command=self.press_horn, relief=tk.RAISED, bd=3)
@@ -271,7 +300,7 @@ class Main_Window:
                                           hold_mode=True, canvas_bg="white")
         self.service_brake.place(relx=.23, rely=.52)
         
-        # Brake Percentage Control
+        '''# Brake Percentage Control
         brake_percent_frame = tk.Frame(main_container, bg="white")
         brake_percent_frame.place(relx=.23, rely=.48)
         
@@ -286,7 +315,8 @@ class Main_Window:
                                         font=("Arial", 10))
         brake_percent_menu.pack(side=tk.LEFT)
         brake_percent_menu.bind("<<ComboboxSelected>>", self.on_brake_percent_change)
-        
+        '''
+
         # Emergency Brake
         self.emergency_brake = Brake_button(main_container, radius=70, color="darkred", 
                                             hover_color="red", active_color="red4",
@@ -295,53 +325,53 @@ class Main_Window:
         self.emergency_brake.place(relx=.69, rely=.52)
         
         # Emergency Light
-        self.emergency_light = EmergencyLight(main_container, size=100)
+        self.emergency_light = EmergencyLight(main_container, size=75)
         self.emergency_light.place(relx=.7, rely=.41)
         
         tk.Label(main_container, text="Emergency Signal", font=("Arial", 14, "bold"),
-                bg="lightgray", fg="darkred").place(relx=.68, rely=.38)
+                bg="darkgray", fg="darkred").place(relx=.68, rely=.38)
         
         # Control Buttons Grid
         self.button_grid_frame = tk.Frame(main_container, bg="grey", relief=tk.RAISED, bd=2)
         self.button_grid_frame.place(relx=0.75, rely=0.68, relwidth=0.22, relheight=0.28)
         
         try:
-            self.bulb_logo = tk.PhotoImage(file="bulb.png").subsample(9, 9)
+            self.bulb_logo = tk.PhotoImage(file="train_controller_sw/bulb.png").subsample(9, 9)
             self.cabin_lights_btn = ToggleButton(self.button_grid_frame, image=self.bulb_logo,
                                                 callback=self.toggle_cabin_lights)
             self.cabin_lights_btn.image = self.bulb_logo
         except:
-            self.cabin_lights_btn = ToggleButton(self.button_grid_frame, text="💡", 
+            self.cabin_lights_btn = ToggleButton(self.button_grid_frame, text="", 
                                                 font=("Arial", 24), callback=self.toggle_cabin_lights)
         self.cabin_lights_btn.grid(row=0, column=0, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.headlight_logo = tk.PhotoImage(file="headlight.png").subsample(5, 5)
+            self.headlight_logo = tk.PhotoImage(file="train_controller_sw/headlight.png").subsample(5, 5)
             self.headlights_btn = ToggleButton(self.button_grid_frame, image=self.headlight_logo,
                                               callback=self.toggle_headlights)
             self.headlights_btn.image = self.headlight_logo
         except:
-            self.headlights_btn = ToggleButton(self.button_grid_frame, text="🔦", 
+            self.headlights_btn = ToggleButton(self.button_grid_frame, text="", 
                                               font=("Arial", 24), callback=self.toggle_headlights)
         self.headlights_btn.grid(row=0, column=1, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.left_door_logo = tk.PhotoImage(file="leftdoor.png").subsample(10, 10)
+            self.left_door_logo = tk.PhotoImage(file="train_controller_sw/leftdoor.png").subsample(10, 10)
             self.left_door_btn = ToggleButton(self.button_grid_frame, image=self.left_door_logo,
                                              callback=self.toggle_left_door)
             self.left_door_btn.image = self.left_door_logo
         except:
-            self.left_door_btn = ToggleButton(self.button_grid_frame, text="◄|", 
+            self.left_door_btn = ToggleButton(self.button_grid_frame, text="", 
                                              font=("Arial", 24), callback=self.toggle_left_door)
         self.left_door_btn.grid(row=1, column=0, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.right_door_logo = tk.PhotoImage(file="right.png").subsample(10, 10)
+            self.right_door_logo = tk.PhotoImage(file="train_controller_sw/right.png").subsample(10, 10)
             self.right_door_btn = ToggleButton(self.button_grid_frame, image=self.right_door_logo,
                                               callback=self.toggle_right_door)
             self.right_door_btn.image = self.right_door_logo
         except:
-            self.right_door_btn = ToggleButton(self.button_grid_frame, text="|►", 
+            self.right_door_btn = ToggleButton(self.button_grid_frame, text="", 
                                               font=("Arial", 24), callback=self.toggle_right_door)
         self.right_door_btn.grid(row=1, column=1, padx=8, pady=8, sticky="nsew")
         tk.Label(self.button_grid_frame, text="Left Door", font=("Arial", 10, "bold"), 
@@ -358,10 +388,10 @@ class Main_Window:
         
         # BLT Logo
         logo_frame = tk.Frame(main_container, bg="white", relief=tk.RAISED, bd=1)
-        logo_frame.place(relx=0.01, rely=0.01, relwidth=0.12, relheight=0.24)
+        logo_frame.place(relx=0.01, rely=0.01, relwidth=0.12, relheight=0.22)
         
         try:
-            self.bltlogo = tk.PhotoImage(file="bltlogo.png").subsample(4, 4)
+            self.bltlogo = tk.PhotoImage(file="train_controller_sw/bltlogo.png").subsample(4, 4)
             self.bltLabel = tk.Label(logo_frame, image=self.bltlogo, bg="white", borderwidth=0)
             self.bltLabel.pack(expand=True, fill=tk.BOTH, padx=2, pady=2)
         except:
@@ -415,7 +445,7 @@ class Main_Window:
         self.set_speed = 45
         self.set_temp = 68
         self.is_auto_mode = True
-        self.service_brake_percentage = 50  # Default to 50%
+        #self.service_brake_percentage = 50  # Default to 50%
         self.service_brake_active = False
         self.emergency_brake_active = False
         self.door_safety_lock = True
@@ -425,7 +455,69 @@ class Main_Window:
         self.test_panel = TestPanel(self.root, self)
 
         #safety critical design:
-        self.safety_monitor = SafetyMonitor(self)
+        #self.safety_monitor = SafetyMonitor(self)
+
+    def _process_message(self, message, source_ui_id):
+        """Process incoming messages and update train state"""
+        try:
+            print(f"Received message from {source_ui_id}: {message}")
+
+            command = message.get('command')
+            value = message.get('value')
+            
+            #only need to display the commanded authority
+            if command == 'Commanded Authority':
+                #set authority command
+                self.set_authority(value)
+
+            #only need to display the commanded speed in frame
+            elif command == 'Commanded Speed': 
+                #set commanded
+                self.set_commanded_speed(value)
+
+            #upon receiving an emergency signal, we should also automatically apply E-brake
+            elif command == "Passenger Emergency Signal":
+                #set signal light
+                self.set_emergency_signal(value)
+                if value:  # Signal is active
+                    self.emergency_brake_action(True)
+                    self.add_to_status_log("Passenger emergency signal received!")
+
+            #from this actual velocity (speedometer showing), we need to do backend which will take this and commanded speed and 
+                #generate the proper power output to train model
+            elif command == "Actual Velocity":
+                #set speedometer
+                self.set_current_speed(value)
+                
+            #only need to set the cabin temperature to display updated temp
+            elif command == "Cabin Temperature": 
+                #set cabin temp
+                self.set_cabin_temp(value)
+
+            elif command == "Brake Failure": 
+                #set failure lights
+                self.handle_failure_mode("Brake Failure", value)
+                self.brake_failure.set_state(value)
+
+            elif command == "Signal Pickup Failure":
+                self.handle_failure_mode("Signal Pickup Failure") 
+                self.signal_failure.set_state(value)
+
+            elif command == "Train Engine Failure":
+                self.handle_failure_mode("Train Engine Failure")
+                self.engine_failure.set_state(value)
+
+            elif command == "Beacon Data": 
+                #update beacon information
+                print("helloworld")
+            elif command == "Preloaded Track Information":
+                #update track information
+                print("helloworld")
+            elif command == "Light States": 
+                #display lights states
+                print("helloworld")
+        except Exception as e:
+            print(f"Error processing message: {e}")
 
     
     def add_to_status_log(self, message):
@@ -439,6 +531,37 @@ class Main_Window:
             self.status_log.delete(1.0, f"{len(lines)-100}.0")
         self.status_log.see(tk.END)
         self.status_log.config(state=tk.DISABLED)
+
+    def handle_failure_mode(self, failure_type, is_active):
+        """Handle failure mode activation/deactivation"""
+        if is_active:
+            # Failure detected - auto-activate emergency brake
+            self.add_to_status_log(f" CRITICAL: {failure_type} detected!")
+            
+            if not self.emergency_brake_active:
+                self.emergency_brake_active = True
+                self.emergency_brake_auto_triggered = True
+                self.emergency_light.activate()
+                self.add_to_status_log(" Emergency brake auto-activated due to failure!")
+                print(f"EMERGENCY BRAKE AUTO-ACTIVATED: {failure_type}")
+        else:
+            # Failure cleared
+            self.add_to_status_log(f"✓ {failure_type} cleared")
+            
+            # Check if ALL failures are now cleared
+            if self.emergency_brake_auto_triggered:
+                all_cleared = not (
+                    self.engine_failure.active or
+                    self.signal_failure.active or
+                    self.brake_failure.active
+                )
+                
+                if all_cleared:
+                    self.add_to_status_log("✓ All failures cleared - Safe to release emergency brake")
+                    # Optional: Auto-release if ALL failures are cleared
+                    # self.emergency_brake_active = False
+                    # self.emergency_brake_auto_triggered = False
+                    # self.emergency_light.deactivate()
     
     def update_displays(self):
         """Update all displays periodically"""
@@ -447,9 +570,6 @@ class Main_Window:
         
         # Update door safety
         self.update_door_safety()
-
-        #check failure modes:
-        self.check_failure_modes()
 
         #safety critical implementation
         #self.safety_monitor.check_vital_conditions()
@@ -467,7 +587,7 @@ class Main_Window:
                 self.set_current_speed(self.current_speed)
         elif self.service_brake_active:
             # Service brake: gradual deceleration based on percentage
-            deceleration_rate = self.service_brake_percentage * 0.1  # Scale factor
+            deceleration_rate = 1 #apply decelaration rate here!!!
             if self.current_speed > 0:
                 self.current_speed = max(0, self.current_speed - deceleration_rate)
                 self.set_current_speed(self.current_speed)
@@ -546,23 +666,39 @@ class Main_Window:
     def service_brake_action(self, pressed):
         if pressed:
             self.service_brake_active = True
-            self.add_to_status_log(f"Service brake activated at {self.service_brake_percentage}%")
-            print(f"Service brake: PRESSED at {self.service_brake_percentage}%")
+            self.add_to_status_log(f"Service brake applied")
+            print(f"Service brake applied")
         else:
             self.service_brake_active = False
             self.add_to_status_log("Service brake released")
             print("Service brake: RELEASED")
     
     def emergency_brake_action(self, pressed):
+        """Handle emergency brake button press"""
         if pressed:
             self.emergency_brake_active = True
             self.emergency_light.activate()
             self.add_to_status_log(" EMERGENCY BRAKE ACTIVATED!")
             print("EMERGENCY BRAKE ACTIVATED!")
         else:
+            # Check if it's safe to release (no active failures)
+            failure_detected = (
+                self.engine_failure.active or
+                self.signal_failure.active or
+                self.brake_failure.active
+            )
+            
+            if failure_detected:
+                self.add_to_status_log(" Cannot release e-brake: Active system failure!")
+                print("E-brake release DENIED - failure active")
+                # Don't change brake state - keep it active
+                return
+            
+            # Safe to release
             self.emergency_brake_active = False
+            self.emergency_brake_auto_triggered = False
             self.emergency_light.deactivate()
-            self.add_to_status_log("Emergency brake deactivated")
+            self.add_to_status_log(" Emergency brake released")
             print("Emergency brake deactivated")
     
     def toggle_cabin_lights(self, state):
@@ -645,11 +781,11 @@ class Main_Window:
 
         if failure_detected and not self.emergency_brake_active:
             # Automatically activate the emergency brake
-            self.add_to_status_log("⚠️ FAILURE DETECTED: Activating emergency brake.")
+            self.add_to_status_log(" FAILURE DETECTED: Activating emergency brake.")
             self.emergency_brake_action(True)
         elif not failure_detected and self.emergency_brake_active:
             # Automatically release when all failures are cleared
-            self.add_to_status_log("✅ All failures cleared: Releasing emergency brake.")
+            self.add_to_status_log(" All failures cleared: Releasing emergency brake.")
             self.emergency_brake_action(False)
 
 
@@ -661,6 +797,17 @@ class Main_Window:
             self.track_info_panel = TrackInformationPanel(self.track_info_window)
         else:
             self.track_info_window.lift()
+
+    def on_closing(self):
+        """Handle application closing"""
+        print("Closing application...")
+        self.server.running = False
+        if self.server.server_socket:
+            try:
+                self.server.server_socket.close()
+            except:
+                pass
+        self.root.destroy()
 
 if __name__ == "__main__":
     root = tk.Tk()
