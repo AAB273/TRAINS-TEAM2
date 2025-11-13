@@ -241,6 +241,19 @@ class LeftPanel(tk.Frame):
             if self.log_callback:
                 self.log_callback(f"{current_time} UPDATE: Switch {selected} set to {new_direction} on {self.data.current_line} track")
 
+
+
+        # Extract block number from switch name (e.g., "Switch 5" -> "5")
+        block = selected.split(" ")[1] if " " in selected else selected
+        
+        # Send switch state to Track Model via Main UI
+        if hasattr(self.data, 'app') and self.data.app:
+            self.data.app.send_switch_to_track_model(self.data.current_line, block, new_direction)
+        
+        # Log the action
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if self.log_callback:
+            self.log_callback(f"{current_time} UPDATE: Switch {selected} set to {new_direction} on {self.data.current_line} track")
     # ------------------------------
     # LIGHTS
     # ------------------------------

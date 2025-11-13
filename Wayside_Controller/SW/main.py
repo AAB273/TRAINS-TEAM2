@@ -91,6 +91,27 @@ class RailwayControlSystem:
         else:
             print(f"Failed to send to Track Model: Block {block}")
         return success
+    
+    def send_switch_to_track_model(self, track, block, direction):
+        """Send array of all switch directions to Track Model"""
+        switch_list = []
+        
+        # Get all switch directions
+        for switch_data in self.data.switch_positions.values():
+            direction = switch_data["direction"]
+            switch_list.append(direction)
+        
+        switch_message = {
+            "command": "switch_states",
+            "switches": switch_list
+        }
+        
+        success = self.send_to_track_model(switch_message)
+        if success:
+            print(f"Sent to Track Model: {len(switch_list)} switch states")
+        else:
+            print(f"Failed to send switch states to Track Model")
+        return success
 
     def send_to_track_model(self, message):
         """Send message to Track Model"""
@@ -109,6 +130,9 @@ class RailwayControlSystem:
             self.data.update_track_data("switch_positions", switch_name, "direction", direction)
             self.data.update_track_data("switch_positions", switch_name, "condition", f"Set to {direction}")
             
+            # Send switch state to Track Model
+            self.send_switch_to_track_model(track, block, direction)
+
             print(f"Switch updated successfully")
 
     def _handle_light_update(self, data):
