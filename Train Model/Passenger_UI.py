@@ -124,6 +124,9 @@ class TrainModelPassengerGUI:
                 self.server.send_to_ui("Train HW",{'command':"Commanded Speed",'value':value})
             elif command == 'Block Occupancy':
                 self.current_train.set_block(value)
+            elif command == 'Passengers Boarding':
+                self.update_boarding(value)
+
         except Exception as e:
             print(f"Error processing message: {e}")
 
@@ -199,6 +202,10 @@ class TrainModelPassengerGUI:
                 self.current_train.set_passenger_count(passenger_count - disembarking)
                 self.server.send_to_ui("Track Model",{"command": 'Passenger Disembarking', 'value': disembarking})
                 self.server.send_to_ui('Track Model',{'command' : 'Train Occupancy', 'value': self.current_train.passenger_count})
+    def update_boarding(self,boarding):
+        MAX_CAPACITY = 222
+        if boarding > MAX_CAPACITY:
+            print("placeholder")
 
     def update_ui_from_train(self, train):
         """Update all UI elements when train data changes"""

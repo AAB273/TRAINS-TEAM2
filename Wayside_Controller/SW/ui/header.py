@@ -138,11 +138,6 @@ class Header(tk.Frame):
         tab_frame = tk.Frame(self, bg='#1a1a4d')
         tab_frame.pack(side=tk.LEFT, padx=20)
         
-        # Create tab buttons with commands
-        self.blue_tab = tk.Button(tab_frame, text="Blue", bg='#6666ff', width=8,
-                                 command=lambda: self.data.set_current_line("Blue"))
-        self.blue_tab.pack(side=tk.LEFT)
-        
         self.green_tab = tk.Button(tab_frame, text="Green", bg='#66cc66', width=8,
                                   command=lambda: self.data.set_current_line("Green"))
         self.green_tab.pack(side=tk.LEFT)
@@ -165,12 +160,11 @@ class Header(tk.Frame):
     
     def update_tab_appearance(self):
         """Update tab colors to show active line"""
-        active_bg = {'Blue': '#3366ff', 'Green': '#33aa33', 'Red': '#ff3333'}
-        inactive_bg = {'Blue': "#a8a8ee", 'Green': "#aadaaa", 'Red': "#eb9595"}
+        active_bg = {'Green': '#33aa33', 'Red': '#ff3333'}
+        inactive_bg = {'Green': "#aadaaa", 'Red': "#eb9595"}
         
         current = self.data.current_line
         print(f"Updating tab appearance for: {current}")
         
-        self.blue_tab.config(bg=active_bg['Blue'] if current == "Blue" else inactive_bg['Blue'])
         self.green_tab.config(bg=active_bg['Green'] if current == "Green" else inactive_bg['Green'])
         self.red_tab.config(bg=active_bg['Red'] if current == "Red" else inactive_bg['Red'])

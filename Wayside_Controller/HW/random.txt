@@ -1,25 +1,19 @@
-DEBUG: Finished creating block table
-DEBUG: Maintenance mode: False
-DEBUG: Has filtered_block_data: True
-DEBUG: Display data length: 17
-DEBUG: First few rows: [['No', 'Green', '78', 'N'], ['No', 'Green', '80', 'N'], ['No', 'Green', '81', 'N']]
-DEBUG: Maintenance mode: False
-DEBUG: Has filtered_block_data: True
-DEBUG: Display data length: 1
-DEBUG: First few rows: [['No', 'Green', '87', 'O']]
-DEBUG: Maintenance mode: True
-DEBUG: Has filtered_block_data: True
-DEBUG: Display data length: 1
-DEBUG: First few rows: [['No', 'Green', '87', 'O']]
-DEBUG: Maintenance mode: True
-DEBUG: Has filtered_block_data: True
-DEBUG: Display data length: 1
-DEBUG: First few rows: [['No', 'Green', '87', 'O']]
-DEBUG: Maintenance mode: False
-DEBUG: Has filtered_block_data: True
-DEBUG: Display data length: 1
-DEBUG: First few rows: [['No', 'Green', '87', 'O']]
-DEBUG: Maintenance mode: False
-DEBUG: Has filtered_block_data: True
-DEBUG: Display data length: 1
-DEBUG: First few rows: [['No', 'Green', '87', 'O']]
+left_panel = LeftPanel(main_frame, test_data)
+line 741, in __init__: 
+    self.create_widgets()
+line 752, in create_widgets: 
+    self.create_switch_section()
+line 813, in create_switch_section: 
+    self.update_switch_options()
+line 817, in update_switch_options
+    switches = list(self.data.filtered_track_data.get("switches", {}).keys())
+
+AttributeError: 'UITestData' object has no attribute 'filtered_track_data'. Did you mean: 'filter_block_data'?
+
+line 1003, in <module>
+    left_panel = LeftPanel(main_frame, test_data)
+
+
+
+
+    

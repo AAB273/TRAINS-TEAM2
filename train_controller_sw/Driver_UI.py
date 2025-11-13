@@ -1,13 +1,28 @@
 import json          # ← ADD
 from pathlib import Path  # ← ADD
 
-def load_socket_config():  # ← ADD
+def load_socket_config():
+    """Load socket configuration from config.json"""
     config_path = Path("config.json")
+    config = {}  # ✅ Initialize config first
+    
     if config_path.exists():
-        with open(config_path, 'r') as f:
-            config = json.load(f)
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+        except json.JSONDecodeError as e:
+            print(f"Error reading config.json: {e}")
+        except Exception as e:
+            print(f"Error loading config: {e}")
+    else:
+        print("Warning: config.json not found, using default configuration")
+    
     return config.get("modules", {})
 
+METERS_PER_SEC_TO_MPH = 2.23694  # 1 m/s = 2.23694 mph
+MPH_TO_METERS_PER_SEC = 0.44704  # 1 mph = 0.44704 m/s
+KW_TO_WATTS = 1000  # 1 kW = 1000 W
+WATTS_TO_KW = 0.001  # 1 W = 0.001 kW
 
 import tkinter as tk
 from tkinter import ttk
@@ -22,6 +37,7 @@ from SA_window import StationAnnouncementWindow
 from Test_UI import TestPanel
 from SafetyMonitor import SafetyMonitor
 from TC_SW_TrackInfo import TrackInformationPanel
+from Engineer_UI import EngineerUI
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
@@ -124,7 +140,7 @@ class Main_Window:
         # Socket server setup
         #added socket server 
         module_config = load_socket_config()
-        train_model_config = module_config.get("Train SW", {"port: 12346"})
+        train_model_config = module_config.get("Train SW", {"port": 12346})
         self.server = TrainSocketServer(port=train_model_config["port"], ui_id="Train SW")
         
         self.server.set_allowed_connections(["Train Model", "Track Model"])
@@ -141,6 +157,7 @@ class Main_Window:
                 bg="white").pack(pady=5)
         
         # Track Info Button
+        
         track_btn = tk.Button(self.root, text="Track Info", font=("Arial", 12, "bold"),
                               bg="lightblue", fg="black", relief=tk.RAISED, bd=2,
                               command=self.open_track_info)
@@ -279,7 +296,7 @@ class Main_Window:
         
         # Train Horn Button
         try:
-            self.train_horn_icon = tk.PhotoImage(file="train_controller_sw/trainhorn.png")
+            self.train_horn_icon = tk.PhotoImage(file="trainhorn.png")
             self.train_horn_icon = self.train_horn_icon.subsample(5, 5)
             self.train_horn = tk.Button(main_container, image=self.train_horn_icon, 
                                        bg="burlywood1", activebackground="burlywood3",
@@ -336,7 +353,7 @@ class Main_Window:
         self.button_grid_frame.place(relx=0.75, rely=0.68, relwidth=0.22, relheight=0.28)
         
         try:
-            self.bulb_logo = tk.PhotoImage(file="train_controller_sw/bulb.png").subsample(9, 9)
+            self.bulb_logo = tk.PhotoImage(file="bulb.png").subsample(9, 9)
             self.cabin_lights_btn = ToggleButton(self.button_grid_frame, image=self.bulb_logo,
                                                 callback=self.toggle_cabin_lights)
             self.cabin_lights_btn.image = self.bulb_logo
@@ -346,7 +363,7 @@ class Main_Window:
         self.cabin_lights_btn.grid(row=0, column=0, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.headlight_logo = tk.PhotoImage(file="train_controller_sw/headlight.png").subsample(5, 5)
+            self.headlight_logo = tk.PhotoImage(file="headlight.png").subsample(5, 5)
             self.headlights_btn = ToggleButton(self.button_grid_frame, image=self.headlight_logo,
                                               callback=self.toggle_headlights)
             self.headlights_btn.image = self.headlight_logo
@@ -356,7 +373,7 @@ class Main_Window:
         self.headlights_btn.grid(row=0, column=1, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.left_door_logo = tk.PhotoImage(file="train_controller_sw/leftdoor.png").subsample(10, 10)
+            self.left_door_logo = tk.PhotoImage(file="leftdoor.png").subsample(10, 10)
             self.left_door_btn = ToggleButton(self.button_grid_frame, image=self.left_door_logo,
                                              callback=self.toggle_left_door)
             self.left_door_btn.image = self.left_door_logo
@@ -366,7 +383,7 @@ class Main_Window:
         self.left_door_btn.grid(row=1, column=0, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.right_door_logo = tk.PhotoImage(file="train_controller_sw/right.png").subsample(10, 10)
+            self.right_door_logo = tk.PhotoImage(file="right.png").subsample(10, 10)
             self.right_door_btn = ToggleButton(self.button_grid_frame, image=self.right_door_logo,
                                               callback=self.toggle_right_door)
             self.right_door_btn.image = self.right_door_logo
@@ -391,7 +408,7 @@ class Main_Window:
         logo_frame.place(relx=0.01, rely=0.01, relwidth=0.12, relheight=0.22)
         
         try:
-            self.bltlogo = tk.PhotoImage(file="train_controller_sw/bltlogo.png").subsample(4, 4)
+            self.bltlogo = tk.PhotoImage(file="bltlogo.png").subsample(4, 4)
             self.bltLabel = tk.Label(logo_frame, image=self.bltlogo, bg="white", borderwidth=0)
             self.bltLabel.pack(expand=True, fill=tk.BOTH, padx=2, pady=2)
         except:
@@ -440,19 +457,39 @@ class Main_Window:
         self.clock = ClockDisplay(self.clock_frame)
         self.clock.pack(padx=5, pady=5)
 
-        # State variables
-        self.current_speed = 0
+        #engineer control panel
+        engineer_btn = tk.Button(self.root, text="Engineer Panel", 
+                                font=("Arial", 12, "bold"),
+                                bg="orange", fg="black", relief=tk.RAISED, bd=2,
+                                command=self.toggle_engineer_ui)
+        engineer_btn.place(relx=0.72, rely=0.015, relwidth=0.1, relheight=0.045)
+
+         # State variables
+        self.current_speed = 0  # Will be in mph (converted from m/s for display)
+        self.current_speed_ms = 0  # Store original m/s value for calculations
+        self.commanded_speed_ms = 0  # Store commanded speed in m/s for calculations
         self.set_speed = 45
         self.set_temp = 68
         self.is_auto_mode = True
-        #self.service_brake_percentage = 50  # Default to 50%
         self.service_brake_active = False
         self.emergency_brake_active = False
         self.door_safety_lock = True
+        self.emergency_brake_auto_triggered = False
+        
+        # PID Control Parameters
+        self.kp = 10.0  # Default proportional gain (will be updated from Engineer UI)
+        self.ki = 2.0   # Default integral gain (will be updated from Engineer UI)
+        self.max_power_kw = 120.0  # Maximum power in kW
+        self.integral_error = 0.0  # For PI calculation (in m/s)
+        self.sample_time = 0.1  # 100ms update rate
+        self.last_power_sent = None  # Track last power to avoid duplicates
+
+        #create engineer UI
+        self.engineer_ui = EngineerUI(self, callback=self.on_pid_change)
         
         self.update_displays()
         # Test Panel
-        self.test_panel = TestPanel(self.root, self)
+        #self.test_panel = TestPanel(self.root, self)
 
         #safety critical design:
         #self.safety_monitor = SafetyMonitor(self)
@@ -460,64 +497,182 @@ class Main_Window:
     def _process_message(self, message, source_ui_id):
         """Process incoming messages and update train state"""
         try:
-            print(f"Received message from {source_ui_id}: {message}")
-
             command = message.get('command')
             value = message.get('value')
             
-            #only need to display the commanded authority
-            if command == 'Commanded Authority':
-                #set authority command
-                self.set_authority(value)
-
-            #only need to display the commanded speed in frame
-            elif command == 'Commanded Speed': 
-                #set commanded
-                self.set_commanded_speed(value)
-
-            #upon receiving an emergency signal, we should also automatically apply E-brake
+            # ========== COMMANDED SPEED ==========
+            if command == 'Commanded Speed':
+                # Input: m/s from Train Model
+                self.commanded_speed_ms = float(value)  # Store original m/s
+                speed_mph = self.commanded_speed_ms * METERS_PER_SEC_TO_MPH
+                self.set_commanded_speed(round(speed_mph, 1))
+                self.add_to_status_log(f"Commanded: {speed_mph:.1f} mph ({self.commanded_speed_ms:.2f} m/s)")
+            
+            # ========== COMMANDED AUTHORITY ==========
+            elif command == 'Commanded Authority':
+                blocks = int(value)
+                self.set_authority(blocks)
+                self.add_to_status_log(f"Authority: {blocks} blocks")
+            
+            # ========== PASSENGER EMERGENCY SIGNAL ==========
             elif command == "Passenger Emergency Signal":
-                #set signal light
-                self.set_emergency_signal(value)
-                if value:  # Signal is active
+                is_active = bool(value)
+                self.set_emergency_signal(is_active)
+                if is_active and not self.emergency_brake_active:
                     self.emergency_brake_action(True)
-                    self.add_to_status_log("Passenger emergency signal received!")
-
-            #from this actual velocity (speedometer showing), we need to do backend which will take this and commanded speed and 
-                #generate the proper power output to train model
+                    self.add_to_status_log("🚨 Passenger emergency: E-brake activated!")
+                elif not is_active:
+                    self.add_to_status_log("Passenger emergency signal cleared")
+            
+            # ========== ACTUAL VELOCITY ==========
             elif command == "Actual Velocity":
-                #set speedometer
-                self.set_current_speed(value)
-                
-            #only need to set the cabin temperature to display updated temp
-            elif command == "Cabin Temperature": 
-                #set cabin temp
-                self.set_cabin_temp(value)
-
-            elif command == "Brake Failure": 
-                #set failure lights
-                self.handle_failure_mode("Brake Failure", value)
-                self.brake_failure.set_state(value)
-
+                # Input: m/s from Train Model
+                self.current_speed_ms = float(value)  # Store original m/s
+                velocity_mph = self.current_speed_ms * METERS_PER_SEC_TO_MPH
+                self.set_current_speed(velocity_mph)
+                # Don't log every update - handled in power calculation
+            
+            # ========== CABIN TEMPERATURE ==========
+            elif command == "Cabin Temperature":
+                temp_f = float(value)
+                self.set_cabin_temp(round(temp_f, 1))
+                if not hasattr(self, '_last_logged_temp') or abs(temp_f - self._last_logged_temp) >= 2:
+                    self.add_to_status_log(f"Cabin temp: {temp_f:.1f}°F")
+                    self._last_logged_temp = temp_f
+            
+            # ========== FAILURE MODES ==========
+            elif command == "Brake Failure":
+                is_failed = bool(value)
+                self.handle_failure_mode("Brake Failure", is_failed)
+                self.brake_failure.set_state(is_failed)
+            
             elif command == "Signal Pickup Failure":
-                self.handle_failure_mode("Signal Pickup Failure") 
-                self.signal_failure.set_state(value)
-
+                is_failed = bool(value)
+                self.handle_failure_mode("Signal Pickup Failure", is_failed)
+                self.signal_failure.set_state(is_failed)
+            
             elif command == "Train Engine Failure":
-                self.handle_failure_mode("Train Engine Failure")
-                self.engine_failure.set_state(value)
-
-            elif command == "Beacon Data": 
-                #update beacon information
-                print("helloworld")
+                is_failed = bool(value)
+                self.handle_failure_mode("Train Engine Failure", is_failed)
+                self.engine_failure.set_state(is_failed)
+            
+            # ========== ADDITIONAL COMMANDS ==========
+            elif command == "Beacon Data":
+                self.add_to_status_log(f"Beacon: {value}")
+            
             elif command == "Preloaded Track Information":
-                #update track information
-                print("helloworld")
-            elif command == "Light States": 
-                #display lights states
-                print("helloworld")
+                self.add_to_status_log("Track info updated")
+            
+            elif command == "Light States":
+                self.add_to_status_log(f"Lights: {value}")
+            
+            else:
+                print(f"Unknown command: {command}")
+                
+        except ValueError as e:
+            print(f"Value conversion error for {command}: {e}")
+            self.add_to_status_log(f"Invalid data for {command}")
         except Exception as e:
-            print(f"Error processing message: {e}")
+            print(f"Message processing error: {e}")
+            self.add_to_status_log(f"Processing error")
+
+    def set_pid_parameters(self, kp, ki):
+        """Set PID parameters from engineer UI"""
+        self.kp = kp
+        self.ki = ki
+        self.integral_error = 0.0  # Reset integral when parameters change
+        self.add_to_status_log(f"PI params: Kp={kp:.1f}, Ki={ki:.2f}")
+        print(f"PI parameters updated - Kp: {kp}, Ki: {ki}")
+
+    def on_pid_change(self, kp, ki):
+        """Callback when PID parameters change"""
+        self.add_to_status_log(f"Engineer: Kp={kp:.1f}, Ki={ki:.2f}")
+
+    def on_pid_change(self, kp, ki):
+        """Callback when PID parameters change"""
+        self.add_to_status_log(f"Engineer adjusted PID: Kp={kp:.1f}, Ki={ki:.1f}")
+    
+    def toggle_engineer_ui(self):
+        """Show/hide engineer UI"""
+        if self.engineer_ui.window.state() == 'normal':
+            self.engineer_ui.hide()
+        else:
+            self.engineer_ui.show()
+    
+    def calculate_power_command(self):
+        """
+        Calculate power command using PI controller.
+        
+        Uses Kp and Ki from Engineer UI.
+        All internal calculations done in METRIC (m/s).
+        
+        Returns:
+            Power in kW (kilowatts)
+        """
+        # Get PI gains from Engineer UI
+        kp = self.engineer_ui.get_kp() if hasattr(self, 'engineer_ui') else self.kp
+        ki = self.engineer_ui.get_ki() if hasattr(self, 'engineer_ui') else self.ki
+        
+        # Determine commanded speed based on mode
+        if self.is_auto_mode:
+            # In automatic mode, use commanded speed from Track Model (already in m/s)
+            commanded_speed_ms = self.commanded_speed_ms
+        else:
+            # In manual mode, use set speed (convert from mph to m/s)
+            commanded_speed_mph = float(self.set_speed_value.cget("text"))
+            commanded_speed_ms = commanded_speed_mph * MPH_TO_METERS_PER_SEC
+        
+        # Get current actual speed (in m/s for calculation)
+        current_speed_ms = self.current_speed_ms
+        
+        # Calculate velocity error in METRIC (m/s)
+        velocity_error = commanded_speed_ms - current_speed_ms
+        
+        # Update integral error with anti-windup (in m/s)
+        self.integral_error += velocity_error * self.sample_time
+        
+        # Anti-windup: limit integral term
+        max_integral = self.max_power_kw / (ki if ki > 0 else 1.0)
+        self.integral_error = max(-max_integral, min(max_integral, self.integral_error))
+        
+        # Calculate PI control output
+        # Power = Kp * error + Ki * integral_error
+        p_term = kp * velocity_error
+        i_term = ki * self.integral_error
+        power_kw = p_term + i_term
+        
+        # Limit power to max and ensure non-negative
+        power_kw = max(0.0, min(self.max_power_kw, power_kw))
+        
+        # Log periodically (every 1 second instead of every update)
+        current_time = time.time()
+        if not hasattr(self, '_last_power_log_time') or (current_time - self._last_power_log_time) >= 1.0:
+            velocity_error_mph = velocity_error * METERS_PER_SEC_TO_MPH
+            self.add_to_status_log(
+                f"PI: Power={power_kw:.1f}kW, Error={velocity_error_mph:.1f}mph, "
+                f"P={p_term:.1f}, I={i_term:.1f}"
+            )
+            self._last_power_log_time = current_time
+        
+        return power_kw
+
+    def on_closing(self):
+        """Handle application closing"""
+        print("Closing application...")
+        
+        # Close engineer UI
+        if hasattr(self, 'engineer_ui'):
+            self.engineer_ui.window.destroy()
+        
+        # Close server
+        self.server.running = False
+        if self.server.server_socket:
+            try:
+                self.server.server_socket.close()
+            except:
+                pass
+        
+        self.root.destroy()
 
     
     def add_to_status_log(self, message):
@@ -571,26 +726,60 @@ class Main_Window:
         # Update door safety
         self.update_door_safety()
 
-        #safety critical implementation
-        #self.safety_monitor.check_vital_conditions()
+            # Auto-release emergency brake once train fully stops and all failures cleared
+        if self.emergency_brake_active and self.current_speed <= 0.1:
+            no_failures = not (
+                self.engine_failure.active or
+                self.signal_failure.active or
+                self.brake_failure.active
+            )
+            if no_failures:
+                self.emergency_brake_active = False
+                self.emergency_brake_auto_triggered = False
+                self.emergency_light.deactivate()
+                self.send_emergency_brake_signal(False)
+                self.add_to_status_log("Emergency brake auto-released (train stopped)")
+                print("Emergency brake auto-released - train stopped")
 
-        # Schedule next update
+        
+        # Calculate and send power command
+        # Only send power when NOT in emergency brake and NOT in service brake
+        if not self.emergency_brake_active and not self.service_brake_active:
+            try:
+                # Calculate power using PI controller
+                power_kw = self.calculate_power_command()
+                
+                # Convert kW to Watts for Train Model
+                power_watts = power_kw * KW_TO_WATTS
+                
+                # Only send if power changed significantly (more than 100W / 0.1kW)
+                # This reduces message flooding
+                if self.last_power_sent is None or abs(power_watts - self.last_power_sent) > 100:
+                    self.send_setpoint_power(power_kw)
+                    self.last_power_sent = power_watts
+            
+            except Exception as e:
+                print(f"Error in power calculation: {e}")
+        else:
+            # Braking active - send zero power
+            if self.last_power_sent != 0:
+                self.send_setpoint_power(0.0)
+                self.last_power_sent = 0
+        
+        # Schedule next update (100ms = 0.1s sample time)
         self.root.after(100, self.update_displays)
-
     
     def apply_brake_effect(self):
         """Apply brake effects to current speed"""
         if self.emergency_brake_active:
-            # Emergency brake: immediate full deceleration
-            if self.current_speed > 0:
-                self.current_speed = max(0, self.current_speed - 20)  # Rapid deceleration
-                self.set_current_speed(self.current_speed)
+            # Emergency brake active - ensure integral error resets
+            self.integral_error = 0.0
+            # Note: actual deceleration handled by Train Model (2.73 m/s²)
+            
         elif self.service_brake_active:
-            # Service brake: gradual deceleration based on percentage
-            deceleration_rate = 1 #apply decelaration rate here!!!
-            if self.current_speed > 0:
-                self.current_speed = max(0, self.current_speed - deceleration_rate)
-                self.set_current_speed(self.current_speed)
+            # Service brake active - ensure integral error resets
+            self.integral_error = 0.0
+            # Note: actual deceleration handled by Train Model (1.2 m/s²)
     
     def update_door_safety(self):
         """Update door safety based on current speed"""
@@ -619,6 +808,7 @@ class Main_Window:
     
     def on_mode_change(self, mode):
         self.is_auto_mode = (mode == "auto")
+        self.send_drivetrain_mode(self.is_auto_mode)  # Send to train model
         self.add_to_status_log(f"Driver mode changed to: {mode}")
         print(f"Mode changed to: {mode}")
     
@@ -637,39 +827,60 @@ class Main_Window:
         self.add_to_status_log(f"Set speed decreased to: {self.set_speed} mph")
     
     def confirm_speed(self):
+        """Callback when speed is confirmed in manual mode"""
         if not self.is_auto_mode:
             self.commanded_speed_value.config(text=str(self.set_speed))
-            self.add_to_status_log(f"Commanded speed confirmed: {self.set_speed} mph")
-            print(f"Commanded speed set to: {self.set_speed}")
-    
+            # Reset integral error when manually changing speed
+            self.integral_error = 0.0
+            self.add_to_status_log(f"Manual speed: {self.set_speed} mph")
+            print(f"Manual commanded speed: {self.set_speed} mph")
+
     def increase_temp(self):
+        """Increase temperature setpoint"""
         self.set_temp = min(85, self.set_temp + 1)
         self.set_temp_value.config(text=f"{self.set_temp}°F")
         self.add_to_status_log(f"Temperature set point increased to: {self.set_temp}°F")
+        # Only send if AC is currently on
+        if self.power_btn.is_on:
+            self.send_cabin_temperature_control(self.set_temp)
         print(f"Set temperature: {self.set_temp}°F")
     
     def decrease_temp(self):
+        """Decrease temperature setpoint"""
         self.set_temp = max(60, self.set_temp - 1)
         self.set_temp_value.config(text=f"{self.set_temp}°F")
         self.add_to_status_log(f"Temperature set point decreased to: {self.set_temp}°F")
+        # Only send if AC is currently on
+        if self.power_btn.is_on:
+            self.send_cabin_temperature_control(self.set_temp)
         print(f"Set temperature: {self.set_temp}°F")
     
     def toggle_ac(self, state):
         status = "ON" if state else "OFF"
         self.add_to_status_log(f"AC Power: {status}")
+        self.send_air_conditioning(state)  # Send to train model
+    # Also send temperature setpoint when AC is turned on
+        if state:
+            self.send_cabin_temperature_control(self.set_temp)
         print(f"AC Power: {status}")
     
     def press_horn(self):
         self.add_to_status_log("Train horn activated")
+        self.send_train_horn(True)  # Horn on
         print("Train horn pressed!")
+
+        self.root.after(2000, lambda: self.send_train_horn(False))
     
     def service_brake_action(self, pressed):
         if pressed:
             self.service_brake_active = True
+            deceleration = 1.2  # m/s² (positive value for deceleration)
+            self.send_service_brake(deceleration)
             self.add_to_status_log(f"Service brake applied")
             print(f"Service brake applied")
         else:
             self.service_brake_active = False
+            self.send_service_brake(0)  # Release brake
             self.add_to_status_log("Service brake released")
             print("Service brake: RELEASED")
     
@@ -678,6 +889,7 @@ class Main_Window:
         if pressed:
             self.emergency_brake_active = True
             self.emergency_light.activate()
+            self.send_emergency_brake_signal(True)  # Send to train model
             self.add_to_status_log(" EMERGENCY BRAKE ACTIVATED!")
             print("EMERGENCY BRAKE ACTIVATED!")
         else:
@@ -698,17 +910,20 @@ class Main_Window:
             self.emergency_brake_active = False
             self.emergency_brake_auto_triggered = False
             self.emergency_light.deactivate()
+            self.send_emergency_brake_signal(False)  # Send to train model
             self.add_to_status_log(" Emergency brake released")
             print("Emergency brake deactivated")
     
     def toggle_cabin_lights(self, state):
         status = "ON" if state else "OFF"
         self.add_to_status_log(f"Cabin lights: {status}")
+        self.send_cabin_lights(state)  # Send to train model
         print(f"Cabin lights: {status}")
     
     def toggle_headlights(self, state):
         status = "ON" if state else "OFF"
         self.add_to_status_log(f"Headlights: {status}")
+        self.send_headlights(state)  # Send to train model
         print(f"Headlights: {status}")
     
     def toggle_left_door(self, state):
@@ -717,6 +932,7 @@ class Main_Window:
             return
             
         status = "OPEN" if state else "CLOSED"
+        self.send_left_door_signal(state)  # Send to train model
         self.add_to_status_log(f"Left door: {status}")
         print(f"Left door: {status}")
     
@@ -727,6 +943,7 @@ class Main_Window:
             
         status = "OPEN" if state else "CLOSED"
         self.add_to_status_log(f"Right door: {status}")
+        self.send_right_door_signal(state)  # Send to train model
         print(f"Right door: {status}")
     
     def open_station_window(self):
@@ -736,7 +953,9 @@ class Main_Window:
         self.station_window.show_window()
     
     def on_station_announce(self, line, station):
-        self.add_to_status_log(f"Station announcement: {station} on {line}")
+        message = f"{station} on {line}"
+        self.add_to_status_log(f"Station announcement: {message}")
+        self.send_station_announcement(message)  # Send to train model
         print(f"Announcing: {station} on {line}")
     
     def set_current_speed(self, speed):
@@ -798,6 +1017,202 @@ class Main_Window:
         else:
             self.track_info_window.lift()
 
+    def send_setpoint_power(self, power_kw):
+        """
+        Send setpoint power to Train Model
+        Input: power in kW
+        Output: power in kW (Train Model expects kW)
+        """
+        try:
+            self.server.send_to_ui("Train Model", {
+                'command': "Setpoint Power",
+                'value': float(power_kw)
+            })
+            # Don't print every power command to avoid spam
+            # print(f"Sent power: {power_kw:.2f} kW")
+        except Exception as e:
+            print(f"Error sending power: {e}")
+            self.add_to_status_log("⚠️ Failed to send power command")
+
+
+    def send_emergency_brake_signal(self, is_active):
+        """
+        Send emergency brake signal to Train Model
+        Input: boolean
+        Output: boolean (no conversion needed)
+        """
+        try:
+            self.server.send_to_ui("Train Model", {
+                'command': "Emergency Brake Signal",
+                'value': bool(is_active)
+            })
+            print(f"Sent emergency brake signal: {is_active}")
+        except Exception as e:
+            print(f"Error sending emergency brake signal: {e}")
+
+
+    def send_headlights(self, is_on):
+        """
+        Send headlights state to Train Model
+        Input: boolean
+        Output: boolean (no conversion needed)
+        """
+        try:
+            self.server.send_to_ui("Train Model", {
+                'command': "Headlights",
+                'value': bool(is_on)
+            })
+            print(f"Sent headlights: {is_on}")
+        except Exception as e:
+            print(f"Error sending headlights: {e}")
+
+
+    def send_cabin_lights(self, is_on):
+        """
+        Send cabin lights state to Train Model
+        Input: boolean
+        Output: boolean (no conversion needed)
+        """
+        try:
+            self.server.send_to_ui("Train Model", {
+                'command': "Cabin Lights",
+                'value': bool(is_on)
+            })
+            print(f"Sent cabin lights: {is_on}")
+        except Exception as e:
+            print(f"Error sending cabin lights: {e}")
+
+
+    def send_left_door_signal(self, is_open):
+        """
+        Send left door signal to Train Model
+        Input: boolean (True = open, False = closed)
+        Output: boolean (no conversion needed)
+        """
+        try:
+            self.server.send_to_ui("Train Model", {
+                'command': "Left Door Signal",
+                'value': bool(is_open)
+            })
+            print(f"Sent left door signal: {is_open}")
+        except Exception as e:
+            print(f"Error sending left door signal: {e}")
+
+
+    def send_right_door_signal(self, is_open):
+        """
+        Send right door signal to Train Model
+        Input: boolean (True = open, False = closed)
+        Output: boolean (no conversion needed)
+        """
+        try:
+            self.server.send_to_ui("Train Model", {
+                'command': "Right Door Signal",
+                'value': bool(is_open)
+            })
+            print(f"Sent right door signal: {is_open}")
+        except Exception as e:
+            print(f"Error sending right door signal: {e}")
+
+
+    def send_air_conditioning(self, is_on):
+        """
+        Send air conditioning on/off to Train Model
+        Input: boolean
+        Output: boolean (no conversion needed)
+        """
+        try:
+            self.server.send_to_ui("Train Model", {
+                'command': "Air Conditioning",
+                'value': bool(is_on)
+            })
+            print(f"Sent AC: {is_on}")
+        except Exception as e:
+            print(f"Error sending AC signal: {e}")
+
+
+    def send_cabin_temperature_control(self, temp_fahrenheit):
+        """
+        Send cabin temperature setpoint to Train Model
+        Input: temperature in Fahrenheit
+        Output: temperature in Fahrenheit (no conversion needed)
+        """
+        try:
+            self.server.send_to_ui("Train Model", {
+                'command': "Cabin Interior Temperature Control",
+                'value': float(temp_fahrenheit)
+            })
+            print(f"Sent temperature setpoint: {temp_fahrenheit}°F")
+        except Exception as e:
+            print(f"Error sending temperature setpoint: {e}")
+
+
+    def send_drivetrain_mode(self, is_auto):
+        """
+        Send drivetrain mode to Train Model
+        Input: boolean (True = auto, False = manual)
+        Output: boolean (no conversion needed)
+        """
+        try:
+            self.server.send_to_ui("Train Model", {
+                'command': "Drivetrain Mode",
+                'value': bool(is_auto)
+            })
+            print(f"Sent drivetrain mode: {'auto' if is_auto else 'manual'}")
+        except Exception as e:
+            print(f"Error sending drivetrain mode: {e}")
+
+
+    def send_service_brake(self, deceleration_ms2):
+        """
+        Send service brake to Train Model
+        Input: deceleration in m/s²
+        Output: deceleration in m/s² (no conversion needed)
+        
+        Note: When service brake is active, send the deceleration rate.
+        When released, send 0.
+        """
+        try:
+            self.server.send_to_ui("Train Model", {
+                'command': "Service Brake",
+                'value': float(deceleration_ms2)
+            })
+            print(f"Sent service brake: {deceleration_ms2} m/s²")
+        except Exception as e:
+            print(f"Error sending service brake: {e}")
+
+
+    def send_station_announcement(self, message):
+        """
+        Send station announcement message to Train Model
+        Input: string message
+        Output: string (no conversion needed)
+        """
+        try:
+            self.server.send_to_ui("Train Model", {
+                'command': "Station Announcement Message",
+                'value': str(message)
+            })
+            print(f"Sent station announcement: {message}")
+        except Exception as e:
+            print(f"Error sending station announcement: {e}")
+
+
+    def send_train_horn(self, is_active):
+        """
+        Send train horn signal to Train Model
+        Input: boolean (True = horn on, False = horn off)
+        Output: boolean (no conversion needed)
+        """
+        try:
+            self.server.send_to_ui("Train Model", {
+                'command': "Train Horn",
+                'value': bool(is_active)
+            })
+            print(f"Sent train horn: {is_active}")
+        except Exception as e:
+            print(f"Error sending train horn: {e}")
+
     def on_closing(self):
         """Handle application closing"""
         print("Closing application...")
@@ -812,4 +1227,6 @@ class Main_Window:
 if __name__ == "__main__":
     root = tk.Tk()
     app = Main_Window(root)
+    root.protocol("WM_DELETE_WINDOW", app.on_closing)
+
     root.mainloop()
