@@ -59,7 +59,7 @@ class Train:
         self.service_brake_active = True
         
         # Deployment status
-        self.deployed = False
+        self.deployed = True
         
         # Line assignment
         self.line = "green" 
@@ -143,6 +143,14 @@ class Train:
     def set_crew_count(self, value):
         try:
             self.crew_count = max(0, int(value))
+            self._notify_observers()
+        except ValueError:
+            pass
+    
+    def set_power_command(self, value):
+        try:
+            self.last_power_command = self.power_command
+            self.power_command = float(value)
             self._notify_observers()
         except ValueError:
             pass
