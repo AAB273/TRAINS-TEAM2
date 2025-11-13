@@ -1,14 +1,12 @@
-left_panel = LeftPanel(main_frame, test_data)
-line 741, in __init__: 
-    self.create_widgets()
-line 752, in create_widgets: 
-    self.create_switch_section()
-line 813, in create_switch_section: 
-    self.update_switch_options()
-line 817, in update_switch_options
-    switches = list(self.data.filtered_track_data.get("switches", {}).keys())
+Error messages:
+line 2071, in __call__
+    return self.func(*args)
+line 1325, in filter_block_table
+    self.create_block_table()
+line 1302, in create_block_table
+    tk.Label(row_frame, text=row[0], bg='white', width=col_widths['occupied'], borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+UnboundLocalError: cannot access local variable 'row_frame' where it is not associated with a value
 
-AttributeError: 'UITestData' object has no attribute 'filtered_track_data'. Did you mean: 'filter_block_data'?
 
 MAIN UI(suggested_speed):
 
