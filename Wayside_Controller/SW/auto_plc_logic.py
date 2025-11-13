@@ -15,7 +15,14 @@ def run_plc_cycle(data, log):
             log(msg)
 
     current_line = data.current_line
-    track = data.filtered_track_data
+    
+    # Create track data structure from separate attributes
+    track = {
+        "crossings": data.filtered_railway_crossings,
+        "switches": data.filtered_switch_positions,
+        "lights": data.filtered_light_states,
+        "blocks": data.filtered_blocks
+    }
 
     crossings = track.get("crossings", {})
     switches = track.get("switches", {})
@@ -49,15 +56,15 @@ def run_plc_cycle(data, log):
         # Only update and log if something actually changed
         changed = False
         if crossing.get("lights") != new_light:
-            data.update_track_data("crossings", name, "lights", new_light)
+            data.update_track_data("railway_crossings", name, "lights", new_light)
             changed = True
             changes_made = True
         if crossing.get("bar") != new_bar:
-            data.update_track_data("crossings", name, "bar", new_bar)
+            data.update_track_data("railway_crossings", name, "bar", new_bar)
             changed = True
             changes_made = True
         if crossing.get("condition") != cond_str:
-            data.update_track_data("crossings", name, "condition", cond_str)
+            data.update_track_data("railway_crossings", name, "condition", cond_str)
             changed = True
             changes_made = True
         
@@ -66,120 +73,137 @@ def run_plc_cycle(data, log):
             status = "Train Approaching" if train_nearby else "Clear"
             safe_log(f"{datetime.now():%Y-%m-%d %H:%M:%S} PLC: Crossing {name} - {status} ({cond_str})")
 
-    # --- 2. Get current switch positions ---
+    # --- 2. Get current switch positions and build connection map ---
     switch_positions = {}
+    connection_map = {}  # Maps block numbers to their possible next blocks
+    
+    # Build connection map from switches
     for switch_name, switch in switches.items():
         switch_positions[switch_name] = switch.get("direction", "")
+        
+        # Extract switch number from name (e.g., "Switch 85" -> "85")
+        switch_num = switch_name.replace("Switch ", "").strip()
+        
+        # Get all connection options for this switch
+        options = switch.get("options", [])
+        
+        # Parse each option to build connections
+        for option in options:
+            # Handle formats like "85-86", "100-85", "yard-57", etc.
+            parts = option.split('-')
+            if len(parts) == 2:
+                block1 = '0' if 'yard' in parts[0].lower() else parts[0]
+                block2 = '0' if 'yard' in parts[1].lower() else parts[1]
+                
+                # Add connection from block1 to block2
+                if block1 not in connection_map:
+                    connection_map[block1] = []
+                if block2 not in connection_map[block1]:
+                    connection_map[block1].append(block2)
+                
+                # Add connection from block2 to block1  
+                if block2 not in connection_map:
+                    connection_map[block2] = []
+                if block1 not in connection_map[block2]:
+                    connection_map[block2].append(block1)
 
-    # --- 3. Handle track lights (signals) - only log changes ---
+    # --- 3. Handle track lights (signals) - FIXED: turn red when block is occupied ---
     for name, light in lights.items():
-        linked_block_name = light.get("linked_block")
-        if not linked_block_name:
-            # Try to extract block number from light name
-            import re
-            match = re.search(r'\d+', name)
-            if match:
-                linked_block_name = f"Block {match.group()}"
+        # Extract block number from light name (e.g., "Light 1" -> "1")
+        import re
+        match = re.search(r'\d+', name)
+        if match:
+            block_num = match.group()
+            linked_block_name = f"Block {block_num}"
+        else:
+            linked_block_name = light.get("linked_block", "")
         
         block_info = blocks.get(linked_block_name, {})
 
+        # FIX: Light should be RED when block is occupied, GREEN when clear
         new_color = "Red" if block_info.get("occupied", False) else "Green"
         cond_str = f"Signal: {new_color}"
 
         # Only update and log if changed
         changed = False
         if light.get("signal") != new_color:
-            data.update_track_data("lights", name, "signal", new_color)
+            data.update_track_data("light_states", name, "signal", new_color)
             changed = True
             changes_made = True
         if light.get("condition") != cond_str:
-            data.update_track_data("lights", name, "condition", cond_str)
+            data.update_track_data("light_states", name, "condition", cond_str)
             changed = True
             changes_made = True
         
         if changed:
-            safe_log(f"{datetime.now():%Y-%m-%d %H:%M:%S} PLC: Light {name} set to {new_color}")
+            safe_log(f"{datetime.now():%Y-%m-%d %H:%M:%S} PLC: Light {name} set to {new_color} (Block {block_num} occupied: {block_info.get('occupied', False)})")
 
-    # --- 4. Define track topology with completely separate branches ---
+    # --- 4. Simple dynamic topology function ---
     def get_next_blocks(current_block, switch_positions):
-        """Get the next blocks based on current block and switch positions"""
-        block_num = current_block.replace("Block ", "")
+        """Get the next blocks based on connection map"""
+        current_num = current_block.replace("Block ", "").strip()
         
-        # Main line blocks
-        if block_num == "1": return ["Block 2"]
-        elif block_num == "2": return ["Block 3"]
-        elif block_num == "3": return ["Block 4"]
-        elif block_num == "4": return ["Block 5"]
-        elif block_num == "5":
-            # Block 5 is a switch - check which way it's set
-            switch_5_direction = switch_positions.get("Switch 5", "5-6")
-            if "11" in switch_5_direction:
-                return ["Block 11"]  # Switch set to 11 path
-            else:
-                return ["Block 6"]   # Switch set to 6 path (default)
-        elif block_num == "6": return ["Block 7"]
-        elif block_num == "7": return ["Block 8"]
-        elif block_num == "8": return ["Block 9"]
-        elif block_num == "9": return ["Block 10"]
-        elif block_num == "10": return []  # End of branch 6-10
-        elif block_num == "11": return ["Block 12"]
-        elif block_num == "12": return ["Block 13"]
-        elif block_num == "13": return ["Block 14"]
-        elif block_num == "14": return ["Block 15"]
-        elif block_num == "15": return ["Block 16"]
-        else:
-            return []
+        # Check if we have connections for this block
+        if current_num in connection_map:
+            next_nums = connection_map[current_num]
+            return [f"Block {next_num}" for next_num in next_nums]
+        
+        # Fallback: simple sequential logic for testing
+        try:
+            current_int = int(current_num)
+            next_num = current_int + 1
+            if f"Block {next_num}" in blocks:
+                return [f"Block {next_num}"]
+        except ValueError:
+            pass
+            
+        return []
 
-    # --- 5. Calculate authority using BFS to find distance to nearest occupied block ---
-    def find_distance_to_occupied(start_block, blocks, switch_positions, visited=None):
-        if visited is None:
-            visited = set()
+    # --- 5. NEW: Calculate authority based on suggested authority from connected blocks ---
+    def calculate_authority_from_suggested(block_name, blocks, switch_positions):
+        """Calculate authority based on suggested authority from next blocks"""
+        current_num = block_name.replace("Block ", "").strip()
+        current_block = blocks.get(block_name, {})
         
-        if start_block in visited:
-            return float('inf')
-        
-        visited.add(start_block)
-        
-        current_block_data = blocks.get(start_block, {})
-        
-        # If this block is occupied, distance is 0
-        if current_block_data.get("occupied", False):
+        # If block is occupied or faulted, authority is 0
+        if current_block.get("occupied", False) or current_block.get("faulted", False):
             return 0
         
-        # If this block is faulted, treat as occupied
-        if current_block_data.get("faulted", False):
-            return 0
+        # Get next blocks
+        next_blocks = get_next_blocks(block_name, switch_positions)
         
-        # Check next blocks based on track topology and switch positions
-        next_blocks = get_next_blocks(start_block, switch_positions)
-        min_distance = float('inf')
+        # Find the minimum suggested authority from next blocks
+        min_next_authority = float('inf')
         
-        for next_block in next_blocks:
-            if next_block in blocks:
-                distance = 1 + find_distance_to_occupied(next_block, blocks, switch_positions, visited.copy())
-                min_distance = min(min_distance, distance)
+        for next_block_name in next_blocks:
+            next_block = blocks.get(next_block_name, {})
+            # Get suggested authority from the next block
+            suggested_auth = data.suggested_authority.get(current_line, {}).get(
+                next_block_name.replace("Block ", ""), 0)
+            
+            # Convert to int if it's a string
+            if isinstance(suggested_auth, str):
+                try:
+                    suggested_auth = int(suggested_auth)
+                except ValueError:
+                    suggested_auth = 0
+            
+            min_next_authority = min(min_next_authority, suggested_auth)
         
-        return min_distance
+        # If no next blocks found, use default authority
+        if min_next_authority == float('inf'):
+            return 15  # Default authority when no path constraints
+        
+        # Authority is one less than the minimum suggested authority of next blocks
+        return max(0, min_next_authority - 1)
 
     # --- 6. Update authority and speed for each block ---
     for block_name, block in blocks.items():
         current_faulted = block.get("faulted", False)
         current_occupied = block.get("occupied", False)
         
-        # Calculate distance to nearest occupied block along the active path
-        distance = find_distance_to_occupied(block_name, blocks, switch_positions)
-        
-        # Authority calculation:
-        if current_faulted:
-            new_authority = 0
-        elif current_occupied:
-            new_authority = 15  # Occupied block gets full authority
-        elif distance == float('inf'):
-            new_authority = 15  # No occupied blocks ahead
-        else:
-            # Authority = distance to nearest occupied block - 1
-            # So block right before occupied gets 0
-            new_authority = max(0, distance - 1)
+        # NEW: Calculate authority based on suggested authority from connected blocks
+        new_authority = calculate_authority_from_suggested(block_name, blocks, switch_positions)
         
         # Speed calculation: 31 mph if authority > 0 and not faulted, else 0
         new_speed = 31 if new_authority > 0 and not current_faulted else 0
@@ -192,36 +216,37 @@ def run_plc_cycle(data, log):
         speed_changed = (old_speed != new_speed)
         
         if authority_changed:
-            block["authority"] = new_authority
+            data.update_block_in_track_data(block.get("number"), "authority", new_authority)
             changes_made = True
             
         if speed_changed:
-            block["speed"] = new_speed
+            data.update_block_in_track_data(block.get("number"), "speed", new_speed)
             changes_made = True
         
         # Only add to authority_changes if something actually changed
         if authority_changed or speed_changed:
             authority_changes[block_name] = (new_authority, new_speed, current_occupied)
 
-        # Sync block occupancy and faulted status
+        # Sync block occupancy and faulted status (with error handling)
         block_num = str(block.get("number", block_name.replace("Block ", "")))
-        for idx, row in enumerate(data.block_data):
-            if row[1] == current_line and str(row[2]) == str(block_num):
-                # Update occupancy
-                block_occupied_in_data = (row[0] == "Yes")
-                if block.get("occupied") != block_occupied_in_data:
-                    block["occupied"] = block_occupied_in_data
-                    safe_log(f"{datetime.now():%Y-%m-%d %H:%M:%S} PLC: Block {block_num} occupancy changed to {row[0]}")
-                    changes_made = True
-                
-                # Update faulted status
-                if len(row) > 3:
-                    block_faulted_in_data = (row[3] == "Yes")
-                    if block.get("faulted") != block_faulted_in_data:
-                        block["faulted"] = block_faulted_in_data
-                        safe_log(f"{datetime.now():%Y-%m-%d %H:%M:%S} PLC: Block {block_num} fault status changed to {row[3]}")
+        try:
+            for idx, row in enumerate(data.block_data):
+                if row[1] == current_line and str(row[2]) == str(block_num):
+                    # Update occupancy
+                    block_occupied_in_data = (row[0] == "Yes")
+                    if block.get("occupied") != block_occupied_in_data:
+                        block["occupied"] = block_occupied_in_data
                         changes_made = True
-                break
+                    
+                    # Update faulted status
+                    if len(row) > 3:
+                        block_faulted_in_data = (row[3] == "Yes")
+                        if block.get("faulted") != block_faulted_in_data:
+                            block["faulted"] = block_faulted_in_data
+                            changes_made = True
+                    break
+        except Exception as e:
+            safe_log(f"{datetime.now():%Y-%m-%d %H:%M:%S} WARNING: Error syncing block {block_num}: {e}")
 
     # --- 7. Log authority changes only once per block per cycle ---
     for block_name, (authority, speed, occupied) in authority_changes.items():
@@ -229,21 +254,28 @@ def run_plc_cycle(data, log):
         status = "OCCUPIED" if occupied else "CLEAR"
         safe_log(f"{datetime.now():%Y-%m-%d %H:%M:%S} PLC: Block {block_num} ({status}) - Authority: {authority}, Speed: {speed} mph")
 
-    # --- 8. Update commanded_values for right panel ---
-    if current_line not in data.commanded_values:
-        data.commanded_values[current_line] = {}
-    
-    for block_name, block in blocks.items():
-        block_num = str(block.get("number", block_name.replace("Block ", "")))
-        authority = block.get("authority", 0)
-        speed = block.get("speed", 0)
+    # --- 8. Update commanded_values for right panel (with error handling) ---
+    try:
+        # Check if commanded_values exists, if not, skip this section
+        if not hasattr(data, 'commanded_values'):
+            return  # Skip if commanded_values doesn't exist
         
-        data.commanded_values[current_line][block_num] = {
-            "authority": str(authority),
-            "speed": str(speed)
-        }
+        if current_line not in data.commanded_values:
+            data.commanded_values[current_line] = {}
+        
+        for block_name, block in blocks.items():
+            block_num = str(block.get("number", block_name.replace("Block ", "")))
+            authority = block.get("authority", 0)
+            speed = block.get("speed", 0)
+            
+            data.commanded_values[current_line][block_num] = {
+                "authority": str(authority),
+                "speed": str(speed)
+            }
+    except Exception as e:
+        safe_log(f"{datetime.now():%Y-%m-%d %H:%M:%S} WARNING: Error updating commanded_values: {e}")
 
-    # Notify callbacks if changes were made
+    # Notify callbacks if changes were made (with error handling)
     if changes_made and hasattr(data, 'on_data_update'):
         for callback in data.on_data_update:
             try:
