@@ -82,7 +82,8 @@ class FileUploadManager:
         from Track_Blocks import Block
 
         # Look for the Excel file in the same directory as this script
-        track_file = os.path.join(os.path.dirname(__file__), "Track Data.xlsx")
+        main_dir = os.path.dirname(os.path.dirname(__file__))
+        track_file = os.path.join(main_dir, "Track Data.xlsx")
 
         if not os.path.exists(track_file):
             print("[FileUploadManager] ⚠️ 'Track Data.xlsx' not found in directory.")
