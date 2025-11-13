@@ -43,8 +43,6 @@ class RailwayControlSystem:
         
         # FIX: Connect with correct parameters
         self.server.connect_to_ui('localhost', 22342, "test_ui")
-        self.server.connect_to_ui('localhost', 12341, "CTC")
-        self.server.connect_to_ui('localhost', 12344, "Track Model")
 
         self.create_ui()
         self.setup_logging()
