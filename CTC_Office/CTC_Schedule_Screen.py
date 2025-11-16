@@ -296,6 +296,7 @@ class ScheduleScreen:
         self.mainScreen.send_to_ui("Track HW", {"command": "suggested_speed", "value": {f"{speed:.3f}\n"}})
         self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": "Green", "block": "63", "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
         #hardcoded 63 for now
+        return auth  #for test case 1
 
 ###############################################################################################################################################################
 
