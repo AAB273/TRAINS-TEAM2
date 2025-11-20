@@ -235,7 +235,7 @@ class Train:
         total_mass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passenger_count + 2))
         neg_grade_true = False
         
-        # Grade Force - FIXED
+        # Grade Force 
         if self.grade != 0:
             Fgrade = total_mass * 9.8 * (self.grade/100)
             if(self.grade < 0):
@@ -293,9 +293,11 @@ class Train:
             new_speed = 0
             a_new = 0
         
-     
-        if new_speed > self.speed_limit:
-            new_speed = self.speed_limit
+        if self.speed_limit != 0:
+            if new_speed > self.speed_limit:
+                new_speed = self.speed_limit
+        else:
+            pass
         
         # NOW calculate distance with final speed values
         if hasattr(self, 'speed_prev'):

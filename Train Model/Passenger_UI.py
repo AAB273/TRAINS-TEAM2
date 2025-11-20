@@ -53,6 +53,9 @@ class TrainModelPassengerGUI:
         self.ui_labels = {}
         self.ui_indicators = {}
         self.canvas_frame_circle = None
+
+        self.previous_failure_signal_pickup_state = False
+        self.failure_activation_in_progress = False
         
         self.setup_gui()
         
@@ -119,10 +122,13 @@ class TrainModelPassengerGUI:
                     else:
                         self.current_train.set_emergency_brake(0)
                 elif command == 'set_service_brake':
-                    if value == 'on':
-                        self.current_train.set_service_brake(True)
-                    else:
-                        self.current_train.set_service_brake(False)
+                    if self.failure_brake_var.get():
+                        pass
+                    else:    
+                        if value == 'on':
+                            self.current_train.set_service_brake(True)
+                        else:
+                            self.current_train.set_service_brake(False)
                 elif command == 'set_passenger_count':
                     self.current_train.set_passenger_count(value)
             #  elif command == 'horn':
@@ -184,7 +190,10 @@ class TrainModelPassengerGUI:
                     target_temp = value
                     self._animate_temperature_change(target_temp)
                 elif command == 'Service Brake':
-                    self.current_train.set_service_brake(value)
+                    if self.failure_brake_var.get:
+                        pass
+                    else:
+                        self.current_train.set_service_brake(value)
                 elif command == 'Emergency Brake':
                     self.current_train.set_emergency_brake(value)
                 elif command == 'Left Door Signal':
@@ -210,7 +219,7 @@ class TrainModelPassengerGUI:
                     self.server.send_to_ui("Train SW",{'command':"Commanded Speed",'value':value})
                     self.server.send_to_ui("Train HW",{'command':"Commanded Speed",'value':value})
                     self.current_train.set_service_brake(False)
-                elif command == 'Block Occupancy':
+                elif command == 'Block Occupancy': #Figure out signal pickup
                     self.current_train.set_block(value)
                 elif command == 'Passengers Boarding':
                     self.update_boarding(value)
@@ -245,13 +254,11 @@ class TrainModelPassengerGUI:
     def failure_service_brake_var_changed(self):
         if self.failure_brake_var.get():
             self.current_train.set_service_brake(0)
-            self.emergency_brake_activated()
             self.server.send_to_ui("Train SW",{'command': "Service Brake Failure",'value': True})
             self.server.send_to_ui("Train HW",{'command': "Service Brake Failure",'value': True})
             print(f"Service Brake Failure Activated")
         elif self.failure_brake_var.get() == 0:
             print(f"Service Brake Deactivated")
-            self.current_train.set_emergency_brake(0)
             self.server.send_to_ui("Train SW",{'command': "Service Brake Failure",'value': False})
             self.server.send_to_ui("Train HW",{'command': "Service Brake Failure",'value': False})
 
@@ -269,18 +276,39 @@ class TrainModelPassengerGUI:
             self.server.send_to_ui("Train SW",{"Train Engine Failure",0})
             self.server.send_to_ui("Train HW",{"Train Engine Failure",0})
 
-    def failure_signal_pickup_var_changed(self):
-        if self.failure_signal_pickup_var.get():
-            print(f"Signal Pickup Failure Activated")
-            self.ui_labels['Speed Limit'].config(text=f"Speed Limit: ??? MPH")
-            self.ui_labels['Grade'].config(text=f"Grade: ???")
-            self.ui_labels['Elevation'].config(text=f"Elevation: ???")
-            self.server.send_to_ui("Train SW",{'command': "Signal Pickup Failure",'value': True})
-            self.server.send_to_ui("Train HW",{'command': "Signal Pickup Failure",'value': True})
+    def update_failure_signal(self):
+        current_state = self.failure_signal_pickup_var.get()
+        
+        # Only proceed if state actually changed
+        if current_state == self.previous_failure_signal_pickup_state:
+            return
+        
+        if current_state and not self.failure_activation_in_progress:
+            self.activate_signal_failure()
         else:
-            print(f"Signal Pickup Failure Deactivated")
-            self.server.send_to_ui("Train SW",{'command': "Signal Pickup Failure",'value': False})
-            self.server.send_to_ui("Train HW",{'command': "Signal Pickup Failure",'value': False})
+            self.deactivate_signal_failure()
+        
+        self.previous_failure_signal_pickup_state = current_state
+
+    def deactivate_signal_failure(self):
+        print(f"Signal Pickup Failure Deactivated")
+        self.server.send_to_ui("Train SW", {'command': "Signal Pickup Failure", 'value': False})
+        self.server.send_to_ui("Train HW", {'command': "Signal Pickup Failure", 'value': False})
+
+    def activate_signal_failure(self):
+        print(f"Signal Pickup Failure Activated")
+        self.failure_activation_in_progress = True
+        
+        # Set the values directly without calling methods that might cause loops
+        # Your periodic 100ms update will handle the UI refresh
+        self.current_train.speed_limit = 0
+        self.current_train.grade = 0
+        self.current_train.elevation = 0
+        
+        self.server.send_to_ui("Train SW", {'command': "Signal Pickup Failure", 'value': True})
+        self.server.send_to_ui("Train HW", {'command': "Signal Pickup Failure", 'value': True})
+        
+        self.failure_activation_in_progress = False
             
     def update_disembarking(self):
         if self.current_train and self.current_train.deployed and self.current_train.passenger_count != 0:
@@ -318,29 +346,26 @@ class TrainModelPassengerGUI:
         self.ui_labels['disembarking'].config(text=f"Passengers Disembarking: {train.passengers_disembarking}")
         self.ui_labels['crew_count'].config(text=f"Crew Count: {train.crew_count}")
 
-        if self.failure_signal_pickup_var.get():
-            print(f"Signal Pickup Failure Activated")
-            self.current_train.set_speed_limit(None)
-            self.current_train.set_grade(None)
-            self.current_train.set_elevation(None)
-            self.ui_labels['Speed Limit'].config(text=f"Speed Limit: ??? MPH")
-            self.ui_labels['Grade'].config(text=f"Grade: ???")
-            self.ui_labels['Elevation'].config(text=f"Elevation: ???")
-            self.server.send_to_ui("Train SW",{'command': "Signal Pickup Failure",'value': True})
-            self.server.send_to_ui("Train HW",{'command': "Signal Pickup Failure",'value': True})
-        else:
-            print(f"Signal Pickup Failure Deactivated")
-            self.server.send_to_ui("Train SW",{'command': "Signal Pickup Failure",'value': False})
-            self.server.send_to_ui("Train HW",{'command': "Signal Pickup Failure",'value': False})
-            
-             # Update speed limit
-            imperial_speed_limit = train.speed_limit * 0.621371
-            self.ui_labels['Speed Limit'].config(text=f"Speed Limit: {imperial_speed_limit:.1f} MPH")
 
-            # Update Grade and Elevation
-            self.ui_labels['Grade'].config(text=f"Grade: {train.grade}%")
-            self.ui_labels['Elevation'].config(text=f"Elevation: {train.elevation}ft")
-        
+        # SIGNAL PICKUP FAILURE CHECKING ##########################################
+        if self.failure_signal_pickup_var.get():
+            # Failure active - show ??? values
+            self.ui_labels['Commanded Authority'].config(text="Commanded Authority: ??? Blocks")
+            self.ui_labels['Commanded Speed'].config(text="Commanded Speed: ??? MPH")
+        else:
+            self.ui_labels['Commanded Authority'].config(text=f"Commanded Authority: {train.commanded_authority:.0f} Blocks")
+            self.ui_labels['Commanded Speed'].config(text=f"Commanded Speed: {train.commanded_speed:.0f} MPH")
+    
+        # Check for failure state changes
+        self.update_failure_signal()
+
+        # Normal operation - show actual values
+        imperial_speed_limit = train.speed_limit * 0.621371
+        self.ui_labels['Speed Limit'].config(text=f"Speed Limit: {imperial_speed_limit:.1f} MPH")
+
+        # Update Grade and Elevation
+        self.ui_labels['Grade'].config(text=f"Grade: {train.grade}%")
+        self.ui_labels['Elevation'].config(text=f"Elevation: {train.elevation}ft")
         # Update cabin temp
         if self.canvas_frame_circle and 'cabin_temp' in self.ui_labels:
             self.canvas_frame_circle.itemconfig(self.ui_labels['cabin_temp'], text=f"{train.cabin_temp:.0f}°F")
@@ -361,8 +386,7 @@ class TrainModelPassengerGUI:
 
         # Update power command and commanded values
         self.ui_labels['power_command'].config(text=f"{train.power_command:.0f} Watts")
-        self.ui_labels['Commanded Authority'].config(text=f"Commanded Authority: {train.commanded_authority:.0f} Blocks")
-        self.ui_labels['Commanded Speed'].config(text=f"Commanded Speed: {train.commanded_speed:.0f} MPH")
+        
         
         # Update door and light indicators
         right_door_color = 'green' if train.right_door_open else 'red'
@@ -555,7 +579,6 @@ class TrainModelPassengerGUI:
 
         self.failure_signal_pickup_var = tk.BooleanVar(value=False)
         signal_pickup_switch = ttk.Checkbutton(murphy_frame, text="Signal Pickup", variable=self.failure_signal_pickup_var,
-                                               command=lambda: self.failure_signal_pickup_var_changed(),
                                                style="Medium.TCheckbutton")
         signal_pickup_switch.pack(pady=6, padx=3, fill='x', expand=True)
 
