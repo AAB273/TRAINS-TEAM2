@@ -97,6 +97,20 @@ class TestUI:
         ttk.Button(power_control_frame, text="Set", 
                   command=self.set_custom_power, width=5).pack(side='left', padx=2)
         
+        # Authority Control - Compact (NEW SECTION)
+        authority_frame = ttk.LabelFrame(main_container, text="Authority Control", padding=6)
+        authority_frame.pack(fill='x', padx=5, pady=2)
+        
+        authority_control_frame = tk.Frame(authority_frame)
+        authority_control_frame.pack(fill='x', pady=2)
+        
+        tk.Label(authority_control_frame, text="Authority (ft):").pack(side='left')
+        self.custom_authority_var = tk.StringVar(value="100")
+        custom_authority_entry = tk.Entry(authority_control_frame, textvariable=self.custom_authority_var, width=6)
+        custom_authority_entry.pack(side='left', padx=2)
+        ttk.Button(authority_control_frame, text="Set", 
+                  command=self.set_custom_authority, width=5).pack(side='left', padx=2)
+        
         # Door Control - Compact side-by-side layout
         door_frame = ttk.LabelFrame(main_container, text="Door Control", padding=6)
         door_frame.pack(fill='x', padx=5, pady=2)
@@ -293,6 +307,15 @@ class TestUI:
         except ValueError:
             self.status_label.config(text="Invalid power value")
             
+    def set_custom_authority(self):
+        """Set custom authority value"""
+        try:
+            authority = int(self.custom_authority_var.get())
+            self.send_to_ui('set_authority', authority)
+            self.status_label.config(text=f"Set authority to {authority} ft")
+        except ValueError:
+            self.status_label.config(text="Invalid authority value")
+            
     def refresh_train_list(self):
         """Refresh the list of deployed trains"""
         self.send_to_ui('refresh_trains')
@@ -303,4 +326,4 @@ class TestUI:
 
 if __name__ == "__main__":
     app = TestUI()
-    app.run()
+    app.run() 

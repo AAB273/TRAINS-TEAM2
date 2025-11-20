@@ -89,7 +89,7 @@ class TrainModelPassengerGUI:
 
                 command = message.get('command')
                 value = message.get('value')
-                
+              #Test Commands###########################################################  
                 if command == 'set_power':
                     self.current_train.last_power_command = self.current_train.power_command
                     self.current_train.set_power_command(value)
@@ -139,7 +139,7 @@ class TrainModelPassengerGUI:
                     target_temp = value
                     self._animate_temperature_change(target_temp)
                 elif command == 'set_authority':
-                    self.current_train.set_c
+                    self.current_train.set_authority(value)
                 elif command == 'set_station':
                     self.current_train.set_station(value)
                 elif command == 'set_time_to_station':
@@ -176,59 +176,52 @@ class TrainModelPassengerGUI:
                     self._socket_refresh_train_selector()
                 elif command == 'refresh_trains':
                     self._socket_refresh_train_selector()
-                
-                # Force UI update
+                ############################################################ 
+
+
+                #MAIN COMMANDS ############################################# 
+                elif command == 'Cabin Interior Temperature Control':
+                    target_temp = value
+                    self._animate_temperature_change(target_temp)
+                elif command == 'Service Brake':
+                    self.current_train.set_service_brake(value)
+                elif command == 'Emergency Brake':
+                    self.current_train.set_emergency_brake(value)
+                elif command == 'Left Door Signal':
+                    self.current_train.set_left_door(value)
+                elif command == 'Right Door Signal':
+                    self.current_train.set_right_door(value)
+                elif command == 'Headlights':
+                    self.current_train.set_headlights(value)
+                elif command == 'Cabin Lights':
+                    self.current_train.set_interior_lights(value)
+                elif command == 'Power Command':
+                    self.current_train.set_power_command(value)
+                elif command == 'Train Horn':
+                    playsound("Train Model/diesel-horn-02-98042.mp3")
+                elif command == 'Station Announcement Message':
+                    self.current_train.set_station(value)
+                elif command == 'Commanded Authority':
+                    self.current_train.set_authority(value)
+                    self.server.send_to_ui("Train SW",{'command': "Commanded Authority",'value': value})
+                    self.server.send_to_ui("Train HW",{'command': "Commanded Authority",'value':value})
+                elif command == 'Commanded Speed':
+                    self.current_train.set_commanded_speed(value)
+                    self.server.send_to_ui("Train SW",{'command':"Commanded Speed",'value':value})
+                    self.server.send_to_ui("Train HW",{'command':"Commanded Speed",'value':value})
+                    self.current_train.set_service_brake(False)
+                elif command == 'Block Occupancy':
+                    self.current_train.set_block(value)
+                elif command == 'Passengers Boarding':
+                    self.update_boarding(value)
+                elif command == 'Beacon':
+                    if self.current_train.line == 'Green':
+                        print("Implement beacon data, figure out how you are gonna reference it.")
                 self.update_ui_from_train(self.current_train)
                 
             except Exception as e:
                 print(f"Error processing message: {e}")
 
-    """   
-    def _process_message(self, message, source_ui_id):
-        Process incoming messages and update train state
-        try:
-            print(f"Received message from {source_ui_id}: {message}")
-
-            command = message.get('command')
-            value = message.get('value')
-            
-            if command == 'Cabin Interior Temperature Control':
-                target_temp = value
-                self._animate_temperature_change(target_temp)
-            elif command == 'Service Brake':
-                self.current_train.set_service_brake(value)
-            elif command == 'Emergency Brake':
-                self.current_train.set_emergency_brake(value)
-            elif command == 'Left Door Signal':
-                self.current_train.set_left_door(value)
-            elif command == 'Right Door Signal':
-                self.current_train.set_right_door(value)
-            elif command == 'Headlights':
-                self.current_train.set_headlights(value)
-            elif command == 'Cabin Lights':
-                self.current_train.set_interior_lights(value)
-            elif command == 'Power Command':
-                self.current_train.set_power_command(value)
-            elif command == 'Train Horn':
-                playsound("Train Model/diesel-horn-02-98042.mp3")
-            elif command == 'Station Announcement Message':
-                self.current_train.set_station(value)
-            elif command == 'Commanded Authority':
-                self.current_train.set_commanded_authority(value)
-                self.server.send_to_ui("Train SW",{'command': "Commanded Authority",'value': value})
-                self.server.send_to_ui("Train HW",{'command': "Commanded Authority",'value':value})
-            elif command == 'Commanded Speed':
-                self.current_train.set_commanded_speed(value)
-                self.server.send_to_ui("Train SW",{'command':"Commanded Speed",'value':value})
-                self.server.send_to_ui("Train HW",{'command':"Commanded Speed",'value':value})
-            elif command == 'Block Occupancy':
-                self.current_train.set_block(value)
-            elif command == 'Passengers Boarding':
-                self.update_boarding(value)
-
-        except Exception as e:
-            print(f"Error processing message: {e}")
-    """
     def continuous_physics_update(self):
         """Continuously update train physics for real-time speed changes"""
         if self.current_train and self.current_train.deployed:
@@ -325,13 +318,28 @@ class TrainModelPassengerGUI:
         self.ui_labels['disembarking'].config(text=f"Passengers Disembarking: {train.passengers_disembarking}")
         self.ui_labels['crew_count'].config(text=f"Crew Count: {train.crew_count}")
 
-        # Update speed limit
-        imperial_speed_limit = train.speed_limit * 0.621371
-        self.ui_labels['Speed Limit'].config(text=f"Speed Limit: {imperial_speed_limit:.1f} MPH")
+        if self.failure_signal_pickup_var.get():
+            print(f"Signal Pickup Failure Activated")
+            self.current_train.set_speed_limit(None)
+            self.current_train.set_grade(None)
+            self.current_train.set_elevation(None)
+            self.ui_labels['Speed Limit'].config(text=f"Speed Limit: ??? MPH")
+            self.ui_labels['Grade'].config(text=f"Grade: ???")
+            self.ui_labels['Elevation'].config(text=f"Elevation: ???")
+            self.server.send_to_ui("Train SW",{'command': "Signal Pickup Failure",'value': True})
+            self.server.send_to_ui("Train HW",{'command': "Signal Pickup Failure",'value': True})
+        else:
+            print(f"Signal Pickup Failure Deactivated")
+            self.server.send_to_ui("Train SW",{'command': "Signal Pickup Failure",'value': False})
+            self.server.send_to_ui("Train HW",{'command': "Signal Pickup Failure",'value': False})
+            
+             # Update speed limit
+            imperial_speed_limit = train.speed_limit * 0.621371
+            self.ui_labels['Speed Limit'].config(text=f"Speed Limit: {imperial_speed_limit:.1f} MPH")
 
-        # Update Grade and Elevation
-        self.ui_labels['Grade'].config(text=f"Grade: {train.grade}%")
-        self.ui_labels['Elevation'].config(text=f"Elevation: {train.elevation}ft")
+            # Update Grade and Elevation
+            self.ui_labels['Grade'].config(text=f"Grade: {train.grade}%")
+            self.ui_labels['Elevation'].config(text=f"Elevation: {train.elevation}ft")
         
         # Update cabin temp
         if self.canvas_frame_circle and 'cabin_temp' in self.ui_labels:
@@ -346,14 +354,14 @@ class TrainModelPassengerGUI:
         self.ui_labels['width'].config(text=f"Width: {imperial_width:.1f}ft")
 
         # Update Announcement and Time
-        if self.current_train.set_emergency_brake:
+        if self.current_train.emergency_brake_active:
             self.ui_labels['announcement'].config(text=f"EMERGENCY")
         else:
             self.ui_labels['announcement'].config(text=f"Arriving to Station {train.station} in {train.time_to_station}mins")
 
         # Update power command and commanded values
         self.ui_labels['power_command'].config(text=f"{train.power_command:.0f} Watts")
-        self.ui_labels['Commanded Authority'].config(text=f"Commanded Authority: {train.commanded_authority:.0f} ft")
+        self.ui_labels['Commanded Authority'].config(text=f"Commanded Authority: {train.commanded_authority:.0f} Blocks")
         self.ui_labels['Commanded Speed'].config(text=f"Commanded Speed: {train.commanded_speed:.0f} MPH")
         
         # Update door and light indicators

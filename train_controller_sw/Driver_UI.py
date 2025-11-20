@@ -126,7 +126,7 @@ class Main_Window:
         #add zoomed command to make screen fit 
         #self.root.attributes('-zoomed', True)  # On macOS/Linux
         self.root.configure(bg="navy")
-        self.root.attributes('-zoomed', True)  # On macOS/Linux
+        #self.root.attributes('-zoomed', True)  # On macOS/Linux
         #self.root.state('zoomed') for windows
 
         # Make fullscreen
@@ -467,7 +467,7 @@ class Main_Window:
          # State variables
         self.current_speed = 0  # Will be in mph (converted from m/s for display)
         self.current_speed_ms = 0  # Store original m/s value for calculations
-        self.commanded_speed_ms = 0  # Store commanded speed in m/s for calculations
+        self.commanded_speed_ms = 22  # Store commanded speed in m/s for calculations
         self.set_speed = 45
         self.set_temp = 68
         self.is_auto_mode = True
@@ -525,7 +525,7 @@ class Main_Window:
                     self.add_to_status_log("Passenger emergency signal cleared")
             
             # ========== ACTUAL VELOCITY ==========
-            elif command == "Actual Velocity":
+            elif command == "Current Speed":
                 # Input: m/s from Train Model
                 self.current_speed_ms = float(value)  # Store original m/s
                 velocity_mph = self.current_speed_ms * METERS_PER_SEC_TO_MPH
@@ -875,12 +875,12 @@ class Main_Window:
         if pressed:
             self.service_brake_active = True
             deceleration = 1.2  # m/s² (positive value for deceleration)
-            self.send_service_brake(deceleration)
+            self.send_service_brake(pressed)
             self.add_to_status_log(f"Service brake applied")
             print(f"Service brake applied")
         else:
             self.service_brake_active = False
-            self.send_service_brake(0)  # Release brake
+            self.send_service_brake(False)  # Release brake
             self.add_to_status_log("Service brake released")
             print("Service brake: RELEASED")
     
@@ -1025,7 +1025,7 @@ class Main_Window:
         """
         try:
             self.server.send_to_ui("Train Model", {
-                'command': "Setpoint Power",
+                'command': "Power Command",
                 'value': float(power_kw)
             })
             # Don't print every power command to avoid spam
@@ -1163,7 +1163,7 @@ class Main_Window:
             print(f"Error sending drivetrain mode: {e}")
 
 
-    def send_service_brake(self, deceleration_ms2):
+    def send_service_brake(self, pressed):
         """
         Send service brake to Train Model
         Input: deceleration in m/s²
@@ -1175,9 +1175,9 @@ class Main_Window:
         try:
             self.server.send_to_ui("Train Model", {
                 'command': "Service Brake",
-                'value': float(deceleration_ms2)
+                'value': pressed
             })
-            print(f"Sent service brake: {deceleration_ms2} m/s²")
+            print(f"Sent service brake: on")
         except Exception as e:
             print(f"Error sending service brake: {e}")
 

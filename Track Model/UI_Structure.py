@@ -3315,11 +3315,64 @@ class TrackModelUI(tk.Tk):
                             print(f"⚠️ Invalid bit array format for block {block_number}: {value}")
                         self.refresh_bidirectional_controls()  # Update bidirectional directions
                         self.refresh_ui()
+
+            # ============================================================
+            # CURRENT SPEED - From Train Model (Passenger_UI)
+            # Receives current/actual speed for a train to calculate movement
+            # Command format from Passenger_UI: {'command': 'Current Speed', 'value': speed}
+            # ============================================================
+            elif command == 'Current Speed' or command == 'current_speed' or command == 'actual_speed' or command == 'actualSpeed':
+                # Handle speed update from Train Model
+                speed = value  # Speed in m/s or mph (Passenger_UI sends in mph)
+                train_id = message.get('train_id')
+                
+                # If no train_id provided, determine from active trains
+                if not train_id and speed is not None:
+                    # Passenger_UI doesn't send train_id, so we need to determine which train
+                    # Assume it's for the most recently deployed train or first active train
+                    if self.data_manager.active_trains:
+                        train_id = self.data_manager.active_trains[-1]  # Most recent train
+                        print(f"📍 No train_id in Current Speed message, assuming it's for {train_id}")
+                
+                if speed is not None:
+                    # Convert speed to float if needed
+                    if isinstance(speed, str):
+                        try:
+                            speed = float(speed)
+                        except (ValueError, TypeError):
+                            print(f"⚠️ Could not convert speed '{speed}' to float")
+                            speed = 0
+                    
+                    # Convert from mph to m/s if needed (Passenger_UI sends in mph)
+                    # 1 mph = 0.44704 m/s
+                    speed_ms = speed * 0.44704
+                    
+                    if train_id:
+                        # Store actual speed for this train
+                        self.train_actual_speeds[train_id] = speed_ms
+                        print(f"🚄 Updated current speed for {train_id}: {speed:.1f} mph ({speed_ms:.1f} m/s)")
+                        
+                        # Initialize position tracking if new train
+                        if train_id not in self.train_positions_in_block:
+                            self.train_positions_in_block[train_id] = 0
+                            import time
+                            self.last_movement_update[train_id] = time.time()
+                            
+                            # Find which block this train is on
+                            if train_id in self.data_manager.active_trains:
+                                idx = self.data_manager.active_trains.index(train_id)
+                                if idx < len(self.data_manager.train_locations):
+                                    block_num = self.data_manager.train_locations[idx]
+                                    print(f"   Train {train_id} is on block {block_num}")
+                    else:
+                        print(f"⚠️ Could not determine train for speed update: {speed} mph")
+                else:
+                    print(f"⚠️ Invalid current speed message: speed={speed}")
             
+            
+            # ============================================================            # PASSENGERS DISEMBARKING - From Train Model (Passenger_UI)            # Command format from Passenger_UI: {'command': 'Passenger Disembarking', 'value': disembarking}            # ============================================================            elif command == 'Passenger Disembarking' or command == 'Passengers Disembarking':                disembarking = value                                # Handle block_number if provided (legacy format)                if block_number is not None:                    idx = block_number - 1                    if 0 <= idx < len(self.data_manager.passengers_disembarking):                        if isinstance(disembarking, str):                            try:                                disembarking = int(disembarking)                            except (ValueError, TypeError):                                disembarking = 0                                                self.data_manager.passengers_disembarking[idx] = disembarking                        print(f"✅ Passengers disembarking at block {block_number}: {disembarking}")                                                if block_number in self.station_blocks:                            self.send_station_data_to_ctc(block_number)                                                if hasattr(self, 'view_mode') and self.view_mode.get() == "station":                            self.populate_station_view()                else:                    # Passenger_UI doesn't send block_number, determine from train location                    if isinstance(disembarking, str):                        try:                            disembarking = int(disembarking)                        except (ValueError, TypeError):                            disembarking = 0                                        # Try to find the train                    train_id = message.get('train_id')                    if not train_id and self.data_manager.active_trains:                        train_id = self.data_manager.active_trains[-1]  # Most recent train                        print(f"📍 No train_id, using {train_id}")                                        # Find train's current block                    if train_id and train_id in self.data_manager.active_trains:                        idx = self.data_manager.active_trains.index(train_id)                        if idx < len(self.data_manager.train_locations):                            block_num = self.data_manager.train_locations[idx]                            block_idx = block_num - 1                                                        if 0 <= block_idx < len(self.data_manager.passengers_disembarking):                                self.data_manager.passengers_disembarking[block_idx] = disembarking                                print(f"✅ Passengers disembarking at block {block_num} (train {train_id}): {disembarking}")                                                                if block_num in self.station_blocks:                                    self.send_station_data_to_ctc(block_num)                                                                if hasattr(self, 'view_mode') and self.view_mode.get() == "station":                                    self.populate_station_view()                    else:                        print(f"⚠️ Could not determine location for {disembarking} disembarking passengers")            
             # ============================================================
-            # PASSENGERS DISEMBARKING - From Train Model
-            # ============================================================
-            elif command == 'passengers_disembarking':
+            elif command == 'Passengers Disembarking':
                 if block_number is not None:
                     idx = block_number - 1
                     if 0 <= idx < len(self.data_manager.passengers_disembarking):
@@ -3344,19 +3397,31 @@ class TrackModelUI(tk.Tk):
             # ============================================================
             # TRAIN OCCUPANCY - From Train Model
             # ============================================================
-            elif command == 'train_occupancy':
+            elif command == 'Train Occupancy' or command == 'train_occupancy':
+                # Handle train occupancy from Passenger_UI
+                passenger_count = value
                 train_id = message.get('train_id')
+                
+                if not train_id and self.data_manager.active_trains:
+                    train_id = self.data_manager.active_trains[-1]  # Most recent train
+                    print(f"📍 No train_id in Train Occupancy, using {train_id}")
+                
                 if train_id in self.data_manager.active_trains:
                     idx = self.data_manager.active_trains.index(train_id)
-                    # Convert value to int if it's a string
-                    if isinstance(value, str):
+                    if isinstance(passenger_count, str):
                         try:
-                            value = int(value)
+                            passenger_count = int(passenger_count)
                         except (ValueError, TypeError):
-                            print(f"⚠️ Could not convert value '{value}' to int")
-                            value = 0
-                    self.data_manager.train_occupancy[idx] = value
-                    print(f"✅ Updated train occupancy for {train_id}: {value} passengers")
+                            passenger_count = 0
+                    
+                    self.data_manager.train_occupancy[idx] = passenger_count
+                    print(f"✅ Updated train occupancy for {train_id}: {passenger_count} passengers")
+                    
+                    # Update UI if needed
+                    if hasattr(self, 'tester_reference') and hasattr(self.tester_reference, 'refresh_train_details'):
+                        self.tester_reference.refresh_train_details()
+                else:
+                    print(f"⚠️ Could not find train for occupancy update: {passenger_count} passengers")
             
             # ============================================================
             # TEST COMMAND
