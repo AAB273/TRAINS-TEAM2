@@ -1,3 +1,5 @@
+from BeaconData import BeaconData
+
 class GreenLine:
     def __init__(self):
         self.blocks = [
@@ -148,7 +150,11 @@ class GreenLine:
             {"block_number": 145, "section": "X", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
             {"block_number": 146, "section": "X", "block_length_m": 164, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
         ]
-
+    YardToGlenbury1 = BeaconData(64, 2000, "Glenbury")
+    Glenbury1ToDormont1 = BeaconData(102, 800, "Dormont")
+    Dormont1ToMtLebanon = BeaconData(97, 700, "Mt Lebanon")
+    MtLebanonToPoplar = BeaconData(72, 600, "Poplar")
+    PoplarToCastleShannon = BeaconData(80, 500, "Castle Shannon")
     def get_value(self, block_number, key):
         """
         Get a value from a specific block.
