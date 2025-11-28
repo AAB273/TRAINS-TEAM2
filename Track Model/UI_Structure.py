@@ -244,6 +244,35 @@ class TrackModelUI(tk.Tk):
         except:
             tk.Label(parent, text="Logo not found", bg="navy", fg="white").pack(pady=10)
 
+        # Line Selection
+        line_card = self.make_card(parent, "Line Selection")
+        
+        # Create variable to track selected line
+        self.selected_line = tk.StringVar(value="Green Line")
+        
+        # Radio buttons for line selection
+        tk.Radiobutton(
+            line_card,
+            text="Red Line",
+            variable=self.selected_line,
+            value="Red Line",
+            command=self.switch_line_data,
+            bg="white",
+            font=("Arial", 10)
+        ).pack(anchor="w", padx=10, pady=5)
+        
+        tk.Radiobutton(
+            line_card,
+            text="Green Line",
+            variable=self.selected_line,
+            value="Green Line",
+            command=self.switch_line_data,
+            bg="white",
+            font=("Arial", 10)
+        ).pack(anchor="w", padx=10, pady=5)
+        
+        line_card.pack(fill="x", pady=10)
+
         # Environment Temp
         temp_card = self.make_card(parent, "Environment")
 
@@ -359,6 +388,107 @@ class TrackModelUI(tk.Tk):
         self.history_label.pack(pady=3)
         
         plc_card.pack(fill="x", pady=10)
+
+
+    def switch_line_data(self):
+        """Switch between Red Line and Green Line data"""
+        selected = self.selected_line.get()
+        print(f"[UI] Switching to {selected}")
+        
+        # Get the sheet name and image file based on selection
+        if selected == "Red Line":
+            sheet_name = "Red Line"
+            image_file = "RedLine.png"
+        else:  # Green Line
+            sheet_name = "Green Line"
+            image_file = "GreenLine.png"
+        
+        # Load data from the selected sheet using file_manager
+        try:
+            # Use the file_manager's auto_load_green_line method with the sheet_name parameter
+            loaded = self.file_manager.auto_load_green_line(sheet_name=sheet_name)
+            
+            if loaded:
+                print(f"[UI] ✅ {selected} data successfully loaded.")
+                
+                # Update the track diagram image
+                try:
+                    from PIL import Image, ImageTk
+                    bg_img = Image.open(image_file).resize((550, 450), Image.LANCZOS)
+                    self.track_bg = ImageTk.PhotoImage(bg_img)
+                    # Clear and redraw canvas
+                    self.track_canvas.delete("all")
+                    self.track_canvas.create_image(0, 0, image=self.track_bg, anchor="nw")
+                    self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
+                    print(f"[UI] ✅ Updated diagram to {image_file}")
+                except Exception as e:
+                    print(f"⚠️ Could not load {image_file}: {e}")
+                
+                # Repopulate infrastructure sets for the new line
+                self._populate_infrastructure_sets()
+                
+                # Refresh the tables to show the new data
+                self.refresh_track_data_table()
+                self.refresh_track_system_table()
+                
+                # Update station boarding data
+                self.update_station_boarding_data()
+                
+                # Reinitialize station ticket sales
+                self._initialize_station_ticket_sales()
+                
+                print(f"[UI] ✅ Successfully switched to {selected}")
+                
+            else:
+                print(f"[UI] ❌ Failed to load {selected} data.")
+                
+        except Exception as e:
+            print(f"[UI] ❌ Error switching to {selected}: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+
+
+    def refresh_track_data_table(self):
+        """Refresh the Track and Station Data table."""
+        if not hasattr(self, 'tree'):
+            return
+            
+        # Clear existing rows
+        self.tree.delete(*self.tree.get_children())
+        
+        # Repopulate with current data
+        infra_map = getattr(self.data_manager, "infrastructure_data", {})
+        allowed_keywords = ["STATION", "SWITCH", "RAILWAY CROSSING", "CROSSING"]
+        
+        for b in self.data_manager.blocks:
+            infra = str(infra_map.get(b.block_number, "")).upper()
+            if any(keyword in infra for keyword in allowed_keywords):
+                heater_display = (
+                    f"{'On' if self.heater_manager.is_heater_on(b) else 'Off'}/"
+                    f"{'Working' if self.heater_manager.is_heater_working(b) else 'Broken'}"
+                )
+                
+                self.tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        b.block_number,
+                        f"{b.grade}%",
+                        f"{b.elevation} m",
+                        f"{b.length} m",
+                        f"{b.speed_limit} km/h",
+                        heater_display,
+                    ),
+                )
+        
+        print("[UI] Track Data table refreshed")
+    
+    def refresh_track_system_table(self):
+        """Refresh the Track Elements table."""
+        self.update_track_system_table()
+        print("[UI] Track System table refreshed")
 
 
     # ============================================================
@@ -837,7 +967,8 @@ class TrackModelUI(tk.Tk):
             self.block_frame.pack(fill="both", expand=True)
 
             try:
-                blue_line_img = Image.open("Red and Green Line.png").resize((550, 450), Image.LANCZOS)
+                image_file = "GreenLine.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Green Line" else ("RedLine.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Red Line" else "GreenLine.png")
+                blue_line_img = Image.open(image_file).resize((550, 450), Image.LANCZOS)
                 self.block_bg_img = ImageTk.PhotoImage(blue_line_img)
                 self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=550, highlightthickness=0)
                 self.block_canvas.pack(fill="x", padx=10, pady=10)
@@ -949,7 +1080,8 @@ class TrackModelUI(tk.Tk):
 
         # Background image
         try:
-            bg_img = Image.open("Red and Green Line.png").resize((550, 450), Image.LANCZOS)
+            image_file = "GreenLine.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Green Line" else ("RedLine.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Red Line" else "GreenLine.png")
+            bg_img = Image.open(image_file).resize((550, 450), Image.LANCZOS)
             self.track_bg = ImageTk.PhotoImage(bg_img)
             self.track_canvas.create_image(0, 0, image=self.track_bg, anchor="nw")
             self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))

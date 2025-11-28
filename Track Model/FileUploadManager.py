@@ -72,10 +72,12 @@ class FileUploadManager:
             import traceback
             traceback.print_exc()
             
-    def auto_load_green_line(self):
+    def auto_load_green_line(self, sheet_name="Green Line"):
         """
-        Automatically load the Green Line track data from 'Track Data.xlsx' if it exists in the directory.
+        Automatically load track data from 'Track Data.xlsx' if it exists in the directory.
         Reads columns for block geometry and infrastructure, then updates the TrackDataManager.
+        
+        :param sheet_name: Name of the Excel sheet to load (default: "Green Line")
         """
         import os
         import pandas as pd
@@ -90,9 +92,10 @@ class FileUploadManager:
             return False
 
         try:
-            # Load Excel sheet (Green Line)
-            df = pd.read_excel(track_file, sheet_name="Green Line")
-            print(f"[FileUploadManager] 📊 Loaded Excel file with columns: {list(df.columns)}")
+            # Load Excel sheet (specified sheet name)
+            df = pd.read_excel(track_file, sheet_name=sheet_name)
+            print(f"[FileUploadManager] 📊 Loaded '{sheet_name}' sheet with columns: {list(df.columns)}")
+            print(f"[FileUploadManager] 📊 Loaded {len(df)} blocks from '{sheet_name}'")
 
             # --- Verify required columns ---
             required_cols = [
@@ -156,7 +159,7 @@ class FileUploadManager:
             
             print(f"[FileUploadManager] 📍 Loaded {len(self.data_manager.station_location)} stations")
 
-            # --- Load Green Line block data ---
+            # --- Load block data from the specified sheet ---
             self.data_manager.blocks = []
             for _, row in df.iterrows():
                 try:
