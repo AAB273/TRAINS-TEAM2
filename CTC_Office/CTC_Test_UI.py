@@ -327,7 +327,7 @@ class TestUI:
         blockEntry.pack(padx = 5, fill = "x")
         #text to describe what to input, and an Entry to grab user data
 
-        getBO = ttk.Button(boFrame, text = "Submit", style = "normal.TButton", command = lambda: self.send_to_ui("CTC", {"command": "TL", "value": [blockNum.get(), "green"]}))
+        getBO = ttk.Button(boFrame, text = "Submit", style = "normal.TButton", command = lambda: self.send_to_ui("TL", [blockNum.get(), "green"]))
         getBO.pack(side = "top")
 
 

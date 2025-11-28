@@ -23,6 +23,7 @@ def launch_all():
     modules = [
         ("Train Model", "Train Model/Passenger_UI.py"),
         ("Train SW", "train_controller_sw/Driver_UI.py"),
+        
     ]
     
     processes = []

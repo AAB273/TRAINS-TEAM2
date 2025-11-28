@@ -108,7 +108,6 @@ class MainScreen:
 
             command = message.get('command')
             value = message.get('value')
-            print(command)
 
             self.updateMainScreen(command, value)
 
@@ -121,8 +120,7 @@ class MainScreen:
     #update any data according to the data file
 
         if (code == "TL"):
-            print("here")
-            self.updateTrainLocations(data[0], "good", "good", "good", data[1], 1)
+            self.schedule_screen.updateManualEdit(data[0], None, None, None)
 
         elif (code == "TS"):
         #track state data case

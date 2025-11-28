@@ -1,31 +1,12 @@
-import tkinter as tk
-from tkinter import ttk
 import CTC_Main_Screen
 import CTC_Schedule_Screen
-import CTC_Test_UI
-import os
+import tkinter as tk
+from tkinter import ttk
 
-#necessary to import the clock from the parent directory#
-import sys
-sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-import clock
-
-#full background color = #1a1a4d
-#box color = #4d4d6d
-
-#to fix: 
-#error checking for clicking parents in treeviews
-#error checking for inputing time on schedule
-#turn station input into combobox on schedule train
-#add try/except for inputting files
-#when time is at 10x, allow trains to be scheduled at specific times
-
-
-def main():
-    #main function to create ui screens and create the interactions between them
-
+#test case 1
+def testSuggestedAuthority():
     root = tk.Tk()
-    win = tk.Toplevel(root)
+    #win = tk.Toplevel(root)
     #declaring main window, as well as test ui and reference map windows as subwindows of the main
     root.title("CTC Office")
     root.geometry('1200x925+0+0')
@@ -50,13 +31,11 @@ def main():
     mainScreen = CTC_Main_Screen.MainScreen(root, 0, systemFrame, mainNotebook)
     scheduleScreen = CTC_Schedule_Screen.ScheduleScreen(root, mainScreen, scheduleFrame, mainNotebook)
     mainScreen.schedule_screen = scheduleScreen
-    testUI = CTC_Test_UI.TestUI(win)
-    #create the ui objects
-        
+
+    suggAuth = scheduleScreen.updateManualEdit("63", "Castle Shannon", "22:00", "green")
+    print(f"\n\nStart block: 63\nDestination: Castle Shannon, block 96")
+    print(f"Suggested Authority: {suggAuth}")
+
     root.mainloop()
-    clock.clock.endTimer()
-    #end program by ending mainloop() and ending the clock timer
 
-
-main()
-#main function call
+testSuggestedAuthority()
