@@ -398,10 +398,10 @@ class TrackModelUI(tk.Tk):
         # Get the sheet name and image file based on selection
         if selected == "Red Line":
             sheet_name = "Red Line"
-            image_file = "RedLine.png"
+            image_file = "RedLineOcc.png"
         else:  # Green Line
             sheet_name = "Green Line"
-            image_file = "GreenLine.png"
+            image_file = "GreenLineOcc.png"
         
         # Load data from the selected sheet using file_manager
         try:
@@ -1338,57 +1338,58 @@ class TrackModelUI(tk.Tk):
     
     def update_occupied_blocks_display(self):
         """Update the display of occupied blocks."""
-        print(f"[DEBUG] update_occupied_blocks_display called")
+        # print(f"[DEBUG] update_occupied_blocks_display called")
         
-        if not hasattr(self, 'occupied_blocks_label'):
-            print("[DEBUG] occupied_blocks_label doesn't exist yet")
-            return
+        # if not hasattr(self, 'occupied_blocks_label'):
+        #     print("[DEBUG] occupied_blocks_label doesn't exist yet")
+        #     return
             
-        if not hasattr(self, 'data_manager') or not hasattr(self.data_manager, 'blocks'):
-            print("[DEBUG] data_manager or blocks not available")
-            return
+        # if not hasattr(self, 'data_manager') or not hasattr(self.data_manager, 'blocks'):
+        #     print("[DEBUG] data_manager or blocks not available")
+        #     return
         
-        print(f"[DEBUG] Checking {len(self.data_manager.blocks)} blocks for occupancy")
-        occupied = []
+        # print(f"[DEBUG] Checking {len(self.data_manager.blocks)} blocks for occupancy")
+        # occupied = []
         
-        # Check all blocks for occupancy
-        for i, block in enumerate(self.data_manager.blocks):
-            # Initialize occupancy attribute if it doesn't exist
-            if not hasattr(block, 'occupancy'):
-                block.occupancy = 0
+        # # Check all blocks for occupancy
+        # for i, block in enumerate(self.data_manager.blocks):
+        #     # Initialize occupancy attribute if it doesn't exist
+        #     if not hasattr(block, 'occupancy'):
+        #         block.occupancy = 0
             
-            # Special check for block 63
-            if i == 62:  # Block 63 is at index 62
-                print(f"[DEBUG] Block 63 occupancy value: {block.occupancy}")
+        #     # Special check for block 63
+        #     if i == 62:  # Block 63 is at index 62
+        #         print(f"[DEBUG] Block 63 occupancy value: {block.occupancy}")
             
-            if block.occupancy != 0:
-                occupied.append(f"Block {i+1}: Train {block.occupancy}")
-                print(f"[DEBUG] Found occupied block {i+1} with train {block.occupancy}")
+        #     if block.occupancy != 0:
+        #         occupied.append(f"Block {i+1}: Train {block.occupancy}")
+        #         print(f"[DEBUG] Found occupied block {i+1} with train {block.occupancy}")
         
-        print(f"[DEBUG] Total occupied blocks found: {len(occupied)}")
-        print(f"[DEBUG] Occupied list: {occupied}")
+        # print(f"[DEBUG] Total occupied blocks found: {len(occupied)}")
+        # print(f"[DEBUG] Occupied list: {occupied}")
         
-        if occupied:
-            display_text = "\n".join(occupied)
-            self.occupied_blocks_label.config(
-                text=display_text,
-                fg="black"
-            )
-            print(f"[DEBUG] Updated occupied blocks display with {len(occupied)} blocks")
-            print(f"[DEBUG] Display text: {display_text}")
-        else:
-            self.occupied_blocks_label.config(
-                text="No blocks currently occupied",
-                fg="gray"
-            )
-            print("[DEBUG] Set display to 'No blocks currently occupied'")
+        # if occupied:
+        #     display_text = "\n".join(occupied)
+        #     self.occupied_blocks_label.config(
+        #         text=display_text,
+        #         fg="black"
+        #     )
+        #     print(f"[DEBUG] Updated occupied blocks display with {len(occupied)} blocks")
+        #     print(f"[DEBUG] Display text: {display_text}")
+        # else:
+        #     self.occupied_blocks_label.config(
+        #         text="No blocks currently occupied",
+        #         fg="gray"
+        #     )
+        #     # print("[DEBUG] Set display to 'No blocks currently occupied'")
         
-        # Force UI update
-        try:
-            self.occupied_blocks_label.update()
-            print("[DEBUG] Forced label update")
-        except Exception as e:
-            print(f"[DEBUG] Could not force update: {e}")
+        # # Force UI update
+        # try:
+        #     self.occupied_blocks_label.update()
+        #     # print("[DEBUG] Forced label update")
+        # except Exception as e:
+        #     # print(f"[DEBUG] Could not force update: {e}")
+        #     print("")
 
     def update_switch_display(self):
         """Update the display of switch states in the UI."""
@@ -1622,7 +1623,7 @@ class TrackModelUI(tk.Tk):
 
     def refresh_bidirectional_controls(self):
         """Refresh all bidirectional controls based on current switches and signals"""
-        print("🔄 Refreshing bidirectional controls based on switches and signals")
+        # print("🔄 Refreshing bidirectional controls based on switches and signals")
         if hasattr(self.data_manager, 'bidirectional_directions'):
             for group_name in self.data_manager.bidirectional_directions.keys():
                 self.update_bidirectional_status(group_name)
