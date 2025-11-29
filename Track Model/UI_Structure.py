@@ -427,6 +427,26 @@ class TrackModelUI(tk.Tk):
                 # Repopulate infrastructure sets for the new line
                 self._populate_infrastructure_sets()
                 
+                # Reinitialize bidirectional directions for the new line
+                self._initialize_bidirectional_directions()
+                
+                # Rebuild the bidirectional controls UI
+                if hasattr(self, 'bidir_frame') and hasattr(self, 'bidir_controls'):
+                    # Clear existing controls (keep the title label)
+                    for widget in self.bidir_frame.winfo_children():
+                        # Only destroy Frame widgets (control rows), not the title Label
+                        if isinstance(widget, tk.Frame):
+                            widget.destroy()
+                    
+                    # Clear the controls dictionary
+                    self.bidir_controls.clear()
+                    
+                    # Recreate controls for the new line
+                    for group_name in self.data_manager.bidirectional_directions.keys():
+                        self.create_bidirectional_control(self.bidir_frame, group_name)
+                    
+                    print(f"[UI] ✅ Rebuilt bidirectional controls for {selected}")
+                
                 # Refresh the tables to show the new data
                 self.refresh_track_data_table()
                 self.refresh_track_system_table()
@@ -458,37 +478,27 @@ class TrackModelUI(tk.Tk):
         # Clear existing rows
         self.tree.delete(*self.tree.get_children())
         
-        # Repopulate with current data
-        infra_map = getattr(self.data_manager, "infrastructure_data", {})
-        allowed_keywords = ["STATION", "SWITCH", "RAILWAY CROSSING", "CROSSING"]
         
+        # Repopulate ALL blocks (removed infrastructure filter to match populate_track_view)
         for b in self.data_manager.blocks:
-            infra = str(infra_map.get(b.block_number, "")).upper()
-            if any(keyword in infra for keyword in allowed_keywords):
-                heater_display = (
-                    f"{'On' if self.heater_manager.is_heater_on(b) else 'Off'}/"
-                    f"{'Working' if self.heater_manager.is_heater_working(b) else 'Broken'}"
-                )
-                
-                self.tree.insert(
-                    "",
-                    "end",
-                    values=(
-                        b.block_number,
-                        f"{b.grade}%",
-                        f"{b.elevation} m",
-                        f"{b.length} m",
-                        f"{b.speed_limit} km/h",
-                        heater_display,
-                    ),
-                )
+            self.tree.insert(
+                "",
+                "end",
+                values=(
+                    b.block_number,
+                    f"{b.grade}%",
+                    f"{b.elevation} m",
+                    f"{b.length} m",
+                    f"{b.speed_limit} km/h",
+                ),
+            )
         
-        print("[UI] Track Data table refreshed")
+        # print("[UI] Track Data table refreshed")
     
     def refresh_track_system_table(self):
         """Refresh the Track Elements table."""
         self.update_track_system_table()
-        print("[UI] Track System table refreshed")
+        # print("[UI] Track System table refreshed")
 
 
     # ============================================================
@@ -1030,7 +1040,7 @@ class TrackModelUI(tk.Tk):
             canvas.delete(item)
         items_list.clear()
 
-        print("🔍 === Checking Block Occupancy ===")
+        # print("🔍 === Checking Block Occupancy ===")
         occupied_blocks = []
         
         # Check all blocks for occupancy
@@ -1039,9 +1049,9 @@ class TrackModelUI(tk.Tk):
             occupancy_value = getattr(block, 'occupancy', 0)
             if occupancy_value != 0:
                 occupied_blocks.append(block_num)
-                print(f"   Block {block_num}: OCCUPIED (value: {occupancy_value})")
+                # print(f"   Block {block_num}: OCCUPIED (value: {occupancy_value})")
         
-        print(f"   Found {len(occupied_blocks)} occupied blocks: {occupied_blocks}")
+        # print(f"   Found {len(occupied_blocks)} occupied blocks: {occupied_blocks}")
         
         trains_drawn = 0
         # Draw trains for occupied blocks
@@ -1052,12 +1062,12 @@ class TrackModelUI(tk.Tk):
                 item = canvas.create_image(x, y, image=self.train_icon, anchor="center")
                 items_list.append(item)
                 trains_drawn += 1
-                print(f"   🚂 Drawing train at block {block_num}, coordinates: {coords}")
+                # print(f"   🚂 Drawing train at block {block_num}, coordinates: {coords}")
             else:
                 print(f"   ❌ Block {block_num} occupied but no coordinates available")
 
-        print(f"🎯 Total trains drawn: {trains_drawn}")
-        print("=====================================")
+        # print(f"🎯 Total trains drawn: {trains_drawn}")
+        # print("=====================================")
 
     # ---------------- Create canvas, load images, initial draw (replace your build_track_diagram) ----------------
     def build_track_diagram(self):
@@ -1198,6 +1208,33 @@ class TrackModelUI(tk.Tk):
         
         # Schedule next update in 1000ms (1 second)
         self.after(1000, self.start_temperature_update_loop)
+
+    def _initialize_bidirectional_directions(self):
+        """Initialize bidirectional block directions based on the current line (Green or Red)."""
+        # Determine which line is currently selected
+        current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
+        
+        if current_line == "Red Line":
+            # Red Line bidirectional blocks
+            self.data_manager.bidirectional_directions = {
+                "Blocks 1-15": 0,
+                "Blocks 16-27": 0,
+                "Blocks 28-32": 0,
+                "Blocks 33-38": 0,
+                "Blocks 39-43": 0,
+                "Blocks 44-52": 0,
+                "Blocks 53-66": 0,
+                "Blocks 67-71": 0,
+                "Blocks 72-76": 0
+            }
+            print("[UI] Initialized bidirectional directions for Red Line")
+        else:
+            # Green Line bidirectional blocks (default)
+            self.data_manager.bidirectional_directions = {
+                "Blocks 13-28": 0,
+                "Blocks 77-85": 0  # N section - bidirectional blocks
+            }
+            print("[UI] Initialized bidirectional directions for Green Line")
 
     def _initialize_station_ticket_sales(self):
         """Initialize random ticket sales and boarding/disembarking for all stations."""
@@ -1389,11 +1426,11 @@ class TrackModelUI(tk.Tk):
         self.create_block_occupancy_panel(outer_frame)
 
         # --- BIDIRECTIONAL BLOCK CONTROLS ---
-        bidir_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
-        bidir_frame.pack(fill="x", padx=5, pady=(0, 8))
+        self.bidir_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
+        self.bidir_frame.pack(fill="x", padx=5, pady=(0, 8))
 
         tk.Label(
-            bidir_frame,
+            self.bidir_frame,
             text="Bidirectional Block Directions",
             font=("Arial", 9, "bold"),
             bg="white",
@@ -1405,17 +1442,12 @@ class TrackModelUI(tk.Tk):
         
         # Use the shared data from TrackDataManager - ensure it exists
         if not hasattr(self.data_manager, 'bidirectional_directions'):
-            # Initialize with default data if missing
-            self.data_manager.bidirectional_directions = {
-                "Blocks 1-5": 0,
-                "Blocks 6-10": 0, 
-                "Blocks 11-15": 0,
-                "Blocks 77-85": 0  # N section - bidirectional blocks
-            }
+            # Initialize with default data based on current line
+            self._initialize_bidirectional_directions()
         
         # Create controls for each group
         for group_name in self.data_manager.bidirectional_directions.keys():
-            self.create_bidirectional_control(bidir_frame, group_name)
+            self.create_bidirectional_control(self.bidir_frame, group_name)
 
         # --- TERMINAL / EVENT LOG SECTION ---
         terminal_frame = tk.Frame(
@@ -1968,7 +2000,7 @@ class TrackModelUI(tk.Tk):
             return block.block_number in self.station_blocks
         return False
     
-    def log_switch_change(self, block_num, from_block, to_block, state):
+    def log_switch_change(self, block_num, from_block, to_block, state, direction):
         """Log switch state changes with descriptive information"""
         # Get the actual route info
         route_info = self.get_switch_destination(block_num, state)
@@ -2831,7 +2863,7 @@ class TrackModelUI(tk.Tk):
                         # Fallback for any unexpected format
                         switch_state = f"To {route_info}"
                 else:
-                    switch_state = "N/A"
+                    switch_state = "--"
                 
                 # Signal state (off if power failure)
                 if has_signal:
@@ -2853,7 +2885,7 @@ class TrackModelUI(tk.Tk):
                         else:
                             signal_display = f"Unknown ({signal_state})"
                 else:
-                    signal_display = "N/A"
+                    signal_display = "--"
                 
                 # Crossing state (inactive if power failure)
                 if has_crossing:
@@ -2862,7 +2894,7 @@ class TrackModelUI(tk.Tk):
                     else:
                         crossing_state = "Active" if getattr(b, "crossing", False) else "Inactive"
                 else:
-                    crossing_state = "N/A"
+                    crossing_state = "--"
                 
                 # Heater status
                 if has_station and hasattr(self, 'heater_manager'):
@@ -2870,11 +2902,10 @@ class TrackModelUI(tk.Tk):
                     heater_working = self.heater_manager.is_heater_working(b)
                     block_temp_f = self.heater_manager.get_block_temperature(b.block_number)
                     
-                    heater_status = "🔥 ON" if heater_on else "❄️ OFF"
-                    heater_work = "✅" if heater_working else "⚠️ BROKEN"
-                    heater_display = f"{heater_status} {heater_work} ({block_temp_f:.1f}°F)"
+                    heater_status = "ON" if heater_on else "OFF"
+                    heater_display = f"{heater_status} ({block_temp_f:.1f}°F)"
                 else:
-                    heater_display = "N/A"
+                    heater_display = "--"
                 
                 # Failure status
                 failure_status = self.murphy_failures.get_failure_display_text(b.block_number)
