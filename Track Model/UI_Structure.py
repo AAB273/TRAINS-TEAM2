@@ -1108,7 +1108,7 @@ class TrackModelUI(tk.Tk):
             self.red_dots = []
             self.red_dot_positions = []
             
-            # Define block marker positions for Green Line (blocks 1-16)
+            # Define block marker positions for Green Line (blocks 1-150)
             self.block_marker_positions = {
                 1: (478, 21),
                 2: (486, 29),
@@ -1170,12 +1170,12 @@ class TrackModelUI(tk.Tk):
                 55: (528 + 5, 212),  # 533
                 56: (540 + 5, 209),  # 545
                 57: (551 + 5, 209),  # 556
-                # Blocks 58-62: PLACEHOLDER - add coordinates later
-                58: (0, 0),  # PLACEHOLDER
-                59: (0, 0),  # PLACEHOLDER
-                60: (0, 0),  # PLACEHOLDER
-                61: (0, 0),  # PLACEHOLDER
-                62: (0, 0),  # PLACEHOLDER
+                # Blocks 58-62: Updated coordinates
+                58: (602, 213),
+                59: (614, 217),
+                60: (625, 228),
+                61: (636, 241),
+                62: (644, 257),
                 # Blocks 63-76: +122 compensation (moved 3 left from +125)
                 63: (531 + 122, 280),  # 653
                 64: (531 + 122, 296),  # 653
@@ -1267,6 +1267,86 @@ class TrackModelUI(tk.Tk):
                 148: (219 + 118, 188), # 337
                 149: (219 + 118, 177), # 337
                 150: (227 + 118, 152), # 345
+            }
+            
+            # Define block marker positions for Red Line (blocks 1-76 for now)
+            self.block_marker_positions_red = {
+                1: (556, 125),
+                2: (566, 122),
+                3: (575, 119),
+                4: (581, 95),
+                5: (587, 87),
+                6: (599, 81),
+                7: (628, 80),
+                8: (643, 86),
+                9: (659, 94),
+                10: (652, 126),
+                11: (638, 129),
+                12: (621, 132),
+                13: (582, 132),
+                14: (565, 133),
+                15: (549, 133),
+                16: (531, 132),
+                17: (523, 131),
+                18: (518, 132),
+                19: (513, 133),
+                20: (510, 133),
+                21: (487, 135),
+                22: (478, 139),
+                23: (469, 145),
+                24: (467, 172),
+                25: (468, 179),
+                26: (468, 187),
+                27: (468, 193),
+                28: (466, 199),
+                29: (467, 205),
+                30: (467, 212),
+                31: (466, 219),
+                32: (466, 229),
+                33: (466, 233),
+                34: (466, 240),
+                35: (468, 246),
+                36: (466, 250),
+                37: (466, 256),
+                38: (467, 265),
+                39: (467, 270),
+                40: (467, 276),
+                41: (467, 283),
+                42: (467, 288),
+                43: (469, 299),
+                44: (467, 306),
+                45: (467, 315),
+                46: (467, 348),
+                47: (455, 366),
+                48: (435, 380),
+                49: (404, 383),
+                50: (396, 383),
+                51: (389, 383),
+                52: (381, 383),
+                53: (370, 383),
+                54: (364, 383),
+                55: (330, 379),
+                56: (313, 362),
+                57: (301, 340),
+                58: (303, 310),
+                59: (310, 297),
+                60: (320, 284),
+                61: (345, 292),
+                62: (351, 318),
+                63: (355, 341),
+                64: (359, 367),
+                65: (366, 373),
+                66: (373, 374),
+                67: (455, 318),
+                68: (441, 301),
+                69: (440, 296),
+                70: (443, 288),
+                71: (455, 274),
+                72: (454, 225),
+                73: (442, 211),
+                74: (440, 206),
+                75: (441, 200),
+                76: (454, 186),
             }
             
             # Manual offset correction (adjust if markers are still misaligned)
@@ -2596,8 +2676,22 @@ class TrackModelUI(tk.Tk):
 
     def draw_block_markers(self):
         """Draw block markers (black dots or train icons) based on occupancy status"""
-        if not hasattr(self, 'block_marker_positions'):
-            return
+        # Determine which position dictionary to use based on selected line
+        if hasattr(self, 'selected_line'):
+            current_line = self.selected_line.get()
+            if current_line == "Red Line":
+                if not hasattr(self, 'block_marker_positions_red'):
+                    return
+                positions = self.block_marker_positions_red
+            else:  # Green Line
+                if not hasattr(self, 'block_marker_positions'):
+                    return
+                positions = self.block_marker_positions
+        else:
+            # Default to Green Line if no selection yet
+            if not hasattr(self, 'block_marker_positions'):
+                return
+            positions = self.block_marker_positions
         
         # Get the current image offset (if image has been loaded and centered)
         x_offset = getattr(self, 'image_x_offset', 0)
@@ -2615,7 +2709,11 @@ class TrackModelUI(tk.Tk):
         self.block_markers = {}
         
         # Draw marker for each block
-        for block_num, (base_x, base_y) in self.block_marker_positions.items():
+        for block_num, (base_x, base_y) in positions.items():
+            # Skip placeholder blocks (coordinates 0,0)
+            if base_x == 0 and base_y == 0:
+                continue
+                
             # Adjust position by image offset AND manual correction
             x = base_x + x_offset + x_correction
             y = base_y + y_offset + y_correction
@@ -2642,18 +2740,38 @@ class TrackModelUI(tk.Tk):
             
             self.block_markers[block_num] = marker
         
-        print(f"[MARKERS] Drew {len(self.block_markers)} block markers (offset: {x_offset}, {y_offset}) (correction: {x_correction}, {y_correction})")
+        line_name = current_line if hasattr(self, 'selected_line') else "Green Line"
+        print(f"[MARKERS] Drew {len(self.block_markers)} block markers for {line_name} (offset: {x_offset}, {y_offset}) (correction: {x_correction}, {y_correction})")
 
     def update_block_marker(self, block_num):
         """Update a single block marker based on its occupancy status"""
-        if not hasattr(self, 'block_marker_positions'):
-            return
+        # Determine which position dictionary to use based on selected line
+        if hasattr(self, 'selected_line'):
+            current_line = self.selected_line.get()
+            if current_line == "Red Line":
+                if not hasattr(self, 'block_marker_positions_red'):
+                    return
+                positions = self.block_marker_positions_red
+            else:  # Green Line
+                if not hasattr(self, 'block_marker_positions'):
+                    return
+                positions = self.block_marker_positions
+        else:
+            # Default to Green Line if no selection yet
+            if not hasattr(self, 'block_marker_positions'):
+                return
+            positions = self.block_marker_positions
         
-        if block_num not in self.block_marker_positions:
+        if block_num not in positions:
             return
         
         # Get base position and apply image offset
-        base_x, base_y = self.block_marker_positions[block_num]
+        base_x, base_y = positions[block_num]
+        
+        # Skip placeholder blocks
+        if base_x == 0 and base_y == 0:
+            return
+            
         x_offset = getattr(self, 'image_x_offset', 0)
         y_offset = getattr(self, 'image_y_offset', 0)
         
