@@ -504,12 +504,25 @@ class TrackModelUI(tk.Tk):
 
     def update_train_info(self, event):
         idx = self.train_combo.current()
+        train_name = self.train_combo.get()
+        
         occ = self.data_manager.train_occupancy[idx]
         spd = self.data_manager.commanded_speed[idx]
         auth = self.data_manager.commanded_authority[idx]
+        
+        # DEBUG: Show what we're reading
+        print(f"[DEBUG] update_train_info called for {train_name} at index {idx}:")
+        print(f"  Occupancy: {occ}")
+        print(f"  Commanded Speed: {spd}")
+        print(f"  Commanded Authority: {auth}")
+        print(f"  Array sizes: active_trains={len(self.data_manager.active_trains)}, "
+              f"commanded_speed={len(self.data_manager.commanded_speed)}, "
+              f"commanded_authority={len(self.data_manager.commanded_authority)}")
+        
         self.train_info.config(
             text=f"Occupancy: {occ} People\nCommanded Speed: {spd} m/s\nCommanded Authority: {auth} blocks"
         )
+        
         
     # ---------------- Center Panel ----------------
     def create_center_panel(self, parent):
@@ -1602,58 +1615,58 @@ class TrackModelUI(tk.Tk):
     
     def update_occupied_blocks_display(self):
         """Update the display of occupied blocks."""
-        # print(f"[DEBUG] update_occupied_blocks_display called")
+        print(f"[DEBUG] update_occupied_blocks_display called")
         
-        # if not hasattr(self, 'occupied_blocks_label'):
-        #     print("[DEBUG] occupied_blocks_label doesn't exist yet")
-        #     return
+        if not hasattr(self, 'occupied_blocks_label'):
+            print("[DEBUG] occupied_blocks_label doesn't exist yet")
+            return
             
-        # if not hasattr(self, 'data_manager') or not hasattr(self.data_manager, 'blocks'):
-        #     print("[DEBUG] data_manager or blocks not available")
-        #     return
+        if not hasattr(self, 'data_manager') or not hasattr(self.data_manager, 'blocks'):
+            print("[DEBUG] data_manager or blocks not available")
+            return
         
-        # print(f"[DEBUG] Checking {len(self.data_manager.blocks)} blocks for occupancy")
-        # occupied = []
+        print(f"[DEBUG] Checking {len(self.data_manager.blocks)} blocks for occupancy")
+        occupied = []
         
-        # # Check all blocks for occupancy
-        # for i, block in enumerate(self.data_manager.blocks):
-        #     # Initialize occupancy attribute if it doesn't exist
-        #     if not hasattr(block, 'occupancy'):
-        #         block.occupancy = 0
+        # Check all blocks for occupancy
+        for i, block in enumerate(self.data_manager.blocks):
+            # Initialize occupancy attribute if it doesn't exist
+            if not hasattr(block, 'occupancy'):
+                block.occupancy = 0
             
-        #     # Special check for block 63
-        #     if i == 62:  # Block 63 is at index 62
-        #         print(f"[DEBUG] Block 63 occupancy value: {block.occupancy}")
+            # Special check for block 63
+            if i == 62:  # Block 63 is at index 62
+                print(f"[DEBUG] Block 63 occupancy value: {block.occupancy}")
             
-        #     if block.occupancy != 0:
-        #         occupied.append(f"Block {i+1}: Train {block.occupancy}")
-        #         print(f"[DEBUG] Found occupied block {i+1} with train {block.occupancy}")
+            if block.occupancy != 0:
+                occupied.append(f"Block {i+1}: Train {block.occupancy}")
+                print(f"[DEBUG] Found occupied block {i+1} with train {block.occupancy}")
         
-        # print(f"[DEBUG] Total occupied blocks found: {len(occupied)}")
-        # print(f"[DEBUG] Occupied list: {occupied}")
+        print(f"[DEBUG] Total occupied blocks found: {len(occupied)}")
+        print(f"[DEBUG] Occupied list: {occupied}")
         
-        # if occupied:
-        #     display_text = "\n".join(occupied)
-        #     self.occupied_blocks_label.config(
-        #         text=display_text,
-        #         fg="black"
-        #     )
-        #     print(f"[DEBUG] Updated occupied blocks display with {len(occupied)} blocks")
-        #     print(f"[DEBUG] Display text: {display_text}")
-        # else:
-        #     self.occupied_blocks_label.config(
-        #         text="No blocks currently occupied",
-        #         fg="gray"
-        #     )
-        #     # print("[DEBUG] Set display to 'No blocks currently occupied'")
+        if occupied:
+            display_text = "\n".join(occupied)
+            self.occupied_blocks_label.config(
+                text=display_text,
+                fg="black"
+            )
+            print(f"[DEBUG] Updated occupied blocks display with {len(occupied)} blocks")
+            print(f"[DEBUG] Display text: {display_text}")
+        else:
+            self.occupied_blocks_label.config(
+                text="No blocks currently occupied",
+                fg="gray"
+            )
+            # print("[DEBUG] Set display to 'No blocks currently occupied'")
         
-        # # Force UI update
-        # try:
-        #     self.occupied_blocks_label.update()
-        #     # print("[DEBUG] Forced label update")
-        # except Exception as e:
-        #     # print(f"[DEBUG] Could not force update: {e}")
-        #     print("")
+        # Force UI update
+        try:
+            self.occupied_blocks_label.update()
+            # print("[DEBUG] Forced label update")
+        except Exception as e:
+            # print(f"[DEBUG] Could not force update: {e}")
+            print("")
 
     def update_switch_display(self):
         """Update the display of switch states in the UI."""
@@ -3185,6 +3198,10 @@ class TrackModelUI(tk.Tk):
         # Update occupied blocks display
         self.update_occupied_blocks_display()
         
+        # Update block markers on main track diagram (train icons and dots)
+        if hasattr(self, 'draw_block_markers'):
+            self.draw_block_markers()
+        
         # Update bidirectional directions based on switches and signals
         self.refresh_bidirectional_controls()
         
@@ -3707,6 +3724,7 @@ class TrackModelUI(tk.Tk):
         print(f"   Initial Speed={speed} m/s, Authority={authority} blocks")
         print(f"   Active trains: {self.data_manager.active_trains}")
         print(f"   Train locations: {self.data_manager.train_locations}")
+        print(f"   Array sizes: active_trains={len(self.data_manager.active_trains)}, commanded_speed={len(self.data_manager.commanded_speed)}, commanded_authority={len(self.data_manager.commanded_authority)}")
 
         # Update UI elements if they exist
         if hasattr(self, 'train_combo'):
@@ -4095,13 +4113,19 @@ class TrackModelUI(tk.Tk):
                         if hasattr(block_63, 'occupancy') and block_63.occupancy != 0:
                             block_63_occupied = True
                     
-                    # Only treat as yard dispatch if block 63 is not occupied
+                    # Only treat as yard dispatch if block 63 is not occupied AND no trains exist
                     if not block_63_occupied and not train_id:
-                        is_yard_dispatch = True
-                        print(f"🚂 YARD DISPATCH DETECTED (from Block 63) - Creating new train")
-                        # Convert block_num to int if it's a string
-                        if isinstance(block_num, str):
-                            block_num = 63
+                        # Check if any trains already exist
+                        if not self.data_manager.active_trains:
+                            is_yard_dispatch = True
+                            print(f"🚂 YARD DISPATCH DETECTED (from Block 63) - Creating new train")
+                            # Convert block_num to int if it's a string
+                            if isinstance(block_num, str):
+                                block_num = 63
+                        else:
+                            # Use existing train instead of creating a duplicate
+                            train_id = self.data_manager.active_trains[-1]
+                            print(f"⚠️ Block 63 command received, but train already exists. Using: {train_id}")
                 
                 if is_yard_dispatch:
                     # Create a new train for yard dispatch
@@ -4170,6 +4194,11 @@ class TrackModelUI(tk.Tk):
                     try:
                         self.update_occupied_blocks_display()
                         print("[DEBUG] Called update_occupied_blocks_display after yard dispatch")
+                        
+                        # UPDATE BLOCK MARKER TO SHOW TRAIN ICON ON MAP
+                        if hasattr(self, 'update_block_marker'):
+                            self.update_block_marker(63)
+                            print("[DEBUG] Updated block marker for block 63 - train should now be visible on map")
                     except Exception as e:
                         print(f"❌ Error updating occupied blocks display: {e}")
                     
@@ -4188,9 +4217,17 @@ class TrackModelUI(tk.Tk):
                         print(f"⚠️ Could not convert block_num '{block_num}' to int")
                         block_num = None
                 
-                # If not a yard dispatch and no train_id, create train using existing logic
+                # If not a yard dispatch and no train_id, create train ONLY if no trains exist yet
                 if not is_yard_dispatch and not train_id:
-                    self._create_train_from_wayside(commanded_speed, commanded_authority)
+                    # Only create a new train if we don't have any active trains
+                    if not self.data_manager.active_trains:
+                        self._create_train_from_wayside(commanded_speed, commanded_authority)
+                        train_id = self.data_manager.active_trains[-1] if self.data_manager.active_trains else None
+                        print(f"✅ Created new train (none existed): {train_id}")
+                    else:
+                        # Use the most recent active train instead of creating duplicates
+                        train_id = self.data_manager.active_trains[-1]
+                        print(f"⚠️ No train_id provided in command, using existing train: {train_id}")
                 
                 # Also support legacy array format for backwards compatibility
                 if commanded_speed is None and isinstance(value, list) and len(value) == 3:
@@ -4199,16 +4236,6 @@ class TrackModelUI(tk.Tk):
                     commanded_authority = value[2] if not isinstance(value[2], str) else int(value[2])
                 
                 if commanded_speed is not None and commanded_authority is not None and block_num is not None:
-                    # ALWAYS update commanded values by block number (for display in Train Details panel)
-                    idx = block_num - 1
-                    if 0 <= idx < len(self.data_manager.commanded_speed):
-                        self.data_manager.commanded_speed[idx] = commanded_speed
-                        self.data_manager.commanded_authority[idx] = commanded_authority
-                        print(f"✅ Updated commanded values for Block {block_num}: Speed={commanded_speed}, Authority={commanded_authority}")
-                        
-                        # Refresh Train Details panel if it exists
-                        if hasattr(self, 'tester_reference') and hasattr(self.tester_reference, 'refresh_train_details'):
-                            self.tester_reference.refresh_train_details()
                     
                     # If no train_id provided, try to find train on this block
                     if not train_id:
