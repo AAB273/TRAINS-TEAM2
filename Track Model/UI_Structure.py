@@ -413,14 +413,11 @@ class TrackModelUI(tk.Tk):
                 
                 # Update the track diagram image
                 try:
-                    from PIL import Image, ImageTk
-                    bg_img = Image.open(image_file).resize((550, 450), Image.LANCZOS)
-                    self.track_bg = ImageTk.PhotoImage(bg_img)
-                    # Clear and redraw canvas
-                    self.track_canvas.delete("all")
-                    self.track_canvas.create_image(0, 0, image=self.track_bg, anchor="nw")
-                    self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
-                    print(f"[UI] ✅ Updated diagram to {image_file}")
+                    # Store the current image file for future resizes
+                    self.current_image_file = image_file
+                    
+                    # Update the background image
+                    self.update_background_image()
                 except Exception as e:
                     print(f"⚠️ Could not load {image_file}: {e}")
                 
@@ -977,7 +974,7 @@ class TrackModelUI(tk.Tk):
             self.block_frame.pack(fill="both", expand=True)
 
             try:
-                image_file = "GreenLine.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Green Line" else ("RedLine.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Red Line" else "GreenLine.png")
+                image_file = "GreenLineOcc.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Green Line" else ("RedLineOcc.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Red Line" else "GreenLineOcc.png")
                 blue_line_img = Image.open(image_file).resize((550, 450), Image.LANCZOS)
                 self.block_bg_img = ImageTk.PhotoImage(blue_line_img)
                 self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=550, highlightthickness=0)
@@ -1075,8 +1072,8 @@ class TrackModelUI(tk.Tk):
         diagram_container = tk.Frame(self.diagram_frame, bg="white")
         diagram_container.pack(fill="both", expand=True)
 
-        # Canvas inside left side of container
-        self.track_canvas = tk.Canvas(diagram_container, bg="white", height=450)
+        # Canvas inside left side of container - remove fixed height to allow expansion
+        self.track_canvas = tk.Canvas(diagram_container, bg="white")
         self.track_canvas.pack(side="left", fill="both", expand=True)
 
         # Load train icon once
@@ -1090,11 +1087,198 @@ class TrackModelUI(tk.Tk):
 
         # Background image
         try:
-            image_file = "GreenLine.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Green Line" else ("RedLine.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Red Line" else "GreenLine.png")
-            bg_img = Image.open(image_file).resize((550, 450), Image.LANCZOS)
-            self.track_bg = ImageTk.PhotoImage(bg_img)
-            self.track_canvas.create_image(0, 0, image=self.track_bg, anchor="nw")
-            self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
+            image_file = "GreenLineOcc.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Green Line" else ("RedLineOcc.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Red Line" else "GreenLineOcc.png")
+            
+            # Store the current image file for resize events
+            self.current_image_file = image_file
+            
+            # Delay initial load to allow PLC panel to render first (so we can measure it)
+            self.after(100, self.update_background_image)
+            
+            # Bind resize event to update image size
+            self.track_canvas.bind("<Configure>", lambda e: self.on_canvas_resize(e))
+            
+            # Bind click event to place red dots and print coordinates
+            self.track_canvas.bind("<Button-1>", self.on_canvas_click)
+            
+            # Bind right-click to clear all red dots
+            self.track_canvas.bind("<Button-3>", self.clear_red_dots)
+            
+            # Store red dot items for potential clearing later
+            self.red_dots = []
+            self.red_dot_positions = []
+            
+            # Define block marker positions for Green Line (blocks 1-16)
+            self.block_marker_positions = {
+                1: (478, 21),
+                2: (486, 29),
+                3: (491, 40),
+                4: (502, 58),
+                5: (513, 66),
+                6: (531, 70),
+                # Blocks 7-16: adjusting by +115 instead of +265 (shifted 150 left)
+                7: (438 + 115, 67),   # 553
+                8: (458 + 115, 57),   # 573
+                9: (462 + 115, 36),   # 577
+                10: (434 + 115, 24),  # 549
+                11: (403 + 115, 17),  # 518
+                12: (376 + 115, 15),  # 491
+                13: (327 + 115, 14),  # 442
+                14: (318 + 115, 13),  # 433
+                15: (309 + 115, 15),  # 424
+                16: (302 + 115, 14),  # 417
+                # Blocks 17-28: same +115 compensation
+                17: (271 + 115, 17),  # 386
+                18: (259 + 115, 22),  # 374
+                19: (249 + 115, 32),  # 364
+                20: (243 + 115, 45),  # 358
+                21: (244 + 115, 70),  # 359
+                22: (244 + 115, 76),  # 359
+                23: (243 + 115, 82),  # 358
+                24: (243 + 115, 91),  # 358
+                25: (244 + 115, 99),  # 359
+                26: (242 + 115, 106), # 357
+                27: (243 + 115, 112), # 358
+                28: (244 + 115, 117), # 359
+                # Blocks 29-57: +5 compensation (moved 10 left from +15)
+                29: (360 + 5, 138),  # 365
+                30: (359 + 5, 144),  # 364
+                31: (359 + 5, 151),  # 364
+                32: (360 + 5, 158),  # 365
+                33: (361 + 5, 179),  # 366
+                34: (365 + 5, 191),  # 370
+                35: (374 + 5, 202),  # 379
+                36: (398 + 5, 210),  # 403
+                37: (404 + 5, 210),  # 409
+                38: (410 + 5, 210),  # 415
+                39: (415 + 5, 210),  # 420
+                40: (421 + 5, 211),  # 426
+                41: (427 + 5, 210),  # 432
+                42: (433 + 5, 211),  # 438
+                43: (439 + 5, 211),  # 444
+                44: (447 + 5, 210),  # 452
+                45: (454 + 5, 211),  # 459
+                46: (460 + 5, 211),  # 465
+                47: (467 + 5, 210),  # 472
+                48: (473 + 5, 211),  # 478
+                49: (477 + 5, 210),  # 482
+                50: (485 + 5, 211),  # 490
+                51: (496 + 5, 211),  # 501
+                52: (502 + 5, 211),  # 507
+                53: (509 + 5, 209),  # 514
+                54: (516 + 5, 212),  # 521
+                55: (528 + 5, 212),  # 533
+                56: (540 + 5, 209),  # 545
+                57: (551 + 5, 209),  # 556
+                # Blocks 58-62: PLACEHOLDER - add coordinates later
+                58: (0, 0),  # PLACEHOLDER
+                59: (0, 0),  # PLACEHOLDER
+                60: (0, 0),  # PLACEHOLDER
+                61: (0, 0),  # PLACEHOLDER
+                62: (0, 0),  # PLACEHOLDER
+                # Blocks 63-76: +122 compensation (moved 3 left from +125)
+                63: (531 + 122, 280),  # 653
+                64: (531 + 122, 296),  # 653
+                65: (530 + 122, 314),  # 652
+                66: (530 + 122, 334),  # 652
+                67: (530 + 122, 352),  # 652
+                68: (530 + 122, 372),  # 652
+                69: (531 + 122, 412),  # 653
+                70: (525 + 122, 430),  # 647
+                71: (518 + 122, 451),  # 640
+                72: (506 + 122, 466),  # 628
+                73: (491 + 122, 478),  # 613
+                74: (456 + 122, 484),  # 578
+                75: (425 + 122, 484),  # 547
+                76: (400 + 122, 482),  # 522
+                # Blocks 77-104: +1 compensation (moved 2 right from -1) - PERFECT!
+                77: (477 + 1, 481),  # 478
+                78: (464 + 1, 482),  # 465
+                79: (454 + 1, 484),  # 455
+                80: (446 + 1, 483),  # 447
+                81: (438 + 1, 483),  # 439
+                82: (430 + 1, 482),  # 431
+                83: (424 + 1, 481),  # 425
+                84: (415 + 1, 484),  # 416
+                85: (408 + 1, 483),  # 409
+                86: (379 + 1, 483),  # 380
+                87: (368 + 1, 482),  # 369
+                88: (358 + 1, 483),  # 359
+                89: (337 + 1, 482),  # 338
+                90: (328 + 1, 471),  # 329
+                91: (320 + 1, 453),  # 321
+                92: (322 + 1, 433),  # 323
+                93: (325 + 1, 419),  # 326
+                94: (330 + 1, 409),  # 331
+                95: (346 + 1, 404),  # 347
+                96: (358 + 1, 416),  # 359
+                97: (362 + 1, 432),  # 363
+                98: (367 + 1, 451),  # 368
+                99: (367 + 1, 463),  # 368
+                100: (375 + 1, 471), # 376
+                101: (496 + 1, 468), # 497
+                102: (518 + 1, 450), # 519
+                103: (530 + 1, 452), # 531
+                104: (543 + 1, 453), # 544
+                # Blocks 105-150: +118 compensation (moved 2 right from +116) - PERFECT!
+                105: (452 + 118, 452), # 570
+                106: (472 + 118, 444), # 590
+                107: (488 + 118, 431), # 606
+                108: (499 + 118, 415), # 617
+                109: (505 + 118, 397), # 623
+                110: (506 + 118, 367), # 624
+                111: (504 + 118, 358), # 622
+                112: (505 + 118, 351), # 623
+                113: (505 + 118, 342), # 623
+                114: (506 + 118, 334), # 624
+                115: (507 + 118, 327), # 625
+                116: (506 + 118, 317), # 624
+                117: (505 + 118, 291), # 623
+                118: (499 + 118, 274), # 617
+                119: (486 + 118, 254), # 604
+                120: (469 + 118, 245), # 587
+                121: (450 + 118, 238), # 568
+                122: (427 + 118, 238), # 545
+                123: (422 + 118, 237), # 540
+                124: (416 + 118, 236), # 534
+                125: (409 + 118, 237), # 527
+                126: (403 + 118, 236), # 521
+                127: (397 + 118, 236), # 515
+                128: (390 + 118, 235), # 508
+                129: (385 + 118, 235), # 503
+                130: (377 + 118, 235), # 495
+                131: (370 + 118, 235), # 488
+                132: (361 + 118, 235), # 479
+                133: (356 + 118, 237), # 474
+                134: (347 + 118, 237), # 465
+                135: (340 + 118, 236), # 458
+                136: (334 + 118, 235), # 452
+                137: (327 + 118, 237), # 445
+                138: (318 + 118, 237), # 436
+                139: (313 + 118, 237), # 431
+                140: (302 + 118, 237), # 420
+                141: (294 + 118, 237), # 412
+                142: (280 + 118, 237), # 398
+                143: (272 + 118, 236), # 390
+                144: (249 + 118, 236), # 367
+                145: (232 + 118, 230), # 350
+                146: (221 + 118, 219), # 339
+                147: (219 + 118, 197), # 337
+                148: (219 + 118, 188), # 337
+                149: (219 + 118, 177), # 337
+                150: (227 + 118, 152), # 345
+            }
+            
+            # Manual offset correction (adjust if markers are still misaligned)
+            # Negative values move markers left/up, positive values move right/down
+            self.marker_offset_correction_x = -265  # Move 265 pixels to the left
+            self.marker_offset_correction_y = 0     # No vertical adjustment needed
+            
+            # Store block marker items (dots or train icons)
+            self.block_markers = {}
+            
+            # Draw initial block markers after image loads
+            self.after(200, self.draw_block_markers)
         except Exception as e:
             print("⚠️ Could not load background Red and Green Line.png:", e)
 
@@ -2249,6 +2433,265 @@ class TrackModelUI(tk.Tk):
         except Exception as e:
             self.log_to_all_terminals(f"[ERROR] Failed to load image: {str(e)}")
             print(f"❌ Error loading image: {e}")
+
+    def update_background_image(self):
+        """Update the background image to fit current canvas size while maintaining aspect ratio"""
+        try:
+            # Get current canvas dimensions
+            canvas_width = self.track_canvas.winfo_width()
+            canvas_height = self.track_canvas.winfo_height()
+            
+            # Use minimum dimensions if canvas hasn't been drawn yet
+            if canvas_width <= 1:
+                canvas_width = 800  # Default width
+            if canvas_height <= 1:
+                canvas_height = 600  # Default height
+            
+            # Try to get actual PLC panel width if it exists and is visible
+            reserved_right_space = 0
+            if hasattr(self, 'diagram_frame'):
+                # Get all children placed on the diagram frame
+                for child in self.diagram_frame.winfo_children():
+                    # Check if this is the PLC panel (placed widget)
+                    place_info = child.place_info()
+                    if place_info and place_info.get('anchor') == 'ne':
+                        # This is the right-side panel
+                        panel_width = child.winfo_width()
+                        if panel_width > 1:  # Panel has been rendered
+                            reserved_right_space = panel_width + 20  # Add some padding
+                            break
+            
+            # Fallback to default if we couldn't measure the panel
+            if reserved_right_space <= 1:
+                reserved_right_space = 280  # Increased default to be safe
+            
+            available_width = max(canvas_width - reserved_right_space, 400)
+            available_height = canvas_height
+            
+            # Determine which image file to use
+            if hasattr(self, 'current_image_file'):
+                image_file = self.current_image_file
+            else:
+                image_file = "GreenLineOcc.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Green Line" else "GreenLineOcc.png"
+            
+            # Load original image to get its aspect ratio
+            original_img = Image.open(image_file)
+            original_width, original_height = original_img.size
+            original_aspect = original_width / original_height
+            
+            # Calculate dimensions that fit within available space while maintaining aspect ratio
+            if available_width / available_height > original_aspect:
+                # Height is the limiting factor
+                new_height = available_height
+                new_width = int(new_height * original_aspect)
+            else:
+                # Width is the limiting factor
+                new_width = available_width
+                new_height = int(new_width / original_aspect)
+            
+            # Resize image maintaining aspect ratio
+            bg_img = original_img.resize((new_width, new_height), Image.LANCZOS)
+            self.track_bg = ImageTk.PhotoImage(bg_img)
+            
+            # Clear and redraw canvas
+            self.track_canvas.delete("all")
+            
+            # Center the image in the available space (excluding reserved right space)
+            x_offset = (available_width - new_width) // 2
+            y_offset = (available_height - new_height) // 2
+            
+            # Store offsets for block marker positioning
+            self.image_x_offset = x_offset
+            self.image_y_offset = y_offset
+            
+            self.track_canvas.create_image(x_offset, y_offset, image=self.track_bg, anchor="nw")
+            self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
+            
+            # Redraw block markers (black dots or train icons)
+            if hasattr(self, 'draw_block_markers'):
+                self.draw_block_markers()
+            
+            # Redraw red dots if any exist (they were deleted with "all")
+            if hasattr(self, 'red_dot_positions') and self.red_dot_positions:
+                self.red_dots = []
+                dot_radius = 3
+                for x, y in self.red_dot_positions:
+                    dot = self.track_canvas.create_oval(
+                        x - dot_radius, y - dot_radius,
+                        x + dot_radius, y + dot_radius,
+                        fill='red',
+                        outline='darkred',
+                        width=1
+                    )
+                    self.red_dots.append(dot)
+            
+            print(f"[UI] ✅ Background image resized to {new_width}x{new_height}")
+            print(f"    Original: {original_width}x{original_height} (aspect: {original_aspect:.4f})")
+            print(f"    New aspect: {new_width/new_height:.4f} (difference: {abs(original_aspect - new_width/new_height):.6f})")
+            print(f"    Canvas: {canvas_width}x{canvas_height}, Reserved: {reserved_right_space}px, Available: {available_width}x{available_height}")
+            print(f"    Image offset: ({x_offset}, {y_offset})")
+            
+        except Exception as e:
+            print(f"⚠️ Could not update background image: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def on_canvas_resize(self, event):
+        """Handle canvas resize events to update background image"""
+        # Debounce resize events - only update after canvas stops resizing
+        if hasattr(self, '_resize_timer'):
+            self.after_cancel(self._resize_timer)
+        
+        # Schedule update after 100ms of no resize events
+        self._resize_timer = self.after(100, self.update_background_image)
+
+    def on_canvas_click(self, event):
+        """Handle canvas click events - place red dot and print coordinates"""
+        x, y = event.x, event.y
+        
+        # Create a red dot (small circle) at the click location
+        dot_radius = 3
+        dot = self.track_canvas.create_oval(
+            x - dot_radius, y - dot_radius,
+            x + dot_radius, y + dot_radius,
+            fill='red',
+            outline='darkred',
+            width=1
+        )
+        
+        # Store the dot item ID
+        if not hasattr(self, 'red_dots'):
+            self.red_dots = []
+        self.red_dots.append(dot)
+        
+        # Store the position for persistence across image reloads
+        if not hasattr(self, 'red_dot_positions'):
+            self.red_dot_positions = []
+        self.red_dot_positions.append((x, y))
+        
+        # Print coordinates to terminal
+        print(f"🔴 Clicked at coordinates: ({x}, {y})")
+        
+        # Also log to UI terminal if available
+        if hasattr(self, 'log_to_all_terminals'):
+            self.log_to_all_terminals(f"[CLICK] Coordinates: ({x}, {y})")
+
+    def clear_red_dots(self, event=None):
+        """Clear all red dots from canvas (triggered by right-click)"""
+        # Delete all dot items
+        if hasattr(self, 'red_dots'):
+            for dot in self.red_dots:
+                self.track_canvas.delete(dot)
+            self.red_dots = []
+        
+        # Clear stored positions
+        if hasattr(self, 'red_dot_positions'):
+            self.red_dot_positions = []
+        
+        print("🧹 Cleared all red dots")
+        
+        # Also log to UI terminal if available
+        if hasattr(self, 'log_to_all_terminals'):
+            self.log_to_all_terminals("[CLEAR] All red dots cleared")
+
+    def draw_block_markers(self):
+        """Draw block markers (black dots or train icons) based on occupancy status"""
+        if not hasattr(self, 'block_marker_positions'):
+            return
+        
+        # Get the current image offset (if image has been loaded and centered)
+        x_offset = getattr(self, 'image_x_offset', 0)
+        y_offset = getattr(self, 'image_y_offset', 0)
+        
+        # Get manual correction offsets
+        x_correction = getattr(self, 'marker_offset_correction_x', 0)
+        y_correction = getattr(self, 'marker_offset_correction_y', 0)
+        
+        # Clear existing markers
+        for block_num in list(self.block_markers.keys()):
+            if self.block_markers[block_num]:
+                self.track_canvas.delete(self.block_markers[block_num])
+        
+        self.block_markers = {}
+        
+        # Draw marker for each block
+        for block_num, (base_x, base_y) in self.block_marker_positions.items():
+            # Adjust position by image offset AND manual correction
+            x = base_x + x_offset + x_correction
+            y = base_y + y_offset + y_correction
+            
+            # Check if block is occupied
+            is_occupied = False
+            if block_num <= len(self.data_manager.blocks):
+                block = self.data_manager.blocks[block_num - 1]
+                is_occupied = hasattr(block, 'occupancy') and block.occupancy != 0
+            
+            if is_occupied and hasattr(self, 'train_icon') and self.train_icon:
+                # Draw train icon
+                marker = self.track_canvas.create_image(x, y, image=self.train_icon, anchor="center")
+            else:
+                # Draw black dot
+                dot_radius = 4
+                marker = self.track_canvas.create_oval(
+                    x - dot_radius, y - dot_radius,
+                    x + dot_radius, y + dot_radius,
+                    fill='black',
+                    outline='gray',
+                    width=1
+                )
+            
+            self.block_markers[block_num] = marker
+        
+        print(f"[MARKERS] Drew {len(self.block_markers)} block markers (offset: {x_offset}, {y_offset}) (correction: {x_correction}, {y_correction})")
+
+    def update_block_marker(self, block_num):
+        """Update a single block marker based on its occupancy status"""
+        if not hasattr(self, 'block_marker_positions'):
+            return
+        
+        if block_num not in self.block_marker_positions:
+            return
+        
+        # Get base position and apply image offset
+        base_x, base_y = self.block_marker_positions[block_num]
+        x_offset = getattr(self, 'image_x_offset', 0)
+        y_offset = getattr(self, 'image_y_offset', 0)
+        
+        # Get manual correction offsets
+        x_correction = getattr(self, 'marker_offset_correction_x', 0)
+        y_correction = getattr(self, 'marker_offset_correction_y', 0)
+        
+        # Apply both offsets and correction
+        x = base_x + x_offset + x_correction
+        y = base_y + y_offset + y_correction
+        
+        # Delete existing marker if it exists
+        if block_num in self.block_markers and self.block_markers[block_num]:
+            self.track_canvas.delete(self.block_markers[block_num])
+        
+        # Check if block is occupied
+        is_occupied = False
+        if block_num <= len(self.data_manager.blocks):
+            block = self.data_manager.blocks[block_num - 1]
+            is_occupied = hasattr(block, 'occupancy') and block.occupancy != 0
+        
+        if is_occupied and hasattr(self, 'train_icon') and self.train_icon:
+            # Draw train icon
+            marker = self.track_canvas.create_image(x, y, image=self.train_icon, anchor="center")
+            print(f"[MARKER] Block {block_num} now shows train icon (occupied)")
+        else:
+            # Draw black dot
+            dot_radius = 4
+            marker = self.track_canvas.create_oval(
+                x - dot_radius, y - dot_radius,
+                x + dot_radius, y + dot_radius,
+                fill='black',
+                outline='gray',
+                width=1
+            )
+            print(f"[MARKER] Block {block_num} now shows black dot (empty)")
+        
+        self.block_markers[block_num] = marker
 
     def clear_all_track_icons(self):
         """Completely clear all track icons and reset all tracking"""
@@ -4204,6 +4647,10 @@ class TrackModelUI(tk.Tk):
                     
                     self.update_occupied_blocks_display()
                     
+                    # Update block marker (dot/train icon)
+                    if hasattr(self, 'update_block_marker'):
+                        self.update_block_marker(block_num)
+                    
                     # Forward occupancy update to Wayside Controller
                     self.send_block_occupancy_update(block_num, occupancy)
                         
@@ -4237,6 +4684,10 @@ class TrackModelUI(tk.Tk):
                             
                             # Forward occupancy update to Wayside Controller
                             self.send_block_occupancy_update(block_num, occupancy)
+                            
+                            # Update block marker (dot/train icon)
+                            if hasattr(self, 'update_block_marker'):
+                                self.update_block_marker(block_num)
                     
                     self.update_occupied_blocks_display()
                 else:
