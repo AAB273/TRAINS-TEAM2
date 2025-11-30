@@ -51,6 +51,16 @@ class TrackModelUI(tk.Tk):
         self.server.connect_to_ui('localhost', 12343,'Track HW')
 
         self.switch_blocks = set()
+        self.switch_states = {}  # Dictionary to track switch states {block_num: direction}
+        # Switch routing configuration for train path determination
+        self.switch_routing = {
+            13: {"normal": 12, "reverse": 101},  # Yard switch
+            29: {"normal": 30, "reverse": 150},  # J switch
+            57: {"normal": 58, "reverse": 151},  # N switch
+            63: {"normal": 64, "reverse": 77},   # O switch
+            77: {"normal": 78, "reverse": 101},  # P switch
+            85: {"normal": 86, "reverse": 100}   # Q switch
+        }
         self.crossing_blocks = set()
         self.light_states = {12, 29, 76, 86}
         self.station_blocks = set()
@@ -102,6 +112,11 @@ class TrackModelUI(tk.Tk):
         self.file_manager = FileUploadManager(self.data_manager, ui_reference=self)
         self.heater_manager = HeaterSystemManager(self.data_manager)
         self.diagram_drawer = TrackDiagramDrawer(self, self.data_manager)
+
+        # Initialize BeaconManager for station beacons
+        self.beacon_manager = BeaconManager()
+        print('[UI] BeaconManager initialized with station beacons')
+
 
         # --- Auto-load Green Line track data from Excel on startup ---
         if not self.file_manager.auto_load_green_line():
@@ -170,6 +185,7 @@ class TrackModelUI(tk.Tk):
         self.train_actual_speeds = {}  # Dictionary to store actual speeds by train ID
         self.train_positions_in_block = {}  # Track distance traveled in current block (meters)
         self.last_movement_update = {}  # Track last update time for each train
+        self.train_directions = {}  # Track train direction: 'forward' or 'backward'
         
         # Start train movement update loop (runs every 100ms for smooth movement)
         self.after(100, self.update_train_movements)
@@ -227,6 +243,35 @@ class TrackModelUI(tk.Tk):
             tk.Label(parent, image=self.logo_img, bg="navy").pack(pady=10)
         except:
             tk.Label(parent, text="Logo not found", bg="navy", fg="white").pack(pady=10)
+
+        # Line Selection
+        line_card = self.make_card(parent, "Line Selection")
+        
+        # Create variable to track selected line
+        self.selected_line = tk.StringVar(value="Green Line")
+        
+        # Radio buttons for line selection
+        tk.Radiobutton(
+            line_card,
+            text="Red Line",
+            variable=self.selected_line,
+            value="Red Line",
+            command=self.switch_line_data,
+            bg="white",
+            font=("Arial", 10)
+        ).pack(anchor="w", padx=10, pady=5)
+        
+        tk.Radiobutton(
+            line_card,
+            text="Green Line",
+            variable=self.selected_line,
+            value="Green Line",
+            command=self.switch_line_data,
+            bg="white",
+            font=("Arial", 10)
+        ).pack(anchor="w", padx=10, pady=5)
+        
+        line_card.pack(fill="x", pady=10)
 
         # Environment Temp
         temp_card = self.make_card(parent, "Environment")
@@ -345,18 +390,139 @@ class TrackModelUI(tk.Tk):
         plc_card.pack(fill="x", pady=10)
 
 
+    def switch_line_data(self):
+        """Switch between Red Line and Green Line data"""
+        selected = self.selected_line.get()
+        print(f"[UI] Switching to {selected}")
+        
+        # Get the sheet name and image file based on selection
+        if selected == "Red Line":
+            sheet_name = "Red Line"
+            image_file = "RedLineOcc.png"
+        else:  # Green Line
+            sheet_name = "Green Line"
+            image_file = "GreenLineOcc.png"
+        
+        # Load data from the selected sheet using file_manager
+        try:
+            # Use the file_manager's auto_load_green_line method with the sheet_name parameter
+            loaded = self.file_manager.auto_load_green_line(sheet_name=sheet_name)
+            
+            if loaded:
+                print(f"[UI] ✅ {selected} data successfully loaded.")
+                
+                # Update the track diagram image
+                try:
+                    # Store the current image file for future resizes
+                    self.current_image_file = image_file
+                    
+                    # Update the background image
+                    self.update_background_image()
+                except Exception as e:
+                    print(f"⚠️ Could not load {image_file}: {e}")
+                
+                # Repopulate infrastructure sets for the new line
+                self._populate_infrastructure_sets()
+                
+                # Reinitialize bidirectional directions for the new line
+                self._initialize_bidirectional_directions()
+                
+                # Rebuild the bidirectional controls UI
+                if hasattr(self, 'bidir_frame') and hasattr(self, 'bidir_controls'):
+                    # Clear existing controls (keep the title label)
+                    for widget in self.bidir_frame.winfo_children():
+                        # Only destroy Frame widgets (control rows), not the title Label
+                        if isinstance(widget, tk.Frame):
+                            widget.destroy()
+                    
+                    # Clear the controls dictionary
+                    self.bidir_controls.clear()
+                    
+                    # Recreate controls for the new line
+                    for group_name in self.data_manager.bidirectional_directions.keys():
+                        self.create_bidirectional_control(self.bidir_frame, group_name)
+                    
+                    print(f"[UI] ✅ Rebuilt bidirectional controls for {selected}")
+                
+                # Refresh the tables to show the new data
+                self.refresh_track_data_table()
+                self.refresh_track_system_table()
+                
+                # Update station boarding data
+                self.update_station_boarding_data()
+                
+                # Reinitialize station ticket sales
+                self._initialize_station_ticket_sales()
+                
+                print(f"[UI] ✅ Successfully switched to {selected}")
+                
+            else:
+                print(f"[UI] ❌ Failed to load {selected} data.")
+                
+        except Exception as e:
+            print(f"[UI] ❌ Error switching to {selected}: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+
+
+    def refresh_track_data_table(self):
+        """Refresh the Track and Station Data table."""
+        if not hasattr(self, 'tree'):
+            return
+            
+        # Clear existing rows
+        self.tree.delete(*self.tree.get_children())
+        
+        
+        # Repopulate ALL blocks (removed infrastructure filter to match populate_track_view)
+        for b in self.data_manager.blocks:
+            self.tree.insert(
+                "",
+                "end",
+                values=(
+                    b.block_number,
+                    f"{b.grade}%",
+                    f"{b.elevation} m",
+                    f"{b.length} m",
+                    f"{b.speed_limit} km/h",
+                ),
+            )
+        
+        # print("[UI] Track Data table refreshed")
+    
+    def refresh_track_system_table(self):
+        """Refresh the Track Elements table."""
+        self.update_track_system_table()
+        # print("[UI] Track System table refreshed")
+
+
     # ============================================================
     # Add these methods to handle block occupancy
     # ============================================================
 
     def update_train_info(self, event):
         idx = self.train_combo.current()
+        train_name = self.train_combo.get()
+        
         occ = self.data_manager.train_occupancy[idx]
         spd = self.data_manager.commanded_speed[idx]
         auth = self.data_manager.commanded_authority[idx]
+        
+        # DEBUG: Show what we're reading
+        print(f"[DEBUG] update_train_info called for {train_name} at index {idx}:")
+        print(f"  Occupancy: {occ}")
+        print(f"  Commanded Speed: {spd}")
+        print(f"  Commanded Authority: {auth}")
+        print(f"  Array sizes: active_trains={len(self.data_manager.active_trains)}, "
+              f"commanded_speed={len(self.data_manager.commanded_speed)}, "
+              f"commanded_authority={len(self.data_manager.commanded_authority)}")
+        
         self.train_info.config(
             text=f"Occupancy: {occ} People\nCommanded Speed: {spd} m/s\nCommanded Authority: {auth} blocks"
         )
+        
         
     # ---------------- Center Panel ----------------
     def create_center_panel(self, parent):
@@ -821,7 +987,8 @@ class TrackModelUI(tk.Tk):
             self.block_frame.pack(fill="both", expand=True)
 
             try:
-                blue_line_img = Image.open("Red and Green Line.png").resize((550, 450), Image.LANCZOS)
+                image_file = "GreenLineOcc.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Green Line" else ("RedLineOcc.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Red Line" else "GreenLineOcc.png")
+                blue_line_img = Image.open(image_file).resize((550, 450), Image.LANCZOS)
                 self.block_bg_img = ImageTk.PhotoImage(blue_line_img)
                 self.block_canvas = tk.Canvas(self.block_frame, bg="white", height=450, width=550, highlightthickness=0)
                 self.block_canvas.pack(fill="x", padx=10, pady=10)
@@ -883,7 +1050,7 @@ class TrackModelUI(tk.Tk):
             canvas.delete(item)
         items_list.clear()
 
-        print("🔍 === Checking Block Occupancy ===")
+        # print("🔍 === Checking Block Occupancy ===")
         occupied_blocks = []
         
         # Check all blocks for occupancy
@@ -892,9 +1059,9 @@ class TrackModelUI(tk.Tk):
             occupancy_value = getattr(block, 'occupancy', 0)
             if occupancy_value != 0:
                 occupied_blocks.append(block_num)
-                print(f"   Block {block_num}: OCCUPIED (value: {occupancy_value})")
+                # print(f"   Block {block_num}: OCCUPIED (value: {occupancy_value})")
         
-        print(f"   Found {len(occupied_blocks)} occupied blocks: {occupied_blocks}")
+        # print(f"   Found {len(occupied_blocks)} occupied blocks: {occupied_blocks}")
         
         trains_drawn = 0
         # Draw trains for occupied blocks
@@ -905,12 +1072,12 @@ class TrackModelUI(tk.Tk):
                 item = canvas.create_image(x, y, image=self.train_icon, anchor="center")
                 items_list.append(item)
                 trains_drawn += 1
-                print(f"   🚂 Drawing train at block {block_num}, coordinates: {coords}")
+                # print(f"   🚂 Drawing train at block {block_num}, coordinates: {coords}")
             else:
                 print(f"   ❌ Block {block_num} occupied but no coordinates available")
 
-        print(f"🎯 Total trains drawn: {trains_drawn}")
-        print("=====================================")
+        # print(f"🎯 Total trains drawn: {trains_drawn}")
+        # print("=====================================")
 
     # ---------------- Create canvas, load images, initial draw (replace your build_track_diagram) ----------------
     def build_track_diagram(self):
@@ -918,8 +1085,8 @@ class TrackModelUI(tk.Tk):
         diagram_container = tk.Frame(self.diagram_frame, bg="white")
         diagram_container.pack(fill="both", expand=True)
 
-        # Canvas inside left side of container
-        self.track_canvas = tk.Canvas(diagram_container, bg="white", height=450)
+        # Canvas inside left side of container - remove fixed height to allow expansion
+        self.track_canvas = tk.Canvas(diagram_container, bg="white")
         self.track_canvas.pack(side="left", fill="both", expand=True)
 
         # Load train icon once
@@ -933,10 +1100,278 @@ class TrackModelUI(tk.Tk):
 
         # Background image
         try:
-            bg_img = Image.open("Red and Green Line.png").resize((550, 450), Image.LANCZOS)
-            self.track_bg = ImageTk.PhotoImage(bg_img)
-            self.track_canvas.create_image(0, 0, image=self.track_bg, anchor="nw")
-            self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
+            image_file = "GreenLineOcc.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Green Line" else ("RedLineOcc.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Red Line" else "GreenLineOcc.png")
+            
+            # Store the current image file for resize events
+            self.current_image_file = image_file
+            
+            # Delay initial load to allow PLC panel to render first (so we can measure it)
+            self.after(100, self.update_background_image)
+            
+            # Bind resize event to update image size
+            self.track_canvas.bind("<Configure>", lambda e: self.on_canvas_resize(e))
+            
+            # Bind click event to place red dots and print coordinates
+            self.track_canvas.bind("<Button-1>", self.on_canvas_click)
+            
+            # Bind right-click to clear all red dots
+            self.track_canvas.bind("<Button-3>", self.clear_red_dots)
+            
+            # Store red dot items for potential clearing later
+            self.red_dots = []
+            self.red_dot_positions = []
+            
+            # Define block marker positions for Green Line (blocks 1-150)
+            self.block_marker_positions = {
+                1: (478, 21),
+                2: (486, 29),
+                3: (491, 40),
+                4: (502, 58),
+                5: (513, 66),
+                6: (531, 70),
+                # Blocks 7-16: adjusting by +115 instead of +265 (shifted 150 left)
+                7: (438 + 115, 67),   # 553
+                8: (458 + 115, 57),   # 573
+                9: (462 + 115, 36),   # 577
+                10: (434 + 115, 24),  # 549
+                11: (403 + 115, 17),  # 518
+                12: (376 + 115, 15),  # 491
+                13: (327 + 115, 14),  # 442
+                14: (318 + 115, 13),  # 433
+                15: (309 + 115, 15),  # 424
+                16: (302 + 115, 14),  # 417
+                # Blocks 17-28: same +115 compensation
+                17: (271 + 115, 17),  # 386
+                18: (259 + 115, 22),  # 374
+                19: (249 + 115, 32),  # 364
+                20: (243 + 115, 45),  # 358
+                21: (244 + 115, 70),  # 359
+                22: (244 + 115, 76),  # 359
+                23: (243 + 115, 82),  # 358
+                24: (243 + 115, 91),  # 358
+                25: (244 + 115, 99),  # 359
+                26: (242 + 115, 106), # 357
+                27: (243 + 115, 112), # 358
+                28: (244 + 115, 117), # 359
+                # Blocks 29-57: +5 compensation (moved 10 left from +15)
+                29: (360 + 5, 138),  # 365
+                30: (359 + 5, 144),  # 364
+                31: (359 + 5, 151),  # 364
+                32: (360 + 5, 158),  # 365
+                33: (361 + 5, 179),  # 366
+                34: (365 + 5, 191),  # 370
+                35: (374 + 5, 202),  # 379
+                36: (398 + 5, 210),  # 403
+                37: (404 + 5, 210),  # 409
+                38: (410 + 5, 210),  # 415
+                39: (415 + 5, 210),  # 420
+                40: (421 + 5, 211),  # 426
+                41: (427 + 5, 210),  # 432
+                42: (433 + 5, 211),  # 438
+                43: (439 + 5, 211),  # 444
+                44: (447 + 5, 210),  # 452
+                45: (454 + 5, 211),  # 459
+                46: (460 + 5, 211),  # 465
+                47: (467 + 5, 210),  # 472
+                48: (473 + 5, 211),  # 478
+                49: (477 + 5, 210),  # 482
+                50: (485 + 5, 211),  # 490
+                51: (496 + 5, 211),  # 501
+                52: (502 + 5, 211),  # 507
+                53: (509 + 5, 209),  # 514
+                54: (516 + 5, 212),  # 521
+                55: (528 + 5, 212),  # 533
+                56: (540 + 5, 209),  # 545
+                57: (551 + 5, 209),  # 556
+                # Blocks 58-62: Updated coordinates
+                58: (602, 213),
+                59: (614, 217),
+                60: (625, 228),
+                61: (636, 241),
+                62: (644, 257),
+                # Blocks 63-76: +122 compensation (moved 3 left from +125)
+                63: (531 + 122, 280),  # 653
+                64: (531 + 122, 296),  # 653
+                65: (530 + 122, 314),  # 652
+                66: (530 + 122, 334),  # 652
+                67: (530 + 122, 352),  # 652
+                68: (530 + 122, 372),  # 652
+                69: (531 + 122, 412),  # 653
+                70: (525 + 122, 430),  # 647
+                71: (518 + 122, 451),  # 640
+                72: (506 + 122, 466),  # 628
+                73: (491 + 122, 478),  # 613
+                74: (456 + 122, 484),  # 578
+                75: (425 + 122, 484),  # 547
+                76: (400 + 122, 482),  # 522
+                # Blocks 77-104: +1 compensation (moved 2 right from -1) - PERFECT!
+                77: (477 + 1, 481),  # 478
+                78: (464 + 1, 482),  # 465
+                79: (454 + 1, 484),  # 455
+                80: (446 + 1, 483),  # 447
+                81: (438 + 1, 483),  # 439
+                82: (430 + 1, 482),  # 431
+                83: (424 + 1, 481),  # 425
+                84: (415 + 1, 484),  # 416
+                85: (408 + 1, 483),  # 409
+                86: (379 + 1, 483),  # 380
+                87: (368 + 1, 482),  # 369
+                88: (358 + 1, 483),  # 359
+                89: (337 + 1, 482),  # 338
+                90: (328 + 1, 471),  # 329
+                91: (320 + 1, 453),  # 321
+                92: (322 + 1, 433),  # 323
+                93: (325 + 1, 419),  # 326
+                94: (330 + 1, 409),  # 331
+                95: (346 + 1, 404),  # 347
+                96: (358 + 1, 416),  # 359
+                97: (362 + 1, 432),  # 363
+                98: (367 + 1, 451),  # 368
+                99: (367 + 1, 463),  # 368
+                100: (375 + 1, 471), # 376
+                101: (496 + 1, 468), # 497
+                102: (518 + 1, 450), # 519
+                103: (530 + 1, 452), # 531
+                104: (543 + 1, 453), # 544
+                # Blocks 105-150: +118 compensation (moved 2 right from +116) - PERFECT!
+                105: (452 + 118, 452), # 570
+                106: (472 + 118, 444), # 590
+                107: (488 + 118, 431), # 606
+                108: (499 + 118, 415), # 617
+                109: (505 + 118, 397), # 623
+                110: (506 + 118, 367), # 624
+                111: (504 + 118, 358), # 622
+                112: (505 + 118, 351), # 623
+                113: (505 + 118, 342), # 623
+                114: (506 + 118, 334), # 624
+                115: (507 + 118, 327), # 625
+                116: (506 + 118, 317), # 624
+                117: (505 + 118, 291), # 623
+                118: (499 + 118, 274), # 617
+                119: (486 + 118, 254), # 604
+                120: (469 + 118, 245), # 587
+                121: (450 + 118, 238), # 568
+                122: (427 + 118, 238), # 545
+                123: (422 + 118, 237), # 540
+                124: (416 + 118, 236), # 534
+                125: (409 + 118, 237), # 527
+                126: (403 + 118, 236), # 521
+                127: (397 + 118, 236), # 515
+                128: (390 + 118, 235), # 508
+                129: (385 + 118, 235), # 503
+                130: (377 + 118, 235), # 495
+                131: (370 + 118, 235), # 488
+                132: (361 + 118, 235), # 479
+                133: (356 + 118, 237), # 474
+                134: (347 + 118, 237), # 465
+                135: (340 + 118, 236), # 458
+                136: (334 + 118, 235), # 452
+                137: (327 + 118, 237), # 445
+                138: (318 + 118, 237), # 436
+                139: (313 + 118, 237), # 431
+                140: (302 + 118, 237), # 420
+                141: (294 + 118, 237), # 412
+                142: (280 + 118, 237), # 398
+                143: (272 + 118, 236), # 390
+                144: (249 + 118, 236), # 367
+                145: (232 + 118, 230), # 350
+                146: (221 + 118, 219), # 339
+                147: (219 + 118, 197), # 337
+                148: (219 + 118, 188), # 337
+                149: (219 + 118, 177), # 337
+                150: (227 + 118, 152), # 345
+            }
+            
+            # Define block marker positions for Red Line (blocks 1-76 for now)
+            self.block_marker_positions_red = {
+                1: (556, 125),
+                2: (566, 122),
+                3: (575, 119),
+                4: (581, 95),
+                5: (587, 87),
+                6: (599, 81),
+                7: (628, 80),
+                8: (643, 86),
+                9: (659, 94),
+                10: (652, 126),
+                11: (638, 129),
+                12: (621, 132),
+                13: (582, 132),
+                14: (565, 133),
+                15: (549, 133),
+                16: (531, 132),
+                17: (523, 131),
+                18: (518, 132),
+                19: (513, 133),
+                20: (510, 133),
+                21: (487, 135),
+                22: (478, 139),
+                23: (469, 145),
+                24: (467, 172),
+                25: (468, 179),
+                26: (468, 187),
+                27: (468, 193),
+                28: (466, 199),
+                29: (467, 205),
+                30: (467, 212),
+                31: (466, 219),
+                32: (466, 229),
+                33: (466, 233),
+                34: (466, 240),
+                35: (468, 246),
+                36: (466, 250),
+                37: (466, 256),
+                38: (467, 265),
+                39: (467, 270),
+                40: (467, 276),
+                41: (467, 283),
+                42: (467, 288),
+                43: (469, 299),
+                44: (467, 306),
+                45: (467, 315),
+                46: (467, 348),
+                47: (455, 366),
+                48: (435, 380),
+                49: (404, 383),
+                50: (396, 383),
+                51: (389, 383),
+                52: (381, 383),
+                53: (370, 383),
+                54: (364, 383),
+                55: (330, 379),
+                56: (313, 362),
+                57: (301, 340),
+                58: (303, 310),
+                59: (310, 297),
+                60: (320, 284),
+                61: (345, 292),
+                62: (351, 318),
+                63: (355, 341),
+                64: (359, 367),
+                65: (366, 373),
+                66: (373, 374),
+                67: (455, 318),
+                68: (441, 301),
+                69: (440, 296),
+                70: (443, 288),
+                71: (455, 274),
+                72: (454, 225),
+                73: (442, 211),
+                74: (440, 206),
+                75: (441, 200),
+                76: (454, 186),
+            }
+            
+            # Manual offset correction (adjust if markers are still misaligned)
+            # Negative values move markers left/up, positive values move right/down
+            self.marker_offset_correction_x = -265  # Move 265 pixels to the left
+            self.marker_offset_correction_y = 0     # No vertical adjustment needed
+            
+            # Store block marker items (dots or train icons)
+            self.block_markers = {}
+            
+            # Draw initial block markers after image loads
+            self.after(200, self.draw_block_markers)
         except Exception as e:
             print("⚠️ Could not load background Red and Green Line.png:", e)
 
@@ -1010,6 +1445,14 @@ class TrackModelUI(tk.Tk):
             if "SWITCH" in infrastructure_upper:
                 self.switch_blocks.add(block_num)
                 print(f"  🔀 Found switch at block {block_num}")
+                
+                # Initialize switch direction for this block
+                if 1 <= block_num <= len(self.data_manager.blocks):
+                    block = self.data_manager.blocks[block_num - 1]
+                    if not hasattr(block, 'switch_direction'):
+                        block.switch_direction = 'normal'  # Default direction
+                    # Also initialize in switch_states dictionary
+                    self.switch_states[block_num] = getattr(block, 'switch_direction', 'normal')
             
             # Check for crossings
             if "CROSSING" in infrastructure_upper:
@@ -1042,6 +1485,33 @@ class TrackModelUI(tk.Tk):
         
         # Schedule next update in 1000ms (1 second)
         self.after(1000, self.start_temperature_update_loop)
+
+    def _initialize_bidirectional_directions(self):
+        """Initialize bidirectional block directions based on the current line (Green or Red)."""
+        # Determine which line is currently selected
+        current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
+        
+        if current_line == "Red Line":
+            # Red Line bidirectional blocks
+            self.data_manager.bidirectional_directions = {
+                "Blocks 1-15": 0,
+                "Blocks 16-27": 0,
+                "Blocks 28-32": 0,
+                "Blocks 33-38": 0,
+                "Blocks 39-43": 0,
+                "Blocks 44-52": 0,
+                "Blocks 53-66": 0,
+                "Blocks 67-71": 0,
+                "Blocks 72-76": 0
+            }
+            print("[UI] Initialized bidirectional directions for Red Line")
+        else:
+            # Green Line bidirectional blocks (default)
+            self.data_manager.bidirectional_directions = {
+                "Blocks 13-28": 0,
+                "Blocks 77-85": 0  # N section - bidirectional blocks
+            }
+            print("[UI] Initialized bidirectional directions for Green Line")
 
     def _initialize_station_ticket_sales(self):
         """Initialize random ticket sales and boarding/disembarking for all stations."""
@@ -1188,14 +1658,43 @@ class TrackModelUI(tk.Tk):
                 text="No blocks currently occupied",
                 fg="gray"
             )
-            print("[DEBUG] Set display to 'No blocks currently occupied'")
+            # print("[DEBUG] Set display to 'No blocks currently occupied'")
         
         # Force UI update
         try:
             self.occupied_blocks_label.update()
-            print("[DEBUG] Forced label update")
+            # print("[DEBUG] Forced label update")
         except Exception as e:
-            print(f"[DEBUG] Could not force update: {e}")
+            # print(f"[DEBUG] Could not force update: {e}")
+            print("")
+
+    def update_switch_display(self):
+        """Update the display of switch states in the UI."""
+        print(f"[DEBUG] update_switch_display called")
+        
+        # Update switch status labels if they exist
+        if hasattr(self, 'switch_status_labels'):
+            for block_num, label in self.switch_status_labels.items():
+                if block_num in self.switch_states:
+                    direction = self.switch_states[block_num]
+                    label.config(text=f"Switch {block_num}: {direction}")
+                    print(f"[DEBUG] Updated switch display for block {block_num}: {direction}")
+        
+        # Update switch blocks in the data manager
+        for block_num in self.switch_blocks:
+            if 1 <= block_num <= len(self.data_manager.blocks):
+                block = self.data_manager.blocks[block_num - 1]
+                if hasattr(block, 'switch_direction'):
+                    print(f"[DEBUG] Block {block_num} switch direction: {block.switch_direction}")
+        
+        # Refresh the track data and system tables to show updated switch states
+        try:
+            self.refresh_track_data_table()
+            self.refresh_track_system_table()
+            print("[DEBUG] Refreshed tables after switch update")
+        except Exception as e:
+            print(f"[DEBUG] Could not refresh tables: {e}")
+
 
     def create_PLCupload_panel(self, parent):
         """Creates block occupancy, bidirectional controls and terminal panel (PLC upload moved to left panel)."""
@@ -1205,11 +1704,11 @@ class TrackModelUI(tk.Tk):
         self.create_block_occupancy_panel(outer_frame)
 
         # --- BIDIRECTIONAL BLOCK CONTROLS ---
-        bidir_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
-        bidir_frame.pack(fill="x", padx=5, pady=(0, 8))
+        self.bidir_frame = tk.Frame(outer_frame, bg="white", highlightbackground="#d0d0d0", highlightthickness=1)
+        self.bidir_frame.pack(fill="x", padx=5, pady=(0, 8))
 
         tk.Label(
-            bidir_frame,
+            self.bidir_frame,
             text="Bidirectional Block Directions",
             font=("Arial", 9, "bold"),
             bg="white",
@@ -1221,16 +1720,12 @@ class TrackModelUI(tk.Tk):
         
         # Use the shared data from TrackDataManager - ensure it exists
         if not hasattr(self.data_manager, 'bidirectional_directions'):
-            # Initialize with default data if missing
-            self.data_manager.bidirectional_directions = {
-                "Blocks 1-5": 0,
-                "Blocks 6-10": 0, 
-                "Blocks 11-15": 0
-            }
+            # Initialize with default data based on current line
+            self._initialize_bidirectional_directions()
         
         # Create controls for each group
         for group_name in self.data_manager.bidirectional_directions.keys():
-            self.create_bidirectional_control(bidir_frame, group_name)
+            self.create_bidirectional_control(self.bidir_frame, group_name)
 
         # --- TERMINAL / EVENT LOG SECTION ---
         terminal_frame = tk.Frame(
@@ -1330,6 +1825,19 @@ class TrackModelUI(tk.Tk):
         if not hasattr(self.data_manager, 'blocks') or not self.data_manager.blocks:
             return 0  # Default to left if no data
         
+        # Special handling for N section (blocks 77-85)
+        if group_name == "Blocks 77-85":
+            # Check switch state at block 85
+            if len(self.data_manager.blocks) > 84:
+                block_85 = self.data_manager.blocks[84]  # Block 85 at index 84
+                if hasattr(block_85, 'switch_state'):
+                    # When switch is False (Left/Diverging for 100→85→84 route)
+                    # Set blocks to face right for backward travel
+                    if not block_85.switch_state:
+                        return 1  # Right direction for backward travel
+                    else:
+                        return 0  # Left direction for normal forward travel
+        
         # Parse the block range from group name (e.g., "Blocks 1-5" -> [1,2,3,4,5])
         import re
         match = re.match(r"Blocks?\s+(\d+)-(\d+)", group_name)
@@ -1392,7 +1900,7 @@ class TrackModelUI(tk.Tk):
 
     def refresh_bidirectional_controls(self):
         """Refresh all bidirectional controls based on current switches and signals"""
-        print("🔄 Refreshing bidirectional controls based on switches and signals")
+        # print("🔄 Refreshing bidirectional controls based on switches and signals")
         if hasattr(self.data_manager, 'bidirectional_directions'):
             for group_name in self.data_manager.bidirectional_directions.keys():
                 self.update_bidirectional_status(group_name)
@@ -1486,7 +1994,15 @@ class TrackModelUI(tk.Tk):
             return 50.0  # Default 50 meters if no length data
     
     def get_next_block(self, current_block, train_idx):
-        """Determine the next block based on current position and authority."""
+        """
+        Determine the next block for train movement.
+        Rules:
+        1. Always go in ascending order (1→2→3→...→150) EXCEPT:
+        2. Bidirectional sections allow descending:
+           - Block 100 → 85 (entering N section backwards)
+           - Block 150 → 28 (loop return)
+        3. Switches route based on their state
+        """
         # Check commanded authority
         if train_idx < len(self.data_manager.commanded_authority):
             authority = self.data_manager.commanded_authority[train_idx]
@@ -1508,49 +2024,202 @@ class TrackModelUI(tk.Tk):
             # Increment blocks traveled
             self.train_blocks_traveled[train_id] += 1
         
-        # Handle special track sections and switches
-        # Green Line routing logic
-        if current_block == 150:  # End of Green Line loops back to beginning
+        # ============================================================
+        # SPECIAL ROUTING RULES - BIDIRECTIONAL AND SWITCHES
+        # ============================================================
+        
+        # RULE 1: End of line loop return (BIDIRECTIONAL: 150 → 28)
+        if current_block == 150:
+            # Check switch at block 28 for loop return
+            if len(self.data_manager.blocks) > 27:
+                block_28 = self.data_manager.blocks[27]  # Block 28 at index 27
+                if hasattr(block_28, 'switch_state'):
+                    if not block_28.switch_state:  # Switch set for loop return
+                        print(f"[ROUTING] Block 150 → 28 (Loop return via switch)")
+                        return 28  # DESCENDING: 150 → 28
+                    else:
+                        # Switch not set for loop, go to block 1
+                        return 1
+            # Default: restart at beginning
             return 1
-        elif current_block == 63:  # From yard entry, go to next block
-            return 64
-        elif current_block == 100:  # Before switch at 85-86
-            return 85  # Go through switch section
+        
+        # RULE 2: Switch at block 12-13
+        elif current_block == 12:
+            if len(self.data_manager.blocks) > 11:
+                block_12 = self.data_manager.blocks[11]  # Block 12 at index 11
+                if hasattr(block_12, 'switch_state'):
+                    if block_12.switch_state:
+                        return 13  # Normal progression
+                    else:
+                        # Switch might allow different routing
+                        return 13  # For now, continue to 13
+            return 13  # Default
+        
+        # RULE 3: After loop return at block 28
+        elif current_block == 28:
+            return 29  # Continue ascending after loop return
+        
+        # RULE 4: Switch at block 57 (Yard access)
+        elif current_block == 57:
+            if len(self.data_manager.blocks) > 56:
+                block_57 = self.data_manager.blocks[56]  # Block 57 at index 56
+                if hasattr(block_57, 'switch_state'):
+                    if not block_57.switch_state:  # Switch to yard
+                        return 58  # Enter yard section
+                    else:
+                        return 58  # Continue on main line
+            return 58  # Default progression
+        
+        # RULE 5: From yard return at block 62
+        elif current_block == 62:
+            return 63  # Return from yard to main line
+        
+        # RULE 6: Switch at block 76-77 (N section or bypass)
+        elif current_block == 76:
+            if len(self.data_manager.blocks) > 75:
+                block_76 = self.data_manager.blocks[75]  # Block 76 at index 75
+                if hasattr(block_76, 'switch_state'):
+                    if block_76.switch_state:  # True = To block 77
+                        return 77  # Enter N section
+                    else:  # False = To block 101
+                        print(f"[ROUTING] Block 76 → 101 (Bypassing N section)")
+                        return 101  # Skip N section entirely
+            return 77  # Default to N section
+        
+        # RULE 7: Normal progression through N section (77-84)
+        elif 77 <= current_block < 85:
+            return current_block + 1  # Normal ascending: 77→78→79→80→81→82→83→84→85
+        
+        # RULE 8: Switch at block 85-86
         elif current_block == 85:
-            return 86  # Continue through switch
-        elif current_block == 86:
-            return 87  # Exit switch section
-        elif current_block == 57:  # Near yard exit
-            # Could go to yard (58) or continue (59) - for now continue
-            return 59
-        elif current_block == 76:  # Switch at 76-77
-            return 77  # Go through station
+            if len(self.data_manager.blocks) > 84:
+                block_85 = self.data_manager.blocks[84]  # Block 85 at index 84
+                if hasattr(block_85, 'switch_state'):
+                    if block_85.switch_state:  # True = To block 86
+                        return 86  # Normal forward progression
+                    else:  # False = Would be for backward entry from 100
+                        # But when AT block 85, we always go forward
+                        return 86
+            return 86  # Default forward to 86
+        
+        # RULE 9: Normal progression from 86-99
+        elif 86 <= current_block <= 99:
+            return current_block + 1  # Continue ascending
+        
+        # RULE 10: Block 100 → 85 (BIDIRECTIONAL backward entry to N section)
+        elif current_block == 100:
+            # Check if switch at 85 is set for backward entry
+            if len(self.data_manager.blocks) > 84:
+                block_85 = self.data_manager.blocks[84]  # Block 85 at index 84
+                if hasattr(block_85, 'switch_state'):
+                    if not block_85.switch_state:  # False = Allow 100→85 backward route
+                        print(f"[ROUTING] Block 100 → 85 (BIDIRECTIONAL: Backward entry to N section)")
+                        # Mark this train as going backward through N section
+                        if train_idx < len(self.data_manager.active_trains):
+                            train_id = self.data_manager.active_trains[train_idx]
+                            self.train_directions[train_id] = 'backward_n_section'
+                        return 85  # DESCENDING: 100 → 85
+                    else:
+                        return 101  # Normal ascending to 101
+            # Default: continue ascending
+            return 101
+        
+        # RULE 10b: Handle backward traversal through N section (85→84→83→...→77)
+        elif current_block in [85, 84, 83, 82, 81, 80, 79, 78, 77]:
+            # Check if this train is traversing N section backward
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'backward_n_section':
+                    next_block = self.get_next_block_backward_n_section(current_block)
+                    if next_block == 101:
+                        # Exiting backward traversal, reset to forward
+                        self.train_directions[train_id] = 'forward'
+                        print(f"[ROUTING] Exiting N section backward traversal at block 77 → 101")
+                    elif next_block:
+                        print(f"[ROUTING] N section backward: Block {current_block} → {next_block}")
+                    return next_block
+            
+            # Otherwise, use normal rules (which handles forward traversal)
+            if current_block == 85:
+                # Already handled in RULE 8
+                if len(self.data_manager.blocks) > 84:
+                    block_85 = self.data_manager.blocks[84]
+                    if hasattr(block_85, 'switch_state'):
+                        if block_85.switch_state:
+                            return 86  # Normal forward
+                        else:
+                            return 86  # Still go forward when at 85
+                return 86
+            elif 77 <= current_block < 85:
+                return current_block + 1  # Normal forward through N section
+        
+        # RULE 11: Continue normal progression 101-149
+        elif 101 <= current_block <= 149:
+            return current_block + 1  # Normal ascending
+        
+        # ============================================================
+        # DEFAULT: NORMAL ASCENDING PROGRESSION
+        # ============================================================
         else:
-            # Normal sequential movement
+            # Standard ascending order for any other block
             next_block = current_block + 1
             
-            # Ensure we don't go past the end of the line
+            # Safety check
             if next_block > 150:
-                return 1  # Loop back to beginning
+                return 150  # Stay at 150
             
             return next_block
+    
+    def get_next_block_backward_n_section(self, current_block):
+        """
+        Handle backward progression through N section (85→84→83→...→77→101).
+        This is only used when a train enters from block 100 to block 85.
+        """
+        if current_block == 85:
+            return 84
+        elif current_block == 84:
+            return 83
+        elif current_block == 83:
+            return 82
+        elif current_block == 82:
+            return 81
+        elif current_block == 81:
+            return 80
+        elif current_block == 80:
+            return 79
+        elif current_block == 79:
+            return 78
+        elif current_block == 78:
+            return 77
+        elif current_block == 77:
+            # Exit N section backward traversal, continue to 101
+            return 101
+        else:
+            # Should not reach here in backward N section traversal
+            return None
     
     def send_block_occupancy_update(self, block_num, occupancy):
         """Send block occupancy update to other modules."""
         try:
             update = {block_num: occupancy}
             
-            # Send to Train Model
+            # Send to Train Model (keep existing format for Train Model)
             self.server.send_to_ui("Train Model", {
                 "command": "block_occupancy",
                 "value": update
             })
             
-            # Send to Track Controllers
+            # Send to Track SW (Wayside Controller) in the exact format required
+            # Flat structure with track, block, occupied fields
             self.server.send_to_ui("Track SW", {
-                "command": "block_occupancy",
-                "value": update
+                'track': 'Green',
+                'block': str(block_num),  # Convert to string
+                'occupied': str(occupancy)  # Send occupancy value as string (e.g., "0" or "1")
             })
+            
+            print(f"📤 Sent to Track SW: Block {block_num} {'occupied' if occupancy != 0 else 'unoccupied'}")
+            
+            # Also send old format for backward compatibility with Track HW
             self.server.send_to_ui("Track HW", {
                 "command": "block_occupancy",
                 "value": update
@@ -1574,6 +2243,29 @@ class TrackModelUI(tk.Tk):
                         "grade": getattr(block, 'grade', 0)
                     })
                     
+
+                    # Check for beacon data using BeaconManager
+                    if occupancy != 0 and hasattr(self, 'beacon_manager'):
+                        if self.beacon_manager.is_station_block(block_num):
+                            train_id = f"Train_{occupancy}"
+                            beacon_message = self.beacon_manager.format_beacon_message(block_num, train_id)
+                            if beacon_message:
+                                # Send beacon data to Train Model
+                                self.server.send_to_ui("Train Model", beacon_message)
+                                print(f"📡 BEACON ACTIVATED at Block {block_num} for {train_id}")
+                                print(f"   Next station: {beacon_message['beacon_info']['next_station_name']}")
+                                print(f"   Distance: {beacon_message['beacon_info']['distance_to_next_station']}m")
+                                # Send to Train SW for train controller
+                                self.server.send_to_ui("Train SW", beacon_message)
+                                print(f"📡 Beacon data sent to Train SW")
+                                # Report to CTC
+                                self.server.send_to_ui("CTC", {
+                                    "command": "beacon_activated",
+                                    "block": block_num,
+                                    "train_id": train_id,
+                                    "station_info": beacon_message['beacon_info']
+                                })
+                                print(f"📡 Beacon activation reported to CTC")
             print(f"📤 Sent occupancy update: Block {block_num} = {occupancy}")
             
         except Exception as e:
@@ -1586,9 +2278,21 @@ class TrackModelUI(tk.Tk):
             return block.block_number in self.station_blocks
         return False
     
-    def log_switch_change(self, block_num, from_block, to_block, state):
+    def log_switch_change(self, block_num, from_block, to_block, state, direction):
         """Log switch state changes with descriptive information"""
-        direction = "Right/Straight" if state else "Left/Diverging"
+        # Get the actual route info
+        route_info = self.get_switch_destination(block_num, state)
+        if isinstance(route_info, tuple) and len(route_info) == 2:
+            route_from, route_to = route_info
+            if route_from == "Yard":
+                direction_text = f"Yard to {route_to}"
+            elif route_to == "Yard":
+                direction_text = f"{route_from} to Yard"
+            else:
+                direction_text = f"{route_from} to {route_to}"
+        else:
+            direction_text = f"To {route_info}"
+        
         path_description = f"from Block {from_block} to Block {to_block}"
         
         # Add more context if this is a known switch
@@ -1600,11 +2304,30 @@ class TrackModelUI(tk.Tk):
             else:
                 path_type = "alternate route"
             
-            print(f"🔀 Switch at Block {block_num}: Set to {direction} ({path_type})")
+            print(f"🔀 Switch at Block {block_num}: {direction_text} ({path_type})")
             print(f"   Route: {path_description}")
         else:
-            print(f"✅ Updated switch at Block {block_num}: {direction}")
+            print(f"✅ Updated switch at Block {block_num}: {direction_text}")
             print(f"   Route: {path_description}")
+        
+        # Special handling for switch at block 85
+        # When switch routes from 100→85 (state=False), set N section (77-85) to face right
+        if block_num == 85 or (from_block == 85 and to_block in [84, 86]):
+            if hasattr(self.data_manager, 'bidirectional_directions'):
+                if not state:  # Switch set to Left/Diverging (100→85→84 route)
+                    # Set blocks 77-85 to face right (1) for backward travel
+                    self.data_manager.bidirectional_directions["Blocks 77-85"] = 1
+                    print(f"   📍 N Section (Blocks 77-85) set to Right → for backward travel")
+                    # Update the display
+                    if "Blocks 77-85" in self.bidir_controls:
+                        self.bidir_controls["Blocks 77-85"].set("Right →")
+                else:  # Switch set to Right/Straight (normal forward route)
+                    # Set blocks 77-85 to face left (0) for normal forward travel
+                    self.data_manager.bidirectional_directions["Blocks 77-85"] = 0
+                    print(f"   📍 N Section (Blocks 77-85) set to ← Left for forward travel")
+                    # Update the display
+                    if "Blocks 77-85" in self.bidir_controls:
+                        self.bidir_controls["Blocks 77-85"].set("← Left")
         
         # Log to terminal if available
         for terminal in self.terminals:
@@ -1803,6 +2526,303 @@ class TrackModelUI(tk.Tk):
         except Exception as e:
             self.log_to_all_terminals(f"[ERROR] Failed to load image: {str(e)}")
             print(f"❌ Error loading image: {e}")
+
+    def update_background_image(self):
+        """Update the background image to fit current canvas size while maintaining aspect ratio"""
+        try:
+            # Get current canvas dimensions
+            canvas_width = self.track_canvas.winfo_width()
+            canvas_height = self.track_canvas.winfo_height()
+            
+            # Use minimum dimensions if canvas hasn't been drawn yet
+            if canvas_width <= 1:
+                canvas_width = 800  # Default width
+            if canvas_height <= 1:
+                canvas_height = 600  # Default height
+            
+            # Try to get actual PLC panel width if it exists and is visible
+            reserved_right_space = 0
+            if hasattr(self, 'diagram_frame'):
+                # Get all children placed on the diagram frame
+                for child in self.diagram_frame.winfo_children():
+                    # Check if this is the PLC panel (placed widget)
+                    place_info = child.place_info()
+                    if place_info and place_info.get('anchor') == 'ne':
+                        # This is the right-side panel
+                        panel_width = child.winfo_width()
+                        if panel_width > 1:  # Panel has been rendered
+                            reserved_right_space = panel_width + 20  # Add some padding
+                            break
+            
+            # Fallback to default if we couldn't measure the panel
+            if reserved_right_space <= 1:
+                reserved_right_space = 280  # Increased default to be safe
+            
+            available_width = max(canvas_width - reserved_right_space, 400)
+            available_height = canvas_height
+            
+            # Determine which image file to use
+            if hasattr(self, 'current_image_file'):
+                image_file = self.current_image_file
+            else:
+                image_file = "GreenLineOcc.png" if hasattr(self, "selected_line") and self.selected_line.get() == "Green Line" else "GreenLineOcc.png"
+            
+            # Load original image to get its aspect ratio
+            original_img = Image.open(image_file)
+            original_width, original_height = original_img.size
+            original_aspect = original_width / original_height
+            
+            # Calculate dimensions that fit within available space while maintaining aspect ratio
+            if available_width / available_height > original_aspect:
+                # Height is the limiting factor
+                new_height = available_height
+                new_width = int(new_height * original_aspect)
+            else:
+                # Width is the limiting factor
+                new_width = available_width
+                new_height = int(new_width / original_aspect)
+            
+            # Resize image maintaining aspect ratio
+            bg_img = original_img.resize((new_width, new_height), Image.LANCZOS)
+            self.track_bg = ImageTk.PhotoImage(bg_img)
+            
+            # Clear and redraw canvas
+            self.track_canvas.delete("all")
+            
+            # Center the image in the available space (excluding reserved right space)
+            x_offset = (available_width - new_width) // 2
+            y_offset = (available_height - new_height) // 2
+            
+            # Store offsets for block marker positioning
+            self.image_x_offset = x_offset
+            self.image_y_offset = y_offset
+            
+            self.track_canvas.create_image(x_offset, y_offset, image=self.track_bg, anchor="nw")
+            self.track_canvas.config(scrollregion=self.track_canvas.bbox("all"))
+            
+            # Redraw block markers (black dots or train icons)
+            if hasattr(self, 'draw_block_markers'):
+                self.draw_block_markers()
+            
+            # Redraw red dots if any exist (they were deleted with "all")
+            if hasattr(self, 'red_dot_positions') and self.red_dot_positions:
+                self.red_dots = []
+                dot_radius = 3
+                for x, y in self.red_dot_positions:
+                    dot = self.track_canvas.create_oval(
+                        x - dot_radius, y - dot_radius,
+                        x + dot_radius, y + dot_radius,
+                        fill='red',
+                        outline='darkred',
+                        width=1
+                    )
+                    self.red_dots.append(dot)
+            
+            print(f"[UI] ✅ Background image resized to {new_width}x{new_height}")
+            print(f"    Original: {original_width}x{original_height} (aspect: {original_aspect:.4f})")
+            print(f"    New aspect: {new_width/new_height:.4f} (difference: {abs(original_aspect - new_width/new_height):.6f})")
+            print(f"    Canvas: {canvas_width}x{canvas_height}, Reserved: {reserved_right_space}px, Available: {available_width}x{available_height}")
+            print(f"    Image offset: ({x_offset}, {y_offset})")
+            
+        except Exception as e:
+            print(f"⚠️ Could not update background image: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def on_canvas_resize(self, event):
+        """Handle canvas resize events to update background image"""
+        # Debounce resize events - only update after canvas stops resizing
+        if hasattr(self, '_resize_timer'):
+            self.after_cancel(self._resize_timer)
+        
+        # Schedule update after 100ms of no resize events
+        self._resize_timer = self.after(100, self.update_background_image)
+
+    def on_canvas_click(self, event):
+        """Handle canvas click events - place red dot and print coordinates"""
+        x, y = event.x, event.y
+        
+        # Create a red dot (small circle) at the click location
+        dot_radius = 3
+        dot = self.track_canvas.create_oval(
+            x - dot_radius, y - dot_radius,
+            x + dot_radius, y + dot_radius,
+            fill='red',
+            outline='darkred',
+            width=1
+        )
+        
+        # Store the dot item ID
+        if not hasattr(self, 'red_dots'):
+            self.red_dots = []
+        self.red_dots.append(dot)
+        
+        # Store the position for persistence across image reloads
+        if not hasattr(self, 'red_dot_positions'):
+            self.red_dot_positions = []
+        self.red_dot_positions.append((x, y))
+        
+        # Print coordinates to terminal
+        print(f"🔴 Clicked at coordinates: ({x}, {y})")
+        
+        # Also log to UI terminal if available
+        if hasattr(self, 'log_to_all_terminals'):
+            self.log_to_all_terminals(f"[CLICK] Coordinates: ({x}, {y})")
+
+    def clear_red_dots(self, event=None):
+        """Clear all red dots from canvas (triggered by right-click)"""
+        # Delete all dot items
+        if hasattr(self, 'red_dots'):
+            for dot in self.red_dots:
+                self.track_canvas.delete(dot)
+            self.red_dots = []
+        
+        # Clear stored positions
+        if hasattr(self, 'red_dot_positions'):
+            self.red_dot_positions = []
+        
+        print("🧹 Cleared all red dots")
+        
+        # Also log to UI terminal if available
+        if hasattr(self, 'log_to_all_terminals'):
+            self.log_to_all_terminals("[CLEAR] All red dots cleared")
+
+    def draw_block_markers(self):
+        """Draw block markers (black dots or train icons) based on occupancy status"""
+        # Determine which position dictionary to use based on selected line
+        if hasattr(self, 'selected_line'):
+            current_line = self.selected_line.get()
+            if current_line == "Red Line":
+                if not hasattr(self, 'block_marker_positions_red'):
+                    return
+                positions = self.block_marker_positions_red
+            else:  # Green Line
+                if not hasattr(self, 'block_marker_positions'):
+                    return
+                positions = self.block_marker_positions
+        else:
+            # Default to Green Line if no selection yet
+            if not hasattr(self, 'block_marker_positions'):
+                return
+            positions = self.block_marker_positions
+        
+        # Get the current image offset (if image has been loaded and centered)
+        x_offset = getattr(self, 'image_x_offset', 0)
+        y_offset = getattr(self, 'image_y_offset', 0)
+        
+        # Get manual correction offsets
+        x_correction = getattr(self, 'marker_offset_correction_x', 0)
+        y_correction = getattr(self, 'marker_offset_correction_y', 0)
+        
+        # Clear existing markers
+        for block_num in list(self.block_markers.keys()):
+            if self.block_markers[block_num]:
+                self.track_canvas.delete(self.block_markers[block_num])
+        
+        self.block_markers = {}
+        
+        # Draw marker for each block
+        for block_num, (base_x, base_y) in positions.items():
+            # Skip placeholder blocks (coordinates 0,0)
+            if base_x == 0 and base_y == 0:
+                continue
+                
+            # Adjust position by image offset AND manual correction
+            x = base_x + x_offset + x_correction
+            y = base_y + y_offset + y_correction
+            
+            # Check if block is occupied
+            is_occupied = False
+            if block_num <= len(self.data_manager.blocks):
+                block = self.data_manager.blocks[block_num - 1]
+                is_occupied = hasattr(block, 'occupancy') and block.occupancy != 0
+            
+            if is_occupied and hasattr(self, 'train_icon') and self.train_icon:
+                # Draw train icon
+                marker = self.track_canvas.create_image(x, y, image=self.train_icon, anchor="center")
+            else:
+                # Draw black dot
+                dot_radius = 4
+                marker = self.track_canvas.create_oval(
+                    x - dot_radius, y - dot_radius,
+                    x + dot_radius, y + dot_radius,
+                    fill='black',
+                    outline='gray',
+                    width=1
+                )
+            
+            self.block_markers[block_num] = marker
+        
+        line_name = current_line if hasattr(self, 'selected_line') else "Green Line"
+        print(f"[MARKERS] Drew {len(self.block_markers)} block markers for {line_name} (offset: {x_offset}, {y_offset}) (correction: {x_correction}, {y_correction})")
+
+    def update_block_marker(self, block_num):
+        """Update a single block marker based on its occupancy status"""
+        # Determine which position dictionary to use based on selected line
+        if hasattr(self, 'selected_line'):
+            current_line = self.selected_line.get()
+            if current_line == "Red Line":
+                if not hasattr(self, 'block_marker_positions_red'):
+                    return
+                positions = self.block_marker_positions_red
+            else:  # Green Line
+                if not hasattr(self, 'block_marker_positions'):
+                    return
+                positions = self.block_marker_positions
+        else:
+            # Default to Green Line if no selection yet
+            if not hasattr(self, 'block_marker_positions'):
+                return
+            positions = self.block_marker_positions
+        
+        if block_num not in positions:
+            return
+        
+        # Get base position and apply image offset
+        base_x, base_y = positions[block_num]
+        
+        # Skip placeholder blocks
+        if base_x == 0 and base_y == 0:
+            return
+            
+        x_offset = getattr(self, 'image_x_offset', 0)
+        y_offset = getattr(self, 'image_y_offset', 0)
+        
+        # Get manual correction offsets
+        x_correction = getattr(self, 'marker_offset_correction_x', 0)
+        y_correction = getattr(self, 'marker_offset_correction_y', 0)
+        
+        # Apply both offsets and correction
+        x = base_x + x_offset + x_correction
+        y = base_y + y_offset + y_correction
+        
+        # Delete existing marker if it exists
+        if block_num in self.block_markers and self.block_markers[block_num]:
+            self.track_canvas.delete(self.block_markers[block_num])
+        
+        # Check if block is occupied
+        is_occupied = False
+        if block_num <= len(self.data_manager.blocks):
+            block = self.data_manager.blocks[block_num - 1]
+            is_occupied = hasattr(block, 'occupancy') and block.occupancy != 0
+        
+        if is_occupied and hasattr(self, 'train_icon') and self.train_icon:
+            # Draw train icon
+            marker = self.track_canvas.create_image(x, y, image=self.train_icon, anchor="center")
+            print(f"[MARKER] Block {block_num} now shows train icon (occupied)")
+        else:
+            # Draw black dot
+            dot_radius = 4
+            marker = self.track_canvas.create_oval(
+                x - dot_radius, y - dot_radius,
+                x + dot_radius, y + dot_radius,
+                fill='black',
+                outline='gray',
+                width=1
+            )
+            print(f"[MARKER] Block {block_num} now shows black dot (empty)")
+        
+        self.block_markers[block_num] = marker
 
     def clear_all_track_icons(self):
         """Completely clear all track icons and reset all tracking"""
@@ -2178,6 +3198,10 @@ class TrackModelUI(tk.Tk):
         # Update occupied blocks display
         self.update_occupied_blocks_display()
         
+        # Update block markers on main track diagram (train icons and dots)
+        if hasattr(self, 'draw_block_markers'):
+            self.draw_block_markers()
+        
         # Update bidirectional directions based on switches and signals
         self.refresh_bidirectional_controls()
         
@@ -2286,6 +3310,92 @@ class TrackModelUI(tk.Tk):
         # Option 3: Default
         return 1
 
+    def get_switch_destination(self, block_number, switch_state):
+        """
+        Determine which blocks a switch connects based on block number and switch state.
+        Returns a tuple of (from_block, to_block) for display.
+        Based on the track diagram switches:
+        - Block 12: SWITCH (12-13, 1-13)
+        - Block 28: SWITCH (28-29, 150-28)
+        - Block 57: SWITCH (57-Yard)
+        - Block 62: SWITCH FROM YARD (Yard-62)
+        - Block 76: SWITCH (76-77, 77-101)
+        - Block 85: SWITCH (85-86, 100-85)
+        """
+        # Handle switch at block 12 (12-13, 1-13)
+        if block_number == 12:
+            if switch_state:  # True = main route
+                return (12, 13)
+            else:  # False = from block 1
+                return (1, 13)
+        
+        # Handle switch at block 28 (28-29, 150-28)
+        elif block_number == 28:
+            if switch_state:  # True = main route
+                return (28, 29)
+            else:  # False = from block 150
+                return (150, 28)
+        
+        # Handle switch at block 57 (57-Yard)
+        elif block_number == 57:
+            if switch_state:  # True = continue on main line
+                return (57, 58)
+            else:  # False = to yard
+                return (57, "Yard")
+        
+        # Handle switch at block 62 (FROM YARD)
+        elif block_number == 62:
+            if switch_state:  # True = from main line
+                return (62, 63)
+            else:  # False = from yard
+                return ("Yard", 63)
+        
+        # Handle switch at block 76 (76-77, 77-101)
+        elif block_number == 76:
+            if switch_state:  # True = main route
+                return (76, 77)
+            else:  # False = skip to 101
+                return (76, 101)
+        
+        # Handle switch at block 85 (85-86, 100-85)
+        elif block_number == 85:
+            if switch_state:  # True = main route forward
+                return (85, 86)
+            else:  # False = backward route (for trains from 100)
+                return (100, 85)
+        
+        # Handle reverse direction for bidirectional switches
+        elif block_number == 1:
+            # Coming from block 1, can go to 2 or jump to 13 via switch
+            if switch_state:
+                return (1, 2)  # Normal route
+            else:
+                return (1, 13)  # Via switch at 12
+        
+        elif block_number == 77:
+            # Block 77 can go to 78 or back to 101
+            if switch_state:
+                return (77, 78)  # Continue on N section
+            else:
+                return (77, 101)  # Jump to block 101
+        
+        elif block_number == 100:
+            # Block 100 can go to 85 via switch
+            if not switch_state:  # When switch at 85 is set for 100->85
+                return (100, 85)
+            else:
+                return (100, 101)  # Normal route
+        
+        elif block_number == 150:
+            # Block 150 can loop back to 1 or go to 28 via switch
+            if switch_state:
+                return (150, 1)  # Normal loop back
+            else:
+                return (150, 28)  # Via switch
+        
+        # For any other blocks, default to next sequential block
+        return (block_number, block_number + 1)
+
 
     # 6. Update your update_track_system_table to show failure status:
 
@@ -2315,7 +3425,24 @@ class TrackModelUI(tk.Tk):
                 has_power = self.murphy_failures.has_power(b.block_number)
                 
                 # Switch state
-                switch_state = "Right" if getattr(b, "switch_state", False) else "Left" if has_switch else "N/A"
+                if has_switch:
+                    current_switch_state = getattr(b, "switch_state", False)
+                    route_info = self.get_switch_destination(b.block_number, current_switch_state)
+                    # route_info is now a tuple (from_block, to_block)
+                    if isinstance(route_info, tuple) and len(route_info) == 2:
+                        from_block, to_block = route_info
+                        # Format the display string
+                        if from_block == "Yard":
+                            switch_state = f"Yard to {to_block}"
+                        elif to_block == "Yard":
+                            switch_state = f"{from_block} to Yard"
+                        else:
+                            switch_state = f"{from_block} to {to_block}"
+                    else:
+                        # Fallback for any unexpected format
+                        switch_state = f"To {route_info}"
+                else:
+                    switch_state = "--"
                 
                 # Signal state (off if power failure)
                 if has_signal:
@@ -2337,7 +3464,7 @@ class TrackModelUI(tk.Tk):
                         else:
                             signal_display = f"Unknown ({signal_state})"
                 else:
-                    signal_display = "N/A"
+                    signal_display = "--"
                 
                 # Crossing state (inactive if power failure)
                 if has_crossing:
@@ -2346,7 +3473,7 @@ class TrackModelUI(tk.Tk):
                     else:
                         crossing_state = "Active" if getattr(b, "crossing", False) else "Inactive"
                 else:
-                    crossing_state = "N/A"
+                    crossing_state = "--"
                 
                 # Heater status
                 if has_station and hasattr(self, 'heater_manager'):
@@ -2354,11 +3481,10 @@ class TrackModelUI(tk.Tk):
                     heater_working = self.heater_manager.is_heater_working(b)
                     block_temp_f = self.heater_manager.get_block_temperature(b.block_number)
                     
-                    heater_status = "🔥 ON" if heater_on else "❄️ OFF"
-                    heater_work = "✅" if heater_working else "⚠️ BROKEN"
-                    heater_display = f"{heater_status} {heater_work} ({block_temp_f:.1f}°F)"
+                    heater_status = "ON" if heater_on else "OFF"
+                    heater_display = f"{heater_status} ({block_temp_f:.1f}°F)"
                 else:
-                    heater_display = "N/A"
+                    heater_display = "--"
                 
                 # Failure status
                 failure_status = self.murphy_failures.get_failure_display_text(b.block_number)
@@ -2598,6 +3724,7 @@ class TrackModelUI(tk.Tk):
         print(f"   Initial Speed={speed} m/s, Authority={authority} blocks")
         print(f"   Active trains: {self.data_manager.active_trains}")
         print(f"   Train locations: {self.data_manager.train_locations}")
+        print(f"   Array sizes: active_trains={len(self.data_manager.active_trains)}, commanded_speed={len(self.data_manager.commanded_speed)}, commanded_authority={len(self.data_manager.commanded_authority)}")
 
         # Update UI elements if they exist
         if hasattr(self, 'train_combo'):
@@ -2762,17 +3889,58 @@ class TrackModelUI(tk.Tk):
         print(f"📤 Sent failure modes to Wayside Controller ({len(failures)} failures)")
 
     def send_block_occupancy_to_wayside(self):
-        """Send block occupancy to Wayside Controller."""
+        """Send block occupancy to Wayside Controller (Track SW and Track HW)."""
+        # Send individual occupancy updates in the flat format Wayside expects
+        occupied_count = 0
+        unoccupied_count = 0
+        
+        for block in self.data_manager.blocks:
+            # Send all blocks so Wayside knows both occupied and unoccupied states
+            is_occupied = block.occupancy != 0
+            
+            # Send to Track SW with proper command format
+            self.server.send_to_ui("Track SW", {
+                'command': 'update_occupancy', 
+                'value': {
+                    'track': 'Green',
+                    'block': str(block.block_number),  # Send as string
+                    'occupied': is_occupied  # Boolean value
+                }
+            })
+            
+            if is_occupied:
+                occupied_count += 1
+            else:
+                unoccupied_count += 1
+        
+        # Also send bulk format to Track HW for backward compatibility
         occupancy_data = {}
         for block in self.data_manager.blocks:
-            if block.occupancy != 0:  # Only send occupied blocks
+            if block.occupancy != 0:  # Only occupied blocks in bulk format
                 occupancy_data[block.block_number] = block.occupancy
         
-        self.server.send_to_ui("Wayside Controller", {
-            'command': 'Block Occupancy',
+        self.server.send_to_ui("Track HW", {
+            'command': 'Block Occupancy', 
             'data': occupancy_data
         })
-        print(f"📤 Sent block occupancy to Wayside Controller ({len(occupancy_data)} occupied)")
+        
+        print(f"📤 Sent block occupancy to Wayside: {occupied_count} occupied, {unoccupied_count} unoccupied blocks")
+    
+    def send_bulk_occupancy_to_wayside(self):
+        """Send bulk occupancy data to Wayside Controller as a dictionary."""
+        # Create occupancy data dictionary (block_number: boolean)
+        occupancy_data = {}
+        for block in self.data_manager.blocks:
+            occupancy_data[block.block_number] = block.occupancy != 0
+        
+        # Send in the flat format with all occupancy data at once
+        self.server.send_to_ui("Track SW", {
+            'track': 'Green',
+            'block': 'all',  # Special indicator for bulk update
+            'occupied': occupancy_data  # Dictionary of block_num: boolean
+        })
+        
+        print(f"📤 Sent bulk occupancy data to Track SW: {len(occupancy_data)} blocks")
 
     def send_block_occupancy_to_train_model(self):
         """Send block occupancy to Train Model."""
@@ -2945,13 +4113,19 @@ class TrackModelUI(tk.Tk):
                         if hasattr(block_63, 'occupancy') and block_63.occupancy != 0:
                             block_63_occupied = True
                     
-                    # Only treat as yard dispatch if block 63 is not occupied
+                    # Only treat as yard dispatch if block 63 is not occupied AND no trains exist
                     if not block_63_occupied and not train_id:
-                        is_yard_dispatch = True
-                        print(f"🚂 YARD DISPATCH DETECTED (from Block 63) - Creating new train")
-                        # Convert block_num to int if it's a string
-                        if isinstance(block_num, str):
-                            block_num = 63
+                        # Check if any trains already exist
+                        if not self.data_manager.active_trains:
+                            is_yard_dispatch = True
+                            print(f"🚂 YARD DISPATCH DETECTED (from Block 63) - Creating new train")
+                            # Convert block_num to int if it's a string
+                            if isinstance(block_num, str):
+                                block_num = 63
+                        else:
+                            # Use existing train instead of creating a duplicate
+                            train_id = self.data_manager.active_trains[-1]
+                            print(f"⚠️ Block 63 command received, but train already exists. Using: {train_id}")
                 
                 if is_yard_dispatch:
                     # Create a new train for yard dispatch
@@ -3020,6 +4194,11 @@ class TrackModelUI(tk.Tk):
                     try:
                         self.update_occupied_blocks_display()
                         print("[DEBUG] Called update_occupied_blocks_display after yard dispatch")
+                        
+                        # UPDATE BLOCK MARKER TO SHOW TRAIN ICON ON MAP
+                        if hasattr(self, 'update_block_marker'):
+                            self.update_block_marker(63)
+                            print("[DEBUG] Updated block marker for block 63 - train should now be visible on map")
                     except Exception as e:
                         print(f"❌ Error updating occupied blocks display: {e}")
                     
@@ -3038,9 +4217,17 @@ class TrackModelUI(tk.Tk):
                         print(f"⚠️ Could not convert block_num '{block_num}' to int")
                         block_num = None
                 
-                # If not a yard dispatch and no train_id, create train using existing logic
+                # If not a yard dispatch and no train_id, create train ONLY if no trains exist yet
                 if not is_yard_dispatch and not train_id:
-                    self._create_train_from_wayside(commanded_speed, commanded_authority)
+                    # Only create a new train if we don't have any active trains
+                    if not self.data_manager.active_trains:
+                        self._create_train_from_wayside(commanded_speed, commanded_authority)
+                        train_id = self.data_manager.active_trains[-1] if self.data_manager.active_trains else None
+                        print(f"✅ Created new train (none existed): {train_id}")
+                    else:
+                        # Use the most recent active train instead of creating duplicates
+                        train_id = self.data_manager.active_trains[-1]
+                        print(f"⚠️ No train_id provided in command, using existing train: {train_id}")
                 
                 # Also support legacy array format for backwards compatibility
                 if commanded_speed is None and isinstance(value, list) and len(value) == 3:
@@ -3049,16 +4236,6 @@ class TrackModelUI(tk.Tk):
                     commanded_authority = value[2] if not isinstance(value[2], str) else int(value[2])
                 
                 if commanded_speed is not None and commanded_authority is not None and block_num is not None:
-                    # ALWAYS update commanded values by block number (for display in Train Details panel)
-                    idx = block_num - 1
-                    if 0 <= idx < len(self.data_manager.commanded_speed):
-                        self.data_manager.commanded_speed[idx] = commanded_speed
-                        self.data_manager.commanded_authority[idx] = commanded_authority
-                        print(f"✅ Updated commanded values for Block {block_num}: Speed={commanded_speed}, Authority={commanded_authority}")
-                        
-                        # Refresh Train Details panel if it exists
-                        if hasattr(self, 'tester_reference') and hasattr(self.tester_reference, 'refresh_train_details'):
-                            self.tester_reference.refresh_train_details()
                     
                     # If no train_id provided, try to find train on this block
                     if not train_id:
@@ -3247,7 +4424,18 @@ class TrackModelUI(tk.Tk):
                     if 1 <= block_number <= len(self.data_manager.blocks):
                         block = self.data_manager.blocks[block_number - 1]
                         block.switch_state = value
-                        print(f"✅ Updated switch at block {block_number}: {'Right' if value else 'Left'} (legacy boolean format)")
+                        route_info = self.get_switch_destination(block_number, value)
+                        if isinstance(route_info, tuple) and len(route_info) == 2:
+                            from_block, to_block = route_info
+                            if from_block == "Yard":
+                                destination_text = f"Yard to {to_block}"
+                            elif to_block == "Yard":
+                                destination_text = f"{from_block} to Yard"
+                            else:
+                                destination_text = f"{from_block} to {to_block}"
+                        else:
+                            destination_text = f"To {route_info}"
+                        print(f"✅ Updated switch at block {block_number}: {destination_text} (legacy boolean format)")
                         self.refresh_bidirectional_controls()
                         self.refresh_ui()
                         
@@ -3473,6 +4661,96 @@ class TrackModelUI(tk.Tk):
                 self.send_all_outputs()
             
             # ============================================================
+            # SWITCH STATES - From Wayside Controller
+            # Updates switch positions/directions
+            # ============================================================
+            elif command == 'switch_states':
+                switches = message.get('switches', value)
+                
+                if switches:
+                    print(f"🔀 Received switch states from {source_ui_id}")
+                    
+                    # Handle array of switch states
+                    if isinstance(switches, list):
+                        # Define switch block mapping based on Green Line switches
+                        switch_block_mapping = {
+                            0: 13,   # Switch at block 13
+                            1: 29,   # Switch at block 29
+                            2: 57,   # Switch at block 57
+                            3: 63,   # Switch at block 63
+                            4: 77,   # Switch at block 77
+                            5: 85,   # Switch at block 85
+                        }
+                        
+                        for idx, direction in enumerate(switches):
+                            if idx in switch_block_mapping:
+                                block_num = switch_block_mapping[idx]
+                                if 1 <= block_num <= len(self.data_manager.blocks):
+                                    block = self.data_manager.blocks[block_num - 1]
+                                    # Normalize direction for consistency
+                                    if direction in ["normal", False, 0, "0"]:
+                                        direction = "normal"
+                                    elif direction in ["reverse", True, 1, "1"]:
+                                        direction = "reverse"
+                                    else:
+                                        direction = "normal"
+                                    
+                                    # Show routing path if configured
+                                    if hasattr(self, "switch_routing") and block_num in self.switch_routing:
+                                        next_block = self.switch_routing[block_num][direction]
+                                        print(f"   Switch {block_num}: {direction} → routes to block {next_block}")
+                                    # Store switch direction in block
+                                    block.switch_direction = direction
+                                    
+                                    # Update switch states dictionary
+                                    if not hasattr(self, 'switch_states'):
+                                        self.switch_states = {}
+                                    self.switch_states[block_num] = direction
+                                    
+                                    print(f"   Updated switch at block {block_num}: {direction}")
+                                    
+                                    # Mark block as having a switch
+                                    self.switch_blocks.add(block_num)
+                    
+                    # Refresh relevant UI components
+                    self.refresh_track_data_table()
+                    self.refresh_track_system_table()
+                    self.update_switch_display()
+            
+            elif command == 'update_switch':
+                # Handle individual switch updates
+                track = value.get('track')
+                block = value.get('block')
+                direction = value.get('direction')
+                
+                if block and direction:
+                    print(f"🔀 Switch update: Block {block} -> {direction}")
+                    
+                    if isinstance(block, str):
+                        block = int(block)
+                        
+                    if 1 <= block <= len(self.data_manager.blocks):
+                        block_obj = self.data_manager.blocks[block - 1]
+                        
+                        # Store switch state
+                        block_obj.switch_direction = direction
+                        
+                        # Update switch states dictionary
+                        if not hasattr(self, 'switch_states'):
+                            self.switch_states = {}
+                        self.switch_states[block] = direction
+                        
+                        # Mark block as having a switch
+                        self.switch_blocks.add(block)
+                        
+                        print(f"✅ Updated switch at block {block}: {direction}")
+                        
+                        # Update displays
+                        self.refresh_track_data_table()
+                        self.refresh_track_system_table()
+                        self.update_switch_display()
+            
+            # ============================================================
             # BLOCK OCCUPANCY - From Train Model
             # Updates which blocks are occupied by trains
             # Can be: single value, [block_num, occupancy], or {block_num: occupancy}
@@ -3489,25 +4767,37 @@ class TrackModelUI(tk.Tk):
                     if 1 <= block_num <= len(self.data_manager.blocks):
                         block = self.data_manager.blocks[block_num - 1]
                         block.occupancy = occupancy
-                        print(f"✅ Updated block {block_num} occupancy: {occupancy}")
+                        # Check if train is at a switch and show routing
+                        if occupancy != 0 and hasattr(self, "switch_routing") and block_num in self.switch_routing:
+                            dir = self.switch_states.get(block_num, "normal")
+                            next = self.switch_routing[block_num][dir]
+                            print(f"   🚂 Train_{occupancy} at switch {block_num} ({dir}) → next block {next}")
+                    print(f"✅ Updated block {block_num} occupancy: {occupancy}")
                         
-                        # Update train location tracking if train moved
-                        if occupancy != 0:
-                            # Find train with this occupancy number
-                            train_id = f"Train_{occupancy}"
-                            if train_id in self.data_manager.active_trains:
-                                idx = self.data_manager.active_trains.index(train_id)
-                                old_location = self.data_manager.train_locations[idx] if idx < len(self.data_manager.train_locations) else 0
+                    # Update train location tracking if train moved
+                    if occupancy != 0:
+                        # Find train with this occupancy number
+                        train_id = f"Train_{occupancy}"
+                        if train_id in self.data_manager.active_trains:
+                            idx = self.data_manager.active_trains.index(train_id)
+                            old_location = self.data_manager.train_locations[idx] if idx < len(self.data_manager.train_locations) else 0
+                            
+                            if old_location != block_num:
+                                self.data_manager.train_locations[idx] = block_num
+                                print(f"   Train {train_id} moved from block {old_location} to block {block_num}")
                                 
-                                if old_location != block_num:
-                                    self.data_manager.train_locations[idx] = block_num
-                                    print(f"   Train {train_id} moved from block {old_location} to block {block_num}")
-                                    
-                                    # Reset position tracking for new block
-                                    if train_id in self.train_positions_in_block:
-                                        self.train_positions_in_block[train_id] = 0
-                        
-                        self.update_occupied_blocks_display()
+                                # Reset position tracking for new block
+                                if train_id in self.train_positions_in_block:
+                                    self.train_positions_in_block[train_id] = 0
+                    
+                    self.update_occupied_blocks_display()
+                    
+                    # Update block marker (dot/train icon)
+                    if hasattr(self, 'update_block_marker'):
+                        self.update_block_marker(block_num)
+                    
+                    # Forward occupancy update to Wayside Controller
+                    self.send_block_occupancy_update(block_num, occupancy)
                         
                 elif isinstance(value, dict):
                     # Format: {block_num: occupancy, ...}
@@ -3518,6 +4808,11 @@ class TrackModelUI(tk.Tk):
                         if 1 <= block_num <= len(self.data_manager.blocks):
                             block = self.data_manager.blocks[block_num - 1]
                             block.occupancy = occupancy
+                            # Check if train is at a switch and show routing
+                            if occupancy != 0 and hasattr(self, "switch_routing") and block_num in self.switch_routing:
+                                dir = self.switch_states.get(block_num, "normal")
+                                next = self.switch_routing[block_num][dir]
+                                print(f"   🚂 Train_{occupancy} at switch {block_num} ({dir}) → next block {next}")
                             print(f"✅ Updated block {block_num} occupancy: {occupancy}")
                             
                             # Update train tracking
@@ -3531,6 +4826,13 @@ class TrackModelUI(tk.Tk):
                                         # Reset position tracking
                                         if train_id in self.train_positions_in_block:
                                             self.train_positions_in_block[train_id] = 0
+                            
+                            # Forward occupancy update to Wayside Controller
+                            self.send_block_occupancy_update(block_num, occupancy)
+                            
+                            # Update block marker (dot/train icon)
+                            if hasattr(self, 'update_block_marker'):
+                                self.update_block_marker(block_num)
                     
                     self.update_occupied_blocks_display()
                 else:
@@ -3549,6 +4851,8 @@ class TrackModelUI(tk.Tk):
     def start_output_updates(self):
         """Start periodic output updates (every 5 seconds)."""
         self.send_all_outputs()
+        # Also send occupancy updates to Wayside
+        self.send_block_occupancy_to_wayside()
         self.after(5000, self.start_output_updates)  # Send every 5 seconds
 
     def test_block_occupancy(self, block_num, occupancy):

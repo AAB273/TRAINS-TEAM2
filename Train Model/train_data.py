@@ -26,7 +26,7 @@ class Train:
         self.cabin_temp = 72.0
         self.grade = 0
         self.elevation = 0
-        self.speed_limit = 10000
+        self.speed_limit = 50
         self.commanded_speed = 0
         self.commanded_authority = 0
         self.distance_left = self.commanded_authority
@@ -59,11 +59,11 @@ class Train:
         self.service_brake_active = True
         
         # Deployment status
-        self.deployed = False
+        self.deployed = True
         
         # Line assignment
         self.line = "green" 
-        self.block = 0 #IDK what to put here for now.
+        self.block = 63
         #self.line_data
 
         # Station
@@ -155,6 +155,21 @@ class Train:
         except ValueError:
             pass
     
+    def set_authority(self, value):
+        try:
+            self.commanded_authority = float(value)
+            self._notify_observers()
+        except ValueError:
+            pass
+
+    def set_commanded_speed(self, value):
+        try:
+            self.commanded_speed = float(value)
+            self._notify_observers()
+        except ValueError:
+            pass
+
+
     def set_cabin_temp(self, value):
         try:
             self.cabin_temp = float(value)
@@ -220,7 +235,7 @@ class Train:
         total_mass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passenger_count + 2))
         neg_grade_true = False
         
-        # Grade Force - FIXED
+        # Grade Force 
         if self.grade != 0:
             Fgrade = total_mass * 9.8 * (self.grade/100)
             if(self.grade < 0):
@@ -245,7 +260,7 @@ class Train:
                 if self.speed == 0:
                     a_new = MAX_FORCE / total_mass
                 else:
-                    if self.speed > 0:
+                    if self.speed > 8.9408:
                         force = self.power_command / self.speed
                         if neg_grade_true:
                             fnet = force + Fgrade  
@@ -254,7 +269,7 @@ class Train:
                             fnet = force - Fgrade  
                             a_new = fnet / total_mass
                     else:
-                        a_new = 0
+                        a_new = self.acceleration
             else:
                 a_new = 0  # No power or doors open
                 
@@ -278,9 +293,11 @@ class Train:
             new_speed = 0
             a_new = 0
         
-     
-        if new_speed > self.speed_limit:
-            new_speed = self.speed_limit
+        if self.speed_limit != 0:
+            if new_speed > self.speed_limit:
+                new_speed = self.speed_limit
+        else:
+            pass
         
         # NOW calculate distance with final speed values
         if hasattr(self, 'speed_prev'):
@@ -297,11 +314,16 @@ class Train:
         self.acceleration = a_new
         self.distance_left = self.distance_left - distance
         
-        # Time to Station Calculation 
-        if new_speed > 0.1:  
-            self.set_time_to_station(int(self.distance_left / new_speed))
+        if new_speed > 0.1:  # Only calculate if moving at reasonable speed
+            time_seconds = self.distance_left / new_speed
+            time_minutes = max(0, int(time_seconds / 60))  # Convert to minutes, ensure non-negative
+            self.set_time_to_station(time_minutes)
         else:
-            self.set_time_to_station('Soon')
+            # When stopped or moving very slowly
+            if self.distance_left <= 0:
+                self.set_time_to_station(0)  # Arrived
+            else:
+                self.set_time_to_station("Soon")  # Or use a large number like 999
 
         self._notify_observers()
     

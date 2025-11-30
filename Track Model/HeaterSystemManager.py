@@ -40,9 +40,9 @@ class HeaterSystemManager:
             for block in self.data_manager.blocks:
                 # Only initialize if not already set, or reinitialize all
                 self.block_temperatures[block.block_number] = env_temp
-            print(f"🌡️ Initialized {len(self.block_temperatures)} block temperatures to {env_temp}°F")
-        else:
-            print("⚠️ Warning: No blocks found during temperature initialization")
+        #     print(f"🌡️ Initialized {len(self.block_temperatures)} block temperatures to {env_temp}°F")
+        # else:
+        #     print("⚠️ Warning: No blocks found during temperature initialization")
 
     # -------------------------------------------------------------------------
     # HEATER STATE CHECKS
@@ -65,11 +65,11 @@ class HeaterSystemManager:
     def set_heater_state(self, block, is_on, is_working):
         """Set heater state with validation"""
         if not is_working and is_on:
-            print(f"⚠️ Cannot turn on heater for block {block.block_number} - heater is not working")
+            # print(f"⚠️ Cannot turn on heater for block {block.block_number} - heater is not working")
             return False  # Can't turn on a non-working heater
         
         block.track_heater = [1 if is_on else 0, 1 if is_working else 0]
-        print(f"🔧 Block {block.block_number} heater: {'ON' if is_on else 'OFF'}, {'WORKING' if is_working else 'BROKEN'}")
+        # print(f"🔧 Block {block.block_number} heater: {'ON' if is_on else 'OFF'}, {'WORKING' if is_working else 'BROKEN'}")
         return True
 
     def toggle_heater(self, block_num):
@@ -78,16 +78,16 @@ class HeaterSystemManager:
         if self.is_heater_working(block):
             new_state = not self.is_heater_on(block)
             self.set_heater_state(block, new_state, True)
-        else:
-            print(f"❌ Cannot toggle heater for block {block_num} - heater is not working")
+        # else:
+        #     print(f"❌ Cannot toggle heater for block {block_num} - heater is not working")
 
     def break_heater(self, block_num):
         """Break the heater (turns it off if it was on)"""
         block = self.data_manager.blocks[block_num - 1]
         was_on = self.is_heater_on(block)
         self.set_heater_state(block, False, False)  # Turn off and break
-        if was_on:
-            print(f"🔧 Heater broken and turned off for block {block_num}")
+        # if was_on:
+        #     print(f"🔧 Heater broken and turned off for block {block_num}")
 
     def fix_heater(self, block_num):
         """Fix the heater (doesn't change on/off state)"""
@@ -101,7 +101,7 @@ class HeaterSystemManager:
     def set_target_temperature(self, temp):
         """Set the target temperature for the system"""
         self.target_temperature = temp
-        print(f"🌡️ Target temperature set to {temp}°F")
+        # print(f"🌡️ Target temperature set to {temp}°F")
 
     def set_environmental_temperature(self, temp):
         """Update the environmental temperature in data manager and reinitialize block temps"""
@@ -109,7 +109,7 @@ class HeaterSystemManager:
         # Reinitialize all block temperatures to the new environmental temp
         for block_num in self.block_temperatures:
             self.block_temperatures[block_num] = temp
-        print(f"🌡️ Environmental temperature set to {temp}°F - All blocks reset to {temp}°F")
+        # print(f"🌡️ Environmental temperature set to {temp}°F - All blocks reset to {temp}°F")
         
         # Immediately trigger heater control based on new temperature
         self.update_all_temperatures()
@@ -185,14 +185,14 @@ class HeaterSystemManager:
             if not self.is_heater_on(block):
                 self.set_heater_state(block, True, True)
                 state_changed = True
-                print(f"🔥 AUTO: Block {block_num} heater turned ON (temp: {current_temp:.1f}°F < target: {self.target_temperature}°F)")
+                # print(f"🔥 AUTO: Block {block_num} heater turned ON (temp: {current_temp:.1f}°F < target: {self.target_temperature}°F)")
         
         # Turn off if temperature reaches or exceeds target
         elif current_temp >= self.target_temperature:
             if self.is_heater_on(block):
                 self.set_heater_state(block, False, True)
                 state_changed = True
-                print(f"❄️ AUTO: Block {block_num} heater turned OFF (temp: {current_temp:.1f}°F >= target: {self.target_temperature}°F)")
+                # print(f"❄️ AUTO: Block {block_num} heater turned OFF (temp: {current_temp:.1f}°F >= target: {self.target_temperature}°F)")
         
         return state_changed
 
@@ -232,20 +232,20 @@ class HeaterSystemManager:
         """Turn off and fix all heaters in all blocks."""
         for block in self.data_manager.blocks:
             block.track_heater = [0, 1]  # OFF but WORKING
-        print("♻️ All heaters reset to OFF and functional.")
+        # print("♻️ All heaters reset to OFF and functional.")
 
     def break_all_heaters(self):
         """Mark all heaters as broken."""
         for block in self.data_manager.blocks:
             block.track_heater = [0, 0]  # OFF and BROKEN
-        print("💣 All heaters marked as broken.")
+        # print("💣 All heaters marked as broken.")
 
     def reset_all_temperatures(self):
         """Reset all block temperatures to environmental temperature"""
         env_temp = self.data_manager.environmental_temp or 50.0
         for block_num in self.block_temperatures:
             self.block_temperatures[block_num] = env_temp
-        print(f"🌡️ All block temperatures reset to {env_temp}°F")
+        # print(f"🌡️ All block temperatures reset to {env_temp}°F")
 
     def get_heater_status_summary(self) -> dict:
         """
