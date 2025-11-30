@@ -54,12 +54,12 @@ class TrackModelUI(tk.Tk):
         self.switch_states = {}  # Dictionary to track switch states {block_num: direction}
         # Switch routing configuration for train path determination
         self.switch_routing = {
-            13: {"normal": 12, "reverse": 101},  # Yard switch
-            29: {"normal": 30, "reverse": 150},  # J switch
-            57: {"normal": 58, "reverse": 151},  # N switch
-            63: {"normal": 64, "reverse": 77},   # O switch
-            77: {"normal": 78, "reverse": 101},  # P switch
-            85: {"normal": 86, "reverse": 100}   # Q switch
+            12: {"normal": 13, "reverse": 13},    # Switch housed at 12: (12-13; 1-13)
+            28: {"normal": 29, "reverse": 150},   # Switch housed at 28: (28-29; 150-28)
+            58: {"normal": 58, "reverse": 151},   # Switch housed at 58: controls 57→58 or 57→yard
+            62: {"normal": 63, "reverse": 63},    # Switch housed at 62: from main line or yard to 63
+            76: {"normal": 78, "reverse": 101},   # Switch housed at 76: controls junction at 77 (76-77-78 or 76-77-101)
+            85: {"normal": 86, "reverse": 100}    # Switch housed at 85: (85-86; 100-85)
         }
         self.crossing_blocks = set()
         self.light_states = {12, 29, 76, 86}
@@ -2028,67 +2028,102 @@ class TrackModelUI(tk.Tk):
         # SPECIAL ROUTING RULES - BIDIRECTIONAL AND SWITCHES
         # ============================================================
         
-        # RULE 1: End of line loop return (BIDIRECTIONAL: 150 → 28)
+        
+        # RULE 1: End of line loop return - Block 150 goes to 28 (per Excel)
         if current_block == 150:
-            # Check switch at block 28 for loop return
+            print(f"[ROUTING] Block 150 M-bM-^FM-^R 28 (Loop return per switch at block 28)")
+            return 28  # Always go to 28 from 150
+        
+        # RULE 1b: Switch at block 28 controls routing from 28
+        # Excel shows: SWITCH (28-29; 150-28)
+        # Route 1: 28 M-bM-^FM-^R 29 (normal forward)
+        # Route 2: 150 M-bM-^FM-^R 28 (loop return, handled above)
+        elif current_block == 28:
             if len(self.data_manager.blocks) > 27:
                 block_28 = self.data_manager.blocks[27]  # Block 28 at index 27
                 if hasattr(block_28, 'switch_state'):
-                    if not block_28.switch_state:  # Switch set for loop return
-                        print(f"[ROUTING] Block 150 → 28 (Loop return via switch)")
-                        return 28  # DESCENDING: 150 → 28
-                    else:
-                        # Switch not set for loop, go to block 1
-                        return 1
-            # Default: restart at beginning
-            return 1
+                    if block_28.switch_state:  # True = Normal = To block 29
+                        return 29  # Continue forward
+                    else:  # False = Reverse = Loop back to 150
+                        print(f"[ROUTING] Block 28 M-bM-^FM-^R 150 (Loop back via switch 28)")
+                        return 150  # Loop back
+            return 29  # Default forward to 29
+
+        # RULE 2: Switch at block 12 (12-13; 1-13)
+        # Excel: SWITCH (12-13; 1-13)
+        # Normal: 12 → 13 (continue from block 12)
+        # Reverse: allows entry from block 1 → 13
+        elif current_block == 1:
+            # Block 1 can only go to 2 normally, unless there's a switch routing
+            # For now, block 1 goes to 2
+            return 2
         
-        # RULE 2: Switch at block 12-13
         elif current_block == 12:
             if len(self.data_manager.blocks) > 11:
                 block_12 = self.data_manager.blocks[11]  # Block 12 at index 11
                 if hasattr(block_12, 'switch_state'):
-                    if block_12.switch_state:
+                    if block_12.switch_state:  # True = Normal = 12 → 13
                         return 13  # Normal progression
-                    else:
-                        # Switch might allow different routing
-                        return 13  # For now, continue to 13
+                    else:  # False = Reverse = allows 1 → 13 (but we're at 12, so still go to 13)
+                        return 13  # Still go to 13
             return 13  # Default
         
-        # RULE 3: After loop return at block 28
-        elif current_block == 28:
-            return 29  # Continue ascending after loop return
-        
-        # RULE 4: Switch at block 57 (Yard access)
+        # RULE 4: Switch housed at block 58 (Yard access from block 57)
+        # Excel: SWITCH TO YARD (57-yard) - switch housed at block 58
+        # Position 1: 57 → 58 (continue on main line)
+        # Position 2: 57 → yard (block 151)
         elif current_block == 57:
-            if len(self.data_manager.blocks) > 56:
-                block_57 = self.data_manager.blocks[56]  # Block 57 at index 56
-                if hasattr(block_57, 'switch_state'):
-                    if not block_57.switch_state:  # Switch to yard
-                        return 58  # Enter yard section
-                    else:
-                        return 58  # Continue on main line
-            return 58  # Default progression
+            if len(self.data_manager.blocks) > 57:
+                block_58 = self.data_manager.blocks[57]  # Switch housed at block 58 (index 57)
+                if hasattr(block_58, 'switch_state'):
+                    if block_58.switch_state:  # True = Normal = Continue on main line
+                        return 58  # Continue to 58
+                    else:  # False = Reverse = Go to yard
+                        print(f"[ROUTING] Block 57 → Yard (151) via switch at 58")
+                        return 151  # Go to yard (block 151)
+            return 58  # Default: continue on main line
         
-        # RULE 5: From yard return at block 62
+        # RULE 5: Switch at block 62 (From yard)
+        # Excel: SWITCH FROM YARD (Yard-63) - allows entry from yard or from block 62
+        # Normal: 62 → 63 (from main line)
+        # Reverse: Yard (151) → 63 (from yard)
         elif current_block == 62:
-            return 63  # Return from yard to main line
+            return 63  # Always go to 63 from block 62
         
-        # RULE 6: Switch at block 76-77 (N section or bypass)
+        elif current_block == 151:  # Yard
+            # From yard, check switch at block 62
+            if len(self.data_manager.blocks) > 61:
+                block_62 = self.data_manager.blocks[61]  # Block 62 at index 61
+                if hasattr(block_62, 'switch_state'):
+                    if not block_62.switch_state:  # False = Reverse = Allow yard → 63
+                        print(f"[ROUTING] Yard (151) → 63 via switch 62")
+                        return 63  # Return from yard to main line
+            # Default: stay in yard or error
+            return 151  # Stay in yard if switch not set correctly
+        
+        # RULE 6: Block 76 always goes to 77
+        # Switch is housed at block 76 but controls what happens at the junction
         elif current_block == 76:
-            if len(self.data_manager.blocks) > 75:
-                block_76 = self.data_manager.blocks[75]  # Block 76 at index 75
-                if hasattr(block_76, 'switch_state'):
-                    if block_76.switch_state:  # True = To block 77
-                        return 77  # Enter N section
-                    else:  # False = To block 101
-                        print(f"[ROUTING] Block 76 → 101 (Bypassing N section)")
-                        return 101  # Skip N section entirely
-            return 77  # Default to N section
+            return 77  # Always go to 77 first
         
-        # RULE 7: Normal progression through N section (77-84)
-        elif 77 <= current_block < 85:
-            return current_block + 1  # Normal ascending: 77→78→79→80→81→82→83→84→85
+        # RULE 7: Switch at block 77 controlled by switch housed at block 76
+        # Excel: SWITCH (76-77; 77-101) - switch housed at block 76
+        # Position 1 (76-77): Train continues 76 → 77 → 78 (through N section)
+        # Position 2 (77-101): Train goes 76 → 77 → 101 (bypassing N section)
+        elif current_block == 77:
+            if len(self.data_manager.blocks) > 75:
+                block_76 = self.data_manager.blocks[75]  # Switch housed at block 76 (index 75)
+                if hasattr(block_76, 'switch_state'):
+                    if block_76.switch_state:  # True = Normal = 76-77 path (continue to 78)
+                        return 78  # Enter N section
+                    else:  # False = Reverse = 77-101 path (bypass N section)
+                        print(f"[ROUTING] Block 77 → 101 (Bypassing N section via switch at 76)")
+                        return 101  # Skip N section entirely
+            return 78  # Default to N section
+        
+        # RULE 8: Normal progression through N section (78-84)
+        elif 78 <= current_block < 85:
+            return current_block + 1  # Normal ascending: 78→79→80→81→82→83→84→85
         
         # RULE 8: Switch at block 85-86
         elif current_block == 85:
@@ -3336,26 +3371,28 @@ class TrackModelUI(tk.Tk):
             else:  # False = from block 150
                 return (150, 28)
         
-        # Handle switch at block 57 (57-Yard)
-        elif block_number == 57:
+        # Handle switch housed at block 58 (controls traffic from 57 to yard)
+        # Excel: SWITCH TO YARD (57-yard)
+        elif block_number == 58:
             if switch_state:  # True = continue on main line
                 return (57, 58)
             else:  # False = to yard
                 return (57, "Yard")
         
-        # Handle switch at block 62 (FROM YARD)
+        # Handle switch housed at block 62 (FROM YARD)
         elif block_number == 62:
             if switch_state:  # True = from main line
                 return (62, 63)
             else:  # False = from yard
                 return ("Yard", 63)
         
-        # Handle switch at block 76 (76-77, 77-101)
+        # Handle switch housed at block 76 (controls junction: 76-77-78 or 76-77-101)
+        # Excel: SWITCH (76-77; 77-101)
         elif block_number == 76:
-            if switch_state:  # True = main route
-                return (76, 77)
-            else:  # False = skip to 101
-                return (76, 101)
+            if switch_state:  # True = 76-77 path (continues to 78)
+                return (76, 77)  # Shows 76→77, then train continues to 78
+            else:  # False = 77-101 path (bypasses N section)
+                return (77, 101)  # Shows the bypass route from 77→101
         
         # Handle switch at block 85 (85-86, 100-85)
         elif block_number == 85:
@@ -3371,13 +3408,6 @@ class TrackModelUI(tk.Tk):
                 return (1, 2)  # Normal route
             else:
                 return (1, 13)  # Via switch at 12
-        
-        elif block_number == 77:
-            # Block 77 can go to 78 or back to 101
-            if switch_state:
-                return (77, 78)  # Continue on N section
-            else:
-                return (77, 101)  # Jump to block 101
         
         elif block_number == 100:
             # Block 100 can go to 85 via switch
