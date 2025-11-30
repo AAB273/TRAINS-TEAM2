@@ -6,9 +6,10 @@ from plc_controller import PLCController
 import os, sys
 # import green_line
 # import red_line
-import clock
+
 # from Clock import clock
 sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+import clock
 from TrainSocketServer import TrainSocketServer
 ########################################################################################################################
 
@@ -564,11 +565,23 @@ run_plc_btn = tk.Button(
 )
 run_plc_btn.pack(side="left", padx=10)
 
+# creating a center frame for additonal buttons
+center_frame = tk.Frame(header_frame, bg="#0b1443")
+center_frame.pack(side="left", expand=True)
+
+#add reference map
+
+
 # Clock - positioned between PLC buttons and LEDs
-clock_label = tk.Label(header_frame, text="Time: --:--", 
-                           font=("Arial", 12, "bold"), 
-                           bg="#0b1443", fg="white")
-clock_label.pack(side="left", padx=0)
+clock_frame = tk.Frame(header_frame, bg="#0b1443")
+clock_frame.pack(side=right, padx=15)
+clock_label = tk.Label(
+    header_frame, 
+    text=clock_instance.getTime(), 
+    font=("Arial", 12, "bold"), 
+    bg="#0b1443", 
+    fg="white")
+clock_label.pack(side="right", anchor="ne")
 
 # Fault LED indicator
 fault_led = tk.Label(header_frame, text="Fault LED", bg="gray", fg="white", width=10, font=("Arial", 10, "bold"))
@@ -595,6 +608,18 @@ def clear_plc_fault():
 
 selected_plc_file = None
 plc_instance = None
+
+def update_clock_display():
+    """Continuously update the clock display every second"""
+    # try:
+    #     current_time = clock_instance.getTime()
+    #     clock_label.config(text=current_time)
+    # except Exception as e:
+    #     print(f"Clock error: {e}")
+    #     clock_label.config(text="--:--")
+    time = clock.clock.getTime()
+    self.clockText.configure(text = time)
+    self.clockTimer = self.root.after(100, self.updateTime)
 
 # update_clock_display()
 
