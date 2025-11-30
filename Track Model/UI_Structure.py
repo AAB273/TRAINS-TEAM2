@@ -1123,163 +1123,170 @@ class TrackModelUI(tk.Tk):
             
             # Define block marker positions for Green Line (blocks 1-150)
             self.block_marker_positions = {
-                1: (478, 21),
-                2: (486, 29),
-                3: (491, 40),
-                4: (502, 58),
-                5: (513, 66),
-                6: (531, 70),
+                1: (478, 22),
+                2: (488, 31),
+                3: (495, 42),
+                4: (506, 59),
+                5: (515, 67),
+                6: (535, 71),
                 # Blocks 7-16: adjusting by +115 instead of +265 (shifted 150 left)
-                7: (438 + 115, 67),   # 553
-                8: (458 + 115, 57),   # 573
-                9: (462 + 115, 36),   # 577
+                7: (438 + 115, 68),   # 553
+                8: (458 + 115, 60),   # 573
+                9: (462 + 115, 34),   # 577
                 10: (434 + 115, 24),  # 549
-                11: (403 + 115, 17),  # 518
+                11: (403 + 115, 18),  # 518
                 12: (376 + 115, 15),  # 491
-                13: (327 + 115, 14),  # 442
-                14: (318 + 115, 13),  # 433
-                15: (309 + 115, 15),  # 424
-                16: (302 + 115, 14),  # 417
+                13: (330 + 115, 15),  # 442
+                14: (321 + 115, 15),  # 433
+                15: (312 + 115, 15),  # 424
+                16: (303 + 115, 15),  # 417
                 # Blocks 17-28: same +115 compensation
-                17: (271 + 115, 17),  # 386
-                18: (259 + 115, 22),  # 374
-                19: (249 + 115, 32),  # 364
-                20: (243 + 115, 45),  # 358
-                21: (244 + 115, 70),  # 359
-                22: (244 + 115, 76),  # 359
-                23: (243 + 115, 82),  # 358
-                24: (243 + 115, 91),  # 358
-                25: (244 + 115, 99),  # 359
-                26: (242 + 115, 106), # 357
-                27: (243 + 115, 112), # 358
-                28: (244 + 115, 117), # 359
+                17: (274 + 115, 18),  # 386
+                18: (261 + 115, 23),  # 374
+                19: (252 + 115, 33),  # 364
+                20: (248 + 115, 48),  # 358
+                21: (247 + 115, 65),  # 359
+                22: (247 + 115, 74),  # 359
+                23: (247 + 115, 83),  # 358
+                24: (247 + 115, 92),  # 358
+                25: (247 + 115, 101),  # 359
+                26: (247 + 115, 110), # 357
+                27: (247 + 115, 119), # 358
+                28: (247 + 115, 128), # 359
                 # Blocks 29-57: +5 compensation (moved 10 left from +15)
-                29: (360 + 5, 138),  # 365
-                30: (359 + 5, 144),  # 364
-                31: (359 + 5, 151),  # 364
-                32: (360 + 5, 158),  # 365
-                33: (361 + 5, 179),  # 366
-                34: (365 + 5, 191),  # 370
-                35: (374 + 5, 202),  # 379
-                36: (398 + 5, 210),  # 403
-                37: (404 + 5, 210),  # 409
+                29: (357 + 5, 138),  # 365
+                30: (357 + 5, 147),  # 364
+                31: (357 + 5, 156),  # 364
+                32: (357 + 5, 165),  # 365
+                33: (359 + 5, 179),  # 366
+                34: (365 + 5, 194),  # 370
+                35: (377 + 5, 206),  # 379
+                36: (394 + 5, 210),  # 403
+                37: (402 + 5, 210),  # 409
                 38: (410 + 5, 210),  # 415
-                39: (415 + 5, 210),  # 420
-                40: (421 + 5, 211),  # 426
-                41: (427 + 5, 210),  # 432
-                42: (433 + 5, 211),  # 438
-                43: (439 + 5, 211),  # 444
-                44: (447 + 5, 210),  # 452
-                45: (454 + 5, 211),  # 459
-                46: (460 + 5, 211),  # 465
-                47: (467 + 5, 210),  # 472
-                48: (473 + 5, 211),  # 478
-                49: (477 + 5, 210),  # 482
-                50: (485 + 5, 211),  # 490
-                51: (496 + 5, 211),  # 501
-                52: (502 + 5, 211),  # 507
-                53: (509 + 5, 209),  # 514
-                54: (516 + 5, 212),  # 521
-                55: (528 + 5, 212),  # 533
-                56: (540 + 5, 209),  # 545
-                57: (551 + 5, 209),  # 556
+                39: (418 + 5, 210),  # 420
+                40: (426 + 5, 210),  # 426
+                41: (434 + 5, 210),  # 432
+                42: (442 + 5, 210),  # 438
+                43: (450 + 5, 210),  # 444
+                44: (458 + 5, 210),  # 452
+                45: (466 + 5, 210),  # 459
+                46: (474 + 5, 210),  # 465
+                47: (482 + 5, 210),  # 472
+                48: (490 + 5, 210),  # 478
+                49: (498 + 5, 210),  # 482
+                50: (506 + 5, 210),  # 490
+                51: (514 + 5, 210),  # 501
+                52: (522 + 5, 210),  # 507
+                53: (530 + 5, 210),  # 514
+                54: (538 + 5, 210),  # 521
+                55: (546 + 5, 210),  # 533
+                56: (554 + 5, 210),  # 545
+                57: (562 + 5, 210),  # 556
                 # Blocks 58-62: Updated coordinates
-                58: (602, 213),
+                58: (599, 211),
                 59: (614, 217),
-                60: (625, 228),
-                61: (636, 241),
-                62: (644, 257),
+                60: (626, 228),
+                61: (637, 241),
+                62: (646, 258),
                 # Blocks 63-76: +122 compensation (moved 3 left from +125)
-                63: (531 + 122, 280),  # 653
-                64: (531 + 122, 296),  # 653
-                65: (530 + 122, 314),  # 652
-                66: (530 + 122, 334),  # 652
-                67: (530 + 122, 352),  # 652
-                68: (530 + 122, 372),  # 652
-                69: (531 + 122, 412),  # 653
+                63: (528 + 122, 280),  # 653
+                64: (528 + 122, 296),  # 653
+                65: (528 + 122, 314),  # 652
+                66: (528 + 122, 334),  # 652
+                67: (528 + 122, 352),  # 652
+                68: (528 + 122, 372),  # 652
+                69: (528 + 122, 410),  # 653
                 70: (525 + 122, 430),  # 647
-                71: (518 + 122, 451),  # 640
+                71: (517 + 122, 451),  # 640
                 72: (506 + 122, 466),  # 628
                 73: (491 + 122, 478),  # 613
                 74: (456 + 122, 484),  # 578
                 75: (425 + 122, 484),  # 547
-                76: (400 + 122, 482),  # 522
+                76: (396 + 122, 484),  # 522
                 # Blocks 77-104: +1 compensation (moved 2 right from -1) - PERFECT!
-                77: (477 + 1, 481),  # 478
-                78: (464 + 1, 482),  # 465
-                79: (454 + 1, 484),  # 455
-                80: (446 + 1, 483),  # 447
-                81: (438 + 1, 483),  # 439
-                82: (430 + 1, 482),  # 431
-                83: (424 + 1, 481),  # 425
-                84: (415 + 1, 484),  # 416
-                85: (408 + 1, 483),  # 409
-                86: (379 + 1, 483),  # 380
-                87: (368 + 1, 482),  # 369
-                88: (358 + 1, 483),  # 359
-                89: (337 + 1, 482),  # 338
+                77: (477 + 1, 484),  # 478
+                78: (469 + 1, 484),  # 465
+                79: (461 + 1, 484),  # 455
+                80: (453 + 1, 484),  # 447
+                81: (445 + 1, 484),  # 439
+                82: (437 + 1, 484),  # 431
+                83: (429 + 1, 484),  # 425
+                84: (421 + 1, 484),  # 416
+                85: (413 + 1, 484),  # 409
+
+                86: (378 + 1, 484),  # 380
+                87: (367 + 1, 484),  # 369
+                88: (358 + 1, 484),  # 359
+                89: (338 + 1, 483),  # 338
                 90: (328 + 1, 471),  # 329
-                91: (320 + 1, 453),  # 321
-                92: (322 + 1, 433),  # 323
-                93: (325 + 1, 419),  # 326
-                94: (330 + 1, 409),  # 331
+                91: (322 + 1, 453),  # 321
+                92: (322 + 1, 435),  # 323
+                93: (325 + 1, 420),  # 326
+                94: (332 + 1, 409),  # 331
                 95: (346 + 1, 404),  # 347
                 96: (358 + 1, 416),  # 359
-                97: (362 + 1, 432),  # 363
-                98: (367 + 1, 451),  # 368
-                99: (367 + 1, 463),  # 368
-                100: (375 + 1, 471), # 376
-                101: (496 + 1, 468), # 497
-                102: (518 + 1, 450), # 519
-                103: (530 + 1, 452), # 531
-                104: (543 + 1, 453), # 544
+                97: (364 + 1, 432),  # 363
+                98: (367 + 1, 452),  # 368
+                99: (369 + 1, 464),  # 368
+                100: (376 + 1, 472), # 376
+
+                101: (498 + 1, 468), # 497
+                102: (520 + 1, 452), # 519
+                103: (533 + 1, 452), # 531
+                104: (546 + 1, 452), # 544
+
                 # Blocks 105-150: +118 compensation (moved 2 right from +116) - PERFECT!
                 105: (452 + 118, 452), # 570
-                106: (472 + 118, 444), # 590
-                107: (488 + 118, 431), # 606
-                108: (499 + 118, 415), # 617
-                109: (505 + 118, 397), # 623
-                110: (506 + 118, 367), # 624
-                111: (504 + 118, 358), # 622
-                112: (505 + 118, 351), # 623
-                113: (505 + 118, 342), # 623
-                114: (506 + 118, 334), # 624
-                115: (507 + 118, 327), # 625
-                116: (506 + 118, 317), # 624
-                117: (505 + 118, 291), # 623
-                118: (499 + 118, 274), # 617
+                106: (472 + 118, 445), # 590
+                107: (488 + 118, 432), # 606
+                108: (500 + 118, 415), # 617
+                109: (507 + 118, 394), # 623
+
+                110: (508 + 118, 368), # 624
+                111: (508 + 118, 359), # 622
+                112: (508 + 118, 350), # 623
+                113: (508 + 118, 341), # 623
+                114: (508 + 118, 332), # 624
+                115: (508 + 118, 323), # 625
+                116: (508 + 118, 314), # 624
+
+                117: (506 + 118, 291), # 623
+                118: (499 + 118, 272), # 617
                 119: (486 + 118, 254), # 604
-                120: (469 + 118, 245), # 587
+                120: (469 + 118, 243), # 587
                 121: (450 + 118, 238), # 568
-                122: (427 + 118, 238), # 545
-                123: (422 + 118, 237), # 540
-                124: (416 + 118, 236), # 534
-                125: (409 + 118, 237), # 527
-                126: (403 + 118, 236), # 521
-                127: (397 + 118, 236), # 515
-                128: (390 + 118, 235), # 508
-                129: (385 + 118, 235), # 503
-                130: (377 + 118, 235), # 495
-                131: (370 + 118, 235), # 488
-                132: (361 + 118, 235), # 479
-                133: (356 + 118, 237), # 474
-                134: (347 + 118, 237), # 465
-                135: (340 + 118, 236), # 458
-                136: (334 + 118, 235), # 452
-                137: (327 + 118, 237), # 445
-                138: (318 + 118, 237), # 436
-                139: (313 + 118, 237), # 431
-                140: (302 + 118, 237), # 420
-                141: (294 + 118, 237), # 412
-                142: (280 + 118, 237), # 398
-                143: (272 + 118, 236), # 390
+
+                122: (438 + 118, 237), # 545
+                123: (430 + 118, 237), # 540
+                124: (422 + 118, 237), # 534
+                125: (414 + 118, 237), # 527
+                126: (406 + 118, 237), # 521
+                127: (398 + 118, 237), # 515
+                128: (390 + 118, 237), # 508
+                129: (382 + 118, 237), # 503
+                130: (374 + 118, 237), # 495
+                131: (366 + 118, 237), # 488
+                132: (358 + 118, 237), # 479
+                133: (350 + 118, 237), # 474
+                134: (342 + 118, 237), # 465
+                135: (334 + 118, 237), # 458
+                136: (326 + 118, 237), # 452
+                137: (318 + 118, 237), # 445
+                138: (310 + 118, 237), # 436
+                139: (302 + 118, 237), # 431
+                140: (294 + 118, 237), # 420
+                141: (286 + 118, 237), # 412
+                142: (278 + 118, 237), # 398
+                143: (270 + 118, 237), # 390
+
                 144: (249 + 118, 236), # 367
                 145: (232 + 118, 230), # 350
-                146: (221 + 118, 219), # 339
-                147: (219 + 118, 197), # 337
-                148: (219 + 118, 188), # 337
-                149: (219 + 118, 177), # 337
-                150: (227 + 118, 152), # 345
+                146: (223 + 118, 219), # 339
+                147: (220 + 118, 199), # 337
+                148: (220 + 118, 188), # 337
+                149: (220 + 118, 177), # 337
+                150: (229 + 118, 152), # 345
             }
             
             # Define block marker positions for Red Line (blocks 1-76 for now)
@@ -2069,37 +2076,39 @@ class TrackModelUI(tk.Tk):
         # ============================================================
         
         
-        # RULE 1: End of line loop return - Block 150 goes to 28 (per Excel)
+        # RULE 1: End of line - Block 150 goes to 28
         if current_block == 150:
-            print(f"[ROUTING] Block 150 → 28 (Loop return - entering backward mode)")
-            # Mark this train as going backward through the loop
-            if train_idx < len(self.data_manager.active_trains):
-                train_id = self.data_manager.active_trains[train_idx]
-                self.train_directions[train_id] = 'backward_loop'
-            return 28  # Always go to 28 from 150
+            print(f"[ROUTING] Block 150 → 28 (End of line return)")
+            return 28  # Go to 28 from 150
         
         # RULE 1b: Switch housed at block 28 controls routing from 28
         # Excel shows: SWITCH (28-29; 150-28)
-        # Route 1: 28 → 29 (normal forward)
-        # Route 2: 150 → 28 (loop return, then continue backward)
+        # Forward (from 27): 28 → 29 (if True) or 28 → 150 (if False)
+        # From 150: Block 150 → 28, then exits forward to 29 (doesn't continue backward)
         elif current_block == 28:
-            # First check if this train is in backward loop mode
+            # Check if this train is in backward loop mode (coming from 150)
             if train_idx < len(self.data_manager.active_trains):
                 train_id = self.data_manager.active_trains[train_idx]
                 if self.train_directions.get(train_id) == 'backward_loop':
-                    # Continue backward from 28 to 27
-                    print(f"[ROUTING] Block 28 → 27 (Backward loop mode)")
-                    return 27
+                    # Train came from 150 → 28
+                    # Clear backward loop mode and continue forward
+                    self.train_directions[train_id] = 'forward'
+                    print(f"[ROUTING] Exiting backward loop (from 150) at block 28 → 29")
+                    return 29  # Exit to 29, don't continue backward to 27
             
-            # Normal forward routing (not in backward mode)
+            # Normal forward routing (coming from block 27)
             if len(self.data_manager.blocks) > 27:
                 block_28 = self.data_manager.blocks[27]  # Switch housed at block 28 (index 27)
                 if hasattr(block_28, 'switch_state'):
                     if block_28.switch_state:  # True = Normal = To block 29
                         return 29  # Continue forward
-                    else:  # False = Reverse = Loop back to 150
-                        print(f"[ROUTING] Block 28 → 150 (Loop back via switch 28)")
-                        return 150  # Loop back
+                    else:  # False = Reverse = Loop to 150
+                        # Set backward loop mode to continue from 150
+                        if train_idx < len(self.data_manager.active_trains):
+                            train_id = self.data_manager.active_trains[train_idx]
+                            self.train_directions[train_id] = 'backward_loop'
+                        print(f"[ROUTING] Block 28 → 150 (Loop via switch 28)")
+                        return 150  # Send to 150
             return 29  # Default forward to 29
 
         # RULE 2: Switch housed at block 12 controls junction at blocks 1, 12, and 13
@@ -2155,9 +2164,19 @@ class TrackModelUI(tk.Tk):
             if train_idx < len(self.data_manager.active_trains):
                 train_id = self.data_manager.active_trains[train_idx]
                 
-                # If in backward loop from 150, exit to 2 (continue forward)
+                # If in backward loop from 150, exit based on switch position
                 if self.train_directions.get(train_id) == 'backward_loop':
                     self.train_directions[train_id] = 'forward'
+                    
+                    # Check switch at block 12 to determine where to exit
+                    if len(self.data_manager.blocks) > 11:
+                        block_12 = self.data_manager.blocks[11]  # Switch housed at block 12 (index 11)
+                        if hasattr(block_12, 'switch_state'):
+                            if not block_12.switch_state:  # False = "1-13" = Jump to 13
+                                print(f"[ROUTING] Exiting backward loop (150) at block 1 → 13 (via switch 12)")
+                                return 13
+                    
+                    # Default: continue forward to 2
                     print(f"[ROUTING] Exiting backward loop (150) at block 1 → 2")
                     return 2
                 
@@ -2228,34 +2247,41 @@ class TrackModelUI(tk.Tk):
             return 63  # Always go to 63 from block 62
         
         # RULE 6: Block 76 always goes to 77
-        # Switch is housed at block 76 but controls what happens at the junction
+        # Switch is housed at block 76 but only affects backward traffic from N section
         elif current_block == 76:
-            return 77  # Always go to 77 first
+            return 77  # Always go to 77 from 76 (forward direction)
         
-        # RULE 7: Switch at block 77 controlled by switch housed at block 76
+        # RULE 7: Block 77 routing - controlled by switch at block 76
         # Excel: SWITCH (76-77; 77-101) - switch housed at block 76
-        # Position 1 (76-77): Train continues 76 → 77 → 78 (through N section)
-        # Position 2 (77-101): Train goes 76 → 77 → 101 (bypassing N section)
+        # Forward (from 76): ALWAYS goes 77 → 78 (cannot bypass to 101)
+        # Backward (from 78): Can go 77 → 101 (bypass) OR 77 → 78 (loop back into N section)
         elif current_block == 77:
-            # First check if this train is in backward N section mode
+            # Check if this train is in backward N section mode (coming from 78)
             if train_idx < len(self.data_manager.active_trains):
                 train_id = self.data_manager.active_trains[train_idx]
                 if self.train_directions.get(train_id) == 'backward_n_section':
-                    # Exiting backward traversal at 77, continue to 101
+                    # Train is traveling backward through N section (from 78)
+                    # Check switch at block 76 to decide routing
+                    if len(self.data_manager.blocks) > 75:
+                        block_76 = self.data_manager.blocks[75]  # Switch housed at block 76 (index 75)
+                        if hasattr(block_76, 'switch_state'):
+                            if block_76.switch_state:  # True = Normal = Loop back into N section
+                                # Don't exit backward mode, loop back to 78
+                                print(f"[ROUTING] Block 77 → 78 (Looping back into N section via switch at 76)")
+                                return 78
+                            else:  # False = Reverse = Exit to 101
+                                # Exit backward traversal at 77, continue to 101
+                                self.train_directions[train_id] = 'forward'
+                                print(f"[ROUTING] Exiting N section backward traversal at block 77 → 101 (via switch at 76)")
+                                return 101
+                    # Default: exit to 101
                     self.train_directions[train_id] = 'forward'
                     print(f"[ROUTING] Exiting N section backward traversal at block 77 → 101")
                     return 101
             
-            # Normal forward routing (not in backward mode)
-            if len(self.data_manager.blocks) > 75:
-                block_76 = self.data_manager.blocks[75]  # Switch housed at block 76 (index 75)
-                if hasattr(block_76, 'switch_state'):
-                    if block_76.switch_state:  # True = Normal = 76-77 path (continue to 78)
-                        return 78  # Enter N section
-                    else:  # False = Reverse = 77-101 path (bypass N section)
-                        print(f"[ROUTING] Block 77 → 101 (Bypassing N section via switch at 76)")
-                        return 101  # Skip N section entirely
-            return 78  # Default to N section
+            # Forward direction (from block 76) - ALWAYS goes to 78
+            # Cannot bypass to 101 from forward direction
+            return 78  # Enter N section
         
         # RULE 8: Normal progression through N section (78-84)
         elif 78 <= current_block < 85:
