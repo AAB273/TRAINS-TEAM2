@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 import os
 from datetime import datetime
-from PIL import Image, ImageTk
+# from PIL import Image, ImageTk
 import os, sys
 import time
 import random

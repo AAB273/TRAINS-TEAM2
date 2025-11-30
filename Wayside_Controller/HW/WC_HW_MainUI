@@ -6,9 +6,10 @@ from plc_controller import PLCController
 import os, sys
 # import green_line
 # import red_line
-import clock
+
 # from Clock import clock
 sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+import clock
 from TrainSocketServer import TrainSocketServer
 ########################################################################################################################
 
@@ -329,7 +330,7 @@ class UITestData:
             with open(filename, 'r') as file:
                 lines = file.readlines()
         
-            print(f"SUCCESS: Read {len(lines)} lines from {filename}")
+            # print(f"SUCCESS: Read {len(lines)} lines from {filename}")
             
             for line in lines[1:]:  # Skip header line
                     line = line.strip()
@@ -564,11 +565,102 @@ run_plc_btn = tk.Button(
 )
 run_plc_btn.pack(side="left", padx=10)
 
+################### Differnt Line choice ##########################
+#toggle button for map choice (red vs green)
+def toggle_line_map():
+    """Switches between red and green line data"""
+    if test_data.current_line== "Green":
+        test_data.current_line = "Red"
+        map_toggle_btn.config(text="Switch to Green Line", bg="#66cc66")
+        add_to_message_log("Switched to Red Line data")
+    else:
+        test_data.current_line = "Green"
+        map_toggle_btn.config(text="Switch to Red Line", bg="#ff6666")
+        add_to_message_log("Switched to Green Line data")
+
+    # Load the appropriate track data
+    load_line_data(test_data.current_line)
+    
+    # Trigger line change callbacks to update all panels
+    for callback in test_data.on_line_change:
+        callback()
+
+def load_line_data(line_name):
+    """Load track data for the specified line"""
+    try:
+        if line_name == "Green":
+            filename = "green_line.txt"
+            # Update track data for green line
+            test_data.track_data = {
+                "crossings": {
+                    "Railway Crossing: 108": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
+                },
+                "switches": {
+                    "Switch 76-77": {"condition": "Normal", "direction": "Blocks 76-77"},
+                    "Switch 85-86": {"condition": "Normal", "direction": "Blocks 85-86"}
+                },
+                "lights": {
+                    "Light 76": {"condition": "Normal", "signal": "Green"},
+                    "Light 85": {"condition": "Normal", "signal": "Yellow"},
+                    "Light 108": {"condition": "Normal", "signal": "Red"}
+                }
+            }
+        else:  # Red line
+            filename = "red_line.txt"  # You'll need to create this file
+            # Update track data for red line
+            test_data.track_data = {
+                "crossings": {
+                    "Railway Crossing: 15": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
+                },
+                "switches": {
+                    "Switch 9-10": {"condition": "Normal", "direction": "Blocks 9-10"},
+                    "Switch 13-14": {"condition": "Normal", "direction": "Blocks 13-14"}
+                },
+                "lights": {
+                    "Light 9": {"condition": "Normal", "signal": "Green"},
+                    "Light 13": {"condition": "Normal", "signal": "Yellow"},
+                    "Light 15": {"condition": "Normal", "signal": "Red"}
+                }
+            }
+        
+        # Load block data
+        test_data.block_data = test_data.load_complete_track_data(filename)
+        test_data.filtered_block_data = test_data.block_data.copy()
+        test_data.filtered_track_data = test_data.track_data.copy()
+        
+        add_to_message_log(f"Loaded {line_name} Line data from {filename}")
+        
+    except Exception as e:
+        add_to_message_log(f"ERROR loading {line_name} Line data: {e}", "ERROR")
+
+map_toggle_btn = tk.Button(
+    header_frame,
+    text="Switch to Red Line",
+    font=("Arial", 11, "bold"),
+    width=18,
+    height=2,
+    bg="#ff6666",  # Currently in
+    fg="white",
+    command=toggle_line_map
+)
+map_toggle_btn.pack(side="left", padx=10)
+###################################################################################################
+
+
+# creating a center frame for additonal buttons
+center_frame = tk.Frame(header_frame, bg="#0b1443")
+center_frame.pack(side="left", expand=True)
+
 # Clock - positioned between PLC buttons and LEDs
-clock_label = tk.Label(header_frame, text="Time: --:--", 
-                           font=("Arial", 12, "bold"), 
-                           bg="#0b1443", fg="white")
-clock_label.pack(side="left", padx=0)
+clock_frame = tk.Frame(header_frame, bg="#0b1443")
+clock_frame.pack(side="right", padx=15)
+clock_label = tk.Label(
+    header_frame, 
+    text=clock.clock.getTime(), 
+    font=("Arial", 12, "bold"), 
+    bg="white") 
+    # fg="white")
+clock_label.pack(side="right", anchor="ne")
 
 # Fault LED indicator
 fault_led = tk.Label(header_frame, text="Fault LED", bg="gray", fg="white", width=10, font=("Arial", 10, "bold"))
@@ -595,6 +687,18 @@ def clear_plc_fault():
 
 selected_plc_file = None
 plc_instance = None
+
+def update_clock_display():
+    """Continuously update the clock display every second"""
+    # try:
+    #     current_time = clock_instance.getTime()
+    #     clock_label.config(text=current_time)
+    # except Exception as e:
+    #     print(f"Clock error: {e}")
+    #     clock_label.config(text="--:--")
+    time = clock.clock.getTime()
+    self.clockText.configure(text = time)
+    self.clockTimer = self.root.after(100, self.updateTime)
 
 # update_clock_display()
 
@@ -1441,10 +1545,10 @@ class RightPanel(tk.Frame):
         except Exception as e:
             print(f"Error creating row {row_index}: {e} - Row data: {row}")
     
-        if i < 3:  # Debug first 3 rows
-            print(f"DEBUG: Created row {i}: {row}")
+        # if i < 3:  # Debug first 3 rows
+        #     print(f"DEBUG: Created row {i}: {row}")
     
-        print(f"DEBUG: Finished creating {len(block_data)} rows")
+        # print(f"DEBUG: Finished creating {len(block_data)} rows")
     # Force update
         self.block_table_frame.update()            
     # print("DEBUG: Finished creating block table")
