@@ -1943,6 +1943,46 @@ class TrackModelUI(tk.Tk):
             
             # Check if train has traveled the full block length
             if self.train_positions_in_block[train_id] >= block_length:
+                # Check if train has arrived at yard (marked while at block 57)
+                if hasattr(self, 'trains_at_yard') and train_id in self.trains_at_yard:
+                    # Train has arrived at yard - remove from service
+                    print(f"🚂 Train {train_id} Arrived at Yard - Removing from service")
+                    
+                    # Clear current block occupancy (block 57 where train is)
+                    if current_block_num <= len(self.data_manager.blocks):
+                        current_block = self.data_manager.blocks[current_block_num - 1]
+                        current_block.occupancy = 0
+                        self.send_block_occupancy_update(current_block_num, 0)
+                    
+                    # Remove from active trains
+                    if train_id in self.data_manager.active_trains:
+                        train_index = self.data_manager.active_trains.index(train_id)
+                        self.data_manager.active_trains.pop(train_index)
+                        if train_index < len(self.data_manager.train_locations):
+                            self.data_manager.train_locations.pop(train_index)
+                        if train_index < len(self.data_manager.commanded_speed):
+                            self.data_manager.commanded_speed.pop(train_index)
+                        if train_index < len(self.data_manager.commanded_authority):
+                            self.data_manager.commanded_authority.pop(train_index)
+                    
+                    # Clean up train tracking data
+                    if train_id in self.train_positions_in_block:
+                        del self.train_positions_in_block[train_id]
+                    if train_id in self.train_actual_speeds:
+                        del self.train_actual_speeds[train_id]
+                    if train_id in self.train_directions:
+                        del self.train_directions[train_id]
+                    if train_id in self.last_movement_update:
+                        del self.last_movement_update[train_id]
+                    
+                    # Remove from yard arrival set
+                    self.trains_at_yard.remove(train_id)
+                    
+                    # Update display
+                    self.update_occupied_blocks_display()
+                    
+                    continue  # Skip to next train
+                
                 # Move to next block
                 next_block = self.get_next_block(current_block_num, train_idx)
                 
@@ -2031,47 +2071,134 @@ class TrackModelUI(tk.Tk):
         
         # RULE 1: End of line loop return - Block 150 goes to 28 (per Excel)
         if current_block == 150:
-            print(f"[ROUTING] Block 150 M-bM-^FM-^R 28 (Loop return per switch at block 28)")
+            print(f"[ROUTING] Block 150 → 28 (Loop return - entering backward mode)")
+            # Mark this train as going backward through the loop
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                self.train_directions[train_id] = 'backward_loop'
             return 28  # Always go to 28 from 150
         
-        # RULE 1b: Switch at block 28 controls routing from 28
+        # RULE 1b: Switch housed at block 28 controls routing from 28
         # Excel shows: SWITCH (28-29; 150-28)
-        # Route 1: 28 M-bM-^FM-^R 29 (normal forward)
-        # Route 2: 150 M-bM-^FM-^R 28 (loop return, handled above)
+        # Route 1: 28 → 29 (normal forward)
+        # Route 2: 150 → 28 (loop return, then continue backward)
         elif current_block == 28:
+            # First check if this train is in backward loop mode
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'backward_loop':
+                    # Continue backward from 28 to 27
+                    print(f"[ROUTING] Block 28 → 27 (Backward loop mode)")
+                    return 27
+            
+            # Normal forward routing (not in backward mode)
             if len(self.data_manager.blocks) > 27:
-                block_28 = self.data_manager.blocks[27]  # Block 28 at index 27
+                block_28 = self.data_manager.blocks[27]  # Switch housed at block 28 (index 27)
                 if hasattr(block_28, 'switch_state'):
                     if block_28.switch_state:  # True = Normal = To block 29
                         return 29  # Continue forward
                     else:  # False = Reverse = Loop back to 150
-                        print(f"[ROUTING] Block 28 M-bM-^FM-^R 150 (Loop back via switch 28)")
+                        print(f"[ROUTING] Block 28 → 150 (Loop back via switch 28)")
                         return 150  # Loop back
             return 29  # Default forward to 29
 
-        # RULE 2: Switch at block 12 (12-13; 1-13)
+        # RULE 2: Switch housed at block 12 controls junction at blocks 1, 12, and 13
         # Excel: SWITCH (12-13; 1-13)
-        # Normal: 12 → 13 (continue from block 12)
-        # Reverse: allows entry from block 1 → 13
+        # Position "12-13" (True/Normal): At block 13, enter backward loop → 12 → 11 → ... → 1 → 13
+        # Position "1-13" (False/Reverse): Allows direct route 1 → 13
+        
+        elif current_block == 13:
+            # Check if train is in backward loop mode (from 150→28→27→...→13)
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'backward_loop':
+                    # Continue backward loop from 13 to 12
+                    print(f"[ROUTING] Backward loop (150): Block 13 → 12")
+                    return 12
+                
+                # Check if train is in backward loop from switch 12 (13→12→...→1→13)
+                if self.train_directions.get(train_id) == 'backward_loop_12':
+                    # Continue backward through loop
+                    print(f"[ROUTING] Backward loop (switch 12): Block 13 → 12")
+                    return 12
+            
+            # Check switch at block 12 to determine routing from block 13
+            if len(self.data_manager.blocks) > 11:
+                block_12 = self.data_manager.blocks[11]  # Switch housed at block 12 (index 11)
+                if hasattr(block_12, 'switch_state'):
+                    if block_12.switch_state:  # True = "12-13" = Enter backward loop
+                        # Set backward loop mode for switch 12
+                        if train_idx < len(self.data_manager.active_trains):
+                            train_id = self.data_manager.active_trains[train_idx]
+                            self.train_directions[train_id] = 'backward_loop_12'
+                        print(f"[ROUTING] Block 13 → 12 (Entering backward loop via switch 12)")
+                        return 12
+                    else:  # False = "1-13" = Normal forward
+                        return 14  # Continue forward normally
+            return 14  # Default forward
+        
+        elif 2 <= current_block <= 12:
+            # Check if train is in backward loop mode (from 150→28→27→...or from switch 12)
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) in ['backward_loop', 'backward_loop_12']:
+                    # Continue backward
+                    next_block = current_block - 1
+                    print(f"[ROUTING] Backward loop: Block {current_block} → {next_block}")
+                    return next_block
+            
+            # Normal forward progression
+            return current_block + 1
+        
         elif current_block == 1:
-            # Block 1 can only go to 2 normally, unless there's a switch routing
-            # For now, block 1 goes to 2
+            # Check if train is in backward loop mode
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                
+                # If in backward loop from 150, exit to 2 (continue forward)
+                if self.train_directions.get(train_id) == 'backward_loop':
+                    self.train_directions[train_id] = 'forward'
+                    print(f"[ROUTING] Exiting backward loop (150) at block 1 → 2")
+                    return 2
+                
+                # If in backward loop from switch 12, exit to 13
+                if self.train_directions.get(train_id) == 'backward_loop_12':
+                    self.train_directions[train_id] = 'forward'
+                    print(f"[ROUTING] Exiting backward loop (switch 12) at block 1 → 13")
+                    return 13
+            
+            # Not in backward loop mode - check switch at block 12 for normal routing
+            # Check switch at block 12
+            if len(self.data_manager.blocks) > 11:
+                block_12 = self.data_manager.blocks[11]  # Switch housed at block 12 (index 11)
+                if hasattr(block_12, 'switch_state'):
+                    if not block_12.switch_state:  # False = "1-13" = Allow 1 → 13 shortcut
+                        print(f"[ROUTING] Block 1 → 13 (via switch 12 in '1-13' position)")
+                        return 13
+                    else:  # True = "12-13" = Normal forward progression
+                        return 2
+            
+            # Default: normal forward to 2
             return 2
         
-        elif current_block == 12:
-            if len(self.data_manager.blocks) > 11:
-                block_12 = self.data_manager.blocks[11]  # Block 12 at index 11
-                if hasattr(block_12, 'switch_state'):
-                    if block_12.switch_state:  # True = Normal = 12 → 13
-                        return 13  # Normal progression
-                    else:  # False = Reverse = allows 1 → 13 (but we're at 12, so still go to 13)
-                        return 13  # Still go to 13
-            return 13  # Default
+        # RULE 3: Blocks 14-27 - Handle backward loop mode from 150→28
+        elif 14 <= current_block <= 27:
+            # Check if train is in backward loop mode (from 150→28→27→...)
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'backward_loop':
+                    # Continue backward
+                    next_block = current_block - 1
+                    print(f"[ROUTING] Backward loop (150): Block {current_block} → {next_block}")
+                    return next_block
+            
+            # Normal forward progression
+            return current_block + 1
         
         # RULE 4: Switch housed at block 58 (Yard access from block 57)
         # Excel: SWITCH TO YARD (57-yard) - switch housed at block 58
         # Position 1: 57 → 58 (continue on main line)
-        # Position 2: 57 → yard (block 151)
+        # Position 2: 57 → yard (train arrives at yard and is removed)
         elif current_block == 57:
             if len(self.data_manager.blocks) > 57:
                 block_58 = self.data_manager.blocks[57]  # Switch housed at block 58 (index 57)
@@ -2079,27 +2206,26 @@ class TrackModelUI(tk.Tk):
                     if block_58.switch_state:  # True = Normal = Continue on main line
                         return 58  # Continue to 58
                     else:  # False = Reverse = Go to yard
-                        print(f"[ROUTING] Block 57 → Yard (151) via switch at 58")
-                        return 151  # Go to yard (block 151)
+                        # Train is going to yard - mark for removal
+                        if train_idx < len(self.data_manager.active_trains):
+                            train_id = self.data_manager.active_trains[train_idx]
+                            print(f"🚂 Train {train_id} Arrived at Yard")
+                            
+                            # Mark this train for removal (will be handled in train movement logic)
+                            if not hasattr(self, 'trains_at_yard'):
+                                self.trains_at_yard = set()
+                            self.trains_at_yard.add(train_id)
+                        
+                        # Return None to stop routing this train
+                        return None
             return 58  # Default: continue on main line
         
-        # RULE 5: Switch at block 62 (From yard)
-        # Excel: SWITCH FROM YARD (Yard-63) - allows entry from yard or from block 62
-        # Normal: 62 → 63 (from main line)
-        # Reverse: Yard (151) → 63 (from yard)
+        # RULE 5: Switch housed at block 62 (From yard)
+        # Excel: SWITCH FROM YARD (Yard-63)
+        # For now, block 62 just continues to 63
+        # (Yard deployment is handled separately via UI controls)
         elif current_block == 62:
             return 63  # Always go to 63 from block 62
-        
-        elif current_block == 151:  # Yard
-            # From yard, check switch at block 62
-            if len(self.data_manager.blocks) > 61:
-                block_62 = self.data_manager.blocks[61]  # Block 62 at index 61
-                if hasattr(block_62, 'switch_state'):
-                    if not block_62.switch_state:  # False = Reverse = Allow yard → 63
-                        print(f"[ROUTING] Yard (151) → 63 via switch 62")
-                        return 63  # Return from yard to main line
-            # Default: stay in yard or error
-            return 151  # Stay in yard if switch not set correctly
         
         # RULE 6: Block 76 always goes to 77
         # Switch is housed at block 76 but controls what happens at the junction
@@ -2111,6 +2237,16 @@ class TrackModelUI(tk.Tk):
         # Position 1 (76-77): Train continues 76 → 77 → 78 (through N section)
         # Position 2 (77-101): Train goes 76 → 77 → 101 (bypassing N section)
         elif current_block == 77:
+            # First check if this train is in backward N section mode
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'backward_n_section':
+                    # Exiting backward traversal at 77, continue to 101
+                    self.train_directions[train_id] = 'forward'
+                    print(f"[ROUTING] Exiting N section backward traversal at block 77 → 101")
+                    return 101
+            
+            # Normal forward routing (not in backward mode)
             if len(self.data_manager.blocks) > 75:
                 block_76 = self.data_manager.blocks[75]  # Switch housed at block 76 (index 75)
                 if hasattr(block_76, 'switch_state'):
@@ -2123,17 +2259,40 @@ class TrackModelUI(tk.Tk):
         
         # RULE 8: Normal progression through N section (78-84)
         elif 78 <= current_block < 85:
+            # First check if this train is in backward N section mode
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'backward_n_section':
+                    next_block = self.get_next_block_backward_n_section(current_block)
+                    if next_block == 101:
+                        # Exiting backward traversal, reset to forward
+                        self.train_directions[train_id] = 'forward'
+                        print(f"[ROUTING] Exiting N section backward traversal at block {current_block} → 101")
+                    elif next_block:
+                        print(f"[ROUTING] N section backward: Block {current_block} → {next_block}")
+                    return next_block
+            # Normal forward progression
             return current_block + 1  # Normal ascending: 78→79→80→81→82→83→84→85
         
-        # RULE 8: Switch at block 85-86
+        # RULE 8b: Switch housed at block 85
         elif current_block == 85:
+            # First check if this train is in backward N section mode
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'backward_n_section':
+                    next_block = self.get_next_block_backward_n_section(current_block)
+                    if next_block:
+                        print(f"[ROUTING] N section backward: Block 85 → {next_block}")
+                    return next_block
+            
+            # Normal forward routing (not in backward mode)
             if len(self.data_manager.blocks) > 84:
-                block_85 = self.data_manager.blocks[84]  # Block 85 at index 84
+                block_85 = self.data_manager.blocks[84]  # Switch housed at block 85 (index 84)
                 if hasattr(block_85, 'switch_state'):
                     if block_85.switch_state:  # True = To block 86
                         return 86  # Normal forward progression
                     else:  # False = Would be for backward entry from 100
-                        # But when AT block 85, we always go forward
+                        # But when AT block 85 (coming from 84), we always go forward to 86
                         return 86
             return 86  # Default forward to 86
         
@@ -2158,35 +2317,6 @@ class TrackModelUI(tk.Tk):
                         return 101  # Normal ascending to 101
             # Default: continue ascending
             return 101
-        
-        # RULE 10b: Handle backward traversal through N section (85→84→83→...→77)
-        elif current_block in [85, 84, 83, 82, 81, 80, 79, 78, 77]:
-            # Check if this train is traversing N section backward
-            if train_idx < len(self.data_manager.active_trains):
-                train_id = self.data_manager.active_trains[train_idx]
-                if self.train_directions.get(train_id) == 'backward_n_section':
-                    next_block = self.get_next_block_backward_n_section(current_block)
-                    if next_block == 101:
-                        # Exiting backward traversal, reset to forward
-                        self.train_directions[train_id] = 'forward'
-                        print(f"[ROUTING] Exiting N section backward traversal at block 77 → 101")
-                    elif next_block:
-                        print(f"[ROUTING] N section backward: Block {current_block} → {next_block}")
-                    return next_block
-            
-            # Otherwise, use normal rules (which handles forward traversal)
-            if current_block == 85:
-                # Already handled in RULE 8
-                if len(self.data_manager.blocks) > 84:
-                    block_85 = self.data_manager.blocks[84]
-                    if hasattr(block_85, 'switch_state'):
-                        if block_85.switch_state:
-                            return 86  # Normal forward
-                        else:
-                            return 86  # Still go forward when at 85
-                return 86
-            elif 77 <= current_block < 85:
-                return current_block + 1  # Normal forward through N section
         
         # RULE 11: Continue normal progression 101-149
         elif 101 <= current_block <= 149:
