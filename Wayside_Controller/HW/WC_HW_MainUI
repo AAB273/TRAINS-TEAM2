@@ -266,9 +266,9 @@ class UITestData:
             "Railway Crossing: 19": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
             },
         "switches": {
-            "Switch 12-13": {"condition": "Normal", "direction": "Blocks 12-13"},
-            "Switch 28-29": {"condition": "Normal", "direction": "Blocks 28-29"},
-            "Switch 57-Yard": {"condition": "Normal", "direction": "Blocks 57-Yard"}
+            "Switch 12-13": {"condition": "Normal", "direction": "Section C-D(12-13)"},
+            "Switch 28-29": {"condition": "Normal", "direction": "Section F-G (28-29)"},
+            "Switch 57-Yard": {"condition": "Normal", "direction": "Section I-J (57-Yard)"}
             },
         "lights": {
             "Light 12": {"condition": "Normal", "signal": "Green"},
