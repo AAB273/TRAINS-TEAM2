@@ -263,17 +263,49 @@ class UITestData:
         # Initialize ALL data attributes first
         self.track_data = {
             "crossings": {
-                "Railway Crossing: 108": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
+            "Railway Crossing: 19": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
             },
-            "switches": {
-                "Switch 76-77": {"condition": "Normal", "direction": "Blocks 76-77"},
-                "Switch 85-86": {"condition": "Normal", "direction": "Blocks 85-86"}
+        "switches": {
+            "Switch 12-13": {"condition": "Normal", "direction": "Blocks 12-13"},
+            "Switch 28-29": {"condition": "Normal", "direction": "Blocks 28-29"},
+            "Switch 57-Yard": {"condition": "Normal", "direction": "Blocks 57-Yard"}
             },
-            "lights": {
-                "Light 76": {"condition": "Normal", "signal": "Green"},
-                "Light 85": {"condition": "Normal", "signal": "Yellow"},
-                "Light 108": {"condition": "Normal", "signal": "Red"}
+        "lights": {
+            "Light 12": {"condition": "Normal", "signal": "Green"},
+            "Light 28": {"condition": "Normal", "signal": "Yellow"},
+            "Light 57": {"condition": "Normal", "signal": "Red"},
+            "Light 19": {"condition": "Normal", "signal": "Red"}
             }
+        }
+
+        # Updated block_sections mapping for Green Line A-L
+        self.block_sections = {
+        # Section A
+            "1": "A", "2": "A", "3": "A",
+        # Section B
+            "4": "B", "5": "B", "6": "B",
+        # Section C
+            "7": "C", "8": "C", "9": "C", "10": "C", "11": "C", "12": "C",
+        # Section D
+            "13": "D", "14": "D", "15": "D", "16": "D",
+        # Section E
+            "17": "E", "18": "E", "19": "E", "20": "E",
+        # Section F
+            "21": "F", "22": "F", "23": "F", "24": "F", "25": "F", "26": "F", "27": "F", "28": "F",
+        # Section G
+            "29": "G", "30": "G", "31": "G", "32": "G",
+        # Section H
+            "33": "H", "34": "H", "35": "H",
+        # Section I
+            "36": "I", "37": "I", "38": "I", "39": "I", "40": "I", "41": "I", "42": "I", "43": "I",
+            "44": "I", "45": "I", "46": "I", "47": "I", "48": "I", "49": "I", "50": "I", "51": "I",
+            "52": "I", "53": "I", "54": "I", "55": "I", "56": "I", "57": "I",
+        # Section J
+            "58": "J", "59": "J", "60": "J", "61": "J", "62": "J",
+        # Section K
+            "63": "K", "64": "K", "65": "K", "66": "K", "67": "K", "68": "K",
+        # Section L
+            "69": "L", "70": "L", "71": "L", "72": "L", "73": "L"
         }
 
            # Sample block data: [Occupied, Line, Block]
@@ -593,34 +625,70 @@ def load_line_data(line_name):
             # Update track data for green line
             test_data.track_data = {
                 "crossings": {
-                    "Railway Crossing: 108": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
+                    "Railway Crossing: 19": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
                 },
                 "switches": {
-                    "Switch 76-77": {"condition": "Normal", "direction": "Blocks 76-77"},
-                    "Switch 85-86": {"condition": "Normal", "direction": "Blocks 85-86"}
+                    "Switch 12-13": {"condition": "Normal", "direction": "Blocks 12-13"},
+                    "Switch 28-29": {"condition": "Normal", "direction": "Blocks 28-29"},
+                    "Switch 57-Yard": {"condition": "Normal", "direction": "Blocks 57-Yard"}
                 },
                 "lights": {
-                    "Light 76": {"condition": "Normal", "signal": "Green"},
-                    "Light 85": {"condition": "Normal", "signal": "Yellow"},
-                    "Light 108": {"condition": "Normal", "signal": "Red"}
+                    "Light 12": {"condition": "Normal", "signal": "Green"},
+                    "Light 28": {"condition": "Normal", "signal": "Yellow"},
+                    "Light 57": {"condition": "Normal", "signal": "Red"},
+                    "Light 19": {"condition": "Normal", "signal": "Red"}
                 }
             }
+            # Update block sections for Green Line A-L
+            test_data.block_sections = {
+                "1": "A", "2": "A", "3": "A",
+                "4": "B", "5": "B", "6": "B",
+                "7": "C", "8": "C", "9": "C", "10": "C", "11": "C", "12": "C",
+                "13": "D", "14": "D", "15": "D", "16": "D",
+                "17": "E", "18": "E", "19": "E", "20": "E",
+                "21": "F", "22": "F", "23": "F", "24": "F", "25": "F", "26": "F", "27": "F", "28": "F",
+                "29": "G", "30": "G", "31": "G", "32": "G",
+                "33": "H", "34": "H", "35": "H",
+                "36": "I", "37": "I", "38": "I", "39": "I", "40": "I", "41": "I", "42": "I", "43": "I",
+                "44": "I", "45": "I", "46": "I", "47": "I", "48": "I", "49": "I", "50": "I", "51": "I",
+                "52": "I", "53": "I", "54": "I", "55": "I", "56": "I", "57": "I",
+                "58": "J", "59": "J", "60": "J", "61": "J", "62": "J",
+                "63": "K", "64": "K", "65": "K", "66": "K", "67": "K", "68": "K",
+                "69": "L", "70": "L", "71": "L", "72": "L", "73": "L"
+            }
         else:  # Red line
-            filename = "red_line.txt"  # You'll need to create this file
-            # Update track data for red line
+            filename = "red_line.txt"
+            # Updated track data for first half of Red Line (A-G sections)
             test_data.track_data = {
                 "crossings": {
-                    "Railway Crossing: 15": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
+                    "Railway Crossing: 11": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
                 },
                 "switches": {
                     "Switch 9-10": {"condition": "Normal", "direction": "Blocks 9-10"},
-                    "Switch 13-14": {"condition": "Normal", "direction": "Blocks 13-14"}
+                    "Switch 15-16": {"condition": "Normal", "direction": "Blocks 15-16"}
                 },
                 "lights": {
                     "Light 9": {"condition": "Normal", "signal": "Green"},
-                    "Light 13": {"condition": "Normal", "signal": "Yellow"},
-                    "Light 15": {"condition": "Normal", "signal": "Red"}
+                    "Light 15": {"condition": "Normal", "signal": "Yellow"},
+                    "Light 11": {"condition": "Normal", "signal": "Red"}
                 }
+            }
+            # Update block sections for Red Line A-G
+            test_data.block_sections = {
+                # Section A
+                "1": "A", "2": "A", "3": "A",
+                # Section B
+                "4": "B", "5": "B", "6": "B",
+                # Section C
+                "7": "C", "8": "C", "9": "C",
+                # Section D
+                "10": "D", "11": "D", "12": "D",
+                # Section E
+                "13": "E", "14": "E", "15": "E",
+                # Section F
+                "16": "F", "17": "F", "18": "F", "19": "F", "20": "F",
+                # Section G
+                "21": "G", "22": "G", "23": "G"
             }
         
         # Load block data
