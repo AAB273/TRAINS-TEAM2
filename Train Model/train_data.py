@@ -56,7 +56,7 @@ class Train:
         
         # Emergency brake and Service Brake
         self.emergency_brake_active = False
-        self.service_brake_active = True
+        self.service_brake_active = True    #Needs to turn off once initial authority is given.
         
         # Deployment status
         self.deployed = True
