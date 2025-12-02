@@ -1,3 +1,40 @@
+File "/home/siram/TRAINS-TEAM2/Wayside_Controller/HW/WC_HW_MainUI", line 536, in <module>
+    test_data = UITestData()
+    def is_changeable(self, component_type):
+        """Check if a component type can be edited in current mode"""
+        if not self.maintenance_mode:
+            return False
+        return self.maintenance_changes.get(component_type, False)
+
+# Create mock data instance
+test_data = UITestData()
+# Temporary safety check - ensure filtered_track_data exists
+if not hasattr(test_data, 'filtered_track_data'):
+    print("Warning: filtered_track_data not found, creating it now...")
+    test_data.filtered_track_data = test_data.track_data.copy() if hasattr(test_data, 'track_data') else {"switches": {}, "lights": {}, "crossings": {}}
+
+    File "/home/siram/TRAINS-TEAM2/Wayside_Controller/HW/WC_HW_MainUI", line 313, in __init__
+    self.filtered_block_data = self.block_data.copy()
+                               ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'copy'
+
+ # Sample block data: [Occupied, Line, Block]
+        self.block_data = self.load_complete_track_data("green_line.txt")
+        self.filtered_block_data = self.block_data.copy()
+
+    
+         # Initialize filtered_track_data by copying track_data
+        self.filtered_track_data = self.track_data.copy()
+   
+        # Initialize block_data (make sure this exists too)
+        # self.block_data = []  # Add your actual block data here
+        # self.filtered_block_data = self.block_data.copy()
+
+        # SOCKET SERVER
+        self.server1 = TrainSocketServer(port=12345, ui_id="WC_HW_MainUI")
+        self.server1.set_allowed_connections(["WC_HW_TestUI", "ui_3"])
+        self.server1.start_server(_process_message)
+
 import json    
 from pathlib import Path 
 

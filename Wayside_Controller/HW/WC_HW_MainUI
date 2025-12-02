@@ -318,7 +318,7 @@ class UITestData:
    
         # Initialize block_data (make sure this exists too)
         # self.block_data = []  # Add your actual block data here
-        self.filtered_block_data = self.block_data.copy()
+        # self.filtered_block_data = self.block_data.copy()
 
         # SOCKET SERVER
         self.server1 = TrainSocketServer(port=12345, ui_id="WC_HW_MainUI")
@@ -353,10 +353,10 @@ class UITestData:
 
         try:
             import os
-        
-            print(f"Loading track data from: {filename}")
-            print(f"File exists: {os.path.exists(filename)}")
-            print(f"block_sections defined: {hasattr(self, 'block_sections')}")
+            # Debug statments:
+            # print(f"Loading track data from: {filename}")
+            # print(f"File exists: {os.path.exists(filename)}")
+            # print(f"block_sections defined: {hasattr(self, 'block_sections')}")
 
         # Simple file read
             with open(filename, 'r') as file:
@@ -367,12 +367,15 @@ class UITestData:
             for line in lines[1:]:  # Skip header line
                     line = line.strip()
                     if line:
-                        parts = line.split(',')
-                    if len(parts) >= 3:
-                        line_name = parts[0].strip()
-                        block_number = parts[1].strip()
-                        infrastructure = parts[2].strip()
-                        
+                        # parts = line.split(',')
+                        parts = [part.strip() for part in line.split(',')]
+                    
+                    if len(parts) >= 7: # at least 7 columns?
+                        line_name = parts[0]
+                        section_name = parts[1]
+                        block_number = parts[2]
+                        infrastructure = parts[3] if len(parts) > 6 else ""
+
                         # Get section letter from mapping (empty string if not in your list)
                         section = self.block_sections.get(block_number, "")
                         
@@ -380,16 +383,17 @@ class UITestData:
                         block_entry = ["No", line_name, block_number, section, infrastructure]
                         complete_data.append(block_entry)
             
-                        print(f"DEBUG: Added block {block_number}: {block_entry}")
-                    else:
-                        print(f"DEBUG: Skipping line {line_num} - not enough parts: {parts}")            
+            # Debug statements: printing data read from green.txt
+                    #     print(f"DEBUG: Added block {block_number}: {block_entry}")
+                    # else:
+                    #     print(f"DEBUG: Skipping line {line_num} - not enough parts: {parts}")            
             
-            print(f"Loaded complete track data for {len(complete_data)} blocks")
-            return complete_data
+            # print(f"Loaded complete track data for {len(complete_data)} blocks")
+            # return complete_data
 
-        except FileNotFoundError:
-            print(f"Error: File {filename} not found")
-            return []
+        # except FileNotFoundError:
+        #     print(f"Error: File {filename} not found")
+        #     return []
         except Exception as e:
             print(f"Error loading complete track data: {e}")
             return []
