@@ -3931,6 +3931,60 @@ class TrackModelUI(tk.Tk):
             else:  # False = backward route (for trains from 100)
                 return (100, 85)
         
+        # ============================================================
+        # RED LINE SWITCHES
+        # ============================================================
+        
+        # Handle switch at block 15 (RED LINE)
+        # Excel: SWITCH (15-16; 1-16)
+        elif block_number == 15:
+            if switch_state:  # True = normal route
+                return (15, 16)
+            else:  # False = loop closure
+                return (1, 16)  # Shows that block 1 connects to 16 via switch 15
+        
+        # Handle switch at block 9 (RED LINE - Yard access)
+        elif block_number == 9:
+            if switch_state:  # True = normal route
+                return (9, 10)
+            else:  # False = to yard
+                return (9, "Yard")
+        
+        # Handle switch at block 27 (RED LINE - Branch)
+        elif block_number == 27:
+            if switch_state:  # True = normal route
+                return (27, 28)
+            else:  # False = branch to end section
+                return (27, 76)
+        
+        # Handle switch at block 32 (RED LINE - Branch)
+        elif block_number == 32:
+            if switch_state:  # True = normal route
+                return (32, 33)
+            else:  # False = backward jump
+                return (33, 72)
+        
+        # Handle switch at block 38 (RED LINE - Branch)
+        elif block_number == 38:
+            if switch_state:  # True = normal route
+                return (38, 39)
+            else:  # False = backward jump
+                return (39, 71)
+        
+        # Handle switch at block 43 (RED LINE - Branch)
+        elif block_number == 43:
+            if switch_state:  # True = normal route
+                return (43, 44)
+            else:  # False = backward jump
+                return (44, 67)
+        
+        # Handle switch at block 52 (RED LINE - Loop switch)
+        elif block_number == 52:
+            if switch_state:  # True = normal route
+                return (52, 53)
+            else:  # False = forward jump to loop
+                return (52, 66)
+        
         # Handle reverse direction for bidirectional switches
         elif block_number == 1:
             # Coming from block 1, can go to 2 or jump to 13 via switch
