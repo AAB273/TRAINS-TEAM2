@@ -118,6 +118,7 @@ class RailwayControlSystem:
     
     def send_to_CTC(self, message):
         """Send message to Track Model"""
+        print("\n\n\nhere\n\n\n")
         return self.server.send_to_ui("CTC", message)
 
     def _handle_switch_update(self, data):
@@ -169,15 +170,15 @@ class RailwayControlSystem:
 
         self.send_to_CTC(message)
     
-    def send_railway_state(self,track, block, light, bar):
+    def send_railway_state(self,track, block, bar):
         """Send Light State to CTC and Track Model"""
-        if (bar == 'Open'):
+        if (bar == 'Closed'):
             booly = "1"
         else:
             booly = "0"
             
         message = {
-            "command": "rrx",
+            "command": "RC",
             "value": [block, booly, track]
         }
         

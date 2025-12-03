@@ -6,8 +6,8 @@ import os
 def launch_both_guis():
     # Replace these with your exact filepaths
     PASSENGER_UI_PATH = "CTC_Office/CTC_UI.py"
-    # TEST_UI_PATH = "Wayside_Controller/SW/main.py"
-    TEST_UI_PATH = "Wayside_Controller/HW/WC_HW_MainUI"
+    TEST_UI_PATH = "Wayside_Controller/SW/main.py"
+    #TEST_UI_PATH = "Wayside_Controller/HW/WC_HW_MainUI"
     # Verify files exist
     if not os.path.exists(PASSENGER_UI_PATH):
         print(f"❌ Passenger UI not found at: {PASSENGER_UI_PATH}")
