@@ -158,7 +158,6 @@ class RailwayControlSystem:
             "value": [block, color, track]
         }
 
-        print("\n\n\nhere\n\n\n")
         self.send_to_CTC(message)
 
 

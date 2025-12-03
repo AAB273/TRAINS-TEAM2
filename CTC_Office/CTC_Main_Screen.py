@@ -210,7 +210,7 @@ class MainScreen:
             if (not children):  
             #if there is nothing added yet, add the first parent/child
                 level = self.lsArea.insert('', "end", text = line.title())
-                self.lsArea.insert(level, "end", text = "Block " + location, values = [state])
+                self.lsArea.insert(level, "end", text = "Block " + location + ", " + line, values = [state])
             else:
                 added = False
                 updated = False  
@@ -228,7 +228,7 @@ class MainScreen:
                             break
                     if ((not updated) and (line.title() == self.lsArea.item(child, "text"))):
                     #add to existing line if item does not exist yet
-                        self.lsArea.insert(child, "end", text = "Block " + location, values = [state])
+                        self.lsArea.insert(child, "end", text = "Block " + location + ", " + line, values = [state])
                         added = True
                         break
                 if (not added):
