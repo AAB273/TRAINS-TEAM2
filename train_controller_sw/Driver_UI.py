@@ -126,7 +126,7 @@ class Main_Window:
         #add zoomed command to make screen fit 
         #self.root.attributes('-zoomed', True)  # On macOS/Linux
         self.root.configure(bg="navy")
-        self.root.attributes('-zoomed', True)  # On macOS/Linux
+        #self.root.attributes('-zoomed', True)  # On macOS/Linux
         #self.root.state('zoomed') for windows
 
         # Make fullscreen
@@ -296,7 +296,7 @@ class Main_Window:
         
         # Train Horn Button
         try:
-            self.train_horn_icon = tk.PhotoImage(file="trainhorn.png")
+            self.train_horn_icon = tk.PhotoImage(file="train_controller_sw/trainhorn.png")
             self.train_horn_icon = self.train_horn_icon.subsample(5, 5)
             self.train_horn = tk.Button(main_container, image=self.train_horn_icon, 
                                        bg="burlywood1", activebackground="burlywood3",
@@ -353,7 +353,7 @@ class Main_Window:
         self.button_grid_frame.place(relx=0.75, rely=0.68, relwidth=0.22, relheight=0.28)
         
         try:
-            self.bulb_logo = tk.PhotoImage(file="bulb.png").subsample(9, 9)
+            self.bulb_logo = tk.PhotoImage(file="train_controller_sw/bulb.png").subsample(9, 9)
             self.cabin_lights_btn = ToggleButton(self.button_grid_frame, image=self.bulb_logo,
                                                 callback=self.toggle_cabin_lights)
             self.cabin_lights_btn.image = self.bulb_logo
@@ -363,7 +363,7 @@ class Main_Window:
         self.cabin_lights_btn.grid(row=0, column=0, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.headlight_logo = tk.PhotoImage(file="headlight.png").subsample(5, 5)
+            self.headlight_logo = tk.PhotoImage(file="train_controller_sw/headlight.png").subsample(5, 5)
             self.headlights_btn = ToggleButton(self.button_grid_frame, image=self.headlight_logo,
                                               callback=self.toggle_headlights)
             self.headlights_btn.image = self.headlight_logo
@@ -373,7 +373,7 @@ class Main_Window:
         self.headlights_btn.grid(row=0, column=1, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.left_door_logo = tk.PhotoImage(file="leftdoor.png").subsample(10, 10)
+            self.left_door_logo = tk.PhotoImage(file="train_controller_sw/leftdoor.png").subsample(10, 10)
             self.left_door_btn = ToggleButton(self.button_grid_frame, image=self.left_door_logo,
                                              callback=self.toggle_left_door)
             self.left_door_btn.image = self.left_door_logo
@@ -383,7 +383,7 @@ class Main_Window:
         self.left_door_btn.grid(row=1, column=0, padx=8, pady=8, sticky="nsew")
         
         try:
-            self.right_door_logo = tk.PhotoImage(file="right.png").subsample(10, 10)
+            self.right_door_logo = tk.PhotoImage(file="train_controller_sw/right_door.png").subsample(10, 10)
             self.right_door_btn = ToggleButton(self.button_grid_frame, image=self.right_door_logo,
                                               callback=self.toggle_right_door)
             self.right_door_btn.image = self.right_door_logo
@@ -408,7 +408,7 @@ class Main_Window:
         logo_frame.place(relx=0.01, rely=0.01, relwidth=0.12, relheight=0.22)
         
         try:
-            self.bltlogo = tk.PhotoImage(file="bltlogo.png").subsample(4, 4)
+            self.bltlogo = tk.PhotoImage(file="train_controller_sw/bltlogo.png").subsample(4, 4)
             self.bltLabel = tk.Label(logo_frame, image=self.bltlogo, bg="white", borderwidth=0)
             self.bltLabel.pack(expand=True, fill=tk.BOTH, padx=2, pady=2)
         except:
@@ -467,7 +467,7 @@ class Main_Window:
          # State variables
         self.current_speed = 0  # Will be in mph (converted from m/s for display)
         self.current_speed_ms = 0  # Store original m/s value for calculations
-        self.commanded_speed_ms = 0  # Store commanded speed in m/s for calculations
+        self.commanded_speed_ms = 20  # Store commanded speed in m/s for calculations
         self.set_speed = 45
         self.set_temp = 68
         self.is_auto_mode = True
@@ -525,7 +525,7 @@ class Main_Window:
                     self.add_to_status_log("Passenger emergency signal cleared")
             
             # ========== ACTUAL VELOCITY ==========
-            elif command == "Actual Velocity":
+            elif command == "Current Speed":
                 # Input: m/s from Train Model
                 self.current_speed_ms = float(value)  # Store original m/s
                 velocity_mph = self.current_speed_ms * METERS_PER_SEC_TO_MPH
@@ -533,7 +533,7 @@ class Main_Window:
                 # Don't log every update - handled in power calculation
             
             # ========== CABIN TEMPERATURE ==========
-            elif command == "Cabin Temperature":
+            elif command == "Temp":
                 temp_f = float(value)
                 self.set_cabin_temp(round(temp_f, 1))
                 if not hasattr(self, '_last_logged_temp') or abs(temp_f - self._last_logged_temp) >= 2:
@@ -726,7 +726,8 @@ class Main_Window:
         # Update door safety
         self.update_door_safety()
 
-            # Auto-release emergency brake once train fully stops and all failures cleared
+        
+        # Auto-release emergency brake once train fully stops and all failures cleared
         if self.emergency_brake_active and self.current_speed <= 0.1:
             no_failures = not (
                 self.engine_failure.active or
@@ -740,7 +741,7 @@ class Main_Window:
                 self.send_emergency_brake_signal(False)
                 self.add_to_status_log("Emergency brake auto-released (train stopped)")
                 print("Emergency brake auto-released - train stopped")
-
+            
         
         # Calculate and send power command
         # Only send power when NOT in emergency brake and NOT in service brake
@@ -837,23 +838,23 @@ class Main_Window:
 
     def increase_temp(self):
         """Increase temperature setpoint"""
-        self.set_temp = min(85, self.set_temp + 1)
-        self.set_temp_value.config(text=f"{self.set_temp}°F")
-        self.add_to_status_log(f"Temperature set point increased to: {self.set_temp}°F")
-        # Only send if AC is currently on
-        if self.power_btn.is_on:
+        #only update temp is button is on
+        if self.power_btn.is_on: 
+            self.set_temp = min(85, self.set_temp + 1)
+            self.set_temp_value.config(text=f"{self.set_temp}°F")
+            self.add_to_status_log(f"Temperature set point increased to: {self.set_temp}°F")   
             self.send_cabin_temperature_control(self.set_temp)
-        print(f"Set temperature: {self.set_temp}°F")
+            print(f"Set temperature: {self.set_temp}°F")
     
     def decrease_temp(self):
         """Decrease temperature setpoint"""
-        self.set_temp = max(60, self.set_temp - 1)
-        self.set_temp_value.config(text=f"{self.set_temp}°F")
-        self.add_to_status_log(f"Temperature set point decreased to: {self.set_temp}°F")
-        # Only send if AC is currently on
         if self.power_btn.is_on:
+            self.set_temp = max(60, self.set_temp - 1)
+            self.set_temp_value.config(text=f"{self.set_temp}°F")
+            self.add_to_status_log(f"Temperature set point decreased to: {self.set_temp}°F")
+            # Only send if AC is currently on
             self.send_cabin_temperature_control(self.set_temp)
-        print(f"Set temperature: {self.set_temp}°F")
+            print(f"Set temperature: {self.set_temp}°F")
     
     def toggle_ac(self, state):
         status = "ON" if state else "OFF"
@@ -872,17 +873,20 @@ class Main_Window:
         self.root.after(2000, lambda: self.send_train_horn(False))
     
     def service_brake_action(self, pressed):
+        """Handle service brake button press/release - BOOLEAN VERSION"""
+        print(f"[DEBUG] Service brake action called: pressed={pressed}")
+        
         if pressed:
             self.service_brake_active = True
-            deceleration = 1.2  # m/s² (positive value for deceleration)
-            self.send_service_brake(deceleration)
-            self.add_to_status_log(f"Service brake applied")
-            print(f"Service brake applied")
+            self.send_service_brake(True)  # Send True (brake ON)
+            self.add_to_status_log(f" Service brake applied")
+            print(f"SERVICE BRAKE: ACTIVE")
         else:
             self.service_brake_active = False
-            self.send_service_brake(0)  # Release brake
-            self.add_to_status_log("Service brake released")
-            print("Service brake: RELEASED")
+            self.send_service_brake(False)  # Send False (brake OFF)
+            self.add_to_status_log(" Service brake released")
+            print("SERVICE BRAKE: RELEASED")
+    
     
     def emergency_brake_action(self, pressed):
         """Handle emergency brake button press"""
@@ -1025,8 +1029,8 @@ class Main_Window:
         """
         try:
             self.server.send_to_ui("Train Model", {
-                'command': "Setpoint Power",
-                'value': float(power_kw)
+                'command': "Power Command",
+                'value': float(power_kw *  1000)
             })
             # Don't print every power command to avoid spam
             # print(f"Sent power: {power_kw:.2f} kW")
@@ -1123,7 +1127,7 @@ class Main_Window:
         """
         try:
             self.server.send_to_ui("Train Model", {
-                'command': "Air Conditioning",
+                'command': "AC unit",
                 'value': bool(is_on)
             })
             print(f"Sent AC: {is_on}")
@@ -1139,7 +1143,7 @@ class Main_Window:
         """
         try:
             self.server.send_to_ui("Train Model", {
-                'command': "Cabin Interior Temperature Control",
+                'command': "Temp",
                 'value': float(temp_fahrenheit)
             })
             print(f"Sent temperature setpoint: {temp_fahrenheit}°F")
@@ -1163,24 +1167,25 @@ class Main_Window:
             print(f"Error sending drivetrain mode: {e}")
 
 
-    def send_service_brake(self, deceleration_ms2):
+    def send_service_brake(self, is_active):
         """
         Send service brake to Train Model
-        Input: deceleration in m/s²
-        Output: deceleration in m/s² (no conversion needed)
+        Input: boolean (True = brake on, False = brake off)
+        Output: boolean (no conversion needed)
         
-        Note: When service brake is active, send the deceleration rate.
-        When released, send 0.
+        Note: When service brake is active, send True.
+        When released, send False.
         """
         try:
             self.server.send_to_ui("Train Model", {
                 'command': "Service Brake",
-                'value': float(deceleration_ms2)
+                'value': bool(is_active)
             })
-            print(f"Sent service brake: {deceleration_ms2} m/s²")
+            status = "ACTIVE" if is_active else "RELEASED"
+            print(f"[SENT] Service Brake: {status} (value={is_active})")
         except Exception as e:
-            print(f"Error sending service brake: {e}")
-
+            print(f"[ERROR] Failed to send service brake: {e}")
+            self.add_to_status_log("⚠️ Failed to send service brake")
 
     def send_station_announcement(self, message):
         """
