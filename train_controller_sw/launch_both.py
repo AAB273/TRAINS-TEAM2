@@ -27,7 +27,7 @@ def launch_both_guis():
         
         # Wait for socket server to start
         print("⏳ Waiting for Passenger GUI socket server to start...")
-     
+        time.sleep(5)
         
         print("🧪 Launching Test UI...")
         test_process = subprocess.Popen([sys.executable, TEST_UI_PATH])

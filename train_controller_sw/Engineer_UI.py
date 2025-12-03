@@ -21,7 +21,7 @@ class EngineerUI:
         # Create separate window
         self.window = tk.Toplevel(parent_window.root)
         self.window.title("Engineer Control Panel")
-        self.window.geometry("400x350")
+        self.window.geometry("800x700")
         self.window.configure(bg="lightgray")
         
         # Prevent closing with X button - hide instead

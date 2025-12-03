@@ -313,14 +313,14 @@ class UITestData:
             self.filtered_block_data = self.block_data.copy()
 
         # SOCKET SERVER
-        self.server1 = TrainSocketServer(port=12344, ui_id="WC_HW_MainUI")
-        self.server1.set_allowed_connections(["WC_HW_TestUI", "ui_3", "CTC_MainScreenUI"])
+        self.server1 = TrainSocketServer(port=12344, ui_id="Track HW")
+        self.server1.set_allowed_connections(["WC_HW_TestUI", "CTC", "Track Model"])
         self.server1.start_server(_process_message)
         
         # Connect to other UIs
         self.server1.connect_to_ui('localhost', 12346, "WC_HW_TestUI")
         self.server1.connect_to_ui('localhost', 12341, "CTC_MainScreenUI")
-        self.server1.connect_to_ui('localhost', 12345, "UI_Structure")
+        self.server1.connect_to_ui('localhost', 12344, "Track Model")
 
         # Current line
         self.current_line = "Green"
@@ -677,7 +677,8 @@ try:
     #     print(f"  - {file}")
     
     # Check if file exists
-    logo_path = "/home/siram/TRAINS-TEAM2/blt logo.png"
+    # logo_path = "/home/siram/TRAINS-TEAM2/blt logo.png"
+    logo_path = "blt logo.png"
     print(f"Looking for logo at: {logo_path}")
     print(f"Logo file exists: {os.path.exists(logo_path)}")
     
@@ -946,7 +947,7 @@ try:
     #     print(f"  - {file}")
     
     # Check if file exists in TRAINS-TEAM2 folder
-    image_path = "/home/siram/TRAINS-TEAM2/Red and Green Line.png"
+    image_path = "Red and Green Line.png"
     print(f"Looking for image at: {image_path}")
     print(f"File exists: {os.path.exists(image_path)}")
     

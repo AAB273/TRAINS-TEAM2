@@ -191,24 +191,10 @@ class MainScreen:
 
         elif (code == "LS"):  
         #light switch data case
-            location = ""
-            state = ""
-            commaInd = 0
+            location = data[0]
+            state = data[1]
+            line = data[2]
 
-            #grab data from message
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                location += data[i]
-            data = data[commaInd + 2:]
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                state += data[i]
-            line = data[commaInd + 2:]
-        
             if (state == "00"):
                 state = "red"
             elif (state == "01"):
@@ -248,7 +234,7 @@ class MainScreen:
                 if (not added):
                 #if value is not already in the treeview, add a new parent/child set
                     level = self.lsArea.insert('', "end", text = line.title())
-                    self.lsArea.insert(level, "end", text = "Block " + location, values = [state])
+                    self.lsArea.insert(level, "end", text = "Block " + location + ", " + line, values = [state])
 
         elif (code == "RC"):
             #railway crossing data case
