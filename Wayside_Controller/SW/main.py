@@ -158,6 +158,7 @@ class RailwayControlSystem:
             "value": [block, color, track]
         }
 
+        print("\n\n\nhere\n\n\n")
         self.send_to_CTC(message)
 
 
@@ -290,9 +291,16 @@ class RailwayControlSystem:
 
         self.data.on_line_change.append(self.right_panel.on_line_changed) 
         self.data.on_line_change.append(self.header.update_tab_appearance)
+<<<<<<< HEAD
 '''
 def test_block_occupancy(app):
     #####Test block occupancy functionality
+=======
+
+'''
+def test_block_occupancy(app):
+    ###Test block occupancy functionality###
+>>>>>>> b746ceee2104cf02db430cf834c621d9c98e2440
     print("\n=== Testing Block Occupancy ===")
     
     # Test Case 1: Set block to occupied
