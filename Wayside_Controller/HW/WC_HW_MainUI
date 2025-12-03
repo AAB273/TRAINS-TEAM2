@@ -4,6 +4,9 @@ from datetime import datetime
 from PIL import Image, ImageTk
 from plc_controller import PLCController
 import os, sys
+from time import strftime
+from threading import Timer
+import json
 # import green_line
 # import red_line
 
@@ -46,58 +49,6 @@ station_location = []
 ######
 ##############
 
-def handle_ctc_suggested_speed(speed_data):
-    """
-    Handle CTC suggested speed messages and convert to float with 3 decimal places
-    Expected formats:
-    - String: "track HW", {"Suggested_speed", "float: new_speed"}
-    - Dictionary: {'Suggested_speed': 'float: 45.5'}
-    - Direct string: "float: 45.5"
-    """
-    try:
-        suggested_speed = None
-        
-        # Handle different input formats
-        if isinstance(speed_data, str):
-            # Extract float value from string format
-            if "float:" in speed_data:
-                # Find the float value in the string
-                import re
-                float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_data)
-                if float_match:
-                    speed_str = float_match.group(1)
-                    suggested_speed = float(speed_str)
-            else:
-                # Try direct conversion if it's just a number string
-                suggested_speed = float(speed_data)
-                
-        elif isinstance(speed_data, dict):
-            # Handle dictionary format
-            if 'Suggested_speed' in speed_data:
-                speed_value = speed_data['Suggested_speed']
-                if isinstance(speed_value, str) and "float:" in speed_value:
-                    speed_str = speed_value.split("float:")[1].strip()
-                    suggested_speed = float(speed_str)
-                else:
-                    suggested_speed = float(speed_value)
-            elif 'value' in speed_data:
-                # Alternative dictionary format
-                suggested_speed = float(speed_data['value'])
-        
-        # Format to 3 decimal places if conversion was successful
-        if suggested_speed is not None:
-            formatted_speed = round(suggested_speed, 3)
-            add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.3f} mph")
-            return formatted_speed
-        else:
-            add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
-            
-    except ValueError as e:
-        add_to_message_log(f"ERROR: Invalid speed format - {e}", "ERROR")
-    except Exception as e:
-        add_to_message_log(f"ERROR: Processing CTC speed message - {e}", "ERROR")
-    
-    return None
 
 def update_suggested_speed_display(speed):
     """Update the suggested speed display in the right panel"""
@@ -132,73 +83,110 @@ def _process_message(self, data, connection=None, server_instance=None):
         if isinstance(data, str):
             try:
                 # Try to parse as JSON
-                parsed_data = json.loads(data)
-                print(f"Parsed JSON data: {parsed_data}")
-                message_data = parsed_data
+                import json
+                message_data = json.loads(data)
+                # print(f"Parsed JSON data: {parsed_data}")
+                # message_data = parsed_data
             except json.JSONDecodeError:
                 # If it's not JSON, treat it as a plain string message
-                print(f"Data is plain string, not JSON: {data}")
+                # print(f"Data is plain string, not JSON: {data}")
                 message_data = {'message': data}
         else:
             # Data is already a dictionary
             message_data = data
-        
+        # extract command and value 
+        command = message_data.get('command')
+        value = message_data.get('value')
+        # self.handle_ctc_message(message_data)
+        print(f"Processing command: {command}, value: {value}")
+
         # Handle different commands
         if command == 'ctc_suggestion':
             # Use your existing function
-            formatted_speed = self.handle_ctc_suggested_speed(value)
+            formatted_speed = handle_ctc_suggested_speed(value)
             if formatted_speed is not None:
-                self.update_suggested_speed(formatted_speed)
-                # ADD THIS LINE - sync back to Test UI
-                self.sync_speed_to_test_ui(formatted_speed)
-        
-        # Extract the actual message
-        message = message_data.get('message', message_data)
-        source_ui_id = message_data.get('ui_id', 'Unknown')
-        
-        print(f"Processing message from {source_ui_id}: {message}")
-        
-        # Extract message and source UI ID
-        if isinstance(data, 'dict'):
-            message = data.get('message', data)
-            source_ui_id = data.get('WC_HW_TestUI', 'Unknown')
-        else:
-            message = data
-            source_ui_id = 'WC_HW_TestUI'
-        
-        print(f"Processing message from {source_ui_id}: {message}")
-        
-        command = message.get('command')
-        value = message.get('value')
-        
-        # Handle different commands
-        if command == 'ctc_suggestion':
-            self.handle_ctc_suggestion(value)
+                update_suggested_speed_display(formatted_speed)
+                # # ADD THIS LINE - sync back to Test UI
+                # self.sync_speed_to_test_ui(formatted_speed)
+        elif command == 'update_speed_auth':
+            test_data.handle_speed_auth_update(value)
+            # self.handle_speed_auth_update(value)    
         elif command == 'set_block_occupancy':
-            self.handle_block_occupancy(value)
+            # existing handling
+            pass
         elif command == 'set_switch_position':
-            self.handle_switch_position(value)
-        elif command == 'some_command':
-            print(f"Test command received with value: {value}")
-        else:
+            #existing handling
+            pass
+        else: 
             print(f"Unknown command: {command}")
-            
     except Exception as e:
         print(f"Error processing message: {e}")
-    
 
-    def sync_speed_to_test_ui(self, speed_value):
-        """Sync speed changes back to Test UI"""
+    # def sync_speed_to_test_ui(self, speed_value):
+    #     """Sync speed changes back to Test UI"""
+    #     try:
+    #         if hasattr(self, 'server1') and self.server1:
+    #             message = {
+    #             'command': 'sync_suggested_speed',
+    #             'value': str(speed_value),
+    #             'ui_id': 'WC_HW_MainUI'
+    #         }
+    #             self.server1.send_to_ui("WC_HW_TestUI", message)
+    #     except Exception as e:
+    #         print(f"Error syncing speed to Test UI: {e}")
+
+    def handle_ctc_suggested_speed(speed_data):
+        """
+        Handle CTC suggested speed messages and convert to float with 3 decimal places
+        Expected formats:
+        - String: "track HW", {"Suggested_speed", "float: new_speed"}
+        - Dictionary: {'Suggested_speed': 'float: 45.5'}
+        - Direct string: "float: 45.5"
+        """
         try:
-            if hasattr(self, 'server1') and self.server1:
-                message = {
-                'command': 'sync_suggested_speed',
-                'value': str(speed_value),
-                'ui_id': 'WC_HW_MainUI'
-            }
-                self.server1.send_to_ui("WC_HW_TestUI", message)
+            suggested_speed = None
+        
+            # Handle different input formats
+            if isinstance(speed_data, str):
+                # Extract float value from string format
+                if "float:" in speed_data:
+                    # Find the float value in the string
+                    import re
+                    float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_data)
+                    if float_match:
+                        speed_str = float_match.group(1)
+                        suggested_speed = float(speed_str)
+                else:
+                    # Try direct conversion if it's just a number string
+                    suggested_speed = float(speed_data)
+                
+            elif isinstance(speed_data, dict):
+                # Handle dictionary format
+                if 'Suggested_speed' in speed_data:
+                    speed_value = speed_data['Suggested_speed']
+                    if isinstance(speed_value, str) and "float:" in speed_value:
+                        speed_str = speed_value.split("float:")[1].strip()
+                        suggested_speed = float(speed_str)
+                    else:
+                        suggested_speed = float(speed_value)
+                elif 'value' in speed_data:
+                    # Alternative dictionary format
+                    suggested_speed = float(speed_data['value'])
+        
+            # Format to 3 decimal places if conversion was successful
+            if suggested_speed is not None:
+                formatted_speed = round(suggested_speed, 3)
+                add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.3f} mph")
+                return formatted_speed
+            else:
+                add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
+            
+        except ValueError as e:
+            add_to_message_log(f"ERROR: Invalid speed format - {e}", "ERROR")
         except Exception as e:
-            print(f"Error syncing speed to Test UI: {e}")
+            add_to_message_log(f"ERROR: Processing CTC speed message - {e}", "ERROR")
+    
+    return None
 
 class Clock:
     def __init__(self):
@@ -267,8 +255,8 @@ class UITestData:
             },
         "switches": {
             "Switch 12-13": {"condition": "Normal", "direction": "Section C-D(12-13)"},
-            "Switch 28-29": {"condition": "Normal", "direction": "Section F-G (28-29)"},
-            "Switch 57-Yard": {"condition": "Normal", "direction": "Section I-J (57-Yard)"}
+            "Switch 28-29": {"condition": "Normal", "direction": "Section F-G(28-29)"},
+            "Switch 57-Yard": {"condition": "Normal", "direction": "Section I-J(57-Yard)"}
             },
         "lights": {
             "Light 12": {"condition": "Normal", "signal": "Green"},
@@ -308,25 +296,31 @@ class UITestData:
             "69": "L", "70": "L", "71": "L", "72": "L", "73": "L"
         }
 
-           # Sample block data: [Occupied, Line, Block]
-        self.block_data = self.load_complete_track_data("green_line.txt")
+        self.filtered_track_data = self.track_data.copy()
+
+        # Initialize block_data (make sure this exists too)
+        self.block_data = []  # Add your actual block data here
         self.filtered_block_data = self.block_data.copy()
 
-    
-         # Initialize filtered_track_data by copying track_data
-        self.filtered_track_data = self.track_data.copy()
-   
-        # Initialize block_data (make sure this exists too)
-        # self.block_data = []  # Add your actual block data here
-        self.filtered_block_data = self.block_data.copy()
+           # Sample block data: [Occupied, Line, Block]
+        load_data = self.load_complete_track_data("green_line.txt")
+        if load_data and isinstance(load_data, list):
+            self.block_data = load_data
+            self.filtered_block_data = self.block_data.copy()
+        # if self.block_data: self.filter_block_data.copy()        
+        else: 
+            self.block_data = []
+            self.filtered_block_data = self.block_data.copy()
 
         # SOCKET SERVER
-        self.server1 = TrainSocketServer(port=12345, ui_id="WC_HW_MainUI")
-        self.server1.set_allowed_connections(["WC_HW_TestUI", "ui_3"])
+        self.server1 = TrainSocketServer(port=12344, ui_id="WC_HW_MainUI")
+        self.server1.set_allowed_connections(["WC_HW_TestUI", "ui_3", "CTC_MainScreenUI"])
         self.server1.start_server(_process_message)
         
         # Connect to other UIs
         self.server1.connect_to_ui('localhost', 12346, "WC_HW_TestUI")
+        self.server1.connect_to_ui('localhost', 12341, "CTC_MainScreenUI")
+        self.server1.connect_to_ui('localhost', 12345, "UI_Structure")
 
         # Current line
         self.current_line = "Green"
@@ -338,9 +332,9 @@ class UITestData:
 
         self.maintenance_changes = {
             "switches": True,
-            "lights": False,
-            "crossing": False,
-            "block_occupancy": False
+            "lights": True,
+            "crossing": True,
+            "block_occupancy": True
         }
 
         # Call this after a short delay
@@ -353,43 +347,49 @@ class UITestData:
 
         try:
             import os
-        
-            print(f"Loading track data from: {filename}")
-            print(f"File exists: {os.path.exists(filename)}")
-            print(f"block_sections defined: {hasattr(self, 'block_sections')}")
+            # Debug statments:
+            # print(f"Loading track data from: {filename}")
+            # print(f"File exists: {os.path.exists(filename)}")
+            # print(f"block_sections defined: {hasattr(self, 'block_sections')}")
 
         # Simple file read
             with open(filename, 'r') as file:
                 lines = file.readlines()
         
             # print(f"SUCCESS: Read {len(lines)} lines from {filename}")
-            
+            start_line = 0
+            if len(lines) > 0 and "Line,Section,Block,Infrastructure" in lines[0]:
+                start_line = 1  # Skip header line
+
             for line in lines[1:]:  # Skip header line
                     line = line.strip()
                     if line:
-                        parts = line.split(',')
-                    if len(parts) >= 3:
-                        line_name = parts[0].strip()
-                        block_number = parts[1].strip()
-                        infrastructure = parts[2].strip()
+                        # parts = line.split(',')
+                        parts = [part.strip() for part in line.split(',')]
+                    
+                    if len(parts) >= 5: # at least 7 columns?
+                        line_name = parts[0]
+                        section_name = parts[1]
+                        block_number = parts[2]
+                        infrastructure = parts[4] if len(parts) > 6 else ""
                         
-                        # Get section letter from mapping (empty string if not in your list)
-                        section = self.block_sections.get(block_number, "")
+                    block_entry = ["No", line_name, block_number, section, infrastructure]
+                    complete_data.append(block_entry)
+                    
+                    # Get section letter from mapping (empty string if not in your list)
+                    # section = self.block_sections.get(block_number, "")
                         
                         # Create block entry in your format
-                        block_entry = ["No", line_name, block_number, section, infrastructure]
-                        complete_data.append(block_entry)
+                        
             
-                        print(f"DEBUG: Added block {block_number}: {block_entry}")
-                    else:
-                        print(f"DEBUG: Skipping line {line_num} - not enough parts: {parts}")            
+            # Debug statements: printing data read from green.txt
+                    #     print(f"DEBUG: Added block {block_number}: {block_entry}")
+                    # else:
+                    #     print(f"DEBUG: Skipping line {line_num} - not enough parts: {parts}")            
             
-            print(f"Loaded complete track data for {len(complete_data)} blocks")
-            return complete_data
+            # print(f"Loaded complete track data for {len(complete_data)} blocks")
+            # return complete_data
 
-        except FileNotFoundError:
-            print(f"Error: File {filename} not found")
-            return []
         except Exception as e:
             print(f"Error loading complete track data: {e}")
             return []
@@ -517,6 +517,7 @@ class UITestData:
         if not search_term or search_term.strip() == "":
             self.filtered_block_data = self.block_data.copy()
         else:
+            search_term = search_term.lower()
             self.filtered_block_data = [
                 row for row in self.block_data
                 if any(search_term in str(cell).lower() for cell in row)
@@ -527,6 +528,123 @@ class UITestData:
         if not self.maintenance_mode:
             return False
         return self.maintenance_changes.get(component_type, False)
+
+    def handle_ctc_message(self, message_data):
+        """Unified handler for all CTC messages"""
+        try:
+            command = message_data.get('command')
+            value = message_data.get('value')
+            
+            if command == 'update_speed_auth':
+                # Handle speed+authority updates from CTC schedule screen
+                self._handle_speed_auth_update(value)
+                
+            elif command == 'ctc_suggestion':
+                # Handle old format speed-only messages
+                self._handle_old_ctc_suggestion(value)
+                
+            elif command == 'set_block_occupancy':
+                # Handle block occupancy
+                self._handle_block_occupancy(value)
+                
+            # Add other commands as needed
+                
+        except Exception as e:
+            add_to_message_log(f"ERROR handling CTC message: {e}", "ERROR")
+
+    def _handle_speed_auth_update(self, data):
+        """Handle speed and authority updates from CTC"""
+        try:
+            if isinstance(data, dict):
+                track = data.get('track', '').strip()
+                block = data.get('block', '').strip()
+                speed_str = data.get('speed', '0').strip()
+                authority_str = data.get('authority', '0').strip()
+                value_type = data.get('value_type', '').strip()
+            
+                # Only process if it's for the current line
+                if track.lower() != self.current_line.lower():
+                    print(f"Ignoring update for different line: {track} (we're on {self.current_line})")
+                    return
+            
+                # Convert speed to float
+                try:
+                    speed = float(speed_str)
+                    formatted_speed = round(speed, 3)
+                except ValueError:
+                    print(f"Invalid speed value: {speed_str}")
+                    formatted_speed = 0.0
+            
+                # Convert authority to int
+                try:
+                    authority = int(authority_str)
+                except ValueError:
+                    print(f"Invalid authority value: {authority_str}")
+                    authority = 0
+            
+                print(f"CTC Update: Block {block}, Speed: {formatted_speed}, Authority: {authority}, Type: {value_type}")
+            
+                # Update the display
+                if value_type == 'suggested':
+                    # Update suggested values in right panel
+                    if hasattr(right_panel, 'update_suggested_speed'):
+                        right_panel.update_suggested_speed(formatted_speed)
+                    if hasattr(right_panel, 'update_suggested_authority'):
+                        right_panel.update_suggested_authority(authority)
+                
+                    # Also log the update
+                    add_to_message_log(f"CTC Suggested Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks for Block {block}")
+            
+                elif value_type == 'commanded':
+                    # Update commanded values
+                    if hasattr(right_panel, 'auth_entry'):
+                        right_panel.auth_entry.delete(0, tk.END)
+                        right_panel.auth_entry.insert(0, f"{authority} blocks")
+                
+                    if hasattr(right_panel, 'speed_entry'):
+                        right_panel.speed_entry.delete(0, tk.END)
+                        right_panel.speed_entry.insert(0, f"{formatted_speed:.3f} mph")
+                
+                    add_to_message_log(f"CTC Commanded Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks for Block {block}")
+            
+        except Exception as e:
+            print(f"Error handling speed/auth update: {e}")
+            add_to_message_log(f"ERROR processing CTC update: {e}", "ERROR")
+
+    def _handle_old_ctc_suggestion(self, speed_data):
+        """Handle old format CTC speed-only messages (backward compatibility)"""
+        try:
+            # This is your original handle_ctc_suggested_speed logic
+            suggested_speed = None
+        
+            if isinstance(speed_data, str):
+                if "float:" in speed_data:
+                    import re
+                    float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_data)
+                    if float_match:
+                        suggested_speed = float(float_match.group(1))
+                else:
+                    suggested_speed = float(speed_data)
+                
+            elif isinstance(speed_data, dict):
+                if 'Suggested_speed' in speed_data:
+                    speed_value = speed_data['Suggested_speed']
+                    if isinstance(speed_value, str) and "float:" in speed_value:
+                        speed_str = speed_value.split("float:")[1].strip()
+                        suggested_speed = float(speed_str)
+                    else:
+                        suggested_speed = float(speed_value)
+                elif 'value' in speed_data:
+                    suggested_speed = float(speed_data['value'])
+        
+            if suggested_speed is not None:
+                formatted_speed = round(suggested_speed, 3)
+                if hasattr(right_panel, 'update_suggested_speed'):
+                    right_panel.update_suggested_speed(formatted_speed)
+                add_to_message_log(f"CTC Speed (old format): {formatted_speed:.3f} mph")
+            
+        except Exception as e:
+            add_to_message_log(f"ERROR processing old CTC format: {e}", "ERROR")
 
 # Create mock data instance
 test_data = UITestData()
@@ -554,9 +672,9 @@ try:
     print(f"Current working directory: {current_dir}")
     
     # List all files in current directory
-    print("Files in current directory:")
-    for file in os.listdir(current_dir):
-        print(f"  - {file}")
+    # print("Files in current directory:")
+    # for file in os.listdir(current_dir):
+    #     print(f"  - {file}")
     
     # Check if file exists
     logo_path = "/home/siram/TRAINS-TEAM2/blt logo.png"
@@ -823,9 +941,9 @@ try:
     print(f"Current working directory: {current_dir}")
     
     # List all files in current directory
-    print("Files in current directory:")
-    for file in os.listdir(current_dir):
-        print(f"  - {file}")
+    # print("Files in current directory:")
+    # for file in os.listdir(current_dir):
+    #     print(f"  - {file}")
     
     # Check if file exists in TRAINS-TEAM2 folder
     image_path = "/home/siram/TRAINS-TEAM2/Red and Green Line.png"
@@ -1127,10 +1245,11 @@ class LeftPanel(tk.Frame):
             self.data.filtered_track_data = {
                 "crossings": {},
                 "switches": {},
-                "lights": {}
+                "lights": {},
+                "occupancy": {}
             }
         if not hasattr(self.data, 'track_data'):
-            self.data.track_data = self.data.filtered_track_data
+            self.data.track_data = self.data.filtered_track_data.copy()
 
     def update_switch_options(self):
         """Update combobox options based on current line"""
@@ -1319,6 +1438,10 @@ class RightPanel(tk.Frame):
         self.pack_propagate(False)
         self.data = data
         
+        #attributes for suggested speed/authority
+        self.suggested_speed_label = None
+        self.suggested_authority_label = None
+        # self.create_suggested_section()
 
         # Connect line change callback
         self.data.on_line_change.append(self.on_line_changed)
@@ -1341,7 +1464,7 @@ class RightPanel(tk.Frame):
         tk.Label(block_frame, text="Block", bg='#cccccc').pack(side=tk.LEFT, padx=5)
        
         # Update block combo based on current line
-        self.block_combo = ttk.Combobox(block_frame, width=10, state='readonly')
+        self.block_combo = ttk.Combobox(block_frame, width=15, state='readonly')
         self.block_combo.pack(side=tk.LEFT, padx=5)
         self.update_block_options()
 
@@ -1371,12 +1494,13 @@ class RightPanel(tk.Frame):
         suggested_frame = tk.LabelFrame(self, text="Suggested:",
                                        bg='#cccccc', font=('Arial', 10, 'bold'))
         suggested_frame.pack(fill=tk.X, pady=5)
-       
+       # Authority:
         tk.Label(suggested_frame, text="Authority:", bg='#cccccc').pack(anchor='w', padx=5)
-        tk.Label(suggested_frame, text="2 blocks", bg='white',
+        tk.Label(suggested_frame, text="0 blocks", bg='white',
                 relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
+        #Speed:
         tk.Label(suggested_frame, text="Speed:", bg='#cccccc').pack(anchor='w', padx=5)
-        tk.Label(suggested_frame, text="38 mph", bg='white',
+        tk.Label(suggested_frame, text="0.000 mph", bg='white',
                 relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
    
     def create_commanded_section(self):
@@ -1431,7 +1555,7 @@ class RightPanel(tk.Frame):
                 self.suggested_speed_label.config(text=formatted_speed)
                 add_to_message_log(f"Suggested Speed updated to: {formatted_speed}")
             else:
-                add_to_message_log("ERROR: Invalid speed value received", "ERROR")
+                add_to_message_log(f"ERROR: Invalid speed value received", "ERROR")
         except Exception as e:
             add_to_message_log(f"ERROR updating speed display: {e}", "ERROR")
 
@@ -1442,8 +1566,8 @@ class RightPanel(tk.Frame):
                 formatted_authority = f"{authority_value} blocks"
                 self.suggested_authority_label.config(text=formatted_authority)
                 add_to_message_log(f"Suggested Authority updated to: {formatted_authority}")
-            else:
-                add_to_message_log("ERROR: Invalid authority value received", "ERROR")
+            # else:
+            #     add_to_message_log("ERROR: Invalid authority value received", "ERROR")
         except Exception as e:
             add_to_message_log(f"ERROR updating authority display: {e}", "ERROR")
    ############################################################################################################################
@@ -1461,16 +1585,17 @@ class RightPanel(tk.Frame):
     # Create scrollable table with fixed height
         table_container = tk.Frame(self, bg='white', relief=tk.SUNKEN, borderwidth=2, height=300)
         table_container.pack(fill=tk.BOTH, expand=True, pady=5)
-        # table_container.pack_propagate(False)  # Prevent container from shrinking
-   
-    # Create a frame for canvas and scrollbar
-        scroll_frame = tk.Frame(table_container, bg='white')
-        scroll_frame.pack(fill=tk.BOTH, expand=True)
+        table_container.pack_propagate(False)  # Prevent container from shrinking
    
     # Canvas and scrollbar
-        canvas = tk.Canvas(scroll_frame, bg='white', highlightthickness=0)
-        scrollbar = tk.Scrollbar(scroll_frame, orient="vertical", command=canvas.yview)
+        canvas = tk.Canvas(table_container, bg='white', highlightthickness=0, width=350)
+        scrollbar = tk.Scrollbar(table_container, orient="vertical", command=canvas.yview)
         self.block_table_frame = tk.Frame(canvas, bg='white')
+    
+    # # Create a frame for canvas and scrollbar
+        # scroll_frame = tk.Frame(table_container, bg='white')
+        # scroll_frame.pack(fill=tk.BOTH, expand=True)
+   
    
     # Configure scrolling
         self.block_table_frame.bind(
@@ -1482,25 +1607,31 @@ class RightPanel(tk.Frame):
         canvas.configure(yscrollcommand=scrollbar.set)
    
     # Pack canvas and scrollbar
+    # def configure_canvas(event):
+    #     canvas.itemconfig(canvas_window, width=event.width)
+    #     canvas.bind("<Configure>", configure_canvas)
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
    
     # Add mousewheel scrolling
-    def _on_mousewheel(event):
+    def _on_mousewheel(self, event):
         canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-    
-        canvas.bind("<MouseWheel>", _on_mousewheel)
-        self.block_table_frame.bind("<MouseWheel>", _on_mousewheel)
 
         # Force the table to be created immediately with ALL data
         self.block_search_var.set("")  # Clear any search text
         self.data.filter_block_data("")  # Show all data
-
+        return "break" # Prevent default scrolling
+    
+        canvas.bind("<MouseWheel>", _on_mousewheel)
+        self.block_table_frame.bind("<MouseWheel>", _on_mousewheel)
+        table_container.bind("<MouseWheel>", _on_mousewheel)
+        # self.block_search_var.set("")  # Clear any search text
+        self.data.filter_block_data("")  # Show all data
         self.create_block_table()
-   
+
     def create_block_table(self):
         print(f"DEBUG: Creating block table in frame: {self.block_table_frame}")
-        print(f"DEBUG: Frame width: {self.block_table_frame.winfo_width()}, height: {self.block_table_frame.winfo_height()}")
+        # print(f"DEBUG: Frame width: {self.block_table_frame.winfo_width()}, height: {self.block_table_frame.winfo_height()}")
 
     # Clear existing widgets
         for widget in self.block_table_frame.winfo_children():
@@ -1513,19 +1644,6 @@ class RightPanel(tk.Frame):
             # print(f"DEBUG: First row: {block_data[0]}")
             # print(f"DEBUG: Row structure: {[len(row) for row in block_data]}")
 
-    # # Check if we have data
-    #     if not block_data:
-    #         tk.Label(self.block_table_frame, text="No block data available", 
-    #                 bg='white', fg='red').pack(pady=20)
-    #         print("WARNING: No block data, using sample data")
-    #         block_data = [
-    #         ["No", "Green", "74", "M", ""],
-    #         ["No", "Green", "75", "M", ""],
-    #         ["No", "Green", "76", "M", ""],
-    #         ["No", "Green", "77", "N", "STATION; MT LEBANON"],
-    #         ["No", "Green", "108", "T", "RAILWAY CROSSING"]
-    #         ]
-    #     return
     # Headers - 4 columns
         headers_frame = tk.Frame(self.block_table_frame, bg='#cccccc')
         headers_frame.pack(fill=tk.X)
@@ -1533,21 +1651,22 @@ class RightPanel(tk.Frame):
     # define consistent widths for all columns
         col_widths = {
             'occupied': 8,
-            'line': 6,
-            'block': 6,
-            'section': 8,
-            'infrastructure': 15
+            'line': 4,
+            'block': 5,
+            'section': 6,
+            'infrastructure': 14
         }
 
         tk.Label(headers_frame, text="Occupied", bg='#cccccc',
             font=('Arial', 8, 'bold'), width=col_widths['occupied']).pack(side=tk.LEFT, padx=1)
         tk.Label(headers_frame, text="Line", bg='#cccccc',
-            font=('Arial', 8, 'bold'), width=col_widths['line']).pack(side=tk.LEFT, padx=2)
+            font=('Arial', 8, 'bold'), width=col_widths['line']).pack(side=tk.LEFT, padx=1)
         tk.Label(headers_frame, text="Block", bg='#cccccc',
-            font=('Arial', 8, 'bold'), width=col_widths['block']).pack(side=tk.LEFT, padx=2)
+            font=('Arial', 8, 'bold'), width=col_widths['block']).pack(side=tk.LEFT, padx=1)
         tk.Label(headers_frame, text="Section", bg='#cccccc',
-            font=('Arial', 8, 'bold'), width=col_widths['section']).pack(side=tk.LEFT, padx=2)
-   
+            font=('Arial', 8, 'bold'), width=col_widths['section']).pack(side=tk.LEFT, padx=1)
+        tk.Label(headers_frame, text="Infrastructure", bg='#cccccc',
+            font=('Arial', 8, 'bold'), width=col_widths['infrastructure']).pack(side=tk.LEFT, padx=1)
     # Data rows
         self.block_combos = []  # Store references to comboboxes
 
@@ -1558,60 +1677,59 @@ class RightPanel(tk.Frame):
             # print(f"DEBUG: Processing row {row_index}: {row}")
             row_frame = tk.Frame(self.block_table_frame, bg='white')
             row_frame.pack(fill='x', pady=1)
-        try:
-            while len(row) < 5:
-                row.append("")  # Add empty strings for missing columns
+            try:
+                while len(row) < 5:
+                    row.append("")  # Add empty strings for missing columns
 
-            if self.data.maintenance_mode:
+                if self.data.maintenance_mode:
             # Editable in maintenance mode - OCCUPIED COMBO
-                occ_combo = ttk.Combobox(row_frame, values=["Yes", "No"], width=col_widths['occupied']-2)
-                occ_combo.set(row[0])
-                occ_combo.pack(side=tk.LEFT, padx=1)
+                    occ_combo = ttk.Combobox(row_frame, values=["Yes", "No"], width=col_widths['occupied']-2)
+                    occ_combo.set(row[0])
+                    occ_combo.pack(side=tk.LEFT, padx=1)
 
             # Bind the change event to update data model
-                occ_combo.bind('<<ComboboxSelected>>',
-                    lambda event, idx=row_index, combo=occ_combo:
-                    self.on_block_data_change(idx, 0, combo.get()))
+                    occ_combo.bind('<<ComboboxSelected>>',
+                        lambda event, idx=row_index, combo=occ_combo:
+                        self.on_block_data_change(idx, 0, combo.get()))
            
             # LINE - READ ONLY (track color should not change)
-                bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
-                tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
+                    bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
+                    tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
            
             # Block number (read-only)
-                tk.Label(row_frame, text=row[2], bg='white', width=col_widths['block'],
+                    tk.Label(row_frame, text=row[2], bg='white', width=col_widths['block'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
             
             # Section letter (read-only)
-                tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
+                    tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
              
             #  Infrastructure (read-only) 
-                tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
+                    tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
             # Store combos for potential access
-                self.block_combos.append(occ_combo)
+                    self.block_combos.append(occ_combo)
            
-            else:
-            # Read-only in normal mode - all labels
+                else:
             # print(f"DEBUG: Creating normal mode labels for block {row[2]}")
-                tk.Label(row_frame, text=row[0], bg='white', width=col_widths['occupied'],
+                    tk.Label(row_frame, text=row[0], bg='white', width=col_widths['occupied'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
             
-                bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
-                tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
+                    bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
+                    tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
             
-                tk.Label(row_frame, text=row[2], bg='white', width=col_widths['block'],
+                    tk.Label(row_frame, text=row[2], bg='white', width=col_widths['block'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
             
-                tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
+                    tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
 
-                tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
-                borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-        except Exception as e:
-            print(f"Error creating row {row_index}: {e} - Row data: {row}")
+                    tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
+                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+            except Exception as e:
+                print(f"Error creating row {row_index}: {e} - Row data: {row}")
     
         # if i < 3:  # Debug first 3 rows
         #     print(f"DEBUG: Created row {i}: {row}")
@@ -1636,84 +1754,7 @@ class RightPanel(tk.Frame):
         self.create_block_table()
 #############################################################################################################
 ################################################################################################################
-    class CTCSpeedHandler:
-        """Handles CTC suggested speed messages with clear, modular methods"""
     
-    # @staticmethod
-    def extract_speed_from_string(speed_string):
-        """Extract speed value from string format"""
-        try:
-            # Handle "float: 45.5" format
-            if "float:" in speed_string:
-                import re
-                float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_string)
-                if float_match:
-                    return float(float_match.group(1))
-            
-            # Handle direct number string
-            return float(speed_string)
-            
-        except (ValueError, TypeError):
-            return None
-    
-    # @staticmethod
-    def extract_speed_from_dict(speed_dict):
-        """Extract speed value from dictionary format"""
-        try:
-            # Try different possible dictionary keys
-            if 'Suggested_speed' in speed_dict:
-                speed_value = speed_dict['Suggested_speed']
-                if isinstance(speed_value, str):
-                    return CTCSpeedHandler.extract_speed_from_string(speed_value)
-                else:
-                    return float(speed_value)
-                    
-            elif 'value' in speed_dict:
-                return float(speed_dict['value'])
-                
-            elif 'speed' in speed_dict:
-                return float(speed_dict['speed'])
-                
-        except (ValueError, TypeError, KeyError):
-            return None
-    
-    # @staticmethod
-    def format_speed_value(speed):
-        """Format speed to 3 decimal places"""
-        if speed is not None:
-            return round(float(speed), 3)
-        return None
-    
-    # @staticmethod
-    def handle_ctc_speed_message(speed_data):
-        """
-        Main method to handle CTC speed messages
-        Returns formatted speed value or None if invalid
-        """
-        print(f"DEBUG: Processing CTC speed data: {speed_data}")
-        
-        extracted_speed = None
-        
-        # Handle different input types
-        if isinstance(speed_data, str):
-            extracted_speed = CTCSpeedHandler.extract_speed_from_string(speed_data)
-            
-        elif isinstance(speed_data, dict):
-            extracted_speed = CTCSpeedHandler.extract_speed_from_dict(speed_data)
-            
-        elif isinstance(speed_data, (int, float)):
-            extracted_speed = float(speed_data)
-        
-        # Format the speed value
-        formatted_speed = CTCSpeedHandler.format_speed_value(extracted_speed)
-        
-        # Log the result
-        if formatted_speed is not None:
-            add_to_message_log(f"CTC Suggested Speed Processed: {formatted_speed:.3f} mph")
-        else:
-            add_to_message_log(f"ERROR: Could not process CTC speed data: {speed_data}", "ERROR")
-        
-        return formatted_speed
 #############################################################################################################
 ################################################################################################################
 # Create the right panel with mock data

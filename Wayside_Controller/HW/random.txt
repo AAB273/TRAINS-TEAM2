@@ -1,3 +1,15 @@
+<<<<<<< HEAD
+python C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\HW\WC_HW_MainUI
+=======
+DEBUG: Creating block table in frame: .!frame2.!frame.!rightpanel.!frame3.!canvas.!frame
+DEBUG: Creating block table in frame: .!frame2.!frame.!rightpanel.!frame3.!canvas.!frame
+
+
+
+
+
+>>>>>>> 381b7ee082769d123b92458b3bff27eef8e76089
+
 import json    
 from pathlib import Path 
 
