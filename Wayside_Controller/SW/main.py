@@ -150,9 +150,7 @@ class RailwayControlSystem:
             self.data.update_track_data("light_states", light_name, "signal", color)
             self.data.update_track_data("light_states", light_name, "condition", f"Signal: {color}")
 
-            # Send switch state to Track Model
-            self.send_light_state(track, block, color)
-
+           
     def send_light_state(self,track, block, color):
         """Send Light State to CTC and Track Model"""
         message = {
@@ -293,10 +291,9 @@ class RailwayControlSystem:
 
         self.data.on_line_change.append(self.right_panel.on_line_changed) 
         self.data.on_line_change.append(self.header.update_tab_appearance)
-
 '''
 def test_block_occupancy(app):
-    ###Test block occupancy functionality###
+    #####Test block occupancy functionality
     print("\n=== Testing Block Occupancy ===")
     
     # Test Case 1: Set block to occupied
@@ -379,8 +376,8 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = RailwayControlSystem(root)
     # Run test after UI loads
-    def run_test():
-        test_block_occupancy(app)
+    #def run_test():
+        #test_block_occupancy(app)
     
-    root.after(2000, run_test)  # Wait 2 seconds for UI to initialize
+    #root.after(2000, run_test)  # Wait 2 seconds for UI to initialize
     root.mainloop()
