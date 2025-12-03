@@ -471,7 +471,7 @@ class RailwayData:
         """Set maintenance mode and notify all UI components"""
         self.maintenance_mode = mode
         mode_text = "activated" if mode else "deactivated"
-        print(f"🔧 Maintenance mode {mode_text}")
+        print(f"Maintenance mode {mode_text}")
         for callback in self.on_maintenance_mode_change:
             callback()
     
