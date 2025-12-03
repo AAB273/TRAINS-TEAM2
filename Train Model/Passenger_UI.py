@@ -131,8 +131,8 @@ class TrainModelPassengerGUI:
                             self.current_train.set_service_brake(False)
                 elif command == 'set_passenger_count':
                     self.current_train.set_passenger_count(value)
-            #  elif command == 'horn':
-            #     playsound('C:\Users\wolfm\OneDrive - University of Pittsburgh\Desktop\Trains GIT Location\TRAINS-TEAM2\Train Model\diesel-horn-02-98042.mp3')
+                elif command == 'horn':
+                    playsound('Train Model\diesel-horn-02-98042.mp3')
                 elif command == 'set_speed_limit':
                     self.current_train.set_speed_limit(value)
                 elif command == 'set_elevation':

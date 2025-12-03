@@ -263,38 +263,76 @@ class UITestData:
         # Initialize ALL data attributes first
         self.track_data = {
             "crossings": {
-                "Railway Crossing: 108": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
+            "Railway Crossing: 19": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
             },
-            "switches": {
-                "Switch 76-77": {"condition": "Normal", "direction": "Blocks 76-77"},
-                "Switch 85-86": {"condition": "Normal", "direction": "Blocks 85-86"}
+        "switches": {
+            "Switch 12-13": {"condition": "Normal", "direction": "Section C-D(12-13)"},
+            "Switch 28-29": {"condition": "Normal", "direction": "Section F-G(28-29)"},
+            "Switch 57-Yard": {"condition": "Normal", "direction": "Section I-J(57-Yard)"}
             },
-            "lights": {
-                "Light 76": {"condition": "Normal", "signal": "Green"},
-                "Light 85": {"condition": "Normal", "signal": "Yellow"},
-                "Light 108": {"condition": "Normal", "signal": "Red"}
+        "lights": {
+            "Light 12": {"condition": "Normal", "signal": "Green"},
+            "Light 28": {"condition": "Normal", "signal": "Yellow"},
+            "Light 57": {"condition": "Normal", "signal": "Red"},
+            "Light 19": {"condition": "Normal", "signal": "Red"}
             }
         }
 
-           # Sample block data: [Occupied, Line, Block]
-        self.block_data = self.load_complete_track_data("green_line.txt")
+        # Updated block_sections mapping for Green Line A-L
+        self.block_sections = {
+        # Section A
+            "1": "A", "2": "A", "3": "A",
+        # Section B
+            "4": "B", "5": "B", "6": "B",
+        # Section C
+            "7": "C", "8": "C", "9": "C", "10": "C", "11": "C", "12": "C",
+        # Section D
+            "13": "D", "14": "D", "15": "D", "16": "D",
+        # Section E
+            "17": "E", "18": "E", "19": "E", "20": "E",
+        # Section F
+            "21": "F", "22": "F", "23": "F", "24": "F", "25": "F", "26": "F", "27": "F", "28": "F",
+        # Section G
+            "29": "G", "30": "G", "31": "G", "32": "G",
+        # Section H
+            "33": "H", "34": "H", "35": "H",
+        # Section I
+            "36": "I", "37": "I", "38": "I", "39": "I", "40": "I", "41": "I", "42": "I", "43": "I",
+            "44": "I", "45": "I", "46": "I", "47": "I", "48": "I", "49": "I", "50": "I", "51": "I",
+            "52": "I", "53": "I", "54": "I", "55": "I", "56": "I", "57": "I",
+        # Section J
+            "58": "J", "59": "J", "60": "J", "61": "J", "62": "J",
+        # Section K
+            "63": "K", "64": "K", "65": "K", "66": "K", "67": "K", "68": "K",
+        # Section L
+            "69": "L", "70": "L", "71": "L", "72": "L", "73": "L"
+        }
+
+        self.filtered_track_data = self.track_data.copy()
+
+        # Initialize block_data (make sure this exists too)
+        self.block_data = []  # Add your actual block data here
         self.filtered_block_data = self.block_data.copy()
 
-    
-         # Initialize filtered_track_data by copying track_data
-        self.filtered_track_data = self.track_data.copy()
-   
-        # Initialize block_data (make sure this exists too)
-        # self.block_data = []  # Add your actual block data here
-        self.filtered_block_data = self.block_data.copy()
+           # Sample block data: [Occupied, Line, Block]
+        load_data = self.load_complete_track_data("green_line.txt")
+        if load_data and isinstance(load_data, list):
+            self.block_data = load_data
+            self.filtered_block_data = self.block_data.copy()
+        # if self.block_data: self.filter_block_data.copy()        
+        else: 
+            self.block_data = []
+            self.filtered_block_data = self.block_data.copy()
 
         # SOCKET SERVER
-        self.server1 = TrainSocketServer(port=12345, ui_id="WC_HW_MainUI")
+        self.server1 = TrainSocketServer(port=12344, ui_id="WC_HW_MainUI")
         self.server1.set_allowed_connections(["WC_HW_TestUI", "ui_3"])
         self.server1.start_server(_process_message)
         
         # Connect to other UIs
         self.server1.connect_to_ui('localhost', 12346, "WC_HW_TestUI")
+        self.server1.connect_to_ui('localhost', 12341, "CTC_MainScreenUI")
+        self.server1.connect_to_ui('localhost', 12345, "UI_Structure")
 
         # Current line
         self.current_line = "Green"
@@ -306,9 +344,9 @@ class UITestData:
 
         self.maintenance_changes = {
             "switches": True,
-            "lights": False,
-            "crossing": False,
-            "block_occupancy": False
+            "lights": True,
+            "crossing": True,
+            "block_occupancy": True
         }
 
         # Call this after a short delay
@@ -321,43 +359,52 @@ class UITestData:
 
         try:
             import os
-        
-            print(f"Loading track data from: {filename}")
-            print(f"File exists: {os.path.exists(filename)}")
-            print(f"block_sections defined: {hasattr(self, 'block_sections')}")
+            # Debug statments:
+            # print(f"Loading track data from: {filename}")
+            # print(f"File exists: {os.path.exists(filename)}")
+            # print(f"block_sections defined: {hasattr(self, 'block_sections')}")
 
         # Simple file read
             with open(filename, 'r') as file:
                 lines = file.readlines()
         
             # print(f"SUCCESS: Read {len(lines)} lines from {filename}")
-            
+            start_line = 0
+            if len(lines) > 0 and "Line,Section,Block,Infrastructure" in lines[0]:
+                start_line = 1  # Skip header line
+
             for line in lines[1:]:  # Skip header line
                     line = line.strip()
                     if line:
-                        parts = line.split(',')
-                    if len(parts) >= 3:
-                        line_name = parts[0].strip()
-                        block_number = parts[1].strip()
-                        infrastructure = parts[2].strip()
+                        # parts = line.split(',')
+                        parts = [part.strip() for part in line.split(',')]
+                    
+                    if len(parts) >= 5: # at least 7 columns?
+                        line_name = parts[0]
+                        section_name = parts[1]
+                        block_number = parts[2]
+                        infrastructure = parts[4] if len(parts) > 6 else ""
                         
-                        # Get section letter from mapping (empty string if not in your list)
-                        section = self.block_sections.get(block_number, "")
+                    block_entry = ["No", line_name, block_number, section, infrastructure]
+                    complete_data.append(block_entry)
+                    
+                    # Get section letter from mapping (empty string if not in your list)
+                    # section = self.block_sections.get(block_number, "")
                         
                         # Create block entry in your format
-                        block_entry = ["No", line_name, block_number, section, infrastructure]
-                        complete_data.append(block_entry)
+                        
             
-                        print(f"DEBUG: Added block {block_number}: {block_entry}")
-                    else:
-                        print(f"DEBUG: Skipping line {line_num} - not enough parts: {parts}")            
+            # Debug statements: printing data read from green.txt
+                    #     print(f"DEBUG: Added block {block_number}: {block_entry}")
+                    # else:
+                    #     print(f"DEBUG: Skipping line {line_num} - not enough parts: {parts}")            
             
-            print(f"Loaded complete track data for {len(complete_data)} blocks")
-            return complete_data
+            # print(f"Loaded complete track data for {len(complete_data)} blocks")
+            # return complete_data
 
-        except FileNotFoundError:
-            print(f"Error: File {filename} not found")
-            return []
+        # except FileNotFoundError:
+        #     print(f"Error: File {filename} not found")
+        #     return []
         except Exception as e:
             print(f"Error loading complete track data: {e}")
             return []
@@ -485,6 +532,7 @@ class UITestData:
         if not search_term or search_term.strip() == "":
             self.filtered_block_data = self.block_data.copy()
         else:
+            search_term = search_term.lower()
             self.filtered_block_data = [
                 row for row in self.block_data
                 if any(search_term in str(cell).lower() for cell in row)
@@ -522,9 +570,9 @@ try:
     print(f"Current working directory: {current_dir}")
     
     # List all files in current directory
-    print("Files in current directory:")
-    for file in os.listdir(current_dir):
-        print(f"  - {file}")
+    # print("Files in current directory:")
+    # for file in os.listdir(current_dir):
+    #     print(f"  - {file}")
     
     # Check if file exists
     logo_path = "/home/siram/TRAINS-TEAM2/blt logo.png"
@@ -593,34 +641,70 @@ def load_line_data(line_name):
             # Update track data for green line
             test_data.track_data = {
                 "crossings": {
-                    "Railway Crossing: 108": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
+                    "Railway Crossing: 19": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
                 },
                 "switches": {
-                    "Switch 76-77": {"condition": "Normal", "direction": "Blocks 76-77"},
-                    "Switch 85-86": {"condition": "Normal", "direction": "Blocks 85-86"}
+                    "Switch 12-13": {"condition": "Normal", "direction": "Blocks 12-13"},
+                    "Switch 28-29": {"condition": "Normal", "direction": "Blocks 28-29"},
+                    "Switch 57-Yard": {"condition": "Normal", "direction": "Blocks 57-Yard"}
                 },
                 "lights": {
-                    "Light 76": {"condition": "Normal", "signal": "Green"},
-                    "Light 85": {"condition": "Normal", "signal": "Yellow"},
-                    "Light 108": {"condition": "Normal", "signal": "Red"}
+                    "Light 12": {"condition": "Normal", "signal": "Green"},
+                    "Light 28": {"condition": "Normal", "signal": "Yellow"},
+                    "Light 57": {"condition": "Normal", "signal": "Red"},
+                    "Light 19": {"condition": "Normal", "signal": "Red"}
                 }
             }
+            # Update block sections for Green Line A-L
+            test_data.block_sections = {
+                "1": "A", "2": "A", "3": "A",
+                "4": "B", "5": "B", "6": "B",
+                "7": "C", "8": "C", "9": "C", "10": "C", "11": "C", "12": "C",
+                "13": "D", "14": "D", "15": "D", "16": "D",
+                "17": "E", "18": "E", "19": "E", "20": "E",
+                "21": "F", "22": "F", "23": "F", "24": "F", "25": "F", "26": "F", "27": "F", "28": "F",
+                "29": "G", "30": "G", "31": "G", "32": "G",
+                "33": "H", "34": "H", "35": "H",
+                "36": "I", "37": "I", "38": "I", "39": "I", "40": "I", "41": "I", "42": "I", "43": "I",
+                "44": "I", "45": "I", "46": "I", "47": "I", "48": "I", "49": "I", "50": "I", "51": "I",
+                "52": "I", "53": "I", "54": "I", "55": "I", "56": "I", "57": "I",
+                "58": "J", "59": "J", "60": "J", "61": "J", "62": "J",
+                "63": "K", "64": "K", "65": "K", "66": "K", "67": "K", "68": "K",
+                "69": "L", "70": "L", "71": "L", "72": "L", "73": "L"
+            }
         else:  # Red line
-            filename = "red_line.txt"  # You'll need to create this file
-            # Update track data for red line
+            filename = "red_line.txt"
+            # Updated track data for first half of Red Line (A-G sections)
             test_data.track_data = {
                 "crossings": {
-                    "Railway Crossing: 15": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
+                    "Railway Crossing: 11": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
                 },
                 "switches": {
                     "Switch 9-10": {"condition": "Normal", "direction": "Blocks 9-10"},
-                    "Switch 13-14": {"condition": "Normal", "direction": "Blocks 13-14"}
+                    "Switch 15-16": {"condition": "Normal", "direction": "Blocks 15-16"}
                 },
                 "lights": {
                     "Light 9": {"condition": "Normal", "signal": "Green"},
-                    "Light 13": {"condition": "Normal", "signal": "Yellow"},
-                    "Light 15": {"condition": "Normal", "signal": "Red"}
+                    "Light 15": {"condition": "Normal", "signal": "Yellow"},
+                    "Light 11": {"condition": "Normal", "signal": "Red"}
                 }
+            }
+            # Update block sections for Red Line A-G
+            test_data.block_sections = {
+                # Section A
+                "1": "A", "2": "A", "3": "A",
+                # Section B
+                "4": "B", "5": "B", "6": "B",
+                # Section C
+                "7": "C", "8": "C", "9": "C",
+                # Section D
+                "10": "D", "11": "D", "12": "D",
+                # Section E
+                "13": "E", "14": "E", "15": "E",
+                # Section F
+                "16": "F", "17": "F", "18": "F", "19": "F", "20": "F",
+                # Section G
+                "21": "G", "22": "G", "23": "G"
             }
         
         # Load block data
@@ -755,9 +839,9 @@ try:
     print(f"Current working directory: {current_dir}")
     
     # List all files in current directory
-    print("Files in current directory:")
-    for file in os.listdir(current_dir):
-        print(f"  - {file}")
+    # print("Files in current directory:")
+    # for file in os.listdir(current_dir):
+    #     print(f"  - {file}")
     
     # Check if file exists in TRAINS-TEAM2 folder
     image_path = "/home/siram/TRAINS-TEAM2/Red and Green Line.png"
@@ -1059,10 +1143,11 @@ class LeftPanel(tk.Frame):
             self.data.filtered_track_data = {
                 "crossings": {},
                 "switches": {},
-                "lights": {}
+                "lights": {},
+                "occupancy": {}
             }
         if not hasattr(self.data, 'track_data'):
-            self.data.track_data = self.data.filtered_track_data
+            self.data.track_data = self.data.filtered_track_data.copy()
 
     def update_switch_options(self):
         """Update combobox options based on current line"""
@@ -1273,7 +1358,7 @@ class RightPanel(tk.Frame):
         tk.Label(block_frame, text="Block", bg='#cccccc').pack(side=tk.LEFT, padx=5)
        
         # Update block combo based on current line
-        self.block_combo = ttk.Combobox(block_frame, width=10, state='readonly')
+        self.block_combo = ttk.Combobox(block_frame, width=15, state='readonly')
         self.block_combo.pack(side=tk.LEFT, padx=5)
         self.update_block_options()
 
@@ -1393,16 +1478,17 @@ class RightPanel(tk.Frame):
     # Create scrollable table with fixed height
         table_container = tk.Frame(self, bg='white', relief=tk.SUNKEN, borderwidth=2, height=300)
         table_container.pack(fill=tk.BOTH, expand=True, pady=5)
-        # table_container.pack_propagate(False)  # Prevent container from shrinking
-   
-    # Create a frame for canvas and scrollbar
-        scroll_frame = tk.Frame(table_container, bg='white')
-        scroll_frame.pack(fill=tk.BOTH, expand=True)
+        table_container.pack_propagate(False)  # Prevent container from shrinking
    
     # Canvas and scrollbar
-        canvas = tk.Canvas(scroll_frame, bg='white', highlightthickness=0)
-        scrollbar = tk.Scrollbar(scroll_frame, orient="vertical", command=canvas.yview)
+        canvas = tk.Canvas(table_container, bg='white', highlightthickness=0, width=350)
+        scrollbar = tk.Scrollbar(table_container, orient="vertical", command=canvas.yview)
         self.block_table_frame = tk.Frame(canvas, bg='white')
+    
+    # # Create a frame for canvas and scrollbar
+        # scroll_frame = tk.Frame(table_container, bg='white')
+        # scroll_frame.pack(fill=tk.BOTH, expand=True)
+   
    
     # Configure scrolling
         self.block_table_frame.bind(
@@ -1414,25 +1500,31 @@ class RightPanel(tk.Frame):
         canvas.configure(yscrollcommand=scrollbar.set)
    
     # Pack canvas and scrollbar
+    # def configure_canvas(event):
+    #     canvas.itemconfig(canvas_window, width=event.width)
+    #     canvas.bind("<Configure>", configure_canvas)
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
    
     # Add mousewheel scrolling
-    def _on_mousewheel(event):
+    def _on_mousewheel(self, event):
         canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-    
-        canvas.bind("<MouseWheel>", _on_mousewheel)
-        self.block_table_frame.bind("<MouseWheel>", _on_mousewheel)
 
         # Force the table to be created immediately with ALL data
         self.block_search_var.set("")  # Clear any search text
         self.data.filter_block_data("")  # Show all data
-
+        return "break" # Prevent default scrolling
+    
+        canvas.bind("<MouseWheel>", _on_mousewheel)
+        self.block_table_frame.bind("<MouseWheel>", _on_mousewheel)
+        table_container.bind("<MouseWheel>", _on_mousewheel)
+        # self.block_search_var.set("")  # Clear any search text
+        self.data.filter_block_data("")  # Show all data
         self.create_block_table()
-   
+
     def create_block_table(self):
         print(f"DEBUG: Creating block table in frame: {self.block_table_frame}")
-        print(f"DEBUG: Frame width: {self.block_table_frame.winfo_width()}, height: {self.block_table_frame.winfo_height()}")
+        # print(f"DEBUG: Frame width: {self.block_table_frame.winfo_width()}, height: {self.block_table_frame.winfo_height()}")
 
     # Clear existing widgets
         for widget in self.block_table_frame.winfo_children():
@@ -1445,19 +1537,6 @@ class RightPanel(tk.Frame):
             # print(f"DEBUG: First row: {block_data[0]}")
             # print(f"DEBUG: Row structure: {[len(row) for row in block_data]}")
 
-    # # Check if we have data
-    #     if not block_data:
-    #         tk.Label(self.block_table_frame, text="No block data available", 
-    #                 bg='white', fg='red').pack(pady=20)
-    #         print("WARNING: No block data, using sample data")
-    #         block_data = [
-    #         ["No", "Green", "74", "M", ""],
-    #         ["No", "Green", "75", "M", ""],
-    #         ["No", "Green", "76", "M", ""],
-    #         ["No", "Green", "77", "N", "STATION; MT LEBANON"],
-    #         ["No", "Green", "108", "T", "RAILWAY CROSSING"]
-    #         ]
-    #     return
     # Headers - 4 columns
         headers_frame = tk.Frame(self.block_table_frame, bg='#cccccc')
         headers_frame.pack(fill=tk.X)
@@ -1465,21 +1544,22 @@ class RightPanel(tk.Frame):
     # define consistent widths for all columns
         col_widths = {
             'occupied': 8,
-            'line': 6,
-            'block': 6,
-            'section': 8,
-            'infrastructure': 15
+            'line': 4,
+            'block': 5,
+            'section': 6,
+            'infrastructure': 14
         }
 
         tk.Label(headers_frame, text="Occupied", bg='#cccccc',
             font=('Arial', 8, 'bold'), width=col_widths['occupied']).pack(side=tk.LEFT, padx=1)
         tk.Label(headers_frame, text="Line", bg='#cccccc',
-            font=('Arial', 8, 'bold'), width=col_widths['line']).pack(side=tk.LEFT, padx=2)
+            font=('Arial', 8, 'bold'), width=col_widths['line']).pack(side=tk.LEFT, padx=1)
         tk.Label(headers_frame, text="Block", bg='#cccccc',
-            font=('Arial', 8, 'bold'), width=col_widths['block']).pack(side=tk.LEFT, padx=2)
+            font=('Arial', 8, 'bold'), width=col_widths['block']).pack(side=tk.LEFT, padx=1)
         tk.Label(headers_frame, text="Section", bg='#cccccc',
-            font=('Arial', 8, 'bold'), width=col_widths['section']).pack(side=tk.LEFT, padx=2)
-   
+            font=('Arial', 8, 'bold'), width=col_widths['section']).pack(side=tk.LEFT, padx=1)
+        tk.Label(headers_frame, text="Infrastructure", bg='#cccccc',
+            font=('Arial', 8, 'bold'), width=col_widths['infrastructure']).pack(side=tk.LEFT, padx=1)
     # Data rows
         self.block_combos = []  # Store references to comboboxes
 
@@ -1490,60 +1570,59 @@ class RightPanel(tk.Frame):
             # print(f"DEBUG: Processing row {row_index}: {row}")
             row_frame = tk.Frame(self.block_table_frame, bg='white')
             row_frame.pack(fill='x', pady=1)
-        try:
-            while len(row) < 5:
-                row.append("")  # Add empty strings for missing columns
+            try:
+                while len(row) < 5:
+                    row.append("")  # Add empty strings for missing columns
 
-            if self.data.maintenance_mode:
+                if self.data.maintenance_mode:
             # Editable in maintenance mode - OCCUPIED COMBO
-                occ_combo = ttk.Combobox(row_frame, values=["Yes", "No"], width=col_widths['occupied']-2)
-                occ_combo.set(row[0])
-                occ_combo.pack(side=tk.LEFT, padx=1)
+                    occ_combo = ttk.Combobox(row_frame, values=["Yes", "No"], width=col_widths['occupied']-2)
+                    occ_combo.set(row[0])
+                    occ_combo.pack(side=tk.LEFT, padx=1)
 
             # Bind the change event to update data model
-                occ_combo.bind('<<ComboboxSelected>>',
-                    lambda event, idx=row_index, combo=occ_combo:
-                    self.on_block_data_change(idx, 0, combo.get()))
+                    occ_combo.bind('<<ComboboxSelected>>',
+                        lambda event, idx=row_index, combo=occ_combo:
+                        self.on_block_data_change(idx, 0, combo.get()))
            
             # LINE - READ ONLY (track color should not change)
-                bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
-                tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
+                    bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
+                    tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
            
             # Block number (read-only)
-                tk.Label(row_frame, text=row[2], bg='white', width=col_widths['block'],
+                    tk.Label(row_frame, text=row[2], bg='white', width=col_widths['block'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
             
             # Section letter (read-only)
-                tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
+                    tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
              
             #  Infrastructure (read-only) 
-                tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
+                    tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
             # Store combos for potential access
-                self.block_combos.append(occ_combo)
+                    self.block_combos.append(occ_combo)
            
-            else:
-            # Read-only in normal mode - all labels
+                else:
             # print(f"DEBUG: Creating normal mode labels for block {row[2]}")
-                tk.Label(row_frame, text=row[0], bg='white', width=col_widths['occupied'],
+                    tk.Label(row_frame, text=row[0], bg='white', width=col_widths['occupied'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
             
-                bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
-                tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
+                    bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
+                    tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
             
-                tk.Label(row_frame, text=row[2], bg='white', width=col_widths['block'],
+                    tk.Label(row_frame, text=row[2], bg='white', width=col_widths['block'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
             
-                tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
+                    tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
 
-                tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
-                borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-        except Exception as e:
-            print(f"Error creating row {row_index}: {e} - Row data: {row}")
+                    tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
+                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+            except Exception as e:
+                print(f"Error creating row {row_index}: {e} - Row data: {row}")
     
         # if i < 3:  # Debug first 3 rows
         #     print(f"DEBUG: Created row {i}: {row}")

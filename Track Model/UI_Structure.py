@@ -52,15 +52,35 @@ class TrackModelUI(tk.Tk):
 
         self.switch_blocks = set()
         self.switch_states = {}  # Dictionary to track switch states {block_num: direction}
+        
         # Switch routing configuration for train path determination
-        self.switch_routing = {
-            13: {"normal": 12, "reverse": 101},  # Yard switch
-            29: {"normal": 30, "reverse": 150},  # J switch
-            57: {"normal": 58, "reverse": 151},  # N switch
-            63: {"normal": 64, "reverse": 77},   # O switch
-            77: {"normal": 78, "reverse": 101},  # P switch
-            85: {"normal": 86, "reverse": 100}   # Q switch
+        # GREEN LINE SWITCHES
+        self.switch_routing_green = {
+            12: {"normal": 13, "reverse": 13},    # Switch housed at 12: (12-13; 1-13)
+            28: {"normal": 29, "reverse": 150},   # Switch housed at 28: (28-29; 150-28)
+            57: {"normal": 58, "reverse": 151},   # Switch at 58: controls 57→58 (normal) or 57→yard 151 (reverse)
+            62: {"normal": 63, "reverse": 63},    # Switch housed at 62: from main line or yard to 63
+            76: {"normal": 78, "reverse": 101},   # Switch housed at 76: controls junction at 77 (76-77-78 or 76-77-101)
+            85: {"normal": 86, "reverse": 100}    # Switch housed at 85: (85-86; 100-85)
         }
+        
+        # RED LINE SWITCHES
+        # Based on Excel: Switch notation (X-Y; Z-W) means block can route to Y (normal) or W (reverse)
+        self.switch_routing_red = {
+            9: {"normal": 10, "reverse": 75},     # Yard: continue to 10 (normal) or to yard block 75 (reverse)
+            15: {"normal": 16, "reverse": 1},     # Loop switch: 15→16 (normal) or 15→1 (reverse, closes loop)
+            27: {"normal": 28, "reverse": 76},    # Branch: 27→28 (normal) or 27→76 (reverse, to end section)
+            32: {"normal": 33, "reverse": 72},    # Branch: 32→33 (normal) or 32→72 (reverse, backward jump)
+            38: {"normal": 39, "reverse": 71},    # Branch: 38→39 (normal) or 38→71 (reverse, backward jump)
+            43: {"normal": 44, "reverse": 67},    # Branch: 43→44 (normal) or 43→67 (reverse, backward jump)
+            52: {"normal": 53, "reverse": 66},    # Loop switch: 52→53 (normal) or 52→66 (reverse, forward jump)
+            # Bidirectional entries for loop switches (allows entering from either direction)
+            1: {"normal": 2, "reverse": 16},      # From block 1: go to 2 (normal) or to 16 via switch 15 (reverse)
+            16: {"normal": 17, "reverse": 15},    # From block 16: go to 17 (normal) or to 15 (reverse, can then go to 1)
+        }
+        
+        # Default to Green Line switches (will be updated based on selected line)
+        self.switch_routing = self.switch_routing_green
         self.crossing_blocks = set()
         self.light_states = {12, 29, 76, 86}
         self.station_blocks = set()
@@ -410,6 +430,14 @@ class TrackModelUI(tk.Tk):
             
             if loaded:
                 print(f"[UI] ✅ {selected} data successfully loaded.")
+                
+                # Update switch routing based on selected line
+                if selected == "Red Line":
+                    self.switch_routing = self.switch_routing_red
+                    print(f"[UI] ✅ Switched to Red Line switch routing ({len(self.switch_routing_red)} switches)")
+                else:  # Green Line
+                    self.switch_routing = self.switch_routing_green
+                    print(f"[UI] ✅ Switched to Green Line switch routing ({len(self.switch_routing_green)} switches)")
                 
                 # Update the track diagram image
                 try:
@@ -1123,242 +1151,254 @@ class TrackModelUI(tk.Tk):
             
             # Define block marker positions for Green Line (blocks 1-150)
             self.block_marker_positions = {
-                1: (478, 21),
-                2: (486, 29),
-                3: (491, 40),
-                4: (502, 58),
-                5: (513, 66),
-                6: (531, 70),
+                1: (478, 22),
+                2: (488, 31),
+                3: (495, 42),
+                4: (506, 59),
+                5: (515, 67),
+                6: (535, 71),
                 # Blocks 7-16: adjusting by +115 instead of +265 (shifted 150 left)
-                7: (438 + 115, 67),   # 553
-                8: (458 + 115, 57),   # 573
-                9: (462 + 115, 36),   # 577
+                7: (438 + 115, 68),   # 553
+                8: (458 + 115, 60),   # 573
+                9: (462 + 115, 34),   # 577
                 10: (434 + 115, 24),  # 549
-                11: (403 + 115, 17),  # 518
+                11: (403 + 115, 18),  # 518
                 12: (376 + 115, 15),  # 491
-                13: (327 + 115, 14),  # 442
-                14: (318 + 115, 13),  # 433
-                15: (309 + 115, 15),  # 424
-                16: (302 + 115, 14),  # 417
+                13: (330 + 115, 15),  # 442
+                14: (321 + 115, 15),  # 433
+                15: (312 + 115, 15),  # 424
+                16: (303 + 115, 15),  # 417
                 # Blocks 17-28: same +115 compensation
-                17: (271 + 115, 17),  # 386
-                18: (259 + 115, 22),  # 374
-                19: (249 + 115, 32),  # 364
-                20: (243 + 115, 45),  # 358
-                21: (244 + 115, 70),  # 359
-                22: (244 + 115, 76),  # 359
-                23: (243 + 115, 82),  # 358
-                24: (243 + 115, 91),  # 358
-                25: (244 + 115, 99),  # 359
-                26: (242 + 115, 106), # 357
-                27: (243 + 115, 112), # 358
-                28: (244 + 115, 117), # 359
+                17: (274 + 115, 18),  # 386
+                18: (261 + 115, 23),  # 374
+                19: (252 + 115, 33),  # 364
+                20: (248 + 115, 48),  # 358
+                21: (247 + 115, 65),  # 359
+                22: (247 + 115, 74),  # 359
+                23: (247 + 115, 83),  # 358
+                24: (247 + 115, 92),  # 358
+                25: (247 + 115, 101),  # 359
+                26: (247 + 115, 110), # 357
+                27: (247 + 115, 119), # 358
+                28: (247 + 115, 128), # 359
                 # Blocks 29-57: +5 compensation (moved 10 left from +15)
-                29: (360 + 5, 138),  # 365
-                30: (359 + 5, 144),  # 364
-                31: (359 + 5, 151),  # 364
-                32: (360 + 5, 158),  # 365
-                33: (361 + 5, 179),  # 366
-                34: (365 + 5, 191),  # 370
-                35: (374 + 5, 202),  # 379
-                36: (398 + 5, 210),  # 403
-                37: (404 + 5, 210),  # 409
+                29: (357 + 5, 138),  # 365
+                30: (357 + 5, 147),  # 364
+                31: (357 + 5, 156),  # 364
+                32: (357 + 5, 165),  # 365
+                33: (359 + 5, 179),  # 366
+                34: (365 + 5, 194),  # 370
+                35: (377 + 5, 206),  # 379
+                36: (394 + 5, 210),  # 403
+                37: (402 + 5, 210),  # 409
                 38: (410 + 5, 210),  # 415
-                39: (415 + 5, 210),  # 420
-                40: (421 + 5, 211),  # 426
-                41: (427 + 5, 210),  # 432
-                42: (433 + 5, 211),  # 438
-                43: (439 + 5, 211),  # 444
-                44: (447 + 5, 210),  # 452
-                45: (454 + 5, 211),  # 459
-                46: (460 + 5, 211),  # 465
-                47: (467 + 5, 210),  # 472
-                48: (473 + 5, 211),  # 478
-                49: (477 + 5, 210),  # 482
-                50: (485 + 5, 211),  # 490
-                51: (496 + 5, 211),  # 501
-                52: (502 + 5, 211),  # 507
-                53: (509 + 5, 209),  # 514
-                54: (516 + 5, 212),  # 521
-                55: (528 + 5, 212),  # 533
-                56: (540 + 5, 209),  # 545
-                57: (551 + 5, 209),  # 556
+                39: (418 + 5, 210),  # 420
+                40: (426 + 5, 210),  # 426
+                41: (434 + 5, 210),  # 432
+                42: (442 + 5, 210),  # 438
+                43: (450 + 5, 210),  # 444
+                44: (458 + 5, 210),  # 452
+                45: (466 + 5, 210),  # 459
+                46: (474 + 5, 210),  # 465
+                47: (482 + 5, 210),  # 472
+                48: (490 + 5, 210),  # 478
+                49: (498 + 5, 210),  # 482
+                50: (506 + 5, 210),  # 490
+                51: (514 + 5, 210),  # 501
+                52: (522 + 5, 210),  # 507
+                53: (530 + 5, 210),  # 514
+                54: (538 + 5, 210),  # 521
+                55: (546 + 5, 210),  # 533
+                56: (554 + 5, 210),  # 545
+                57: (562 + 5, 210),  # 556
                 # Blocks 58-62: Updated coordinates
-                58: (602, 213),
+                58: (599, 211),
                 59: (614, 217),
-                60: (625, 228),
-                61: (636, 241),
-                62: (644, 257),
+                60: (626, 228),
+                61: (637, 241),
+                62: (646, 258),
                 # Blocks 63-76: +122 compensation (moved 3 left from +125)
-                63: (531 + 122, 280),  # 653
-                64: (531 + 122, 296),  # 653
-                65: (530 + 122, 314),  # 652
-                66: (530 + 122, 334),  # 652
-                67: (530 + 122, 352),  # 652
-                68: (530 + 122, 372),  # 652
-                69: (531 + 122, 412),  # 653
+                63: (528 + 122, 280),  # 653
+                64: (528 + 122, 296),  # 653
+                65: (528 + 122, 314),  # 652
+                66: (528 + 122, 334),  # 652
+                67: (528 + 122, 352),  # 652
+                68: (528 + 122, 372),  # 652
+                69: (528 + 122, 410),  # 653
                 70: (525 + 122, 430),  # 647
-                71: (518 + 122, 451),  # 640
+                71: (517 + 122, 451),  # 640
                 72: (506 + 122, 466),  # 628
                 73: (491 + 122, 478),  # 613
                 74: (456 + 122, 484),  # 578
                 75: (425 + 122, 484),  # 547
-                76: (400 + 122, 482),  # 522
+                76: (396 + 122, 484),  # 522
                 # Blocks 77-104: +1 compensation (moved 2 right from -1) - PERFECT!
-                77: (477 + 1, 481),  # 478
-                78: (464 + 1, 482),  # 465
-                79: (454 + 1, 484),  # 455
-                80: (446 + 1, 483),  # 447
-                81: (438 + 1, 483),  # 439
-                82: (430 + 1, 482),  # 431
-                83: (424 + 1, 481),  # 425
-                84: (415 + 1, 484),  # 416
-                85: (408 + 1, 483),  # 409
-                86: (379 + 1, 483),  # 380
-                87: (368 + 1, 482),  # 369
-                88: (358 + 1, 483),  # 359
-                89: (337 + 1, 482),  # 338
+                77: (477 + 1, 484),  # 478
+                78: (469 + 1, 484),  # 465
+                79: (461 + 1, 484),  # 455
+                80: (453 + 1, 484),  # 447
+                81: (445 + 1, 484),  # 439
+                82: (437 + 1, 484),  # 431
+                83: (429 + 1, 484),  # 425
+                84: (421 + 1, 484),  # 416
+                85: (413 + 1, 484),  # 409
+
+                86: (378 + 1, 484),  # 380
+                87: (367 + 1, 484),  # 369
+                88: (358 + 1, 484),  # 359
+                89: (338 + 1, 483),  # 338
                 90: (328 + 1, 471),  # 329
-                91: (320 + 1, 453),  # 321
-                92: (322 + 1, 433),  # 323
-                93: (325 + 1, 419),  # 326
-                94: (330 + 1, 409),  # 331
+                91: (322 + 1, 453),  # 321
+                92: (322 + 1, 435),  # 323
+                93: (325 + 1, 420),  # 326
+                94: (332 + 1, 409),  # 331
                 95: (346 + 1, 404),  # 347
                 96: (358 + 1, 416),  # 359
-                97: (362 + 1, 432),  # 363
-                98: (367 + 1, 451),  # 368
-                99: (367 + 1, 463),  # 368
-                100: (375 + 1, 471), # 376
-                101: (496 + 1, 468), # 497
-                102: (518 + 1, 450), # 519
-                103: (530 + 1, 452), # 531
-                104: (543 + 1, 453), # 544
+                97: (364 + 1, 432),  # 363
+                98: (367 + 1, 452),  # 368
+                99: (369 + 1, 464),  # 368
+                100: (376 + 1, 472), # 376
+
+                101: (498 + 1, 468), # 497
+                102: (520 + 1, 452), # 519
+                103: (533 + 1, 452), # 531
+                104: (546 + 1, 452), # 544
+
                 # Blocks 105-150: +118 compensation (moved 2 right from +116) - PERFECT!
                 105: (452 + 118, 452), # 570
-                106: (472 + 118, 444), # 590
-                107: (488 + 118, 431), # 606
-                108: (499 + 118, 415), # 617
-                109: (505 + 118, 397), # 623
-                110: (506 + 118, 367), # 624
-                111: (504 + 118, 358), # 622
-                112: (505 + 118, 351), # 623
-                113: (505 + 118, 342), # 623
-                114: (506 + 118, 334), # 624
-                115: (507 + 118, 327), # 625
-                116: (506 + 118, 317), # 624
-                117: (505 + 118, 291), # 623
-                118: (499 + 118, 274), # 617
+                106: (472 + 118, 445), # 590
+                107: (488 + 118, 432), # 606
+                108: (500 + 118, 415), # 617
+                109: (507 + 118, 394), # 623
+
+                110: (508 + 118, 368), # 624
+                111: (508 + 118, 359), # 622
+                112: (508 + 118, 350), # 623
+                113: (508 + 118, 341), # 623
+                114: (508 + 118, 332), # 624
+                115: (508 + 118, 323), # 625
+                116: (508 + 118, 314), # 624
+
+                117: (506 + 118, 291), # 623
+                118: (499 + 118, 272), # 617
                 119: (486 + 118, 254), # 604
-                120: (469 + 118, 245), # 587
+                120: (469 + 118, 243), # 587
                 121: (450 + 118, 238), # 568
-                122: (427 + 118, 238), # 545
-                123: (422 + 118, 237), # 540
-                124: (416 + 118, 236), # 534
-                125: (409 + 118, 237), # 527
-                126: (403 + 118, 236), # 521
-                127: (397 + 118, 236), # 515
-                128: (390 + 118, 235), # 508
-                129: (385 + 118, 235), # 503
-                130: (377 + 118, 235), # 495
-                131: (370 + 118, 235), # 488
-                132: (361 + 118, 235), # 479
-                133: (356 + 118, 237), # 474
-                134: (347 + 118, 237), # 465
-                135: (340 + 118, 236), # 458
-                136: (334 + 118, 235), # 452
-                137: (327 + 118, 237), # 445
-                138: (318 + 118, 237), # 436
-                139: (313 + 118, 237), # 431
-                140: (302 + 118, 237), # 420
-                141: (294 + 118, 237), # 412
-                142: (280 + 118, 237), # 398
-                143: (272 + 118, 236), # 390
+
+                122: (438 + 118, 237), # 545
+                123: (430 + 118, 237), # 540
+                124: (422 + 118, 237), # 534
+                125: (414 + 118, 237), # 527
+                126: (406 + 118, 237), # 521
+                127: (398 + 118, 237), # 515
+                128: (390 + 118, 237), # 508
+                129: (382 + 118, 237), # 503
+                130: (374 + 118, 237), # 495
+                131: (366 + 118, 237), # 488
+                132: (358 + 118, 237), # 479
+                133: (350 + 118, 237), # 474
+                134: (342 + 118, 237), # 465
+                135: (334 + 118, 237), # 458
+                136: (326 + 118, 237), # 452
+                137: (318 + 118, 237), # 445
+                138: (310 + 118, 237), # 436
+                139: (302 + 118, 237), # 431
+                140: (294 + 118, 237), # 420
+                141: (286 + 118, 237), # 412
+                142: (278 + 118, 237), # 398
+                143: (270 + 118, 237), # 390
+
                 144: (249 + 118, 236), # 367
                 145: (232 + 118, 230), # 350
-                146: (221 + 118, 219), # 339
-                147: (219 + 118, 197), # 337
-                148: (219 + 118, 188), # 337
-                149: (219 + 118, 177), # 337
-                150: (227 + 118, 152), # 345
+                146: (223 + 118, 219), # 339
+                147: (220 + 118, 199), # 337
+                148: (220 + 118, 188), # 337
+                149: (220 + 118, 177), # 337
+                150: (229 + 118, 152), # 345
             }
             
             # Define block marker positions for Red Line (blocks 1-76 for now)
             self.block_marker_positions_red = {
-                1: (556, 125),
-                2: (566, 122),
-                3: (575, 119),
+                1: (558, 126),
+                2: (567, 122),
+                3: (576, 118),
                 4: (581, 95),
-                5: (587, 87),
-                6: (599, 81),
+                5: (589, 86),
+                6: (601, 80),
                 7: (628, 80),
-                8: (643, 86),
+                8: (644, 85),
                 9: (659, 94),
-                10: (652, 126),
-                11: (638, 129),
-                12: (621, 132),
-                13: (582, 132),
+                10: (654, 125),
+                11: (639, 131),
+                12: (621, 133),
+                13: (582, 133),
                 14: (565, 133),
                 15: (549, 133),
-                16: (531, 132),
-                17: (523, 131),
-                18: (518, 132),
-                19: (513, 133),
-                20: (510, 133),
+                
+                16: (532, 133),
+                17: (524, 133),
+                18: (516, 133),
+                19: (508, 133),
+                20: (500, 133),
                 21: (487, 135),
                 22: (478, 139),
                 23: (469, 145),
-                24: (467, 172),
-                25: (468, 179),
-                26: (468, 187),
-                27: (468, 193),
-                28: (466, 199),
-                29: (467, 205),
-                30: (467, 212),
-                31: (466, 219),
-                32: (466, 229),
-                33: (466, 233),
-                34: (466, 240),
-                35: (468, 246),
-                36: (466, 250),
-                37: (466, 256),
-                38: (467, 265),
-                39: (467, 270),
-                40: (467, 276),
-                41: (467, 283),
-                42: (467, 288),
-                43: (469, 299),
-                44: (467, 306),
-                45: (467, 315),
-                46: (467, 348),
-                47: (455, 366),
+
+                24: (466, 166),
+                25: (466, 174),
+                26: (466, 182),
+                27: (466, 190),
+                28: (466, 198),
+                29: (466, 206),
+                30: (466, 214),
+                31: (466, 222),
+                32: (466, 230),
+                33: (466, 238),
+                34: (466, 246),
+                35: (466, 254),
+                36: (466, 262),
+                37: (466, 270),
+                38: (466, 278),
+                39: (466, 286),
+                40: (466, 294),
+                41: (466, 302),
+                42: (466, 310),
+                43: (466, 318),
+                44: (466, 326),
+                45: (466, 334),
+
+                46: (466, 348),
+                47: (455, 367),
                 48: (435, 380),
-                49: (404, 383),
-                50: (396, 383),
-                51: (389, 383),
-                52: (381, 383),
-                53: (370, 383),
-                54: (364, 383),
+                49: (403, 384),
+                50: (394, 384),
+                51: (385, 384),
+                52: (376, 384),
+                53: (367, 384),
+                54: (358, 384),
+
                 55: (330, 379),
-                56: (313, 362),
+                56: (311, 362),
                 57: (301, 340),
                 58: (303, 310),
                 59: (310, 297),
-                60: (320, 284),
-                61: (345, 292),
-                62: (351, 318),
-                63: (355, 341),
-                64: (359, 367),
-                65: (366, 373),
-                66: (373, 374),
-                67: (455, 318),
-                68: (441, 301),
-                69: (440, 296),
-                70: (443, 288),
-                71: (455, 274),
+                60: (320, 286),
+                61: (343, 292),
+                62: (351, 317),
+                63: (354, 341),
+                64: (357, 367),
+                65: (365, 373),
+                66: (374, 377),
+
+                67: (454, 318),
+                68: (441, 304),
+                69: (441, 296),
+                70: (441, 288),
+                71: (454, 274),
                 72: (454, 225),
-                73: (442, 211),
-                74: (440, 206),
-                75: (441, 200),
+                73: (441, 214),
+                74: (441, 206),
+                75: (441, 198),
                 76: (454, 186),
             }
             
@@ -1943,6 +1983,46 @@ class TrackModelUI(tk.Tk):
             
             # Check if train has traveled the full block length
             if self.train_positions_in_block[train_id] >= block_length:
+                # Check if train has arrived at yard (marked while at block 57)
+                if hasattr(self, 'trains_at_yard') and train_id in self.trains_at_yard:
+                    # Train has arrived at yard - remove from service
+                    print(f"🚂 Train {train_id} Arrived at Yard - Removing from service")
+                    
+                    # Clear current block occupancy (block 57 where train is)
+                    if current_block_num <= len(self.data_manager.blocks):
+                        current_block = self.data_manager.blocks[current_block_num - 1]
+                        current_block.occupancy = 0
+                        self.send_block_occupancy_update(current_block_num, 0)
+                    
+                    # Remove from active trains
+                    if train_id in self.data_manager.active_trains:
+                        train_index = self.data_manager.active_trains.index(train_id)
+                        self.data_manager.active_trains.pop(train_index)
+                        if train_index < len(self.data_manager.train_locations):
+                            self.data_manager.train_locations.pop(train_index)
+                        if train_index < len(self.data_manager.commanded_speed):
+                            self.data_manager.commanded_speed.pop(train_index)
+                        if train_index < len(self.data_manager.commanded_authority):
+                            self.data_manager.commanded_authority.pop(train_index)
+                    
+                    # Clean up train tracking data
+                    if train_id in self.train_positions_in_block:
+                        del self.train_positions_in_block[train_id]
+                    if train_id in self.train_actual_speeds:
+                        del self.train_actual_speeds[train_id]
+                    if train_id in self.train_directions:
+                        del self.train_directions[train_id]
+                    if train_id in self.last_movement_update:
+                        del self.last_movement_update[train_id]
+                    
+                    # Remove from yard arrival set
+                    self.trains_at_yard.remove(train_id)
+                    
+                    # Update display
+                    self.update_occupied_blocks_display()
+                    
+                    continue  # Skip to next train
+                
                 # Move to next block
                 next_block = self.get_next_block(current_block_num, train_idx)
                 
@@ -2028,85 +2108,649 @@ class TrackModelUI(tk.Tk):
         # SPECIAL ROUTING RULES - BIDIRECTIONAL AND SWITCHES
         # ============================================================
         
-        # RULE 1: End of line loop return (BIDIRECTIONAL: 150 → 28)
+        
+        # RULE 1: End of line - Block 150 goes to 28
         if current_block == 150:
-            # Check switch at block 28 for loop return
-            if len(self.data_manager.blocks) > 27:
-                block_28 = self.data_manager.blocks[27]  # Block 28 at index 27
-                if hasattr(block_28, 'switch_state'):
-                    if not block_28.switch_state:  # Switch set for loop return
-                        print(f"[ROUTING] Block 150 → 28 (Loop return via switch)")
-                        return 28  # DESCENDING: 150 → 28
-                    else:
-                        # Switch not set for loop, go to block 1
-                        return 1
-            # Default: restart at beginning
-            return 1
+            print(f"[ROUTING] Block 150 → 28 (End of line return)")
+            return 28  # Go to 28 from 150
         
-        # RULE 2: Switch at block 12-13
-        elif current_block == 12:
-            if len(self.data_manager.blocks) > 11:
-                block_12 = self.data_manager.blocks[11]  # Block 12 at index 11
-                if hasattr(block_12, 'switch_state'):
-                    if block_12.switch_state:
-                        return 13  # Normal progression
-                    else:
-                        # Switch might allow different routing
-                        return 13  # For now, continue to 13
-            return 13  # Default
-        
-        # RULE 3: After loop return at block 28
+        # RULE 1b: Switch housed at block 28 controls routing from 28
+        # Excel shows: SWITCH (28-29; 150-28)
+        # Forward (from 27): 28 → 29 (if True) or 28 → 150 (if False)
+        # From 150: Block 150 → 28, then exits forward to 29 (doesn't continue backward)
         elif current_block == 28:
-            return 29  # Continue ascending after loop return
+            # Check if this train is in backward loop mode (coming from 150)
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                
+                # Check for Red Line backward mode FIRST
+                if self.train_directions.get(train_id) == 'red_backward_66_to_16':
+                    # Red Line backward mode - continue backward to 27
+                    print(f"[ROUTING] RED LINE backward: Block 28 → 27")
+                    return 27
+                
+                # Check for Green Line backward loop mode
+                if self.train_directions.get(train_id) == 'backward_loop':
+                    # Train came from 150 → 28
+                    # Clear backward loop mode and continue forward
+                    self.train_directions[train_id] = 'forward'
+                    print(f"[ROUTING] Exiting backward loop (from 150) at block 28 → 29")
+                    return 29  # Exit to 29, don't continue backward to 27
+            
+            # Normal forward routing (coming from block 27)
+            if len(self.data_manager.blocks) > 27:
+                block_28 = self.data_manager.blocks[27]  # Switch housed at block 28 (index 27)
+                if hasattr(block_28, 'switch_state'):
+                    if block_28.switch_state:  # True = Normal = To block 29
+                        return 29  # Continue forward
+                    else:  # False = Reverse = Loop to 150
+                        # Set backward loop mode to continue from 150
+                        if train_idx < len(self.data_manager.active_trains):
+                            train_id = self.data_manager.active_trains[train_idx]
+                            self.train_directions[train_id] = 'backward_loop'
+                        print(f"[ROUTING] Block 28 → 150 (Loop via switch 28)")
+                        return 150  # Send to 150
+            return 29  # Default forward to 29
+
+        # RULE 2: Switch housed at block 12 controls junction at blocks 1, 12, and 13
+        # Excel: SWITCH (12-13; 1-13)
+        # Position "12-13" (True/Normal): At block 13, enter backward loop → 12 → 11 → ... → 1 → 13
+        # Position "1-13" (False/Reverse): Allows direct route 1 → 13
         
-        # RULE 4: Switch at block 57 (Yard access)
+        elif current_block == 13:
+            # Check if train is in backward loop mode (from 150→28→27→...→13)
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                
+                # Check for Red Line backward mode FIRST
+                if self.train_directions.get(train_id) == 'red_backward_66_to_16':
+                    # Red Line backward mode - continue backward
+                    next_block = current_block - 1
+                    print(f"[ROUTING] RED LINE backward: Block {current_block} → {next_block}")
+                    return next_block
+                
+                # Check for Green Line backward loop modes
+                if self.train_directions.get(train_id) == 'backward_loop':
+                    # Continue backward loop from 13 to 12
+                    print(f"[ROUTING] Backward loop (150): Block 13 → 12")
+                    return 12
+                
+                # Check if train is in backward loop from switch 12 (13→12→...→1→13)
+                if self.train_directions.get(train_id) == 'backward_loop_12':
+                    # Continue backward through loop
+                    print(f"[ROUTING] Backward loop (switch 12): Block 13 → 12")
+                    return 12
+            
+            # Check switch at block 12 to determine routing from block 13
+            if len(self.data_manager.blocks) > 11:
+                block_12 = self.data_manager.blocks[11]  # Switch housed at block 12 (index 11)
+                if hasattr(block_12, 'switch_state'):
+                    if block_12.switch_state:  # True = "12-13" = Enter backward loop
+                        # Set backward loop mode for switch 12
+                        if train_idx < len(self.data_manager.active_trains):
+                            train_id = self.data_manager.active_trains[train_idx]
+                            self.train_directions[train_id] = 'backward_loop_12'
+                        print(f"[ROUTING] Block 13 → 12 (Entering backward loop via switch 12)")
+                        return 12
+                    else:  # False = "1-13" = Normal forward
+                        return 14  # Continue forward normally
+            return 14  # Default forward
+        
+        # RED LINE RULE: Block 9 - Yard access (RED LINE ONLY)
+        # Switch housed at block 9 controls yard access
+        # Only affects trains coming FROM block 8 (forward direction)
+        # Trains coming FROM block 10 (backward) ignore the switch
+        elif current_block == 9:
+            # Check if we're on Red Line
+            current_line = getattr(self, 'selected_line', None)
+            is_red_line = current_line and current_line.get() == "Red Line"
+            
+            if is_red_line:
+                # Check if train is going backward (from block 10)
+                if train_idx < len(self.data_manager.active_trains):
+                    train_id = self.data_manager.active_trains[train_idx]
+                    if self.train_directions.get(train_id) == 'red_backward_66_to_16':
+                        # Train is in backward mode (coming from block 10)
+                        # Ignore yard switch and continue backward to block 8
+                        print(f"[ROUTING] RED LINE backward: Block 9 → 8 (ignoring yard switch)")
+                        return 8
+                
+                # Train is going forward (from block 8)
+                # Check yard switch at block 9
+                if len(self.data_manager.blocks) > 8:
+                    block_9 = self.data_manager.blocks[8]  # Switch housed at block 9 (index 8)
+                    if hasattr(block_9, 'switch_state'):
+                        if not block_9.switch_state:  # False = Normal = Continue on main line
+                            print(f"[ROUTING] RED LINE: Block 9 → 10 (continue on main line)")
+                            return 10  # Continue to 10
+                        else:  # True = To Yard (swapped logic to match display)
+                            # Train is going to yard - mark for removal
+                            if train_idx < len(self.data_manager.active_trains):
+                                train_id = self.data_manager.active_trains[train_idx]
+                                print(f"🚂 Train {train_id} Arrived at Yard (Red Line Block 9)")
+                                
+                                # Mark this train for removal (will be handled in train movement logic)
+                                if not hasattr(self, 'trains_at_yard'):
+                                    self.trains_at_yard = set()
+                                self.trains_at_yard.add(train_id)
+                            
+                            # Return None to stop routing this train
+                            print(f"[ROUTING] RED LINE: Block 9 → Yard (train marked for removal)")
+                            return None
+            
+            # Not Red Line OR default: continue to block 10
+            return 10
+        
+        elif 2 <= current_block <= 12:
+            # Check if train is in backward loop mode (from 150→28→27→...or from switch 12)
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                
+                # Check for Red Line backward mode FIRST
+                if self.train_directions.get(train_id) == 'red_backward_66_to_16':
+                    # Red Line backward mode - continue backward
+                    next_block = current_block - 1
+                    print(f"[ROUTING] RED LINE backward: Block {current_block} → {next_block}")
+                    return next_block
+                
+                # Check for Green Line backward loop modes
+                if self.train_directions.get(train_id) in ['backward_loop', 'backward_loop_12']:
+                    # Continue backward
+                    next_block = current_block - 1
+                    print(f"[ROUTING] Backward loop: Block {current_block} → {next_block}")
+                    return next_block
+            
+            # Normal forward progression
+            return current_block + 1
+        
+        elif current_block == 1:
+            # Check if train is in backward loop mode
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                
+                # Check for Red Line backward mode FIRST
+                if self.train_directions.get(train_id) == 'red_backward_66_to_16':
+                    # Red Line backward mode - reached block 1, exit backward mode
+                    self.train_directions[train_id] = 'forward'
+                    print(f"[ROUTING] RED LINE: Reached block 1, exiting backward mode → 2")
+                    return 2
+                
+                # If in backward loop from 150, exit based on switch position
+                if self.train_directions.get(train_id) == 'backward_loop':
+                    self.train_directions[train_id] = 'forward'
+                    
+                    # Check switch at block 12 to determine where to exit
+                    if len(self.data_manager.blocks) > 11:
+                        block_12 = self.data_manager.blocks[11]  # Switch housed at block 12 (index 11)
+                        if hasattr(block_12, 'switch_state'):
+                            if not block_12.switch_state:  # False = "1-13" = Jump to 13
+                                print(f"[ROUTING] Exiting backward loop (150) at block 1 → 13 (via switch 12)")
+                                return 13
+                    
+                    # Default: continue forward to 2
+                    print(f"[ROUTING] Exiting backward loop (150) at block 1 → 2")
+                    return 2
+                
+                # If in backward loop from switch 12, exit to 13
+                if self.train_directions.get(train_id) == 'backward_loop_12':
+                    self.train_directions[train_id] = 'forward'
+                    print(f"[ROUTING] Exiting backward loop (switch 12) at block 1 → 13")
+                    return 13
+            
+            # Not in backward loop mode
+            # Check for RED LINE switch 1 routing FIRST (before Green Line switch 12)
+            current_line = getattr(self, 'selected_line', None)
+            is_red_line = current_line and current_line.get() == "Red Line"
+            
+            if is_red_line:
+                # Check switch 15 state (physical switch that controls routing from block 1)
+                if len(self.data_manager.blocks) > 14:
+                    block_15 = self.data_manager.blocks[14]  # Switch at block 15 (index 14)
+                    if hasattr(block_15, 'switch_state'):
+                        # After swap: True = "1 to 16", False = "15 to 16"
+                        if block_15.switch_state:  # True = checked = "1 to 16"
+                            # Jump to block 16
+                            print(f"[ROUTING] RED LINE: Block 1 → 16 (Switch 15 set to '1 to 16', jump)")
+                            if train_idx < len(self.data_manager.active_trains):
+                                train_id = self.data_manager.active_trains[train_idx]
+                                self.train_directions[train_id] = 'forward'
+                            return 16
+                        else:  # False = unchecked = "15 to 16"
+                            # Normal forward to block 2
+                            print(f"[ROUTING] RED LINE: Block 1 → 2 (Switch 15 set to '15 to 16', normal)")
+                            return 2
+                
+                # Default: normal forward to 2
+                return 2
+            
+            # Green Line: Check switch at block 12 for normal routing
+            if len(self.data_manager.blocks) > 11:
+                block_12 = self.data_manager.blocks[11]  # Switch housed at block 12 (index 11)
+                if hasattr(block_12, 'switch_state'):
+                    if not block_12.switch_state:  # False = "1-13" = Allow 1 → 13 shortcut
+                        print(f"[ROUTING] Block 1 → 13 (via switch 12 in '1-13' position)")
+                        return 13
+                    else:  # True = "12-13" = Normal forward progression
+                        return 2
+            
+            # Default: normal forward to 2
+            return 2
+        
+        # RULE 3: Blocks 14-27 - Handle backward loop mode from 150→28
+        elif 14 <= current_block <= 27:
+            # Check if train is in backward loop mode (from 150→28→27→...)
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                
+                # Check for Red Line backward mode FIRST
+                if self.train_directions.get(train_id) == 'red_backward_66_to_16':
+                    # Red Line backward mode - continue backward
+                    next_block = current_block - 1
+                    print(f"[ROUTING] RED LINE backward: Block {current_block} → {next_block}")
+                    return next_block
+                
+                # Check for Green Line backward loop mode
+                if self.train_directions.get(train_id) == 'backward_loop':
+                    # Continue backward
+                    next_block = current_block - 1
+                    print(f"[ROUTING] Backward loop (150): Block {current_block} → {next_block}")
+                    return next_block
+            
+            # Normal forward progression
+            return current_block + 1
+        
+        # RULE 4: Switch housed at block 58 (Yard access from block 57)
+        # Excel: SWITCH TO YARD (57-yard) - switch housed at block 58
+        # Position 1: 57 → 58 (continue on main line)
+        # Position 2: 57 → yard (train arrives at yard and is removed)
+        # NOTE: This is GREEN LINE ONLY! On Red Line, block 57 is just normal track
         elif current_block == 57:
-            if len(self.data_manager.blocks) > 56:
-                block_57 = self.data_manager.blocks[56]  # Block 57 at index 56
-                if hasattr(block_57, 'switch_state'):
-                    if not block_57.switch_state:  # Switch to yard
-                        return 58  # Enter yard section
-                    else:
-                        return 58  # Continue on main line
-            return 58  # Default progression
+            # Check if we're on Green Line
+            current_line = getattr(self, 'selected_line', None)
+            is_green_line = current_line and current_line.get() == "Green Line"
+            
+            if is_green_line:
+                # Green Line: Check yard switch at block 58
+                if len(self.data_manager.blocks) > 57:
+                    block_58 = self.data_manager.blocks[57]  # Switch housed at block 58 (index 57)
+                    if hasattr(block_58, 'switch_state'):
+                        if block_58.switch_state:  # True = Normal = Continue on main line
+                            return 58  # Continue to 58
+                        else:  # False = Reverse = Go to yard
+                            # Train is going to yard - mark for removal
+                            if train_idx < len(self.data_manager.active_trains):
+                                train_id = self.data_manager.active_trains[train_idx]
+                                print(f"🚂 Train {train_id} Arrived at Yard (Green Line)")
+                                
+                                # Mark this train for removal (will be handled in train movement logic)
+                                if not hasattr(self, 'trains_at_yard'):
+                                    self.trains_at_yard = set()
+                                self.trains_at_yard.add(train_id)
+                            
+                            # Return None to stop routing this train
+                            return None
+            
+            # Red Line OR Green Line default: continue to block 58
+            return 58
         
-        # RULE 5: From yard return at block 62
+        # RULE 5: Switch housed at block 62 (From yard)
+        # Excel: SWITCH FROM YARD (Yard-63)
+        # For now, block 62 just continues to 63
+        # (Yard deployment is handled separately via UI controls)
         elif current_block == 62:
-            return 63  # Return from yard to main line
+            return 63  # Always go to 63 from block 62
         
-        # RULE 6: Switch at block 76-77 (N section or bypass)
+        # ============================================================
+        # RED LINE BACKWARD LOOP: Block 66 → 52 → 51 → ... → 16
+        # When train reaches block 66 (from switch 52 jump), it loops
+        # back and travels backward until reaching switch 15 at block 16
+        # ============================================================
+        
+        # RED LINE RULE 1: Block 66 - Loop back to block 52
+        elif current_block == 66:
+            # Check if we're on Red Line
+            current_line = getattr(self, 'selected_line', None)
+            is_red_line = current_line and current_line.get() == "Red Line"
+            
+            if is_red_line:
+                # Red Line: Loop back to block 52 and enter backward mode
+                if train_idx < len(self.data_manager.active_trains):
+                    train_id = self.data_manager.active_trains[train_idx]
+                    self.train_directions[train_id] = 'red_backward_66_to_16'
+                    print(f"[ROUTING] RED LINE: Block 66 → 52 (Starting backward loop to switch 15)")
+                return 52
+            else:
+                # Green Line or other: normal progression
+                return 67
+        
+        # RED LINE RULE 2: Blocks 52 down to 17 - Backward traversal
+        elif 17 <= current_block <= 52:
+            # Check if train is in Red Line backward mode
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'red_backward_66_to_16':
+                    # BACKWARD MODE: Check for backward-only switches
+                    
+                    # Switch 32 (backward-only): When at block 33 going backward
+                    if current_block == 33:
+                        current_line = getattr(self, 'selected_line', None)
+                        is_red_line = current_line and current_line.get() == "Red Line"
+                        if is_red_line and hasattr(self, 'switch_routing') and 32 in self.switch_routing:
+                            switch_state = self.switch_states.get(32, "normal")
+                            if switch_state == "normal":
+                                # Normal: 33→32 (continue backward)
+                                print(f"[ROUTING] RED LINE backward: Block 33 → 32 (Switch 32 normal)")
+                                return 32
+                            else:  # reverse
+                                # Reverse: 33→72 (backward jump)
+                                print(f"[ROUTING] RED LINE backward: Block 33 → 72 (Switch 32 reverse jump)")
+                                return 72
+                    
+                    # Switch 43 (backward-only): When at block 44 going backward
+                    elif current_block == 44:
+                        current_line = getattr(self, 'selected_line', None)
+                        is_red_line = current_line and current_line.get() == "Red Line"
+                        if is_red_line and hasattr(self, 'switch_routing') and 43 in self.switch_routing:
+                            switch_state = self.switch_states.get(43, "normal")
+                            if switch_state == "normal":
+                                # Normal: 44→43 (continue backward)
+                                print(f"[ROUTING] RED LINE backward: Block 44 → 43 (Switch 43 normal)")
+                                return 43
+                            else:  # reverse
+                                # Reverse: 44→67 (backward jump)
+                                print(f"[ROUTING] RED LINE backward: Block 44 → 67 (Switch 43 reverse jump)")
+                                return 67
+                    
+                    # Continue backward (decrementing block numbers)
+                    next_block = current_block - 1
+                    print(f"[ROUTING] RED LINE backward: Block {current_block} → {next_block}")
+                    return next_block
+            
+            # FORWARD MODE: Check for forward-only switches
+            current_line = getattr(self, 'selected_line', None)
+            is_red_line = current_line and current_line.get() == "Red Line"
+            
+            # Switch 27 (forward-only): When at block 27 going forward
+            if is_red_line and current_block == 27:
+                if hasattr(self, 'switch_routing') and 27 in self.switch_routing:
+                    switch_state = self.switch_states.get(27, "normal")
+                    if switch_state == "normal":
+                        # Normal: 27→28 (continue forward)
+                        print(f"[ROUTING] RED LINE forward: Block 27 → 28 (Switch 27 normal)")
+                        return 28
+                    else:  # reverse
+                        # Reverse: 27→76 (forward branch)
+                        print(f"[ROUTING] RED LINE forward: Block 27 → 76 (Switch 27 reverse branch)")
+                        return 76
+            
+            # Switch 38 (forward-only): When at block 38 going forward
+            elif is_red_line and current_block == 38:
+                if hasattr(self, 'switch_routing') and 38 in self.switch_routing:
+                    switch_state = self.switch_states.get(38, "normal")
+                    if switch_state == "normal":
+                        # Normal: 38→39 (continue forward)
+                        print(f"[ROUTING] RED LINE forward: Block 38 → 39 (Switch 38 normal)")
+                        return 39
+                    else:  # reverse
+                        # Reverse: 38→71 (forward jump)
+                        print(f"[ROUTING] RED LINE forward: Block 38 → 71 (Switch 38 reverse jump)")
+                        return 71
+            
+            # Switch 52 (forward mode)
+            elif is_red_line and current_block == 52:
+                # Check switch 52 state
+                if hasattr(self, 'switch_routing') and 52 in self.switch_routing:
+                    switch_state = self.switch_states.get(52, "normal")
+                    if switch_state == "normal":
+                        return 53  # Continue normally
+                    else:  # reverse
+                        # Jump to 66
+                        print(f"[ROUTING] RED LINE: Block 52 → 66 (Switch 52 jump)")
+                        return 66
+            
+            # Default: normal forward progression
+            return current_block + 1
+        
+        # RED LINE RULE 3: Block 16 - Check switch 15 when in backward mode
+        elif current_block == 16:
+            # Check if train is in Red Line backward mode from 66
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                current_mode = self.train_directions.get(train_id, 'forward')
+                print(f"[DEBUG] Block 16: Train {train_id} mode = {current_mode}")
+                
+                if self.train_directions.get(train_id) == 'red_backward_66_to_16':
+                    # At switch 15, check which way to route
+                    print(f"[ROUTING] RED LINE backward: Reached block 16 (switch 15 junction)")
+                    
+                    # Check switch 15 state (use actual block.switch_state boolean)
+                    if len(self.data_manager.blocks) > 14:
+                        block_15 = self.data_manager.blocks[14]  # Switch at block 15 (index 14)
+                        if hasattr(block_15, 'switch_state'):
+                            # After swap: True = "1 to 16", False = "15 to 16"
+                            if block_15.switch_state:  # True = checked = "1 to 16"
+                                # Exit backward loop, go to block 1
+                                self.train_directions[train_id] = 'forward'
+                                print(f"[ROUTING] RED LINE: Block 16 → 1 (Switch 15 set to '1 to 16', exit backward loop)")
+                                return 1
+                            else:  # False = unchecked = "15 to 16"
+                                # Continue backward to block 15
+                                print(f"[ROUTING] RED LINE: Block 16 → 15 (Switch 15 set to '15 to 16', continue backward)")
+                                return 15
+                    
+                    # Default: continue backward to 15
+                    return 15
+            
+            # Not in red_backward_66_to_16 mode, but might still be going backward
+            # Check if on Red Line and if switch 15 should control routing
+            current_line = getattr(self, 'selected_line', None)
+            is_red_line = current_line and current_line.get() == "Red Line"
+            
+            if is_red_line:
+                # Check if train is in ANY backward mode (not just red_backward_66_to_16)
+                train_id = self.data_manager.active_trains[train_idx] if train_idx < len(self.data_manager.active_trains) else None
+                is_any_backward = False
+                if train_id and hasattr(self, 'train_directions'):
+                    train_mode = self.train_directions.get(train_id, 'forward')
+                    # Check for any backward mode (explicit check for backward modes only)
+                    is_any_backward = 'backward' in train_mode.lower()
+                
+                # If in any backward mode, check switch 15 for routing
+                if is_any_backward:
+                    if len(self.data_manager.blocks) > 14:
+                        block_15 = self.data_manager.blocks[14]  # Switch at block 15
+                        if hasattr(block_15, 'switch_state'):
+                            # After swap: True = "1 to 16", False = "15 to 16"
+                            if block_15.switch_state:  # True = checked = "1 to 16"
+                                # Exit to block 1
+                                self.train_directions[train_id] = 'forward'
+                                print(f"[ROUTING] RED LINE: Block 16 → 1 (Switch 15 set to '1 to 16', backward mode)")
+                                return 1
+                            else:  # False = unchecked = "15 to 16"
+                                # Continue backward to block 15
+                                print(f"[ROUTING] RED LINE: Block 16 → 15 (Switch 15 set to '15 to 16', backward mode)")
+                                return 15
+            
+            # Default: forward to block 17
+            print(f"[ROUTING] Block 16 → 17 (forward)")
+            return 17
+        
+        # RED LINE RULE 4: Block 15 - Handle backward mode exit
+        elif current_block == 15:
+            # Check if train is in Red Line backward mode
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'red_backward_66_to_16':
+                    # Continue backward from 15 to 14
+                    print(f"[ROUTING] RED LINE backward: Block 15 → 14 (continuing backward)")
+                    return 14
+            
+            # Not in backward mode: check switch 15 for forward routing
+            if len(self.data_manager.blocks) > 14:
+                block_15 = self.data_manager.blocks[14]  # Switch at block 15 (index 14)
+                if hasattr(block_15, 'switch_state'):
+                    # After swap: True = "1 to 16", False = "15 to 16"
+                    if block_15.switch_state:  # True = checked = "1 to 16"
+                        # Jump to block 1 (close loop)
+                        print(f"[ROUTING] RED LINE: Block 15 → 1 (Switch 15 set to '1 to 16', close loop)")
+                        return 1
+                    else:  # False = unchecked = "15 to 16"
+                        # Normal forward to block 16
+                        print(f"[ROUTING] RED LINE: Block 15 → 16 (Switch 15 set to '15 to 16', normal forward)")
+                        return 16
+            
+            return 16  # Default forward
+        
+        # RED LINE RULE 5: Blocks 1-14 - Check if in backward mode, if so exit
+        elif 1 <= current_block <= 14:
+            # Check if train is in Red Line backward mode
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'red_backward_66_to_16':
+                    # Continue backward
+                    if current_block > 1:
+                        next_block = current_block - 1
+                        print(f"[ROUTING] RED LINE backward: Block {current_block} → {next_block}")
+                        return next_block
+                    else:
+                        # Reached block 1, exit backward mode
+                        self.train_directions[train_id] = 'forward'
+                        print(f"[ROUTING] RED LINE: Reached block 1, exiting backward mode → 2")
+                        return 2
+            
+            # Not in backward mode: normal forward progression
+            # Check for any special routing at block 1
+            if current_block == 1:
+                if hasattr(self, 'switch_routing') and 1 in self.switch_routing:
+                    switch_state = self.switch_states.get(1, "normal")
+                    if switch_state == "normal":
+                        return 2
+                    else:  # reverse
+                        return 16  # Jump to block 16
+            
+            return current_block + 1  # Default forward
+        
+        # ============================================================
+        # END RED LINE BACKWARD LOOP
+        # ============================================================
+        
+        # RED LINE RULE 6: Blocks 53-76 - Handle backward mode and jump destinations
+        elif 53 <= current_block <= 76:
+            # Check if train is in Red Line backward mode
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'red_backward_66_to_16':
+                    # Train is in backward mode
+                    # This can happen if train jumped to block 67 or 72 via backward switches
+                    
+                    # Continue backward from jump destinations
+                    if current_block == 72:
+                        # Jumped here from switch 32 (33→72 backward)
+                        # Continue backward: 72→71→70→...
+                        print(f"[ROUTING] RED LINE backward: Block 72 → 71 (continuing after backward jump)")
+                        return 71
+                    elif current_block == 67:
+                        # Jumped here from switch 43 (44→67 backward)
+                        # Continue backward: 67→66→... but wait, 66 would loop back
+                        # So from 67, we should go to 66, but 66 loops back to 52
+                        # This creates an interesting case
+                        print(f"[ROUTING] RED LINE backward: Block 67 → 66 (continuing after backward jump)")
+                        return 66  # Will trigger loop back to 52 at block 66
+                    elif current_block >= 54:
+                        # Normal backward progression in this range
+                        next_block = current_block - 1
+                        print(f"[ROUTING] RED LINE backward: Block {current_block} → {next_block}")
+                        return next_block
+                    else:  # current_block == 53
+                        # From 53, go back to 52
+                        print(f"[ROUTING] RED LINE backward: Block 53 → 52")
+                        return 52
+            
+            # Not in backward mode: normal forward progression
+            # Blocks 71 and 76 can be reached via forward jumps
+            return current_block + 1  # Normal forward
+        
+        # RULE 7: Block 77 and beyond (Green Line specific, but keeping for compatibility)
+        # Switch is housed at block 76 but only affects backward traffic from N section
         elif current_block == 76:
-            if len(self.data_manager.blocks) > 75:
-                block_76 = self.data_manager.blocks[75]  # Block 76 at index 75
-                if hasattr(block_76, 'switch_state'):
-                    if block_76.switch_state:  # True = To block 77
-                        return 77  # Enter N section
-                    else:  # False = To block 101
-                        print(f"[ROUTING] Block 76 → 101 (Bypassing N section)")
-                        return 101  # Skip N section entirely
-            return 77  # Default to N section
+            return 77  # Always go to 77 from 76 (forward direction)
         
-        # RULE 7: Normal progression through N section (77-84)
-        elif 77 <= current_block < 85:
-            return current_block + 1  # Normal ascending: 77→78→79→80→81→82→83→84→85
+        # RULE 8: Block 77 routing - controlled by switch at block 76
+        # Excel: SWITCH (76-77; 77-101) - switch housed at block 76
+        # Forward (from 76): ALWAYS goes 77 → 78 (cannot bypass to 101)
+        # Backward (from 78): Can go 77 → 101 (bypass) OR 77 → 78 (loop back into N section)
+        elif current_block == 77:
+            # Check if this train is in backward N section mode (coming from 78)
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'backward_n_section':
+                    # Train is traveling backward through N section (from 78)
+                    # Check switch at block 76 to decide routing
+                    if len(self.data_manager.blocks) > 75:
+                        block_76 = self.data_manager.blocks[75]  # Switch housed at block 76 (index 75)
+                        if hasattr(block_76, 'switch_state'):
+                            if block_76.switch_state:  # True = Normal = Loop back into N section
+                                # Don't exit backward mode, loop back to 78
+                                print(f"[ROUTING] Block 77 → 78 (Looping back into N section via switch at 76)")
+                                return 78
+                            else:  # False = Reverse = Exit to 101
+                                # Exit backward traversal at 77, continue to 101
+                                self.train_directions[train_id] = 'forward'
+                                print(f"[ROUTING] Exiting N section backward traversal at block 77 → 101 (via switch at 76)")
+                                return 101
+                    # Default: exit to 101
+                    self.train_directions[train_id] = 'forward'
+                    print(f"[ROUTING] Exiting N section backward traversal at block 77 → 101")
+                    return 101
+            
+            # Forward direction (from block 76) - ALWAYS goes to 78
+            # Cannot bypass to 101 from forward direction
+            return 78  # Enter N section
         
-        # RULE 8: Switch at block 85-86
+        # RULE 9: Normal progression through N section (78-84)
+        elif 78 <= current_block < 85:
+            # First check if this train is in backward N section mode
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'backward_n_section':
+                    next_block = self.get_next_block_backward_n_section(current_block)
+                    if next_block == 101:
+                        # Exiting backward traversal, reset to forward
+                        self.train_directions[train_id] = 'forward'
+                        print(f"[ROUTING] Exiting N section backward traversal at block {current_block} → 101")
+                    elif next_block:
+                        print(f"[ROUTING] N section backward: Block {current_block} → {next_block}")
+                    return next_block
+            # Normal forward progression
+            return current_block + 1  # Normal ascending: 78→79→80→81→82→83→84→85
+        
+        # RULE 9b: Switch housed at block 85
         elif current_block == 85:
+            # First check if this train is in backward N section mode
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'backward_n_section':
+                    next_block = self.get_next_block_backward_n_section(current_block)
+                    if next_block:
+                        print(f"[ROUTING] N section backward: Block 85 → {next_block}")
+                    return next_block
+            
+            # Normal forward routing (not in backward mode)
             if len(self.data_manager.blocks) > 84:
-                block_85 = self.data_manager.blocks[84]  # Block 85 at index 84
+                block_85 = self.data_manager.blocks[84]  # Switch housed at block 85 (index 84)
                 if hasattr(block_85, 'switch_state'):
                     if block_85.switch_state:  # True = To block 86
                         return 86  # Normal forward progression
                     else:  # False = Would be for backward entry from 100
-                        # But when AT block 85, we always go forward
+                        # But when AT block 85 (coming from 84), we always go forward to 86
                         return 86
             return 86  # Default forward to 86
         
-        # RULE 9: Normal progression from 86-99
+        # RULE 10: Normal progression from 86-99
         elif 86 <= current_block <= 99:
             return current_block + 1  # Continue ascending
         
-        # RULE 10: Block 100 → 85 (BIDIRECTIONAL backward entry to N section)
+        # RULE 11: Block 100 → 85 (BIDIRECTIONAL backward entry to N section)
         elif current_block == 100:
             # Check if switch at 85 is set for backward entry
             if len(self.data_manager.blocks) > 84:
@@ -2124,36 +2768,7 @@ class TrackModelUI(tk.Tk):
             # Default: continue ascending
             return 101
         
-        # RULE 10b: Handle backward traversal through N section (85→84→83→...→77)
-        elif current_block in [85, 84, 83, 82, 81, 80, 79, 78, 77]:
-            # Check if this train is traversing N section backward
-            if train_idx < len(self.data_manager.active_trains):
-                train_id = self.data_manager.active_trains[train_idx]
-                if self.train_directions.get(train_id) == 'backward_n_section':
-                    next_block = self.get_next_block_backward_n_section(current_block)
-                    if next_block == 101:
-                        # Exiting backward traversal, reset to forward
-                        self.train_directions[train_id] = 'forward'
-                        print(f"[ROUTING] Exiting N section backward traversal at block 77 → 101")
-                    elif next_block:
-                        print(f"[ROUTING] N section backward: Block {current_block} → {next_block}")
-                    return next_block
-            
-            # Otherwise, use normal rules (which handles forward traversal)
-            if current_block == 85:
-                # Already handled in RULE 8
-                if len(self.data_manager.blocks) > 84:
-                    block_85 = self.data_manager.blocks[84]
-                    if hasattr(block_85, 'switch_state'):
-                        if block_85.switch_state:
-                            return 86  # Normal forward
-                        else:
-                            return 86  # Still go forward when at 85
-                return 86
-            elif 77 <= current_block < 85:
-                return current_block + 1  # Normal forward through N section
-        
-        # RULE 11: Continue normal progression 101-149
+        # RULE 12: Continue normal progression 101-149
         elif 101 <= current_block <= 149:
             return current_block + 1  # Normal ascending
         
@@ -2741,12 +3356,18 @@ class TrackModelUI(tk.Tk):
                 # Draw train icon
                 marker = self.track_canvas.create_image(x, y, image=self.train_icon, anchor="center")
             else:
-                # Draw black dot
+                # Check if block has a Murphy failure
+                has_failure = False
+                if hasattr(self, 'murphy_failures') and self.murphy_failures:
+                    has_failure = self.murphy_failures.has_failure(block_num)
+                
+                # Draw dot - blue if failure, black otherwise
                 dot_radius = 4
+                dot_color = 'blue' if has_failure else 'black'
                 marker = self.track_canvas.create_oval(
                     x - dot_radius, y - dot_radius,
                     x + dot_radius, y + dot_radius,
-                    fill='black',
+                    fill=dot_color,
                     outline='gray',
                     width=1
                 )
@@ -2776,6 +3397,12 @@ class TrackModelUI(tk.Tk):
             positions = self.block_marker_positions
         
         if block_num not in positions:
+            # DIAGNOSTIC: Check why block might not be in positions
+            if 57 <= block_num <= 60 and hasattr(self, 'selected_line'):
+                current_line = self.selected_line.get()
+                if current_line == "Red Line":
+                    print(f"⚠️ [RED LINE DEBUG] update_block_marker: Block {block_num} NOT in positions dict!")
+                    print(f"   - Positions dict keys: {sorted(positions.keys())[:10]}...{sorted(positions.keys())[-10:]}")
             return
         
         # Get base position and apply image offset
@@ -2809,18 +3436,33 @@ class TrackModelUI(tk.Tk):
         if is_occupied and hasattr(self, 'train_icon') and self.train_icon:
             # Draw train icon
             marker = self.track_canvas.create_image(x, y, image=self.train_icon, anchor="center")
-            print(f"[MARKER] Block {block_num} now shows train icon (occupied)")
+            log_msg = f"[MARKER] Block {block_num} now shows train icon (occupied)"
+            
+            # DIAGNOSTIC: Enhanced logging for Red Line blocks 57-60
+            if 57 <= block_num <= 60 and hasattr(self, 'selected_line'):
+                current_line = self.selected_line.get()
+                if current_line == "Red Line":
+                    log_msg += f" at position ({x}, {y})"
+                    log_msg += f" [base: ({base_x}, {base_y}), offsets: x={x_offset}, y={y_offset}, correction: x={x_correction}, y={y_correction}]"
+            
+            print(log_msg)
         else:
-            # Draw black dot
+            # Check if block has a Murphy failure
+            has_failure = False
+            if hasattr(self, 'murphy_failures') and self.murphy_failures:
+                has_failure = self.murphy_failures.has_failure(block_num)
+            
+            # Draw dot - blue if failure, black otherwise
             dot_radius = 4
+            dot_color = 'blue' if has_failure else 'black'
             marker = self.track_canvas.create_oval(
                 x - dot_radius, y - dot_radius,
                 x + dot_radius, y + dot_radius,
-                fill='black',
+                fill=dot_color,
                 outline='gray',
                 width=1
             )
-            print(f"[MARKER] Block {block_num} now shows black dot (empty)")
+            print(f"[MARKER] Block {block_num} now shows {'blue' if has_failure else 'black'} dot ({'failure active' if has_failure else 'empty'})")
         
         self.block_markers[block_num] = marker
 
@@ -3336,26 +3978,28 @@ class TrackModelUI(tk.Tk):
             else:  # False = from block 150
                 return (150, 28)
         
-        # Handle switch at block 57 (57-Yard)
-        elif block_number == 57:
+        # Handle switch housed at block 58 (controls traffic from 57 to yard)
+        # Excel: SWITCH TO YARD (57-yard)
+        elif block_number == 58:
             if switch_state:  # True = continue on main line
                 return (57, 58)
             else:  # False = to yard
                 return (57, "Yard")
         
-        # Handle switch at block 62 (FROM YARD)
+        # Handle switch housed at block 62 (FROM YARD)
         elif block_number == 62:
             if switch_state:  # True = from main line
                 return (62, 63)
             else:  # False = from yard
                 return ("Yard", 63)
         
-        # Handle switch at block 76 (76-77, 77-101)
+        # Handle switch housed at block 76 (controls junction: 76-77-78 or 76-77-101)
+        # Excel: SWITCH (76-77; 77-101)
         elif block_number == 76:
-            if switch_state:  # True = main route
-                return (76, 77)
-            else:  # False = skip to 101
-                return (76, 101)
+            if switch_state:  # True = 76-77 path (continues to 78)
+                return (76, 77)  # Shows 76→77, then train continues to 78
+            else:  # False = 77-101 path (bypasses N section)
+                return (77, 101)  # Shows the bypass route from 77→101
         
         # Handle switch at block 85 (85-86, 100-85)
         elif block_number == 85:
@@ -3364,6 +4008,60 @@ class TrackModelUI(tk.Tk):
             else:  # False = backward route (for trains from 100)
                 return (100, 85)
         
+        # ============================================================
+        # RED LINE SWITCHES
+        # ============================================================
+        
+        # Handle switch at block 15 (RED LINE)
+        # Excel: SWITCH (15-16; 1-16)
+        elif block_number == 15:
+            if switch_state:  # True = loop closure
+                return (1, 16)  # Shows that block 1 connects to 16 via switch 15
+            else:  # False = normal route
+                return (15, 16)
+        
+        # Handle switch at block 9 (RED LINE - Yard access)
+        elif block_number == 9:
+            if switch_state:  # True = to yard
+                return (9, "Yard")
+            else:  # False = normal route
+                return (9, 10)
+        
+        # Handle switch at block 27 (RED LINE - Branch)
+        elif block_number == 27:
+            if switch_state:  # True = branch to end section
+                return (27, 76)
+            else:  # False = normal route
+                return (27, 28)
+        
+        # Handle switch at block 32 (RED LINE - Branch)
+        elif block_number == 32:
+            if switch_state:  # True = backward jump
+                return (33, 72)
+            else:  # False = normal route
+                return (32, 33)
+        
+        # Handle switch at block 38 (RED LINE - Branch)
+        elif block_number == 38:
+            if switch_state:  # True = backward jump
+                return (39, 71)
+            else:  # False = normal route
+                return (38, 39)
+        
+        # Handle switch at block 43 (RED LINE - Branch)
+        elif block_number == 43:
+            if switch_state:  # True = backward jump
+                return (44, 67)
+            else:  # False = normal route
+                return (43, 44)
+        
+        # Handle switch at block 52 (RED LINE - Loop switch)
+        elif block_number == 52:
+            if switch_state:  # True = forward jump to loop
+                return (52, 66)
+            else:  # False = normal route
+                return (52, 53)
+        
         # Handle reverse direction for bidirectional switches
         elif block_number == 1:
             # Coming from block 1, can go to 2 or jump to 13 via switch
@@ -3371,13 +4069,6 @@ class TrackModelUI(tk.Tk):
                 return (1, 2)  # Normal route
             else:
                 return (1, 13)  # Via switch at 12
-        
-        elif block_number == 77:
-            # Block 77 can go to 78 or back to 101
-            if switch_state:
-                return (77, 78)  # Continue on N section
-            else:
-                return (77, 101)  # Jump to block 101
         
         elif block_number == 100:
             # Block 100 can go to 85 via switch
@@ -4767,6 +5458,20 @@ class TrackModelUI(tk.Tk):
                     if 1 <= block_num <= len(self.data_manager.blocks):
                         block = self.data_manager.blocks[block_num - 1]
                         block.occupancy = occupancy
+                        
+                        # DIAGNOSTIC: Special logging for blocks 57-60 on Red Line
+                        if 57 <= block_num <= 60 and hasattr(self, 'selected_line'):
+                            current_line = self.selected_line.get()
+                            if current_line == "Red Line":
+                                print(f"🔍 [RED LINE DEBUG] Block {block_num}: occupancy={occupancy}")
+                                print(f"   - Block exists in data: {block_num <= len(self.data_manager.blocks)}")
+                                print(f"   - Has marker positions: {hasattr(self, 'block_marker_positions_red')}")
+                                if hasattr(self, 'block_marker_positions_red'):
+                                    print(f"   - Block in positions dict: {block_num in self.block_marker_positions_red}")
+                                    if block_num in self.block_marker_positions_red:
+                                        print(f"   - Position: {self.block_marker_positions_red[block_num]}")
+                                print(f"   - Has switch routing: {block_num in self.switch_routing}")
+                        
                         # Check if train is at a switch and show routing
                         if occupancy != 0 and hasattr(self, "switch_routing") and block_num in self.switch_routing:
                             dir = self.switch_states.get(block_num, "normal")

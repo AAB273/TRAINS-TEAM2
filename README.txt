@@ -20,7 +20,7 @@ Wayside Controller SW User Manual:
 Wayside Controller HW User Manual:
 
 
-
+python C:\Users\siram\OneDrive\Documents\Pitt\Third_Year\ECE1140-Fall26\VS_Code\TRAINS-TEAM2\Wayside_Controller\HW\WC_HW_MainUI
 
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

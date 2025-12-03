@@ -638,19 +638,57 @@ class TrackModelTestUI(tk.Toplevel):
         return mapping.get(tuple(bits), "Unknown")
 
     def refresh_diagram_table(self):
+        # Remember which block (if any) is currently selected
+        selected = self.diagram_tree.selection()
+        selected_block_num = None
+        if selected:
+            item = self.diagram_tree.item(selected[0])
+            if item["values"]:
+                selected_block_num = item["values"][0]
+        
+        # Get infrastructure sets from main UI (dynamically loaded from Excel)
+        switch_blocks = getattr(self.master, 'switch_blocks', set())
+        crossing_blocks = getattr(self.master, 'crossing_blocks', set())
+        signal_blocks = getattr(self.master, 'light_states', set())
+        
+        # Clear and repopulate the table
         self.diagram_tree.delete(*self.diagram_tree.get_children())
         for block in self.manager.blocks:
-            switch_val = getattr(block, "switch_state", "")
-            cross_val = getattr(block, "crossing", "")
-            sig_val = ""
-            if hasattr(block, "signal") and isinstance(block.signal, list):
-                sig_val = self.signal_color(block.signal)
+            # Switch: show value only if block has a switch, otherwise "--"
+            if block.block_number in switch_blocks:
+                switch_val = getattr(block, "switch_state", False)
+            else:
+                switch_val = "--"
+            
+            # Crossing: show value only if block has a crossing, otherwise "--"
+            if block.block_number in crossing_blocks:
+                cross_val = getattr(block, "crossing", False)
+            else:
+                cross_val = "--"
+            
+            # Signal: show value only if block has a signal, otherwise "--"
+            if block.block_number in signal_blocks:
+                if hasattr(block, "signal") and isinstance(block.signal, list):
+                    sig_val = self.signal_color(block.signal)
+                else:
+                    sig_val = "Unknown"
+            else:
+                sig_val = "--"
+            
             occ_val = getattr(block, "occupancy", "")
 
             self.diagram_tree.insert(
                 "", "end",
                 values=(block.block_number, switch_val, cross_val, sig_val, occ_val)
             )
+        
+        # Reselect the previously selected block if it still exists
+        if selected_block_num is not None:
+            for item_id in self.diagram_tree.get_children():
+                if self.diagram_tree.item(item_id)["values"][0] == selected_block_num:
+                    self.diagram_tree.selection_set(item_id)
+                    self.diagram_tree.focus(item_id)
+                    break
 
     # Remaining methods from original Test_UI.py...
     # (Bidirectional controls, edit_selected_diagram, refresh_ui, etc.)
@@ -719,9 +757,10 @@ class TrackModelTestUI(tk.Toplevel):
         popup.title(f"Edit Diagram Block {block.block_number}")
         popup.geometry("300x300")
 
-        switch_blocks = {5}
-        crossing_blocks = {4}
-        signal_blocks = {6, 11}
+        # Get infrastructure sets from main UI (dynamically loaded from Excel)
+        switch_blocks = getattr(self.master, 'switch_blocks', set())
+        crossing_blocks = getattr(self.master, 'crossing_blocks', set())
+        signal_blocks = getattr(self.master, 'light_states', set())
 
         entries = {}
 
