@@ -677,7 +677,8 @@ try:
     #     print(f"  - {file}")
     
     # Check if file exists
-    logo_path = "/home/siram/TRAINS-TEAM2/blt logo.png"
+    # logo_path = "/home/siram/TRAINS-TEAM2/blt logo.png"
+    logo_path = "blt logo.png"
     print(f"Looking for logo at: {logo_path}")
     print(f"Logo file exists: {os.path.exists(logo_path)}")
     
@@ -946,7 +947,7 @@ try:
     #     print(f"  - {file}")
     
     # Check if file exists in TRAINS-TEAM2 folder
-    image_path = "/home/siram/TRAINS-TEAM2/Red and Green Line.png"
+    image_path = "Red and Green Line.png"
     print(f"Looking for image at: {image_path}")
     print(f"File exists: {os.path.exists(image_path)}")
     
