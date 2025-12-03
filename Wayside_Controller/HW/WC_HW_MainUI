@@ -1490,7 +1490,7 @@ class RightPanel(tk.Frame):
         scrollbar.pack(side="right", fill="y")
    
     # Add mousewheel scrolling
-    def _on_mousewheel(event):
+    def _on_mousewheel(self, event):
         canvas.yview_scroll(int(-1*(event.delta/120)), "units")
     
         canvas.bind("<MouseWheel>", _on_mousewheel)
@@ -1504,7 +1504,7 @@ class RightPanel(tk.Frame):
    
     def create_block_table(self):
         print(f"DEBUG: Creating block table in frame: {self.block_table_frame}")
-        print(f"DEBUG: Frame width: {self.block_table_frame.winfo_width()}, height: {self.block_table_frame.winfo_height()}")
+        # print(f"DEBUG: Frame width: {self.block_table_frame.winfo_width()}, height: {self.block_table_frame.winfo_height()}")
 
     # Clear existing widgets
         for widget in self.block_table_frame.winfo_children():
