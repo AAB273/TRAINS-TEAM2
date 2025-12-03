@@ -220,7 +220,7 @@ class MainScreen:
                     for item in self.lsArea.get_children(child):
                     #iterate for each child of every parent in the Treeview
                         loc = self.lsArea.item(item, "text")
-                        if ((loc == ("Block " + location))):  
+                        if ((loc == ("Block " + location + ", " + line))):  
                         #if location exists, update item
                             self.lsArea.item(item, values = [state])
                             updated = True
@@ -238,23 +238,10 @@ class MainScreen:
 
         elif (code == "RC"):
             #railway crossing data case
-            location = ""
-            state = ""
-            commaInd = 0
+            location = data[0]
+            state = data[1]
+            line = data[2]
             
-            #grab data from message
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                location += data[i]
-            data = data[commaInd + 2:]
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                state += data[i]
-            line = data[commaInd + 2:]
            
             if (state == "0"):
                 state = "inactive"
