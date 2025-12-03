@@ -1,7 +1,10 @@
-  File "/WC_HW_MainUI", line 1148, in update_switch_options
-    switches = list(self.data.filtered_track_data.get("switches", {}).keys())
-                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-AttributeError: 'UITestData' object has no attribute 'filtered_track_data'. Did you mean: 'filtered_block_data'?
+DEBUG: Creating block table in frame: .!frame2.!frame.!rightpanel.!frame3.!canvas.!frame
+DEBUG: Creating block table in frame: .!frame2.!frame.!rightpanel.!frame3.!canvas.!frame
+
+
+
+
+
 
 import json    
 from pathlib import Path 
