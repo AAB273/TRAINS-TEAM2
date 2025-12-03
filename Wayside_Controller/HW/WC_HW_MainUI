@@ -319,7 +319,7 @@ class UITestData:
         
         # Connect to other UIs
         self.server1.connect_to_ui('localhost', 12346, "WC_HW_TestUI")
-        self.server1.connect_to_ui('localhost', 12341, "CTC_MainScreenUI")
+        self.server1.connect_to_ui('localhost', 12341, "CTC")
         self.server1.connect_to_ui('localhost', 12344, "Track Model")
 
         # Current line
