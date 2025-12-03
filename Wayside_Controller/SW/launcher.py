@@ -45,12 +45,7 @@ def launch_railway_systems():
         # Launch Test Interface
         test_process = subprocess.Popen([sys.executable, str(test_ui_file)])
         print("Wayside Test Interface started")
-        
-        #print("\n Both systems are now running!")
-        #print("   - Main Wayside Controller: Port 12342")
-        #print("   - Wayside Test Interface: Port 22342")
-        #print("\n⏹  Press Ctrl+C in this window to stop both systems")
-        
+
         # Keep the launcher running and handle shutdown
         try:
             # Wait for both processes
