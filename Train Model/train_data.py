@@ -56,7 +56,7 @@ class Train:
         
         # Emergency brake and Service Brake
         self.emergency_brake_active = False
-        self.service_brake_active = True    #Needs to turn off once initial authority is given.
+        self.service_brake_active = True
         
         # Deployment status
         self.deployed = True
@@ -71,6 +71,8 @@ class Train:
         self.time_to_station = 0
         self.emergency_announcement = "EMERGENCY"
         
+        self.authority_received = False
+
         # Observers (callbacks for UI updates)
         self._observers = []
     
@@ -156,11 +158,24 @@ class Train:
             pass
     
     def set_authority(self, value):
-        try:
-            self.commanded_authority = float(value)
-            self._notify_observers()
-        except ValueError:
-            pass
+            """Set authority and auto-deploy train on first authority"""
+            try:
+                self.commanded_authority = float(value)
+                
+                # Auto-deploy train on first authority received
+                if not self.authority_received:
+                    self.authority_received = True
+                    self.deployed = True
+                    print(f"Train {self.train_id} received first authority - AUTO DEPLOYING")
+                    self.distance_left = self.commanded_authority
+                    self.service_brake_active = False  # Disengage service brake on deploy
+                else:
+                    # Update distance_left for subsequent authority updates
+                    self.distance_left = self.commanded_authority
+                
+                self._notify_observers()
+            except ValueError:
+                pass
 
     def set_commanded_speed(self, value):
         try:
@@ -398,7 +413,7 @@ class Train:
 class TrainManager:
     """Manages all trains in the system"""
     
-    def __init__(self, num_trains=1):
+    def __init__(self, num_trains=14):
         self.trains = {i+1: Train(i+1) for i in range(num_trains)}
         self.selected_train_id = 1
     
@@ -420,6 +435,15 @@ class TrainManager:
     def get_all_trains(self):
         """Get dictionary of all trains"""
         return self.trains
+    
+    def get_deployed_trains(self):
+        """Get list of currently deployed trains"""
+        return [train for train in self.trains.values() if train.deployed]
+    
+    def update_all_physics(self, dt=0.1):
+        """Update physics for all deployed trains (call from background thread/timer)"""
+        for train in self.get_deployed_trains():
+            train.calculate_force_speed_acceleration_distance(dt)
 
     
 # Global singleton instance

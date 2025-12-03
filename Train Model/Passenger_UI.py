@@ -214,11 +214,15 @@ class TrainModelPassengerGUI:
                     self.current_train.set_authority(value)
                     self.server.send_to_ui("Train SW",{'command': "Commanded Authority",'value': value})
                     self.server.send_to_ui("Train HW",{'command': "Commanded Authority",'value':value})
+
+                    # Auto-refresh selector if a new train was deployed
+                    if self.current_train.authority_received and self.current_train.deployed:
+                        self._socket_refresh_train_selector()
                 elif command == 'Commanded Speed':
                     self.current_train.set_commanded_speed(value)
                     self.server.send_to_ui("Train SW",{'command':"Commanded Speed",'value':value})
                     self.server.send_to_ui("Train HW",{'command':"Commanded Speed",'value':value})
-                    self.current_train.set_service_brake(False)
+                    #self.current_train.set_service_brake(False) #confused as to why this was here - SELFNOTE
                 elif command == 'Block Occupancy': #Figure out signal pickup
                     self.current_train.set_block(value)
                 elif command == 'Passengers Boarding':
@@ -233,6 +237,9 @@ class TrainModelPassengerGUI:
 
     def continuous_physics_update(self):
         """Continuously update train physics for real-time speed changes"""
+         # Update all trains regardless of which one is selected
+        self.train_manager.update_all_physics(dt=0.1)
+
         if self.current_train and self.current_train.deployed:
             old_speed = self.current_train.speed
             self.current_train.calculate_force_speed_acceleration_distance()
@@ -299,8 +306,7 @@ class TrainModelPassengerGUI:
         print(f"Signal Pickup Failure Activated")
         self.failure_activation_in_progress = True
         
-        # Set the values directly without calling methods that might cause loops
-        # Your periodic 100ms update will handle the UI refresh
+        
         self.current_train.speed_limit = 0
         self.current_train.grade = 0
         self.current_train.elevation = 0
@@ -330,6 +336,7 @@ class TrainModelPassengerGUI:
             self.current_train.passenger_count = MAX_CAPACITY + self.current_train.passenger_count
         else:
             self.current_train.passenger_count = self.current_train.passenger_count + boarding
+
 
     def update_ui_from_train(self, train):
         """Update all UI elements when train data changes"""
@@ -500,15 +507,29 @@ class TrainModelPassengerGUI:
         right_frame = tk.Frame(self.root, bg=self.main_color)
         right_frame.pack(side='right', fill='both', expand=True, padx=8, pady=3)
 
-        # Advertisement Frame 
-        ad_image = Image.open("Train Model/wendy's_AD.jpg")
-        converted_ad_image = ad_image.resize((400, 180))
-        converted_ad_image = ImageTk.PhotoImage(converted_ad_image)
+        self.converted_ad_images = []
+        self.ad_index = 1
+        ad_images = [
+            "Train Model/wendy's_AD.jpg",
+            "Train Model/wendy's_AD2.jpg",
+            "Train Model/wendy's_AD3.jpg",
+            "Train Model/wendy's_AD4.jpg"]
+        
+        self.converted_ad_images = []
+
+        for ad_path in ad_images:
+            ad_image = Image.open(ad_path)
+            converted_ad_image = ad_image.resize((400, 180))
+            converted_ad_image = ImageTk.PhotoImage(converted_ad_image)
+            self.converted_ad_images.append(converted_ad_image)
+
+        self.current_ad_image = self.converted_ad_images[0]
         Advertisement = tk.Frame(right_frame, height=190, highlightbackground="black", highlightthickness=2, bg=self.off_color)
         Advertisement.pack(side='top', padx=2, pady=2, fill='x')
         Advertisement.pack_propagate(False)
-        tk.Label(Advertisement, image=converted_ad_image).pack(padx=1, pady=1)
-        Advertisement.image = converted_ad_image
+        self.ad_label = tk.Label(Advertisement, image=self.current_ad_image)
+        self.ad_label.pack(padx=1, pady=1)
+        self.ad_label.image = self.current_ad_image
 
         # Doors/Lights Frame 
         doors_and_lights_frame = tk.Frame(right_frame, height=200, highlightbackground="black", highlightthickness=2, bg=self.off_color)
@@ -719,6 +740,21 @@ class TrainModelPassengerGUI:
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+    def cycle_through_ads(self):
+        # Get the next ad index
+        self.ad_index = (self.ad_index + 1) % len(self.converted_ad_images)
+        
+        # Update the ad image
+        self.current_ad_image = self.converted_ad_images[self.ad_index]
+        
+        # Update the label
+        if hasattr(self, 'ad_label'):
+            self.ad_label.config(image=self.current_ad_image)
+            self.ad_label.image = self.current_ad_image
+        
+        # Schedule next ad change (6000ms = 6 seconds)
+        self.root.after(6000, self.cycle_through_ads)  
+
     def updateTime(self):
     #continuously recall itself every second to update the time variable 
         
@@ -743,6 +779,8 @@ class TrainModelPassengerGUI:
         self.root.after(100, self.continuous_physics_update)
 
         self.root.after(100, self.updateTime)
+
+        self.root.after(5000, self.cycle_through_ads)
 
         self.root.mainloop()
 
