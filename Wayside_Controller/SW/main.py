@@ -161,13 +161,26 @@ class RailwayControlSystem:
             color = "10"
         else:
             color =="11"
-            
+
         message = {
             "command": "LS",
             "value": [block, color, track]
         }
 
-        print("\n\n\nhere\n\n\n")
+        self.send_to_CTC(message)
+    
+    def send_railway_state(self,track, block, light, bar):
+        """Send Light State to CTC and Track Model"""
+        if (bar == 'Open'):
+            booly = "1"
+        else:
+            booly = "0"
+            
+        message = {
+            "command": "rrx",
+            "value": [block, booly, track]
+        }
+        
         self.send_to_CTC(message)
 
 
