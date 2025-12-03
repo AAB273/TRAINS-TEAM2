@@ -132,6 +132,7 @@ def _process_message(self, data, connection=None, server_instance=None):
         if isinstance(data, str):
             try:
                 # Try to parse as JSON
+                import json
                 parsed_data = json.loads(data)
                 print(f"Parsed JSON data: {parsed_data}")
                 message_data = parsed_data
@@ -142,50 +143,51 @@ def _process_message(self, data, connection=None, server_instance=None):
         else:
             # Data is already a dictionary
             message_data = data
+        # extract command and value 
+        command = message_data.get('command')
+        value = message_data.get('value')
         
+        print(f"Processing command: {command}, value: {value}")
+
         # Handle different commands
         if command == 'ctc_suggestion':
             # Use your existing function
-            formatted_speed = self.handle_ctc_suggested_speed(value)
+            formatted_speed = handle_ctc_suggested_speed(value)
             if formatted_speed is not None:
-                self.update_suggested_speed(formatted_speed)
-                # ADD THIS LINE - sync back to Test UI
-                self.sync_speed_to_test_ui(formatted_speed)
-        
-        # Extract the actual message
-        message = message_data.get('message', message_data)
-        source_ui_id = message_data.get('ui_id', 'Unknown')
-        
-        print(f"Processing message from {source_ui_id}: {message}")
-        
-        # Extract message and source UI ID
-        if isinstance(data, 'dict'):
-            message = data.get('message', data)
-            source_ui_id = data.get('WC_HW_TestUI', 'Unknown')
-        else:
-            message = data
-            source_ui_id = 'WC_HW_TestUI'
-        
-        print(f"Processing message from {source_ui_id}: {message}")
-        
-        command = message.get('command')
-        value = message.get('value')
-        
-        # Handle different commands
-        if command == 'ctc_suggestion':
-            self.handle_ctc_suggestion(value)
+                update_suggested_speed_display(formatted_speed)
+                # # ADD THIS LINE - sync back to Test UI
+                # self.sync_speed_to_test_ui(formatted_speed)
+        elif command == 'update_speed_auth':
+            self.handle_speed_auth_update(value)    
         elif command == 'set_block_occupancy':
-            self.handle_block_occupancy(value)
+            # existing handling
+            pass
         elif command == 'set_switch_position':
-            self.handle_switch_position(value)
-        elif command == 'some_command':
-            print(f"Test command received with value: {value}")
-        else:
+            #existing handling
+            pass
+        else: 
             print(f"Unknown command: {command}")
-            
     except Exception as e:
         print(f"Error processing message: {e}")
-    
+
+        # # Extract the actual message
+        # message = message_data.get('message', message_data)
+        # source_ui_id = message_data.get('ui_id', 'Unknown')
+        
+        # print(f"Processing message from {source_ui_id}: {message}")
+        
+        # # Extract message and source UI ID
+        # if isinstance(data, 'dict'):
+        #     message = data.get('message', data)
+        #     source_ui_id = data.get('WC_HW_TestUI', 'Unknown')
+        # else:
+        #     message = data
+        #     source_ui_id = 'WC_HW_TestUI'
+        
+        # print(f"Processing message from {source_ui_id}: {message}")
+        
+        # command = message.get('command')
+        # value = message.get('value')
 
     def sync_speed_to_test_ui(self, speed_value):
         """Sync speed changes back to Test UI"""
@@ -326,7 +328,7 @@ class UITestData:
 
         # SOCKET SERVER
         self.server1 = TrainSocketServer(port=12344, ui_id="WC_HW_MainUI")
-        self.server1.set_allowed_connections(["WC_HW_TestUI", "ui_3"])
+        self.server1.set_allowed_connections(["WC_HW_TestUI", "ui_3", "CTC_MainScreenUI"])
         self.server1.start_server(_process_message)
         
         # Connect to other UIs
@@ -543,6 +545,65 @@ class UITestData:
         if not self.maintenance_mode:
             return False
         return self.maintenance_changes.get(component_type, False)
+
+    def handle_speed_auth_update(self, data):
+        """Handle speed and authority updates from CTC"""
+        try:
+            if isinstance(data, dict):
+                track = data.get('track', '').strip()
+                block = data.get('block', '').strip()
+                speed_str = data.get('speed', '0').strip()
+                authority_str = data.get('authority', '0').strip()
+                value_type = data.get('value_type', '').strip()
+            
+                # Only process if it's for the current line
+                if track.lower() != self.current_line.lower():
+                    print(f"Ignoring update for different line: {track}")
+                    return
+            
+                # Convert speed to float
+                try:
+                    speed = float(speed_str)
+                    formatted_speed = round(speed, 3)
+                except ValueError:
+                    print(f"Invalid speed value: {speed_str}")
+                    formatted_speed = 0.0
+            
+                # Convert authority to int
+                try:
+                    authority = int(authority_str)
+                except ValueError:
+                    print(f"Invalid authority value: {authority_str}")
+                    authority = 0
+            
+                print(f"CTC Update: Block {block}, Speed: {formatted_speed}, Authority: {authority}, Type: {value_type}")
+            
+                # Update the display
+                if value_type == 'suggested':
+                    # Update suggested values in right panel
+                    if hasattr(right_panel, 'update_suggested_speed'):
+                        right_panel.update_suggested_speed(formatted_speed)
+                    if hasattr(right_panel, 'update_suggested_authority'):
+                        right_panel.update_suggested_authority(authority)
+                
+                    # Also log the update
+                    add_to_message_log(f"CTC Suggested Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks for Block {block}")
+            
+                elif value_type == 'commanded':
+                    # Update commanded values
+                    if hasattr(right_panel, 'auth_entry'):
+                        right_panel.auth_entry.delete(0, tk.END)
+                        right_panel.auth_entry.insert(0, f"{authority} blocks")
+                
+                    if hasattr(right_panel, 'speed_entry'):
+                        right_panel.speed_entry.delete(0, tk.END)
+                        right_panel.speed_entry.insert(0, f"{formatted_speed:.3f} mph")
+                
+                    add_to_message_log(f"CTC Commanded Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks for Block {block}")
+            
+        except Exception as e:
+            print(f"Error handling speed/auth update: {e}")
+            add_to_message_log(f"ERROR processing CTC update: {e}", "ERROR")
 
 # Create mock data instance
 test_data = UITestData()
@@ -1336,6 +1397,10 @@ class RightPanel(tk.Frame):
         self.pack_propagate(False)
         self.data = data
         
+        #attributes for suggested speed/authority
+        self.suggested_speed_label = None
+        self.suggested_authority_label = None
+        self.create_suggested_section()
 
         # Connect line change callback
         self.data.on_line_change.append(self.on_line_changed)
@@ -1390,10 +1455,10 @@ class RightPanel(tk.Frame):
         suggested_frame.pack(fill=tk.X, pady=5)
        
         tk.Label(suggested_frame, text="Authority:", bg='#cccccc').pack(anchor='w', padx=5)
-        tk.Label(suggested_frame, text="2 blocks", bg='white',
+        tk.Label(suggested_frame, text="0 blocks", bg='white',
                 relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
         tk.Label(suggested_frame, text="Speed:", bg='#cccccc').pack(anchor='w', padx=5)
-        tk.Label(suggested_frame, text="38 mph", bg='white',
+        tk.Label(suggested_frame, text="0.000 mph", bg='white',
                 relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
    
     def create_commanded_section(self):
@@ -1448,7 +1513,7 @@ class RightPanel(tk.Frame):
                 self.suggested_speed_label.config(text=formatted_speed)
                 add_to_message_log(f"Suggested Speed updated to: {formatted_speed}")
             else:
-                add_to_message_log("ERROR: Invalid speed value received", "ERROR")
+                add_to_message_log(f"ERROR: Invalid speed value received", "ERROR")
         except Exception as e:
             add_to_message_log(f"ERROR updating speed display: {e}", "ERROR")
 
@@ -1459,8 +1524,8 @@ class RightPanel(tk.Frame):
                 formatted_authority = f"{authority_value} blocks"
                 self.suggested_authority_label.config(text=formatted_authority)
                 add_to_message_log(f"Suggested Authority updated to: {formatted_authority}")
-            else:
-                add_to_message_log("ERROR: Invalid authority value received", "ERROR")
+            # else:
+            #     add_to_message_log("ERROR: Invalid authority value received", "ERROR")
         except Exception as e:
             add_to_message_log(f"ERROR updating authority display: {e}", "ERROR")
    ############################################################################################################################
