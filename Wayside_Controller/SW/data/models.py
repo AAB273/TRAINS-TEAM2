@@ -308,7 +308,9 @@ class RailwayData:
                     if col_index == 0:
                         is_occupied = (new_value == "Yes")
                         self.filtered_blocks[block_key]["occupied"] = is_occupied
-                    
+                        if self.app:  # Only if we have app reference
+                                self.app.send_occupancy(current_line, block_num, new_value)
+                            
                     # If faulted changed (col 3)
                     elif col_index == 3:
                         is_faulted = (new_value == "Yes")
