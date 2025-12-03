@@ -361,16 +361,15 @@ class RailwayData:
                         # Send switch state to CTC (would need to implement)
                         #self.app.send_light_state(item_line, block, new_value)
 
-                    elif category == "railway_crossing":
+                    elif category == "railway_crossings":
                         # Extract block number and send  
                         block = name.split(" ")[1] if " " in name else name
-                        self.app.send_light_state(item_line, block, new_value)
                         # Get current crossing state
                         crossing_data = data_dict[name]
                         lights_state = crossing_data.get("lights", "Off")
                         bar_state = crossing_data.get("bar", "Open")
                         # Send crossing state to CTC
-                        self.app.send_railway_state(item_line, block, lights_state, bar_state)
+                        self.app.send_railway_state(item_line, block, bar_state)
 
                 # Notify listeners that data changed
                 for callback in self.on_data_update:
