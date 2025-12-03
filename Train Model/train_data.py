@@ -64,6 +64,7 @@ class Train:
         # Line assignment
         self.line = "green" 
         self.block = 63
+        self.previous_block = None
         #self.line_data
 
         # Station
@@ -102,6 +103,7 @@ class Train:
         self._notify_observers
     
     def set_block(self,value):
+        self.previous_block = self.block
         self.block = value
         self.set_speed_limit(self.line_data.get_value(value,'speed_limit'))
         self.set_grade(self.line_data.get_value(value,'grade'))
