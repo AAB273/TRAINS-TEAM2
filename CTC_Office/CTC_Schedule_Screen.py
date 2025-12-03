@@ -28,6 +28,8 @@ class ScheduleScreen:
     self.distToNext: dictionary containing the distance to go to the next station from where the train currently is
                      example data "from 
     self.blocksToNext: dictionary like distToNext, but with the number of blocks rather than the distance
+
+    self.trainRoutes: dictionary containing each train's route (defined as the block it will travel to next, plus its scheduled stops)
     '''
 
     def __init__(self, root: tk.Tk, main: CTC_Main_Screen, frame: ttk.Frame, notebook: ttk.Notebook):
@@ -49,6 +51,8 @@ class ScheduleScreen:
                              "from Overbrook 1": 8, "from Inglewood 1": 8, "from Central 1": 10, "from Pioneer": 6,
                              "from Edgebrook": 6, "from LLC Plaza": 5, "from Whited": 8, "from South Bank": 7, "from Central 2": 8,
                              "from Inglewood 2": 8, "from Overbrook 2": 7}
+
+        self.trainRoutes = {}
 
         self.createTopRow()
         #print to top row of the UI to the window
@@ -156,7 +160,7 @@ class ScheduleScreen:
         buttonFrame = ttk.Frame(leftFrame, style = "white.TFrame")
         buttonFrame.pack(pady = 40, side = "top", expand = True)
         #sub-frame to organize buttons
-        getDeploy = ttk.Button(buttonFrame, text = "Deploy Train", style = "TButton", command = lambda: (self.sendDeployData("1", selectedLocation.get(), arrivalTime.get(), "green"), self.updateManualEdit("1", selectedLocation.get(), arrivalTime.get(), "green")))
+        getDeploy = ttk.Button(buttonFrame, text = "Deploy Train", style = "TButton", command = lambda: (self.sendDeployData("63", selectedLocation.get(), arrivalTime.get(), "green"), self.updateManualEdit("63", selectedLocation.get(), arrivalTime.get(), "green")))
         getDeploy.pack(pady = 15, side = "top", fill = "x")
         #grab inputs from the Combobox and Entry (if user inputs values)
         autoButton = ttk.Button(buttonFrame, text = "Automatic Mode", style = "TButton", command = lambda: self.updateAutoEdit())
@@ -243,56 +247,83 @@ class ScheduleScreen:
 
     def updateManualEdit(self, location: str, destination: str, time: str, line: str):
     #update the manual edit tab
+        if (time != None):
+        #if we are creating a new train on the line
+            distToStation = 0.0
+            arrTime = self.timeToSeconds(time)
+            speed = 0
+            auth = 0
 
-        distToStation = 0.0
-        arrTime = self.timeToSeconds(time)
-        speed = 0
-        auth = 0
-
-        children = self.meArea.get_children("")
-        #get a list of the items in the Treeview
-        if (not children):
-        #if there is no data yet, add first item
-            level = self.meArea.insert('', "end", text = line.title())
-            self.meArea.insert(level, "end", text = ("Train " + str(self.trainNum)), values = [("Block " + location), destination, time])
-        else:
-            added = False
-            #flag variable
-            for child in children: 
-            #iterate for each parent in the Treeview
-                for item in self.meArea.get_children(child):
-                #iterate for each child of every parent in the Treeview
-                    dest = self.meArea.item(item, "text")
-                    if (dest == "Train " + str(self.trainNum)):
-                    #if the user edits an existing train, update rather than adding a new item
-                        self.meArea.item(item, values = ["Block " + location, destination, time])
+            children = self.meArea.get_children("")
+            #get a list of the items in the Treeview
+            if (not children):
+            #if there is no data yet, add first item
+                level = self.meArea.insert('', "end", text = line.title())
+                self.meArea.insert(level, "end", text = ("Train " + str(self.trainNum)), values = [("Block " + location), destination, time])
+            else:
+                added = False
+                #flag variable
+                for child in children: 
+                #iterate for each parent in the Treeview
+                    for item in self.meArea.get_children(child):
+                    #iterate for each child of every parent in the Treeview
+                        dest = self.meArea.item(item, "text")
+                        if (dest == "Train " + str(self.trainNum)):
+                        #if the user edits an existing train, update rather than adding a new item
+                            self.meArea.item(item, values = ["Block " + location, destination, time])
+                            added = True
+                            break
+                    if (not added and self.meArea.item(child, "text") == line.title()):
+                    #if train does not exist but is on an existing line, add under that specific line
+                        self.meArea.insert(child, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination, time])
                         added = True
                         break
-                if (not added and self.meArea.item(child, "text") == line.title()):
-                #if train does not exist but is on an existing line, add under that specific line
-                    self.meArea.insert(child, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination, time])
-                    added = True
+                if (not added):
+                #if item is not already in the treeview, add a new parent/child set
+                    level = self.meArea.insert('', "end", text = line.title())
+                    self.meArea.insert(level, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination, time])
+
+            self.trainRoutes[self.trainNum] = [64, destination]
+
+            self.trainNum += 1
+
+            if (destination == "Glenbury" or destination == "Dormont" or destination == "Overbrook" or destination == "Inglewood" or destination == "Central"):
+                destination = destination + " 1"
+            
+            for key in self.distToNext:
+                if (key == "from " + destination):
                     break
-            if (not added):
-            #if item is not already in the treeview, add a new parent/child set
-                level = self.meArea.insert('', "end", text = line.title())
-                self.meArea.insert(level, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination, time])
+                distToStation += self.distToNext[key]
+                auth += self.blocksToNext[key]
+                auth += 1
+            auth -= 2 #-1 for yard, -1 for giving train time to stop
+            speed = float(distToStation) / arrTime * 2.237
 
-        self.trainNum += 1
-
-        if (destination == "Glenbury" or destination == "Dormont" or destination == "Overbrook" or destination == "Inglewood" or destination == "Central"):
-            destination = destination + " 1"
+            self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(self.trainNum - 1), f"{speed:.3f}", str(auth), line]})
+            #self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": "Green", "block": "63", "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
+            #self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": "Green", "block": "63", "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
+            #hardcoded 63 for now
+            return auth  #for test case 1
         
-        for key in self.distToNext:
-            if (key == "from " + destination):
-                break
-            distToStation += self.distToNext[key]
-            auth += self.blocksToNext[key]
-        speed = float(distToStation) / arrTime
+        else:
+        #if we are updating a train on the line
+            for key in self.trainRoutes:
+                if (self.trainRoutes[key][0] == int(location)):
+                    children = self.meArea.get_children("")
 
-        #self.mainScreen.send_to_ui("TL", str(self.trainNum - 1) + ", " + f"{speed:.3f}\n" + ", " + str(auth) + ", " + line)
-        #self.mainScreen.send_to_ui("Track HW", {"command": "suggested_speed", "value": {f"{speed:.3f}\n"}})
-        self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": "Green", "block": 63, "speed": speed, "authority": auth, "value_type": "suggested"}})
+                    for child in children: 
+                    #iterate for each parent in the Treeview
+                        for item in self.meArea.get_children(child):
+                            dest = self.meArea.item(item, "text")
+                            if ("Train " + str(key) == dest):
+                                self.meArea.set(item, column = "Location", value = "Block " + str(location))
+                                self.mainScreen.tlArea.set(item, column = "Location", value = "Block " + str(location))
+
+
+                    self.trainRoutes[key][0] += 1
+                    break
+
+
 
 ###############################################################################################################################################################
 
@@ -401,18 +432,9 @@ class ScheduleScreen:
     def timeToSeconds(self, arrTimeStr):
     #convert a given time into seconds
 
-        currTimeStr = strftime("%I:%M %p")
+        currTimeStr = clock.clock.getTime()
 
         arrTime = 0
-        arrAbb = ""
-        for char in arrTimeStr:
-            if (char.isalpha()):
-                arrAbb += char
-        #grab AM/PM
-        if (arrAbb == "PM"):
-            arrTime += (12 * 3600)
-        #if PM, add 12 hours
-
         found = False
         #flag for finding colon
         arrHoursStr = ""
@@ -432,15 +454,6 @@ class ScheduleScreen:
         arrTime += (arrHours + arrMins)
 
         currTime = 0
-        currAbb = ""
-        for char in currTimeStr:
-            if (char.isalpha()):
-                currAbb += char
-        #grab AM/PM
-        if (currAbb == "PM"):
-            currTime += (12 * 3600)
-        #if PM, add 12 hours
-
         found = False
         #flag for finding colon
         currHoursStr = ""

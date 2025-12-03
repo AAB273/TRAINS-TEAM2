@@ -45,6 +45,7 @@ class MainScreen:
     self.lsArea: a ttk.Treeview() object that holds information about light states
 
     self.mmList: a dictionary containing every block with a switch and what blocks they can face
+    self.trainList: a dictionary containing every train on the track, with the train index as the key and the next block as the value
     '''
 
     def __init__(self, root: tk.Tk, schedule: CTC_Schedule_Screen.ScheduleScreen, frame: ttk.Frame, notebook: ttk.Notebook):
@@ -58,6 +59,7 @@ class MainScreen:
         self.numberOfTrains = 1
 
         self.mmList = {12: [1, 13], 28: [29, 150], 77: [76, 101], 85: [86, 100], 0: [57, 63]}
+        self.trainList = {}
 
 
         # Socket server setup
@@ -116,11 +118,11 @@ class MainScreen:
 
     def updateMainScreen(self, code, data):
     #update any data according to the data file
-        '''
-        Note: Follows formatting rules specified in README.txt.
-        '''
 
-        if (code == "TS"):
+        if (code == "TL"):
+            self.schedule_screen.updateManualEdit(data[0], None, None, None)
+
+        elif (code == "TS"):
         #track state data case
             location = ""
             commaInd = 0
@@ -189,24 +191,10 @@ class MainScreen:
 
         elif (code == "LS"):  
         #light switch data case
-            location = ""
-            state = ""
-            commaInd = 0
+            location = data[0]
+            state = data[1]
+            line = data[2]
 
-            #grab data from message
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                location += data[i]
-            data = data[commaInd + 2:]
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                state += data[i]
-            line = data[commaInd + 2:]
-        
             if (state == "00"):
                 state = "red"
             elif (state == "01"):
@@ -246,7 +234,7 @@ class MainScreen:
                 if (not added):
                 #if value is not already in the treeview, add a new parent/child set
                     level = self.lsArea.insert('', "end", text = line.title())
-                    self.lsArea.insert(level, "end", text = "Block " + location, values = [state])
+                    self.lsArea.insert(level, "end", text = "Block " + location + ", " + line, values = [state])
 
         elif (code == "RC"):
             #railway crossing data case
@@ -568,6 +556,7 @@ class MainScreen:
         Because this is sent directly from ScheduleScreen, avoid the UpdateMainScreen() method
         to leave CTC_data.txt purely for inputs from other modules.
         '''
+        #NEED TO ADD THIS TO UPDATE UI
 
         children = self.tlArea.get_children("")
         #get a list of the items in the Treeview
@@ -585,6 +574,7 @@ class MainScreen:
                     train = self.tlArea.item(item, "text")
                     #grab the train number
                     if (train == "Train " + str(tNum)):
+                        print(location)
                     #if the user edits an existing train, update rather than adding a new train
                         self.tlArea.item(item, values = ["Block " + location, destination, time])
                         added = True

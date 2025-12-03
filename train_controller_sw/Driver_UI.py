@@ -127,6 +127,7 @@ class Main_Window:
         #self.root.attributes('-zoomed', True)  # On macOS/Linux
         self.root.configure(bg="navy")
         #self.root.attributes('-zoomed', True)  # On macOS/Linux
+        #self.root.attributes('-zoomed', True)  # On macOS/Linux
         #self.root.state('zoomed') for windows
 
         # Make fullscreen
@@ -525,6 +526,7 @@ class Main_Window:
                     self.add_to_status_log("Passenger emergency signal cleared")
             
             # ========== ACTUAL VELOCITY ==========
+            elif command == "Current Speed":
             elif command == "Current Speed":
                 # Input: m/s from Train Model
                 self.current_speed_ms = float(value)  # Store original m/s

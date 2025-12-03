@@ -503,3 +503,16 @@ class RailwayData:
                                     self.block_data_original[idx].append("No")
                                 self.block_data_original[idx][3] = new_faulted_str
                         break
+
+
+
+    #for PLC program
+    @property
+    def filtered_track_data(self):
+        """Provide the track data structure expected by PLC code"""
+        return {
+            "crossings": self.filtered_railway_crossings,
+            "switches": self.filtered_switch_positions,
+            "lights": self.filtered_light_states, 
+            "blocks": self.filtered_blocks
+        }

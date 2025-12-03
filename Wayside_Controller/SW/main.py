@@ -31,6 +31,9 @@ class RailwayControlSystem:
         # Add this line - gives RailwayData a reference to the main app
         self.data.app = self
         
+        # ADD THIS LINE: Track previous occupancy to detect changes
+        self.previous_occupancy = {"Green": {}, "Red": {}}
+
         # Load socket configuration first
         module_config = load_socket_config().get("Track SW", {"port": 2})
         
@@ -85,12 +88,8 @@ class RailwayControlSystem:
             "commanded_speed": speed,
             "commanded_authority": authority,
         }
-        success = self.send_to_track_model(track_model_message)
-        if success:
-            print(f"Sent to Track Model: Block {block}, Speed:{speed}, Auth:{authority}")
-        else:
-            print(f"Failed to send to Track Model: Block {block}")
-        return success
+        self.send_to_track_model(track_model_message)
+
     
     def send_switch_to_track_model(self, track, block, direction):
         """Send array of all switch directions to Track Model"""
@@ -116,6 +115,10 @@ class RailwayControlSystem:
     def send_to_track_model(self, message):
         """Send message to Track Model"""
         return self.server.send_to_ui("Track Model", message)
+    
+    def send_to_CTC(self, message):
+        """Send message to Track Model"""
+        return self.server.send_to_ui("CTC", message)
 
     def _handle_switch_update(self, data):
         """Handle switch updates from Test UI"""
@@ -146,6 +149,20 @@ class RailwayControlSystem:
             light_name = f"Light {block}"
             self.data.update_track_data("light_states", light_name, "signal", color)
             self.data.update_track_data("light_states", light_name, "condition", f"Signal: {color}")
+
+            # Send switch state to Track Model
+            self.send_light_state(track, block, color)
+
+    def send_light_state(self,track, block, color):
+        """Send Light State to CTC and Track Model"""
+        message = {
+            "command": "LS",
+            "value": [block, color, track]
+        }
+
+        print("\n\n\nhere\n\n\n")
+        self.send_to_CTC(message)
+
 
 
     def _handle_crossing_update(self, data):
@@ -217,7 +234,14 @@ class RailwayControlSystem:
             else:
                 print(f"Occupancy update initiated")
 
-            # ADD THIS: Force refresh the center panel table
+            #Send speed and authority to Track Model when block becomes occupied
+            if occupied:
+                # Get commanded values for this block
+                commanded_speed = self.data.commanded_speed[track].get(block, 0)
+                commanded_authority = self.data.commanded_authority[track].get(block, 0)
+                self.send_commanded_to_track_model(track, block, commanded_speed, commanded_authority)
+
+            # Force refresh the center panel table
             if hasattr(self, 'center_panel') and hasattr(self.center_panel, 'refresh_table'):
                 self.center_panel.refresh_table()
                 print(f"Center panel refreshed for occupancy update")
@@ -270,7 +294,93 @@ class RailwayControlSystem:
         self.data.on_line_change.append(self.right_panel.on_line_changed) 
         self.data.on_line_change.append(self.header.update_tab_appearance)
 
+'''
+def test_block_occupancy(app):
+    ###Test block occupancy functionality###
+    print("\n=== Testing Block Occupancy ===")
+    
+    # Test Case 1: Set block to occupied
+    print("\n--- Test Case 1: Set block to occupied ---")
+    test_track = "Green"
+    test_block = "15"
+    test_occupied = True
+    
+    occupancy_message = {
+        'command': 'update_occupancy',
+        'data': {
+            'track': test_track,
+            'block': test_block,
+            'occupied': test_occupied
+        }
+    }
+    
+    app._process_message(occupancy_message, "track_model")
+    app.root.update()
+    print(f" Occupied message processed for {test_track} Block {test_block}")
+
+    # Test Case 2: Set same block to unoccupied
+    print("\n--- Test Case 2: Set block to unoccupied ---")
+    test_occupied = False
+    
+    occupancy_message = {
+        'command': 'update_occupancy',
+        'data': {
+            'track': test_track,
+            'block': test_block,
+            'occupied': test_occupied
+        }
+    }
+    
+    app._process_message(occupancy_message, "track_model")
+    app.root.update()
+    print(f"Unoccupied message processed for {test_track} Block {test_block}")
+
+    # Test Case 3: Test different block
+    print("\n--- Test Case 3: Test different block ---")
+    test_block2 = "20"
+    test_occupied = True
+    
+    occupancy_message = {
+        'command': 'update_occupancy',
+        'data': {
+            'track': test_track,
+            'block': test_block2,
+            'occupied': test_occupied
+        }
+    }
+    
+    app._process_message(occupancy_message, "track_model")
+    app.root.update()
+    print(f"Occupied message processed for {test_track} Block {test_block2}")
+
+    # Test Case 4: Test different track
+    print("\n--- Test Case 4: Test different track ---")
+    test_track2 = "Red"
+    test_block3 = "5"
+    
+    occupancy_message = {
+        'command': 'update_occupancy',
+        'data': {
+            'track': test_track2,
+            'block': test_block3,
+            'occupied': True
+        }
+    }
+    
+    app._process_message(occupancy_message, "track_model")
+    app.root.update()
+    print(f" Occupied message processed for {test_track2} Block {test_block3}")
+
+    print(f"\n ALL TESTS PASSED! The block occupancy logic works correctly.")
+    return True
+'''
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = RailwayControlSystem(root)
+    # Run test after UI loads
+    def run_test():
+        test_block_occupancy(app)
+    
+    root.after(2000, run_test)  # Wait 2 seconds for UI to initialize
     root.mainloop()

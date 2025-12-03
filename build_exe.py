@@ -7,6 +7,17 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 lib_dir = os.path.join(script_dir, 'lib')
 requirements_file = os.path.join(script_dir, 'requirements.txt')
 
+# List of folders/files to include in the build
+# Add your module paths here
+modules_to_bundle = [
+    'CTC_Office',
+    'Wayside_Controller',
+    'Track Model',
+    'Train Model',
+    'train_controller_sw',
+    'config.json',
+]
+
 print("="*60)
 print("TRAINS TEAM 2 - BUILD SYSTEM")
 print("="*60)
@@ -42,13 +53,12 @@ if os.path.exists(lib_dir):
 print("\n[3/3] Building executable with PyInstaller...")
 
 build_args = [
-    os.path.join(script_dir, 'launch_all_modules.py'),
+    os.path.join(script_dir, 'wrapper.py'),
     '--onedir',
     '--name=TRAINS_Unified_Control',
     '--distpath=' + os.path.join(script_dir, 'dist'),
     '--workpath=' + os.path.join(script_dir, 'build'),
     '--specpath=' + os.path.join(script_dir, 'build'),
-    '--windowed',
     '--add-data=' + lib_dir + os.pathsep + 'lib',  # Bundle lib folder
 ] + hidden_imports
 
