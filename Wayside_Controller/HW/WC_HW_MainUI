@@ -4,6 +4,9 @@ from datetime import datetime
 from PIL import Image, ImageTk
 from plc_controller import PLCController
 import os, sys
+from time import strftime
+from threading import Timer
+import json
 # import green_line
 # import red_line
 
@@ -46,58 +49,6 @@ station_location = []
 ######
 ##############
 
-def handle_ctc_suggested_speed(speed_data):
-    """
-    Handle CTC suggested speed messages and convert to float with 3 decimal places
-    Expected formats:
-    - String: "track HW", {"Suggested_speed", "float: new_speed"}
-    - Dictionary: {'Suggested_speed': 'float: 45.5'}
-    - Direct string: "float: 45.5"
-    """
-    try:
-        suggested_speed = None
-        
-        # Handle different input formats
-        if isinstance(speed_data, str):
-            # Extract float value from string format
-            if "float:" in speed_data:
-                # Find the float value in the string
-                import re
-                float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_data)
-                if float_match:
-                    speed_str = float_match.group(1)
-                    suggested_speed = float(speed_str)
-            else:
-                # Try direct conversion if it's just a number string
-                suggested_speed = float(speed_data)
-                
-        elif isinstance(speed_data, dict):
-            # Handle dictionary format
-            if 'Suggested_speed' in speed_data:
-                speed_value = speed_data['Suggested_speed']
-                if isinstance(speed_value, str) and "float:" in speed_value:
-                    speed_str = speed_value.split("float:")[1].strip()
-                    suggested_speed = float(speed_str)
-                else:
-                    suggested_speed = float(speed_value)
-            elif 'value' in speed_data:
-                # Alternative dictionary format
-                suggested_speed = float(speed_data['value'])
-        
-        # Format to 3 decimal places if conversion was successful
-        if suggested_speed is not None:
-            formatted_speed = round(suggested_speed, 3)
-            add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.3f} mph")
-            return formatted_speed
-        else:
-            add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
-            
-    except ValueError as e:
-        add_to_message_log(f"ERROR: Invalid speed format - {e}", "ERROR")
-    except Exception as e:
-        add_to_message_log(f"ERROR: Processing CTC speed message - {e}", "ERROR")
-    
-    return None
 
 def update_suggested_speed_display(speed):
     """Update the suggested speed display in the right panel"""
@@ -133,12 +84,12 @@ def _process_message(self, data, connection=None, server_instance=None):
             try:
                 # Try to parse as JSON
                 import json
-                parsed_data = json.loads(data)
-                print(f"Parsed JSON data: {parsed_data}")
-                message_data = parsed_data
+                message_data = json.loads(data)
+                # print(f"Parsed JSON data: {parsed_data}")
+                # message_data = parsed_data
             except json.JSONDecodeError:
                 # If it's not JSON, treat it as a plain string message
-                print(f"Data is plain string, not JSON: {data}")
+                # print(f"Data is plain string, not JSON: {data}")
                 message_data = {'message': data}
         else:
             # Data is already a dictionary
@@ -146,7 +97,7 @@ def _process_message(self, data, connection=None, server_instance=None):
         # extract command and value 
         command = message_data.get('command')
         value = message_data.get('value')
-        
+        # self.handle_ctc_message(message_data)
         print(f"Processing command: {command}, value: {value}")
 
         # Handle different commands
@@ -158,7 +109,8 @@ def _process_message(self, data, connection=None, server_instance=None):
                 # # ADD THIS LINE - sync back to Test UI
                 # self.sync_speed_to_test_ui(formatted_speed)
         elif command == 'update_speed_auth':
-            self.handle_speed_auth_update(value)    
+            test_data.handle_speed_auth_update(value)
+            # self.handle_speed_auth_update(value)    
         elif command == 'set_block_occupancy':
             # existing handling
             pass
@@ -170,37 +122,71 @@ def _process_message(self, data, connection=None, server_instance=None):
     except Exception as e:
         print(f"Error processing message: {e}")
 
-        # # Extract the actual message
-        # message = message_data.get('message', message_data)
-        # source_ui_id = message_data.get('ui_id', 'Unknown')
-        
-        # print(f"Processing message from {source_ui_id}: {message}")
-        
-        # # Extract message and source UI ID
-        # if isinstance(data, 'dict'):
-        #     message = data.get('message', data)
-        #     source_ui_id = data.get('WC_HW_TestUI', 'Unknown')
-        # else:
-        #     message = data
-        #     source_ui_id = 'WC_HW_TestUI'
-        
-        # print(f"Processing message from {source_ui_id}: {message}")
-        
-        # command = message.get('command')
-        # value = message.get('value')
+    # def sync_speed_to_test_ui(self, speed_value):
+    #     """Sync speed changes back to Test UI"""
+    #     try:
+    #         if hasattr(self, 'server1') and self.server1:
+    #             message = {
+    #             'command': 'sync_suggested_speed',
+    #             'value': str(speed_value),
+    #             'ui_id': 'WC_HW_MainUI'
+    #         }
+    #             self.server1.send_to_ui("WC_HW_TestUI", message)
+    #     except Exception as e:
+    #         print(f"Error syncing speed to Test UI: {e}")
 
-    def sync_speed_to_test_ui(self, speed_value):
-        """Sync speed changes back to Test UI"""
+    def handle_ctc_suggested_speed(speed_data):
+        """
+        Handle CTC suggested speed messages and convert to float with 3 decimal places
+        Expected formats:
+        - String: "track HW", {"Suggested_speed", "float: new_speed"}
+        - Dictionary: {'Suggested_speed': 'float: 45.5'}
+        - Direct string: "float: 45.5"
+        """
         try:
-            if hasattr(self, 'server1') and self.server1:
-                message = {
-                'command': 'sync_suggested_speed',
-                'value': str(speed_value),
-                'ui_id': 'WC_HW_MainUI'
-            }
-                self.server1.send_to_ui("WC_HW_TestUI", message)
+            suggested_speed = None
+        
+            # Handle different input formats
+            if isinstance(speed_data, str):
+                # Extract float value from string format
+                if "float:" in speed_data:
+                    # Find the float value in the string
+                    import re
+                    float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_data)
+                    if float_match:
+                        speed_str = float_match.group(1)
+                        suggested_speed = float(speed_str)
+                else:
+                    # Try direct conversion if it's just a number string
+                    suggested_speed = float(speed_data)
+                
+            elif isinstance(speed_data, dict):
+                # Handle dictionary format
+                if 'Suggested_speed' in speed_data:
+                    speed_value = speed_data['Suggested_speed']
+                    if isinstance(speed_value, str) and "float:" in speed_value:
+                        speed_str = speed_value.split("float:")[1].strip()
+                        suggested_speed = float(speed_str)
+                    else:
+                        suggested_speed = float(speed_value)
+                elif 'value' in speed_data:
+                    # Alternative dictionary format
+                    suggested_speed = float(speed_data['value'])
+        
+            # Format to 3 decimal places if conversion was successful
+            if suggested_speed is not None:
+                formatted_speed = round(suggested_speed, 3)
+                add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.3f} mph")
+                return formatted_speed
+            else:
+                add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
+            
+        except ValueError as e:
+            add_to_message_log(f"ERROR: Invalid speed format - {e}", "ERROR")
         except Exception as e:
-            print(f"Error syncing speed to Test UI: {e}")
+            add_to_message_log(f"ERROR: Processing CTC speed message - {e}", "ERROR")
+    
+    return None
 
 class Clock:
     def __init__(self):
@@ -404,9 +390,6 @@ class UITestData:
             # print(f"Loaded complete track data for {len(complete_data)} blocks")
             # return complete_data
 
-        # except FileNotFoundError:
-        #     print(f"Error: File {filename} not found")
-        #     return []
         except Exception as e:
             print(f"Error loading complete track data: {e}")
             return []
@@ -546,7 +529,30 @@ class UITestData:
             return False
         return self.maintenance_changes.get(component_type, False)
 
-    def handle_speed_auth_update(self, data):
+    def handle_ctc_message(self, message_data):
+        """Unified handler for all CTC messages"""
+        try:
+            command = message_data.get('command')
+            value = message_data.get('value')
+            
+            if command == 'update_speed_auth':
+                # Handle speed+authority updates from CTC schedule screen
+                self._handle_speed_auth_update(value)
+                
+            elif command == 'ctc_suggestion':
+                # Handle old format speed-only messages
+                self._handle_old_ctc_suggestion(value)
+                
+            elif command == 'set_block_occupancy':
+                # Handle block occupancy
+                self._handle_block_occupancy(value)
+                
+            # Add other commands as needed
+                
+        except Exception as e:
+            add_to_message_log(f"ERROR handling CTC message: {e}", "ERROR")
+
+    def _handle_speed_auth_update(self, data):
         """Handle speed and authority updates from CTC"""
         try:
             if isinstance(data, dict):
@@ -558,7 +564,7 @@ class UITestData:
             
                 # Only process if it's for the current line
                 if track.lower() != self.current_line.lower():
-                    print(f"Ignoring update for different line: {track}")
+                    print(f"Ignoring update for different line: {track} (we're on {self.current_line})")
                     return
             
                 # Convert speed to float
@@ -604,6 +610,41 @@ class UITestData:
         except Exception as e:
             print(f"Error handling speed/auth update: {e}")
             add_to_message_log(f"ERROR processing CTC update: {e}", "ERROR")
+
+    def _handle_old_ctc_suggestion(self, speed_data):
+        """Handle old format CTC speed-only messages (backward compatibility)"""
+        try:
+            # This is your original handle_ctc_suggested_speed logic
+            suggested_speed = None
+        
+            if isinstance(speed_data, str):
+                if "float:" in speed_data:
+                    import re
+                    float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_data)
+                    if float_match:
+                        suggested_speed = float(float_match.group(1))
+                else:
+                    suggested_speed = float(speed_data)
+                
+            elif isinstance(speed_data, dict):
+                if 'Suggested_speed' in speed_data:
+                    speed_value = speed_data['Suggested_speed']
+                    if isinstance(speed_value, str) and "float:" in speed_value:
+                        speed_str = speed_value.split("float:")[1].strip()
+                        suggested_speed = float(speed_str)
+                    else:
+                        suggested_speed = float(speed_value)
+                elif 'value' in speed_data:
+                    suggested_speed = float(speed_data['value'])
+        
+            if suggested_speed is not None:
+                formatted_speed = round(suggested_speed, 3)
+                if hasattr(right_panel, 'update_suggested_speed'):
+                    right_panel.update_suggested_speed(formatted_speed)
+                add_to_message_log(f"CTC Speed (old format): {formatted_speed:.3f} mph")
+            
+        except Exception as e:
+            add_to_message_log(f"ERROR processing old CTC format: {e}", "ERROR")
 
 # Create mock data instance
 test_data = UITestData()
@@ -1400,7 +1441,7 @@ class RightPanel(tk.Frame):
         #attributes for suggested speed/authority
         self.suggested_speed_label = None
         self.suggested_authority_label = None
-        self.create_suggested_section()
+        # self.create_suggested_section()
 
         # Connect line change callback
         self.data.on_line_change.append(self.on_line_changed)
@@ -1453,10 +1494,11 @@ class RightPanel(tk.Frame):
         suggested_frame = tk.LabelFrame(self, text="Suggested:",
                                        bg='#cccccc', font=('Arial', 10, 'bold'))
         suggested_frame.pack(fill=tk.X, pady=5)
-       
+       # Authority:
         tk.Label(suggested_frame, text="Authority:", bg='#cccccc').pack(anchor='w', padx=5)
         tk.Label(suggested_frame, text="0 blocks", bg='white',
                 relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
+        #Speed:
         tk.Label(suggested_frame, text="Speed:", bg='#cccccc').pack(anchor='w', padx=5)
         tk.Label(suggested_frame, text="0.000 mph", bg='white',
                 relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
@@ -1712,84 +1754,7 @@ class RightPanel(tk.Frame):
         self.create_block_table()
 #############################################################################################################
 ################################################################################################################
-    class CTCSpeedHandler:
-        """Handles CTC suggested speed messages with clear, modular methods"""
     
-    # @staticmethod
-    def extract_speed_from_string(speed_string):
-        """Extract speed value from string format"""
-        try:
-            # Handle "float: 45.5" format
-            if "float:" in speed_string:
-                import re
-                float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_string)
-                if float_match:
-                    return float(float_match.group(1))
-            
-            # Handle direct number string
-            return float(speed_string)
-            
-        except (ValueError, TypeError):
-            return None
-    
-    # @staticmethod
-    def extract_speed_from_dict(speed_dict):
-        """Extract speed value from dictionary format"""
-        try:
-            # Try different possible dictionary keys
-            if 'Suggested_speed' in speed_dict:
-                speed_value = speed_dict['Suggested_speed']
-                if isinstance(speed_value, str):
-                    return CTCSpeedHandler.extract_speed_from_string(speed_value)
-                else:
-                    return float(speed_value)
-                    
-            elif 'value' in speed_dict:
-                return float(speed_dict['value'])
-                
-            elif 'speed' in speed_dict:
-                return float(speed_dict['speed'])
-                
-        except (ValueError, TypeError, KeyError):
-            return None
-    
-    # @staticmethod
-    def format_speed_value(speed):
-        """Format speed to 3 decimal places"""
-        if speed is not None:
-            return round(float(speed), 3)
-        return None
-    
-    # @staticmethod
-    def handle_ctc_speed_message(speed_data):
-        """
-        Main method to handle CTC speed messages
-        Returns formatted speed value or None if invalid
-        """
-        print(f"DEBUG: Processing CTC speed data: {speed_data}")
-        
-        extracted_speed = None
-        
-        # Handle different input types
-        if isinstance(speed_data, str):
-            extracted_speed = CTCSpeedHandler.extract_speed_from_string(speed_data)
-            
-        elif isinstance(speed_data, dict):
-            extracted_speed = CTCSpeedHandler.extract_speed_from_dict(speed_data)
-            
-        elif isinstance(speed_data, (int, float)):
-            extracted_speed = float(speed_data)
-        
-        # Format the speed value
-        formatted_speed = CTCSpeedHandler.format_speed_value(extracted_speed)
-        
-        # Log the result
-        if formatted_speed is not None:
-            add_to_message_log(f"CTC Suggested Speed Processed: {formatted_speed:.3f} mph")
-        else:
-            add_to_message_log(f"ERROR: Could not process CTC speed data: {speed_data}", "ERROR")
-        
-        return formatted_speed
 #############################################################################################################
 ################################################################################################################
 # Create the right panel with mock data
