@@ -153,6 +153,15 @@ class RailwayControlSystem:
            
     def send_light_state(self,track, block, color):
         """Send Light State to CTC and Track Model"""
+        if (color == 'Red'):
+            color = "00"
+        elif (color == 'Yellow'):
+            color = "01"
+        elif (color == 'Green'):
+            color = "10"
+        else:
+            color =="11"
+            
         message = {
             "command": "LS",
             "value": [block, color, track]
