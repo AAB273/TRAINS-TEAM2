@@ -369,7 +369,7 @@ class RailwayData:
                         lights_state = crossing_data.get("lights", "Off")
                         bar_state = crossing_data.get("bar", "Open")
                         # Send crossing state to CTC
-                        self.app.send_railway_state(item_line, block, lights_state, bar_state)
+                        self.app.send_railway_state(item_line, block, bar_state)
 
                 # Notify listeners that data changed
                 for callback in self.on_data_update:
