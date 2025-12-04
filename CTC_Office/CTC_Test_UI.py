@@ -217,13 +217,13 @@ class TestUI:
         leaveFrame = ttk.Frame(tpFrame)
         leaveFrame.pack(side = "top", fill = "x")
         #sub-frame to hold schedule people disembarking input data
-        leaveText = ttk.Label(leaveFrame, text = "Enter tickets sold:")
+        leaveText = ttk.Label(leaveFrame, text = "Enter passengers disembarking:")
         leaveText.pack(padx = 5, fill = "x")
         leaveEntry = ttk.Entry(leaveFrame, textvariable = leaveValue)
         leaveEntry.pack(padx = 5, fill = "x")
         #text to describe what to input, and an Entry to grab user data
 
-        getTP = ttk.Button(tpFrame, text = "Submit", style = "normal.TButton", command = lambda: self.send_to_ui("TP", soldValue.get() + ", " + leaveValue.get() + ", blue"))
+        getTP = ttk.Button(tpFrame, text = "Submit", style = "normal.TButton", command = lambda: self.send_to_ui("TP", [int(soldValue.get()), int(leaveValue.get()), "green"]))
         getTP.pack(side = "top")
         #button that sends data to data file (error checking needed for text entry)
 

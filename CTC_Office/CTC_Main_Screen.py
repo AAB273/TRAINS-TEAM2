@@ -160,6 +160,7 @@ class MainScreen:
         #throughput data case
             tickets = data[0]
             disemb = data[1]
+            line = data[2]
 
             self.totalPassengers += (tickets - disemb)
             #add new passengers to total
