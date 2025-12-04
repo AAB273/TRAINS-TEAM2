@@ -151,6 +151,8 @@ class TrackModelUI(tk.Tk):
                 b.traffic_light_state = 0
             if not hasattr(b, "occupancy"):
                 b.occupancy = 0
+            if not hasattr(b, "crossing_state"):
+                b.crossing_state = False  # False = inactive/up, True = active/down
 
         # Set initial environmental temperature
         if self.data_manager.environmental_temp is None:
@@ -5147,6 +5149,65 @@ class TrackModelUI(tk.Tk):
                     print(f" Unrecognized switch position format. Expected 'from-to' string or dict, got: {type(value)} = {value}")
             
             # ============================================================
+            # RAILROAD CROSSINGS - From Wayside Controller
+            # Receives crossing states as boolean values (True = active/down, False = inactive/up)
+            # Can be sent as dict {block_num: state} or single value with block_number
+            # ============================================================
+            elif command == 'Railroad Crossings' or command == 'Crossing States':
+                if isinstance(data, dict):
+                    # Multiple crossings: {block_num: state, ...}
+                    for block_num, crossing_state in data.items():
+                        # Convert block_num from string to int if needed
+                        if isinstance(block_num, str):
+                            try:
+                                block_num = int(block_num)
+                            except (ValueError, TypeError):
+                                print(f" Could not convert block_num key '{block_num}' to int")
+                                continue
+                        
+                        if 1 <= block_num <= len(self.data_manager.blocks):
+                            block = self.data_manager.blocks[block_num - 1]
+                            # Set crossing state (True = active/down, False = inactive/up)
+                            block.crossing_state = bool(crossing_state)
+                            state_text = "ACTIVE (DOWN)" if crossing_state else "INACTIVE (UP)"
+                            print(f" Updated railroad crossing at block {block_num}: {state_text}")
+                    self.refresh_bidirectional_controls()  # Update bidirectional directions
+                    self.refresh_ui()
+                    
+                elif isinstance(value, dict):
+                    # Multiple crossings in value field: {block_num: state, ...}
+                    for block_num, crossing_state in value.items():
+                        # Convert block_num from string to int if needed
+                        if isinstance(block_num, str):
+                            try:
+                                block_num = int(block_num)
+                            except (ValueError, TypeError):
+                                print(f" Could not convert block_num key '{block_num}' to int")
+                                continue
+                        
+                        if 1 <= block_num <= len(self.data_manager.blocks):
+                            block = self.data_manager.blocks[block_num - 1]
+                            # Set crossing state (True = active/down, False = inactive/up)
+                            block.crossing_state = bool(crossing_state)
+                            state_text = "ACTIVE (DOWN)" if crossing_state else "INACTIVE (UP)"
+                            print(f" Updated railroad crossing at block {block_num}: {state_text}")
+                    self.refresh_bidirectional_controls()  # Update bidirectional directions
+                    self.refresh_ui()
+                    
+                elif block_number and value is not None:
+                    # Single crossing update
+                    if 1 <= block_number <= len(self.data_manager.blocks):
+                        block = self.data_manager.blocks[block_number - 1]
+                        # Set crossing state (True = active/down, False = inactive/up)
+                        block.crossing_state = bool(value)
+                        state_text = "ACTIVE (DOWN)" if value else "INACTIVE (UP)"
+                        print(f" Updated railroad crossing at block {block_number}: {state_text}")
+                        self.refresh_bidirectional_controls()  # Update bidirectional directions
+                        self.refresh_ui()
+                else:
+                    print(f" Unrecognized railroad crossing format. Expected boolean or dict, got: {type(value)} = {value}")
+            
+            # ============================================================
             # LIGHT STATES / SIGNALS - From Wayside Controller
             # Receives as two-bit boolean arrays: [bit0, bit1]
             # ============================================================
@@ -5633,3 +5694,6 @@ if __name__ == "__main__":
     
     tester.lift()
     app.mainloop()
+
+
+    # [0, {0, 1}, {0, 0}]
