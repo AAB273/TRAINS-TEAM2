@@ -179,7 +179,7 @@ class RailwayControlSystem:
             if switch_data.get("line") == track:
                 # Extract block number and convert to integer for sorting
                 block_num = int(switch_name.split(" ")[1])
-                switches.append((block_num, switch_data.get("numeric_position", 1)))
+                switches.append((block_num, switch_data.get("numeric_position", 1))) - 1
         
         # Sort by block number (smallest first)
         switches.sort(key=lambda x: x[0])
