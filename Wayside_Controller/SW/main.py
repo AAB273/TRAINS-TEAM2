@@ -68,26 +68,51 @@ class RailwayControlSystem:
             data = message.get('value', {})
             
             # Check if message is from CTC and it's a switch command
-            if source_ui_id == "CTC" and command == "SW":
-                self._handle_ctc_switch(data)
+            if source_ui_id == "CTC":
+                if command == "SW":
+                    self.handle_ctc_switch(data)
+                elif command == "MAINT":  # Maintenance request from CTC
+                    self.handle_ctc_maintenance()
                 return  # Stop processing here
             
             if command == 'update_switch':
-                self._handle_switch_update(data)
+                self.handle_switch_update(data)
             elif command == 'update_light':
-                self._handle_light_update(data)
+                self.handle_light_update(data)
             elif command == 'update_crossing':
-                self._handle_crossing_update(data)
+                self.handle_crossing_update(data)
             elif command == 'update_speed_auth':
-                self._handle_speed_auth_update(data)
+                self.handle_speed_auth_update(data)
             elif command == 'update_occupancy':
-                self._handle_occupancy_update(data)
+                self.handle_occupancy_update(data)
             
                 
         except Exception as e:
             print(f"Error processing message: {e}")
+    
+    def handle_ctc_maintenance(self):
+        """Handle maintenance mode request from CTC"""
+        try:
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log_message = f"{current_time} CTC: Maintenance Request Received"
+            
+            print(f"CTC maintenance request received")
+            
+            # Send to UI log via callback
+            if hasattr(self, 'center_panel') and hasattr(self.center_panel, 'log_callback'):
+                self.center_panel.log_callback(log_message)
+                
+        except Exception as e:
+            error_msg = f"Error processing CTC maintenance command: {e}"
+            print(f"✗ {error_msg}")
+            
+            # Log the error
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log_message = f"{current_time} ERROR: Failed to process CTC maintenance request"
+            if hasattr(self, 'center_panel') and hasattr(self.center_panel, 'log_callback'):
+                self.center_panel.log_callback(log_message)
 
-    def _handle_ctc_switch(self, data):
+    def handle_ctc_switch(self, data):
         """Log CTC switch command without updating the switch"""
         try:
             # Parse the data - CTC sends: [block, track] (NO direction!)
@@ -163,7 +188,7 @@ class RailwayControlSystem:
         """Send message to Track Model"""
         return self.server.send_to_ui("CTC", message)
 
-    def _handle_switch_update(self, data):
+    def handle_switch_update(self, data):
         """Handle switch updates from Test UI"""
         track = data.get('track')
         block = data.get('block')
@@ -180,7 +205,7 @@ class RailwayControlSystem:
             self.send_switch_to_track_model(track, block, direction)
 
 
-    def _handle_light_update(self, data):
+    def handle_light_update(self, data):
         """Handle light updates from Test UI"""
         track = data.get('track')
         block = data.get('block')
@@ -203,7 +228,7 @@ class RailwayControlSystem:
         elif (color == 'Green'):
             color = "10"
         else:
-            color =="11"
+            color ="11"
 
         message = {
             "command": "LS",
@@ -239,7 +264,7 @@ class RailwayControlSystem:
 
 
 
-    def _handle_crossing_update(self, data):
+    def handle_crossing_update(self, data):
         """Handle crossing updates from Test UI"""
         track = data.get('track')
         block = data.get('block')
@@ -255,7 +280,7 @@ class RailwayControlSystem:
             self.data.update_track_data("railway_crossings", crossing_name, "condition", f"Lights: {lights}, Bar: {crossbar}")
             
 
-    def _handle_speed_auth_update(self, data):
+    def handle_speed_auth_update(self, data):
         """Handle speed/authority updates from Test UI"""
         track = data.get('track')
         block = data.get('block')
@@ -285,7 +310,7 @@ class RailwayControlSystem:
                 print(f"Right panel refreshed for {value_type} values")
 
 
-    def _handle_occupancy_update(self, data):
+    def handle_occupancy_update(self, data):
         """Handle occupancy updates from Test UI"""
         track = data.get('track')
         block = data.get('block')
