@@ -5297,73 +5297,46 @@ class TrackModelUI(tk.Tk):
             # Example: [0, [False, True]] = Green Line, State 2
             # ============================================================
             elif command == 'light_states':
-                # Extract light state directly (no line indicator)
-                actual_value = value
-                actual_data = data
-                
-                print(f" Received Light States")
-                
-                # Use block_number parameter if available
-                target_block = block_number
-                
-                if isinstance(actual_data, dict):
-                    for block_num, bit_array in actual_data.items():
-                        # Convert block_num from string to int if needed
-                        if isinstance(block_num, str):
-                            try:
-                                block_num = int(block_num)
-                            except (ValueError, TypeError):
-                                print(f" Could not convert block_num key '{block_num}' to int")
-                                continue
-                        
-                        if 1 <= block_num <= len(self.data_manager.blocks):
-                            block = self.data_manager.blocks[block_num - 1]
-                            # Convert two-bit boolean array to state (0-3)
-                            # [False, False] = 0, [True, False] = 1,
-                            # [False, True] = 2, [True, True] = 3
+                if isinstance(value, list):
+                    print(f" Received light states from {source_ui_id}")
+                    
+                    # Get all blocks with lights for the current line
+                    current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
+                    
+                    # Determine which blocks have lights based on current line
+                    if "Green" in current_line:
+                        light_blocks = sorted(self.light_states)  # Green Line: {12, 29, 76, 86}
+                    else:
+                        # Red Line would have different light blocks - adjust as needed
+                        light_blocks = []
+                    
+                    # Process each light state
+                    for i, bit_array in enumerate(value):
+                        if i < len(light_blocks):
+                            block_num = light_blocks[i]
+                            
+                            # Convert string bits to boolean
                             if isinstance(bit_array, list) and len(bit_array) == 2:
-                                state = (1 if bit_array[0] else 0) + (2 if bit_array[1] else 0)
-                                block.traffic_light_state = state
-                                print(f" Updated signal at block {block_num}: State {state} from bits {bit_array}")
-                            else:
-                                print(f" Invalid bit array format for block {block_num}: {bit_array}")
-                    self.refresh_bidirectional_controls()  # Update bidirectional directions
+                                try:
+                                    bit0 = bool(int(bit_array[0]))  # '1' -> True, '0' -> False
+                                    bit1 = bool(int(bit_array[1]))
+                                    
+                                    # Update the block's light state
+                                    if 1 <= block_num <= len(self.data_manager.blocks):
+                                        block = self.data_manager.blocks[block_num - 1]
+                                        state = (1 if bit0 else 0) + (2 if bit1 else 0)
+                                        block.traffic_light_state = state
+                                        print(f"   Updated signal at block {block_num}: State {state} from bits [{bit0}, {bit1}]")
+                                except (ValueError, TypeError) as e:
+                                    print(f"   Could not parse bit array for block {block_num}: {bit_array}")
+                    
+                    # Refresh UI to show light updates
+                    self.refresh_bidirectional_controls()
                     self.refresh_ui()
-                elif isinstance(actual_value, dict):
-                    for block_num, bit_array in actual_value.items():
-                        # Convert block_num from string to int if needed
-                        if isinstance(block_num, str):
-                            try:
-                                block_num = int(block_num)
-                            except (ValueError, TypeError):
-                                print(f" Could not convert block_num key '{block_num}' to int")
-                                continue
-                        
-                        if 1 <= block_num <= len(self.data_manager.blocks):
-                            block = self.data_manager.blocks[block_num - 1]
-                            # Convert two-bit boolean array to state (0-3)
-                            if isinstance(bit_array, list) and len(bit_array) == 2:
-                                state = (1 if bit_array[0] else 0) + (2 if bit_array[1] else 0)
-                                block.traffic_light_state = state
-                                print(f" Updated signal at block {block_num}: State {state} from bits {bit_array}")
-                            else:
-                                print(f" Invalid bit array format for block {block_num}: {bit_array}")
-                    self.refresh_bidirectional_controls()  # Update bidirectional directions
-                    self.refresh_ui()
-                elif target_block and actual_value is not None:
-                    if 1 <= target_block <= len(self.data_manager.blocks):
-                        block = self.data_manager.blocks[target_block - 1]
-                        # Convert two-bit boolean array to state (0-3)
-                        if isinstance(actual_value, list) and len(actual_value) == 2:
-                            state = (1 if actual_value[0] else 0) + (2 if actual_value[1] else 0)
-                            block.traffic_light_state = state
-                            print(f" Updated signal at block {target_block}: State {state} from bits {actual_value}")
-                        else:
-                            print(f" Invalid bit array format for block {target_block}: {actual_value}")
-                        self.refresh_bidirectional_controls()  # Update bidirectional directions
-                        self.refresh_ui()
+                    print(f"[DEBUG] Light states updated")
                 else:
-                    print(f" Unrecognized light state format. Expected [line_indicator, [bit0, bit1]], got: {type(value)} = {value}")
+                    print(f" Invalid light_states format: {value}")
+
 
             # ============================================================
             # CURRENT SPEED - From Train Model (Passenger_UI)
