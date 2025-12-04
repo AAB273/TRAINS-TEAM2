@@ -4546,10 +4546,15 @@ class TrackModelUI(tk.Tk):
     def send_all_station_data_to_ctc(self):
         """
         Send ticket sales and passengers disembarking for ALL stations to CTC.
-        Format: [ticket_sales (int), passengers_disembarking (int)]
+        Format: [ticket_sales (int), passengers_disembarking (int), line_color (str)]
         Uses 0 if no ticket sales or passengers disembarking are generated.
+        Line color is either "Red" or "Green" based on the selected line.
         This is called periodically by send_all_outputs().
         """
+        # Get the current line and extract color
+        current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
+        line_color = "Red" if "Red" in current_line else "Green"
+        
         for block_num, station_name in self.data_manager.station_location:
             idx = block_num - 1
             
@@ -4563,12 +4568,12 @@ class TrackModelUI(tk.Tk):
             if hasattr(self.data_manager, 'passengers_disembarking') and 0 <= idx < len(self.data_manager.passengers_disembarking):
                 disembarking_count = int(self.data_manager.passengers_disembarking[idx])
             
-            # Send as [ticket_sales, passengers_disembarking] format
+            # Send as [ticket_sales, passengers_disembarking, line_color] format
             self.server.send_to_ui("CTC", {
                 'command': 'TP',
-                'value': [ticket_count, disembarking_count]
+                'value': [ticket_count, disembarking_count, line_color]
             })
-            print(f" Sent station data to CTC for {station_name} (Block {block_num}): [tickets={ticket_count}, disembarking={disembarking_count}]")
+            print(f" Sent station data to CTC for {station_name} (Block {block_num}): [tickets={ticket_count}, disembarking={disembarking_count}, line={line_color}]")
 
     def send_failure_modes_to_wayside(self):
         """Send failure modes to Wayside Controller."""
