@@ -58,7 +58,7 @@ class MainScreen:
         self.totalPassengers = 0 
         self.numberOfTrains = 1
 
-        self.mmList = {12: [1, 13], 28: [29, 150], 77: [76, 101], 85: [86, 100], 0: [57, 63]}
+        self.mmList = {12: [1, 13], 28: [29, 150], 76: [77, 101], 85: [86, 100], 0: [57, 63]}
         self.trainList = {}
 
 
@@ -651,6 +651,7 @@ class MainScreen:
                     #grab specific block direction
 
                     self.send_to_ui("MM", location + ", " + direction + ", " + self.mmArea.item(self.mmArea.parent(rowID), "text").lower())
+                    self.send_to_ui("Track SW", {"commnand": "", "value": })
 
 ###############################################################################################################################################################
 
