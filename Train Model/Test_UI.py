@@ -85,44 +85,19 @@ class TestUI:
         tk.Label(selector_frame, text="Select Train:").pack(side='left', padx=(0, 5))
         
         # Create train list (1-14)
-        train_options = [f"Train {i}" for i in range(1, 15)]
+        train_options = [i for i in range(1, 15)]
         self.train_selector_var = tk.StringVar(value=train_options[0])
         self.train_selector = ttk.Combobox(selector_frame, textvariable=self.train_selector_var, 
                                           values=train_options, state="readonly", width=10)
         self.train_selector.pack(side='left')
         self.train_selector.bind('<<ComboboxSelected>>', self.on_train_selected)
-        
         # Current selection display
         current_frame = tk.Frame(selection_frame)
         current_frame.pack(fill='x', pady=2)
-        self.current_selection_label = tk.Label(current_frame, text=f"Currently controlling: Train {self.selected_train_id}", 
+        self.current_selection_label = tk.Label(current_frame, text=f"Currently controlling: Train {self.train_selector_var.get()}", 
                                                 font=('Arial', 9, 'bold'))
         self.current_selection_label.pack()
         
-        # ===== TRAIN DEPLOYMENT SECTION =====
-        deployment_frame = ttk.LabelFrame(main_container, text="Train Deployment", padding=6)
-        deployment_frame.pack(fill='x', padx=5, pady=2)
-        
-        # Train selection and controls in one row
-        deploy_control_frame = tk.Frame(deployment_frame)
-        deploy_control_frame.pack(fill='x', pady=2)
-        
-        tk.Label(deploy_control_frame, text="Train:").pack(side='left')
-        self.deploy_train_var = tk.IntVar(value=1)
-        deploy_spinbox = tk.Spinbox(deploy_control_frame, from_=1, to=14, textvariable=self.deploy_train_var, width=4)
-        deploy_spinbox.pack(side='left', padx=2)
-        
-        ttk.Button(deploy_control_frame, text="Deploy", 
-                  command=self.deploy_train, width=7).pack(side='left', padx=1)
-        ttk.Button(deploy_control_frame, text="Undeploy", 
-                  command=self.undeploy_train, width=7).pack(side='left', padx=1)
-        
-        ttk.Button(deployment_frame, text="Deploy All", 
-                  command=lambda: self.send_to_ui('deploy_all'), width=10).pack(side='left', padx=2, pady=2)
-        ttk.Button(deployment_frame, text="Undeploy All", 
-                  command=lambda: self.send_to_ui('undeploy_all'), width=10).pack(side='left', padx=2, pady=2)
-        ttk.Button(deployment_frame, text="Refresh", 
-                  command=lambda: self.send_to_ui('refresh_trains'), width=8).pack(side='left', padx=2, pady=2)
         
         # ===== POWER CONTROL =====
         power_frame = ttk.LabelFrame(main_container, text="Power Control", padding=6)

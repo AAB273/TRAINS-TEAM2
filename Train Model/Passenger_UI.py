@@ -29,7 +29,7 @@ class TrainModelPassengerGUI:
         self.off_color = '#4d4d6d'
         self.current_train = None
         self.train_manager = get_train_manager()
-        self.current_train = self.train_manager.get_selected_train()
+        self.current_train = self.train_manager.get_selected_train() 
         
         # Socket server setup
         module_config = load_socket_config()
@@ -56,6 +56,9 @@ class TrainModelPassengerGUI:
 
         self.previous_failure_signal_pickup_state = False
         self.failure_activation_in_progress = False
+
+        self.previous_active_trains = set()  # Track which trains were active last time
+
         
         self.setup_gui()
         
@@ -125,6 +128,8 @@ class TrainModelPassengerGUI:
             if command == 'set_power':
                 train.last_power_command = train.power_command
                 train.set_power_command(value)
+            elif command == 'set_active':
+                train.active = value
             elif command == 'set_right_door':
                 if value == 'open':
                     train.set_right_door(1)
@@ -174,7 +179,13 @@ class TrainModelPassengerGUI:
                 target_temp = value
                 self._animate_temperature_change(target_temp, train)
             elif command == 'set_authority':
+                was_active = train.active if train else False
                 train.set_authority(value)
+            
+                if not was_active and train.active:
+                    print(f"Train {train.train_id} activated - refreshing selector")
+                    self.refresh_train_selector_if_needed()  
+            
             elif command == 'set_station':
                 train.set_station(value)
             elif command == 'set_time_to_station':
@@ -277,14 +288,11 @@ class TrainModelPassengerGUI:
             print(f"Error processing message: {e}")
 
     def continuous_physics_update(self):
-        # Update physics for all deployed trains
-        self.train_manager.update_all_physics(dt=0.1)
-        
-        # Process all deployed trains
+
+        # Process all active trains
         for train_id in range(1, 15):  # Assuming 14 trains
             train = self.train_manager.get_train(train_id)
             if train and train.deployed and train.active:
-                # Get speed before physics update (note: update_all_physics already updated speeds)
                 # If calculate_force_speed_acceleration_distance needs to be called individually:
                 old_speed = train.speed
                 train.calculate_force_speed_acceleration_distance()
@@ -313,7 +321,7 @@ class TrainModelPassengerGUI:
                 self.update_disembarking(train)
         
         # Update UI for the currently selected train only
-        if self.current_train and self.current_train.deployed:
+        if self.current_train and self.current_train.active:
             self.update_ui_from_train(self.current_train)
         
         # Schedule next update
@@ -422,7 +430,7 @@ class TrainModelPassengerGUI:
 
     def update_boarding(self, boarding, train=None):
         if train is None:
-            train = self.current_train
+            train = self.current_train #SELFNOTE could fuck up if I try to change another value for a different train
             
         MAX_CAPACITY = 222
         if boarding > MAX_CAPACITY:
@@ -511,44 +519,72 @@ class TrainModelPassengerGUI:
     def on_train_selected(self, train_id):
         """Handle train selection from dropdown"""
         train = self.train_manager.select_train(train_id)
-        if train and train.deployed:
+        if train and train.active:
             self.current_train = train
             self.update_ui_from_train(train)
             self.train_selector_var.set(f"Train {train_id}")
         else:
-            print(f"Train {train_id} is not deployed or doesn't exist")
-
-    def refresh_train_selector(self):
-        """Update the dropdown menu with currently active trains"""
-        print("Refreshing train selector dropdown...")
-        
-        current_selection = self.train_selector_var.get()
-        self.train_selector['menu'].delete(0, 'end')
-        
-        active_trains = []
+            print(f"Train {train_id} is not active or doesn't exist")
+    def refresh_train_selector_if_needed(self):
+        # Get current active trains
+        current_active_trains = set()
         for train_id in range(1, 15):
             train = self.train_manager.get_train(train_id)
-            if train and train.active:  # Changed from train.deployed to train.active
-                active_trains.append(train_id)
+            if train and train.active:
+                current_active_trains.add(train_id)
+        
+        # Compare with previous state
+        if current_active_trains != self.previous_active_trains:
+            print(f"Active trains changed: {self.previous_active_trains} -> {current_active_trains}")
+            self.previous_active_trains = current_active_trains.copy()
+            self.refresh_train_selector()
+
+    def refresh_train_selector(self):
+        print("Refreshing train selector dropdown...")
+        
+        # Get current selection
+        current_selection = self.train_selector_var.get()
+        
+        # Get active trains (from our tracked state or calculate fresh)
+        active_trains = list(self.previous_active_trains)
+        active_trains.sort()  # Keep them in order
         
         print(f"Found {len(active_trains)} active trains: {active_trains}")
         
-        for train_id in active_trains:
-            self.train_selector['menu'].add_command(
-                label=f"Train {train_id}", 
-                command=lambda tid=train_id: self.on_train_selected(tid)
-            )
-        
-        self.train_selector_label.config(text=f"Select Train ({len(active_trains)} Active)")  # Updated label text
-        
-        if self.current_train and hasattr(self.current_train, 'train_id') and self.current_train.train_id in active_trains:
-            self.train_selector_var.set(f"Train {self.current_train.train_id}")
-        elif active_trains:
-            first_train_id = active_trains[0]
-            self.train_selector_var.set(f"Train {first_train_id}")
-            self.on_train_selected(first_train_id)
+        # Only rebuild if we have trains
+        if active_trains:
+            # Rebuild menu
+            menu = self.train_selector['menu']
+            menu.delete(0, 'end')
+            
+            for train_id in active_trains:
+                menu.add_command(
+                    label=f"Train {train_id}", 
+                    command=lambda tid=train_id: self.on_train_selected(tid)
+                )
+            
+            # Update selection if needed
+            selected_id = None
+            if current_selection.startswith("Train "):
+                try:
+                    selected_id = int(current_selection.replace("Train ", ""))
+                except:
+                    selected_id = None
+            
+            # If selected train is no longer active or not set, select first available
+            if selected_id not in active_trains:
+                new_id = active_trains[0]
+                self.train_selector_var.set(f"Train {new_id}")
+                self.on_train_selected(new_id)
+            
+            self.train_selector_label.config(text=f"Select Train ({len(active_trains)} Active)")
         else:
-            self.train_selector_var.set("No Trains Active")  # Updated message
+            # No active trains
+            menu = self.train_selector['menu']
+            menu.delete(0, 'end')
+            self.train_selector_var.set("No Trains Active")
+            self.train_selector_label.config(text="Select Train (0 Active)")
+
 
     def setup_gui(self):
         """Setup the complete GUI"""

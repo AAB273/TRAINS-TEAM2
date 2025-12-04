@@ -27,6 +27,7 @@ class Train:
         self.grade = 0
         self.elevation = 0
         self.speed_limit = 50
+        self.speed_limit_mps = self.speed_limit / 3.6  # Store in m/s for physics
         self.commanded_speed = 0
         self.commanded_authority = 0
         self.distance_left = self.commanded_authority
@@ -77,6 +78,8 @@ class Train:
 
         # Observers (callbacks for UI updates)
         self._observers = []
+
+
     
     def add_observer(self, callback):
         """Register a callback to be notified of changes"""
@@ -161,24 +164,28 @@ class Train:
             pass
     
     def set_authority(self, value):
-            """Set authority and auto-deploy train on first authority"""
-            try:
-                self.commanded_authority = float(value)
-                
-                # Auto-deploy train on first authority received
-                if not self.authority_received:
-                    self.authority_received = True
-                    self.active = True
-                    print(f"Train {self.train_id} received first authority - AUTO ACTIVATING")
-                    #self.distance_left = self.commanded_authority
-                    self.service_brake_active = False  # Disengage service brake on deploy
-                #else:  # CHANGE IT TO SUBTRACT BLOCKS AND NOT DISTANCE.
-                    # Update distance_left for subsequent authority updates
-                    #self.distance_left = self.commanded_authority
-                
-                self._notify_observers()
-            except ValueError:
-                pass
+        try:
+            self.commanded_authority = float(value)
+            
+            # Check if this is a state change (inactive -> active)
+            was_active = self.active
+            
+            if not self.authority_received:
+                self.authority_received = True
+                self.active = True
+                print(f"Train {self.train_id} received first authority - AUTO ACTIVATING")
+                self.service_brake_active = False
+            
+            # Notify observers
+            self._notify_observers()
+            
+            # If state changed (was inactive, now active), trigger refresh
+            if not was_active and self.active:
+                print(f"Train {self.train_id} became active - should refresh selector")
+
+            
+        except ValueError:
+            pass
 
     def set_commanded_speed(self, value):
         try:
@@ -298,9 +305,6 @@ class Train:
             a_new = self.acceleration  # Fallback
         
         
-        if self.speed >= self.speed_limit and a_new > 0:
-            a_new = 0
-        
         # Trapezoidal integration for speed
         if hasattr(self, 'acceleration_prev'):
             avg_acceleration = (a_new + self.acceleration_prev) / 2
@@ -315,10 +319,10 @@ class Train:
             a_new = 0
         
         if self.speed_limit != 0:
-            if new_speed > self.speed_limit:
-                new_speed = self.speed_limit
-        else:
-            pass
+            if new_speed > self.speed_limit_mps:
+                new_speed = self.speed_limit_mps
+                a_new = 0
+
         
         # NOW calculate distance with final speed values
         if hasattr(self, 'speed_prev'):
