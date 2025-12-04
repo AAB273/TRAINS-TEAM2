@@ -327,7 +327,7 @@ class TestUI:
         blockEntry.pack(padx = 5, fill = "x")
         #text to describe what to input, and an Entry to grab user data
 
-        getBO = ttk.Button(boFrame, text = "Submit", style = "normal.TButton", command = lambda: self.send_to_ui("TL", [blockNum.get(), "green"]))
+        getBO = ttk.Button(boFrame, text = "Submit", style = "normal.TButton", command = lambda: self.testingTrainLocation())
         getBO.pack(side = "top")
 
 
@@ -460,3 +460,30 @@ class TestUI:
         else:
             return "1"
         #write binary code for railway crossing to simulate input from wayside controller
+
+###############################################################################################################################################################
+
+    def testingTrainLocation(self):
+    #tests to make sure train location is properly calculated
+        for i in range (64, 101):
+            self.send_to_ui("TL", [str(i), "green"])
+
+        self.send_to_ui("TL", ["85", "green"])
+        
+        for i in range(84, 75, -1):
+            self.send_to_ui("TL", [str(i), "green"])
+
+        self.send_to_ui("TL", ["101", "green"])
+
+        for i in range (102, 151):
+            self.send_to_ui("TL", [str(i), "green"])
+
+        self.send_to_ui("TL", ["28", "green"])
+
+        for i in range (27, 0, -1):
+            self.send_to_ui("TL", [str(i), "green"])
+
+        self.send_to_ui("TL", ["13", "green"])
+
+        for i in range (14, 64):
+            self.send_to_ui("TL", [str(i), "green"])
