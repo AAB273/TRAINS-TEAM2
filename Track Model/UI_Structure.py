@@ -4138,9 +4138,9 @@ class TrackModelUI(tk.Tk):
                         if signal_state == 0:
                             signal_display = "Red"
                         elif signal_state == 1:
-                            signal_display = "Yellow"
-                        elif signal_state == 2:
                             signal_display = "Green"
+                        elif signal_state == 2:
+                            signal_display = "Yellow"
                         elif signal_state == 3:
                             signal_display = "Super Green"
                         else:
@@ -5224,68 +5224,44 @@ class TrackModelUI(tk.Tk):
             # Values are received sorted from lowest to highest block number
             # Example: [0, True] or [1, False]
             # ============================================================
-            elif command == 'Railroad Crossings' or command == 'Crossing States':
-                # Extract crossing state directly (no line indicator)
-                actual_value = value
-                actual_data = data
-                
-                print(f" Received Railroad Crossings")
-                
-                # Use block_number parameter if available
-                target_block = block_number
-                
-                if isinstance(actual_data, dict):
-                    # Multiple crossings: {block_num: state, ...}
-                    for block_num, crossing_state in actual_data.items():
-                        # Convert block_num from string to int if needed
-                        if isinstance(block_num, str):
-                            try:
-                                block_num = int(block_num)
-                            except (ValueError, TypeError):
-                                print(f" Could not convert block_num key '{block_num}' to int")
-                                continue
-                        
-                        if 1 <= block_num <= len(self.data_manager.blocks):
-                            block = self.data_manager.blocks[block_num - 1]
-                            # Set crossing state (True = active/down, False = inactive/up)
-                            block.crossing_state = bool(crossing_state)
-                            state_text = "ACTIVE (DOWN)" if crossing_state else "INACTIVE (UP)"
-                            print(f" Updated railroad crossing at block {block_num}: {state_text}")
-                    self.refresh_bidirectional_controls()  # Update bidirectional directions
-                    self.refresh_ui()
+            elif command == 'rc_states':
+                if isinstance(value, list):
+                    print(f" Received railroad crossing states from {source_ui_id}")
                     
-                elif isinstance(actual_value, dict):
-                    # Multiple crossings in value field: {block_num: state, ...}
-                    for block_num, crossing_state in actual_value.items():
-                        # Convert block_num from string to int if needed
-                        if isinstance(block_num, str):
-                            try:
-                                block_num = int(block_num)
-                            except (ValueError, TypeError):
-                                print(f" Could not convert block_num key '{block_num}' to int")
-                                continue
-                        
-                        if 1 <= block_num <= len(self.data_manager.blocks):
-                            block = self.data_manager.blocks[block_num - 1]
-                            # Set crossing state (True = active/down, False = inactive/up)
-                            block.crossing_state = bool(crossing_state)
-                            state_text = "ACTIVE (DOWN)" if crossing_state else "INACTIVE (UP)"
-                            print(f" Updated railroad crossing at block {block_num}: {state_text}")
-                    self.refresh_bidirectional_controls()  # Update bidirectional directions
-                    self.refresh_ui()
+                    # Get all blocks with crossings for the current line
+                    # You'll need to determine which blocks have crossings
+                    # For now, using crossing_blocks set if it exists
+                    if hasattr(self, 'crossing_blocks') and self.crossing_blocks:
+                        crossing_block_list = sorted(list(self.crossing_blocks))
+                    else:
+                        # If no crossing_blocks set, you may need to define them
+                        # Green Line example blocks with crossings (adjust as needed)
+                        crossing_block_list = []  # Add your crossing block numbers here
                     
-                elif target_block and actual_value is not None:
-                    # Single crossing update with specified block
-                    if 1 <= target_block <= len(self.data_manager.blocks):
-                        block = self.data_manager.blocks[target_block - 1]
-                        # Set crossing state (True = active/down, False = inactive/up)
-                        block.crossing_state = bool(actual_value)
-                        state_text = "ACTIVE (DOWN)" if actual_value else "INACTIVE (UP)"
-                        print(f" Updated railroad crossing at block {target_block}: {state_text}")
-                        self.refresh_bidirectional_controls()  # Update bidirectional directions
-                        self.refresh_ui()
+                    # Process each crossing state
+                    for i, state in enumerate(value):
+                        if i < len(crossing_block_list):
+                            block_num = crossing_block_list[i]
+                            
+                            # Convert integer to boolean: 0 = False (inactive/up), 1 = True (active/down)
+                            try:
+                                crossing_active = bool(int(state))
+                                
+                                # Update the block's crossing state
+                                if 1 <= block_num <= len(self.data_manager.blocks):
+                                    block = self.data_manager.blocks[block_num - 1]
+                                    block.crossing_state = crossing_active
+                                    state_text = "ACTIVE (DOWN)" if crossing_active else "INACTIVE (UP)"
+                                    print(f"   Updated railroad crossing at block {block_num}: {state_text}")
+                            except (ValueError, TypeError) as e:
+                                print(f"   Could not parse crossing state for block {block_num}: {state}")
+                    
+                    # Refresh UI to show crossing updates
+                    self.refresh_bidirectional_controls()
+                    self.refresh_ui()
+                    print(f"[DEBUG] Railroad crossing states updated")
                 else:
-                    print(f" Unrecognized railroad crossing format. Expected [line_indicator, bool], got: {type(value)} = {value}")
+                    print(f" Invalid rc_states format: {value}")
             
             # ============================================================
             # LIGHT STATES / SIGNALS - From Wayside Controller
