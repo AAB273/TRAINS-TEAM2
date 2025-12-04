@@ -10,475 +10,536 @@ from RedLineData import RedLine
 from BlueLineData import BlueLine
 
 
-
 class Train:
-    """Represents a single train with all its properties"""
-    def __init__(self, train_id):
-        self.train_id = train_id
-        
-        # Metrics - All Values come from blue line for testing
-        self.speed = 0.0
-        self.acceleration = 0.0
-        self.passenger_count = 0
-        self.passengers_disembarking = 0
-        self.crew_count = 2
-        self.power_command = 0.0
-        self.cabin_temp = 72.0
-        self.grade = 0
-        self.elevation = 0
-        self.speed_limit = 50
-        self.speed_limit_mps = self.speed_limit / 3.6  # Store in m/s for physics
-        self.commanded_speed = 0
-        self.commanded_authority = 0
-        self.distance_left = self.commanded_authority
+	# Represents a single train with all its properties.
+	"""
+	Attributes:
+	trainId: An integer uniquely identifying the train.
+	speed: A float representing the current speed in m/s.
+	acceleration: A float representing the current acceleration in m/s².
+	passengerCount: An integer representing the number of passengers.
+	passengersDisembarking: An integer representing passengers currently disembarking.
+	crewCount: An integer representing the number of crew members.
+	powerCommand: A float representing the power command in watts.
+	cabinTemp: A float representing the cabin temperature in fahrenheit.
+	grade: A float representing the track grade percentage.
+	elevation: An integer representing the elevation in feet.
+	speedLimit: A float representing the speed limit in m/s.
+	commandedSpeed: A float representing the commanded speed in m/s.
+	commandedAuthority: A float representing the commanded authority in blocks.
+	distanceLeft: A float representing the distance remaining to station.
+	height: A float representing the train height in meters.
+	length: A float representing the train length in meters.
+	width: A float representing the train width in meters.
+	rightDoorOpen: A boolean indicating if the right door is open.
+	leftDoorOpen: A boolean indicating if the left door is open.
+	headlightsOn: A boolean indicating if headlights are on.
+	interiorLightsOn: A boolean indicating if interior lights are on.
+	engineFailure: A boolean indicating if engine failure is active.
+	signalPickupFailure: A boolean indicating if signal pickup failure is active.
+	brakeFailure: A boolean indicating if brake failure is active.
+	emergencyBrakeActive: A boolean indicating if emergency brake is active.
+	serviceBrakeActive: A boolean indicating if service brake is active.
+	deployed: A boolean indicating if the train is deployed.
+	active: A boolean indicating if the train is active.
+	line: A string representing the line assignment.
+	block: An integer representing the current block.
+	previousBlock: An integer representing the previous block.
+	station: A string representing the current station.
+	timeToStation: An integer representing time to next station in minutes.
+	"""
 
-        # For physics calculations
-        self.last_power_command = 0.0
-        self.last_service_brake = True
-        self.last_emergency_brake = False
-        
-        # Dimensions
-        self.height = 3.42
-        self.length = 32.2
-        self.width = 2.65
-        
-        # Door states (boolean: True=Open, False=Closed)
-        self.right_door_open = False
-        self.left_door_open = False
-        
-        # Light states (boolean: True=On, False=Off)
-        self.headlights_on = False
-        self.interior_lights_on = False
-        
-        # Murphy failure modes
-        self.engine_failure = False
-        self.signal_pickup_failure = False
-        self.brake_failure = False
-        
-        # Emergency brake and Service Brake
-        self.emergency_brake_active = False
-        self.service_brake_active = True
-        
-        # Deployment status
-        self.deployed = True
-        self.active = False
-        
-        # Line assignment
-        self.line = "green" 
-        self.block = 63
-        self.previous_block = None
-        #self.line_data
+	def __init__(self, trainId: int):
+		# Initializes a train with default values and the given train ID.
+		self.trainId = trainId
+		
+		self.speed = 0.0
+		self.acceleration = 0.0
+		self.passengerCount = 0
+		self.passengersDisembarking = 0
+		self.crewCount = 2
+		self.powerCommand = 0.0
+		self.cabinTemp = 72.0
+		self.grade = 0
+		self.elevation = 0
+		self.speedLimit = 50
+		self.speedLimitMps = self.speedLimit / 3.6
+		self.commandedSpeed = 0
+		self.commandedAuthority = 0
+		self.distanceLeft = None
 
-        # Station
-        self.station = "YARD"
-        self.time_to_station = 0
-        self.emergency_announcement = "EMERGENCY"
-        
-        self.authority_received = False
+		# For physics calculations
+		self.lastPowerCommand = 0.0
+		self.lastServiceBrake = True
+		self.lastEmergencyBrake = False
+		
+		# Dimensions
+		self.height = 3.42
+		self.length = 32.2
+		self.width = 2.65
+		
+		# Door states (boolean: True=Open, False=Closed)
+		self.rightDoorOpen = False
+		self.leftDoorOpen = False
+		
+		# Light states (boolean: True=On, False=Off)
+		self.headlightsOn = False
+		self.interiorLightsOn = False
+		
+		# Murphy failure modes
+		self.engineFailure = False
+		self.signalPickupFailure = False
+		self.brakeFailure = False
+		
+		# Emergency brake and Service Brake
+		self.emergencyBrakeActive = False
+		self.serviceBrakeActive = True
+		
+		# Deployment status
+		self.deployed = True
+		self.active = False
+		
+		# Line assignment
+		self.line = "green" 
+		self.block = 63
+		self.previousBlock = None
 
-        # Observers (callbacks for UI updates)
-        self._observers = []
+		# Station
+		self.station = "YARD"
+		self.timeToStation = 0
+		self.emergencyAnnouncement = "EMERGENCY"
+		
+		self.authorityReceived = False
 
+		# Observers (callbacks for UI updates)
+		self._observers = []
 
-    
-    def add_observer(self, callback):
-        """Register a callback to be notified of changes"""
-        self._observers.append(callback)
-    
-    def remove_observer(self, callback):
-        """Unregister a callback"""
-        if callback in self._observers:
-            self._observers.remove(callback)
-    
-    def _notify_observers(self):
-        """Notify all observers of changes"""
-        for callback in self._observers:
-            callback(self)
-    
-    def set_line(self,value):
-        self.line = value
-        if(value == 'green'):
-            self.line_data = GreenLine()
-        elif(value == 'red'):
-            self.line_data = RedLine()
-        else:
-            self.line_data = BlueLine()
+	def addObserver(self, callback):
+		# Registers a callback to be notified of train state changes.
+		self._observers.append(callback)
+	
+	def removeObserver(self, callback):
+		# Unregisters a callback from the observer list.
+		if callback in self._observers:
+			self._observers.remove(callback)
+	
+	def _notifyObservers(self):
+		# Notifies all registered observers of state changes.
+		for callback in self._observers:
+			callback(self)
+	
+	def setLine(self, value: str):
+		# Sets the train's line assignment and initializes line data.
+		self.line = value
+		if value == 'green':
+			self.lineData = GreenLine()
+		elif value == 'red':
+			self.lineData = RedLine()
+		else:
+			self.lineData = BlueLine()
+		self._notifyObservers()
+	
+	def setBlock(self, value: int):
+		# Updates the current block and retrieves associated speed limit and grade.
+		self.previousBlock = self.block
+		self.block = value
+		self.setSpeedLimit(self.lineData.get_value(value, 'speed_limit'))
+		self.setGrade(self.lineData.get_value(value, 'grade'))
+		
+	# Metric setters with validation
+	def setSpeedLimit(self, value: float):
+		# Sets the speed limit for the train in m/s.
+		self.speedLimit = float(value)
+		self._notifyObservers()
+	
+	def setElevation(self, value: float):
+		# Sets the elevation of the train in feet.
+		self.elevation = float(value)
+		self._notifyObservers()
 
-        self._notify_observers
-    
-    def set_block(self,value):
-        self.previous_block = self.block
-        self.block = value
-        self.set_speed_limit(self.line_data.get_value(value,'speed_limit'))
-        self.set_grade(self.line_data.get_value(value,'grade'))
-        
-    # Metric setters with validation
-    def set_speed_limit(self, value):
-        self.speed_limit = float(value)
-        self._notify_observers()
-    
-    def set_elevation(self, value):
-        self.elevation = float(value)
-        self._notify_observers()
+	def setGrade(self, value: float):
+		# Sets the grade percentage of the track.
+		self.grade = float(value)
+		self._notifyObservers()
+		
+	def setSpeed(self, value: float):
+		# Sets the current speed of the train in m/s.
+		try:
+			self.speed = float(value)
+			print(f"Actual Speed Sent to Train Model")
+			self._notifyObservers()
+		except ValueError:
+			pass
+	
+	def setAcceleration(self, value: float):
+		# Sets the current acceleration of the train in m/s².
+		try:
+			self.acceleration = float(value)
+			self._notifyObservers()
+		except ValueError:
+			pass
+	
+	def setPassengerCount(self, value: int):
+		# Sets the passenger count and ensures it is non-negative.
+		try:
+			self.passengerCount = max(0, int(value))
+			print(f"Train Occupancy Sent to Track Model")
+			self._notifyObservers()
+		except ValueError:
+			pass
+	
+	def setCrewCount(self, value: int):
+		# Sets the crew count and ensures it is non-negative.
+		try:
+			self.crewCount = max(0, int(value))
+			self._notifyObservers()
+		except ValueError:
+			pass
+	
+	def setPowerCommand(self, value: float):
+		# Sets the power command and stores the previous value.
+		try:
+			self.lastPowerCommand = self.powerCommand
+			self.powerCommand = float(value)
+			self._notifyObservers()
+		except ValueError:
+			pass
+	
+	def setAuthority(self, value: float):
+		# Sets the commanded authority and activates train if first authority received.
+		try:
+			self.commandedAuthority = float(value)
+			
+			# Check if this is a state change (inactive -> active)
+			wasActive = self.active
+			
+			if not self.authorityReceived:
+				self.authorityReceived = True
+				self.active = True
+				print(f"Train {self.trainId} received first authority - AUTO ACTIVATING")
+				self.serviceBrakeActive = False
+			
+			# Notify observers
+			self._notifyObservers()
+			
+			# If state changed (was inactive, now active), trigger refresh
+			if not wasActive and self.active:
+				print(f"Train {self.trainId} became active - should refresh selector")
 
-    def set_grade(self, value):
-        self.grade = float(value)
-        self._notify_observers()
-        
-    def set_speed(self, value):
-        try:
-            self.speed = float(value)
-            print(f"Actual Speed Sent to Train Model")
-            self._notify_observers()
-        except ValueError:
-            pass
-    
-    def set_acceleration(self, value):
-        try:
-            self.acceleration = float(value)
-            self._notify_observers()
-        except ValueError:
-            pass
-    
-    def set_passenger_count(self, value):
-        try:
-            self.passenger_count = max(0, int(value))
-            print(f"Train Occupancy Sent to Track Model")
-            self._notify_observers()
-        except ValueError:
-            pass
-    
-    def set_crew_count(self, value):
-        try:
-            self.crew_count = max(0, int(value))
-            self._notify_observers()
-        except ValueError:
-            pass
-    
-    def set_power_command(self, value):
-        try:
-            self.last_power_command = self.power_command
-            self.power_command = float(value)
-            self._notify_observers()
-        except ValueError:
-            pass
-    
-    def set_authority(self, value):
-        try:
-            self.commanded_authority = float(value)
-            
-            # Check if this is a state change (inactive -> active)
-            was_active = self.active
-            
-            if not self.authority_received:
-                self.authority_received = True
-                self.active = True
-                print(f"Train {self.train_id} received first authority - AUTO ACTIVATING")
-                self.service_brake_active = False
-            
-            # Notify observers
-            self._notify_observers()
-            
-            # If state changed (was inactive, now active), trigger refresh
-            if not was_active and self.active:
-                print(f"Train {self.train_id} became active - should refresh selector")
+		except ValueError:
+			pass
 
-            
-        except ValueError:
-            pass
+	def setCommandedSpeed(self, value: float):
+		# Sets the commanded speed for the train.
+		try:
+			self.commandedSpeed = float(value)
+			self._notifyObservers()
+		except ValueError:
+			pass
 
-    def set_commanded_speed(self, value):
-        try:
-            self.commanded_speed = float(value)
-            self._notify_observers()
-        except ValueError:
-            pass
+	def setCabinTemp(self, value: float):
+		# Sets the cabin temperature in fahrenheit.
+		try:
+			self.cabinTemp = float(value)
+			self._notifyObservers()
+		except ValueError:
+			pass
+	
+	def setHeight(self, value: float):
+		# Sets the train height in meters.
+		try:
+			self.height = float(value)
+			self._notifyObservers()
+		except ValueError:
+			pass
+	
+	def setLength(self, value: float):
+		# Sets the train length in meters.
+		try:
+			self.length = float(value)
+			self._notifyObservers()
+		except ValueError:
+			pass
+	
+	def setWidth(self, value: float):
+		# Sets the train width in meters.
+		try:
+			self.width = float(value)
+			self._notifyObservers()
+		except ValueError:
+			pass
 
+	def setStation(self, stationName: str):
+		# Sets the current station name.
+		self.station = str(stationName)
+		self._notifyObservers()
+		
+	def setTimeToStation(self, minutes: int):
+		# Sets the time to next station in minutes.
+		try:
+			self.timeToStation = max(0, int(minutes))
+			self._notifyObservers()
+		except ValueError:
+			pass
+	
+	def setServiceBrake(self, value: bool):
+		# Sets the service brake state.
+		value = bool(value)
+		if value:
+			self.serviceBrakeActive = True
+		else:
+			self.serviceBrakeActive = False
+		self._notifyObservers()
 
-    def set_cabin_temp(self, value):
-        try:
-            self.cabin_temp = float(value)
-            self._notify_observers()
-        except ValueError:
-            pass
-    
-    def set_height(self, value):
-        try:
-            self.height = float(value)
-            self._notify_observers()
-        except ValueError:
-            pass
-    
-    def set_length(self, value):
-        try:
-            self.length = float(value)
-            self._notify_observers()
-        except ValueError:
-            pass
-    
-    def set_width(self, value):
-        try:
-            self.width = float(value)
-            self._notify_observers()
-        except ValueError:
-            pass
+	def setDisembarking(self, value: int):
+		# Sets the number of passengers currently disembarking.
+		self.passengersDisembarking = int(value)
+		self._notifyObservers()
+	
+	def setActive(self, active: bool):
+		# Sets whether the train should receive physics updates.
+		self.active = active
 
-    def set_station(self, station_name):
-        self.station = str(station_name)
-        self._notify_observers()
-        
-    def set_time_to_station(self, minutes):
-        try:
-            self.time_to_station = max(0, int(minutes))
-            self._notify_observers()
-        except ValueError:
-            pass
-    
-    def set_service_brake(self, value):
-        value = bool(value)
-        if value:
-            self.service_brake_active = True
-        else:
-            self.service_brake_active = False
-        self._notify_observers()
+	def calculateForceSpeedAccelerationDistance(self, dt: float = 1.0):
+		# Calculates train physics based on current state and commands.
+		"""
+		Physics calculation point:
+		Computes force, acceleration, speed, and distance based on power command,
+		brake states, grade, and passenger load. Uses trapezoidal integration.
+		"""
+		# Constants
+		EMPTY_TRAIN_MASS = 40900  
+		AVG_PASSENGER_MASS = 65.77 
+		SERVICE_BRAKE_DECEL = -1.2  
+		EMERGENCY_BRAKE_DECEL = -2.73 
+		MAX_FORCE = 25715 
+		totalMass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passengerCount + 2))
+		negGradeTrue = False
+		
+		# Grade Force 
+		if self.grade != 0:
+			fGrade = totalMass * 9.8 * (self.grade / 100)
+			if self.grade < 0:
+				negGradeTrue = True
+			else:
+				negGradeTrue = False
+		else:
+			fGrade = 0
+		
+		# State-based acceleration logic
+		if self.emergencyBrakeActive:
+			aNew = EMERGENCY_BRAKE_DECEL
+			
+		elif self.serviceBrakeActive:
+			if self.speed > 0:
+				aNew = SERVICE_BRAKE_DECEL
+			else:
+				aNew = 0
+				
+		elif not self.serviceBrakeActive:
+			if not self.leftDoorOpen and not self.rightDoorOpen and self.powerCommand > 0:
+				if self.speed == 0:
+					aNew = MAX_FORCE / totalMass
+				else:
+					if self.speed > 8.9408:
+						force = self.powerCommand / self.speed
+						if negGradeTrue:
+							fNet = force + fGrade  
+							aNew = fNet / totalMass
+						else:
+							fNet = force - fGrade  
+							aNew = fNet / totalMass
+					else:
+						aNew = self.acceleration
+			else:
+				aNew = 0
+				
+		else:
+			aNew = self.acceleration
+		
+		# Trapezoidal integration for speed
+		if hasattr(self, 'accelerationPrev'):
+			avgAcceleration = (aNew + self.accelerationPrev) / 2
+		else:
+			avgAcceleration = aNew
 
-    def set_disembarking(self, value):
-        self.passengers_disembarking = int(value)
-        self._notify_observers()
-    
-    def set_active(self, active):
-        """Set whether train should receive physics updates"""
-        self.active = active
+		newSpeed = self.speed + (avgAcceleration * dt)
+		
+		if newSpeed < 0:
+			newSpeed = 0
+			aNew = 0
+		
+		if self.speedLimit != 0:
+			if newSpeed > self.speedLimitMps:
+				newSpeed = self.speedLimitMps
+				aNew = 0
 
-    def calculate_force_speed_acceleration_distance(self, dt=1.0):
+		# Calculate distance with final speed values
+		if hasattr(self, 'speedPrev'):
+			avgSpeed = (newSpeed + self.speedPrev) / 2
+		else:
+			avgSpeed = newSpeed
 
-        """Calculate train physics based on current state and commands"""
+		distance = avgSpeed * dt
+		
+		# Update state
+		self.accelerationPrev = aNew
+		self.speedPrev = self.speed
+		self.speed = newSpeed
+		self.acceleration = aNew
+		# self.distanceLeft = self.distanceLeft - distance
+		
+		# if newSpeed > 0.1:
+		# 	timeSeconds = self.distanceLeft / newSpeed
+		# 	timeMinutes = max(0, int(timeSeconds / 60))
+		# 	self.setTimeToStation(timeMinutes)
+		# else:
+		# 	if self.distanceLeft <= 0:
+		# 		self.setTimeToStation(0)
+		# 	else:
+		# 		self.setTimeToStation("Soon")
 
-        # Constants
-        EMPTY_TRAIN_MASS = 40900  
-        AVG_PASSENGER_MASS = 65.77 
-        SERVICE_BRAKE_DECEL = -1.2  
-        EMERGENCY_BRAKE_DECEL = -2.73 
-        MAX_FORCE = 25715 
-        total_mass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passenger_count + 2))
-        neg_grade_true = False
-        
-        # Grade Force 
-        if self.grade != 0:
-            Fgrade = total_mass * 9.8 * (self.grade/100)
-            if(self.grade < 0):
-                neg_grade_true = True
-            else:
-                neg_grade_true = False
-        else:
-            Fgrade = 0
-        
-        # State-based acceleration logic
-        if self.emergency_brake_active:
-            a_new = EMERGENCY_BRAKE_DECEL
-            
-        elif self.service_brake_active:
-            if self.speed > 0:
-                a_new = SERVICE_BRAKE_DECEL
-            else:
-                a_new = 0
-                
-        elif not self.service_brake_active:  # Service brake is OFF
-            if not self.left_door_open and not self.right_door_open and self.power_command > 0:
-                if self.speed == 0:
-                    a_new = MAX_FORCE / total_mass
-                else:
-                    if self.speed > 8.9408:
-                        force = self.power_command / self.speed
-                        if neg_grade_true:
-                            fnet = force + Fgrade  
-                            a_new = fnet / total_mass
-                        else:
-                            fnet = force - Fgrade  
-                            a_new = fnet / total_mass
-                    else:
-                        a_new = self.acceleration
-            else:
-                a_new = 0  # No power or doors open
-                
-        else:
-            a_new = self.acceleration  # Fallback
-        
-        
-        # Trapezoidal integration for speed
-        if hasattr(self, 'acceleration_prev'):
-            avg_acceleration = (a_new + self.acceleration_prev) / 2
-        else:
-            avg_acceleration = a_new
+		self._notifyObservers()
+	
+	# Door controls
+	def setRightDoor(self, isOpen: bool):
+		# Sets the right door state.
+		self.rightDoorOpen = bool(isOpen)
+		self._notifyObservers()
+	
+	def setLeftDoor(self, isOpen: bool):
+		# Sets the left door state.
+		self.leftDoorOpen = bool(isOpen)
+		self._notifyObservers()
+	
+	# Light controls
+	def setHeadlights(self, isOn: bool):
+		# Sets the headlight state.
+		self.headlightsOn = bool(isOn)
+		self._notifyObservers()
+	
+	def setInteriorLights(self, isOn: bool):
+		# Sets the interior light state.
+		self.interiorLightsOn = bool(isOn)
+		self._notifyObservers()
+	
+	# Failure modes
+	def setEngineFailure(self, active: bool):
+		# Sets the engine failure state.
+		self.engineFailure = bool(active)
+		self._notifyObservers()
+	
+	def setSignalPickupFailure(self, active: bool):
+		# Sets the signal pickup failure state.
+		self.signalPickupFailure = bool(active)
+		self._notifyObservers()
+	
+	def setBrakeFailure(self, active: bool):
+		# Sets the brake failure state.
+		self.brakeFailure = bool(active)
+		self._notifyObservers()
+	
+	def setEmergencyBrake(self, active: bool):
+		# Sets the emergency brake state.
+		self.emergencyBrakeActive = bool(active)
+		self._notifyObservers()
+	
+	def setDeployed(self, deployed: bool):
+		# Sets whether the train is deployed.
+		self.deployed = bool(deployed)
+		self._notifyObservers()
+	
+	def getStateDict(self) -> dict:
+		# Returns a dictionary containing the complete state of the train.
+		return {
+			'train_id': self.trainId,
+			'speed': self.speed,
+			'acceleration': self.acceleration,
+			'passenger_count': self.passengerCount,
+			'passengers_disembarking': self.passengersDisembarking,
+			'crew_count': self.crewCount,
+			'power_command': self.powerCommand,
+			'cabin_temp': self.cabinTemp,
+			'grade': self.grade,
+			'elevation': self.elevation,
+			'speed_limit': self.speedLimit,
+			'commanded_speed': self.commandedSpeed,
+			'commanded_authority': self.commandedAuthority,
+			'distance_left': self.distanceLeft,
+			'height': self.height,
+			'length': self.length,
+			'width': self.width,
+			'right_door_open': self.rightDoorOpen,
+			'left_door_open': self.leftDoorOpen,
+			'headlights_on': self.headlightsOn,
+			'interior_lights_on': self.interiorLightsOn,
+			'engine_failure': self.engineFailure,
+			'signal_pickup_failure': self.signalPickupFailure,
+			'brake_failure': self.brakeFailure,
+			'emergency_brake_active': self.emergencyBrakeActive,
+			'service_brake_active': self.serviceBrakeActive,
+			'deployed': self.deployed,
+			'line': self.line,
+			'block': self.block,
+			'previous_block': self.previousBlock,
+			'station': self.station,
+			'time_to_station': self.timeToStation,
+			'emergency_announcement': self.emergencyAnnouncement,
+			'authority_received': self.authorityReceived,
+			'last_power_command': self.lastPowerCommand,
+			'last_service_brake': self.lastServiceBrake,
+			'last_emergency_brake': self.lastEmergencyBrake
+		}
 
-        new_speed = self.speed + (avg_acceleration * dt)
-        
-      
-        if new_speed < 0:
-            new_speed = 0
-            a_new = 0
-        
-        if self.speed_limit != 0:
-            if new_speed > self.speed_limit_mps:
-                new_speed = self.speed_limit_mps
-                a_new = 0
-
-        
-        # NOW calculate distance with final speed values
-        if hasattr(self, 'speed_prev'):
-            avg_speed = (new_speed + self.speed_prev) / 2
-        else:
-            avg_speed = new_speed
-
-        distance = avg_speed * dt
-        
-        # Update state
-        self.acceleration_prev = a_new
-        self.speed_prev = self.speed  # Store current speed before updating
-        self.speed = new_speed
-        self.acceleration = a_new
-        self.distance_left = self.distance_left - distance
-        
-        if new_speed > 0.1:  # Only calculate if moving at reasonable speed
-            time_seconds = self.distance_left / new_speed
-            time_minutes = max(0, int(time_seconds / 60))  # Convert to minutes, ensure non-negative
-            self.set_time_to_station(time_minutes)
-        else:
-            # When stopped or moving very slowly
-            if self.distance_left <= 0:
-                self.set_time_to_station(0)  # Arrived
-            else:
-                self.set_time_to_station("Soon")  # Or use a large number like 999
-
-        self._notify_observers()
-    
-
-    # Door controls
-    def set_right_door(self, is_open):
-        """Set right door state (True=Open, False=Closed)"""
-        self.right_door_open = bool(is_open)
-        self._notify_observers()
-    
-    def set_left_door(self, is_open):
-        """Set left door state (True=Open, False=Closed)"""
-        self.left_door_open = bool(is_open)
-        self._notify_observers()
-    
-    # Light controls
-    def set_headlights(self, is_on):
-        """Set headlight state (True=On, False=Off)"""
-        self.headlights_on = bool(is_on)
-        self._notify_observers()
-    
-    def set_interior_lights(self, is_on):
-        """Set interior light state (True=On, False=Off)"""
-        self.interior_lights_on = bool(is_on)
-        self._notify_observers()
-    
-    # Failure modes
-    def set_engine_failure(self, active):
-        self.engine_failure = bool(active)
-        self._notify_observers()
-    
-    def set_signal_pickup_failure(self, active):
-        self.signal_pickup_failure = bool(active)
-        self._notify_observers()
-    
-    def set_brake_failure(self, active):
-        self.brake_failure = bool(active)
-        self._notify_observers()
-    
-    def set_emergency_brake(self, active):
-        self.emergency_brake_active = bool(active)
-        self._notify_observers()
-    
-    def set_deployed(self, deployed):
-        self.deployed = bool(deployed)
-        self._notify_observers()
-    
-    def get_state_dict(self):
-        return {
-            'train_id': self.train_id,
-            'speed': self.speed,
-            'acceleration': self.acceleration,
-            'passenger_count': self.passenger_count,
-            'passengers_disembarking': self.passengers_disembarking,
-            'crew_count': self.crew_count,
-            'power_command': self.power_command,
-            'cabin_temp': self.cabin_temp,
-            'grade': self.grade,
-            'elevation': self.elevation,
-            'speed_limit': self.speed_limit,
-            'commanded_speed': self.commanded_speed,
-            'commanded_authority': self.commanded_authority,
-            'distance_left': self.distance_left,
-            'height': self.height,
-            'length': self.length,
-            'width': self.width,
-            'right_door_open': self.right_door_open,
-            'left_door_open': self.left_door_open,
-            'headlights_on': self.headlights_on,
-            'interior_lights_on': self.interior_lights_on,
-            'engine_failure': self.engine_failure,
-            'signal_pickup_failure': self.signal_pickup_failure,
-            'brake_failure': self.brake_failure,
-            'emergency_brake_active': self.emergency_brake_active,
-            'service_brake_active': self.service_brake_active,
-            'deployed': self.deployed,
-            'line': self.line,
-            'block': self.block,
-            'previous_block': self.previous_block,
-            'station': self.station,
-            'time_to_station': self.time_to_station,
-            'emergency_announcement': self.emergency_announcement,
-            'authority_received': self.authority_received,
-            'last_power_command': self.last_power_command,
-            'last_service_brake': self.last_service_brake,
-            'last_emergency_brake': self.last_emergency_brake
-        }
 
 class TrainManager:
-    """Manages all trains in the system"""
-    
-    def __init__(self, num_trains=14):
-        self.trains = {i+1: Train(i+1) for i in range(num_trains)}
-        self.selected_train_id = 1
-    
-    def get_train(self, train_id):
-        """Get a specific train"""
-        return self.trains.get(train_id)
-    
-    def get_selected_train(self):
-        """Get the currently selected train"""
-        return self.trains.get(self.selected_train_id)
-    
-    def select_train(self, train_id):
-        """Select a train by ID"""
-        if train_id in self.trains:
-            self.selected_train_id = train_id
-            return self.trains[train_id]
-        return None
-    
-    def get_all_trains(self):
-        """Get dictionary of all trains"""
-        return self.trains
-    
-    def get_deployed_trains(self):
-        """Get list of currently deployed trains"""
-        return [train for train in self.trains.values() if train.deployed]
-    
-    def update_all_physics(self, dt=0.1):
-        """Update physics for all deployed trains (call from background thread/timer)"""
-        for train in self.get_deployed_trains():
-            train.calculate_force_speed_acceleration_distance(dt)
+	# Manages all trains in the system.
+	"""
+	Attributes:
+	trains: A dictionary mapping train IDs to Train objects.
+	selectedTrainId: An integer representing the currently selected train ID.
+	"""
+	
+	def __init__(self, numTrains: int = 14):
+		# Initializes the train manager with the specified number of trains.
+		self.trains = {i + 1: Train(i + 1) for i in range(numTrains)}
+		self.selectedTrainId = 1
+	
+	def getTrain(self, trainId: int) -> Train:
+		# Returns a specific train by ID.
+		return self.trains.get(trainId)
+	
+	def getSelectedTrain(self) -> Train:
+		# Returns the currently selected train.
+		return self.trains.get(self.selectedTrainId)
+	
+	def selectTrain(self, trainId: int) -> Train:
+		# Selects a train by ID and returns it.
+		if trainId in self.trains:
+			self.selectedTrainId = trainId
+			return self.trains[trainId]
+		return None
+	
+	def getAllTrains(self) -> dict:
+		# Returns a dictionary of all trains.
+		return self.trains
+	
+	def getDeployedTrains(self) -> list:
+		# Returns a list of currently deployed trains.
+		return [train for train in self.trains.values() if train.deployed]
+	
+	def updateAllPhysics(self, dt: float = 0.1):
+		# Updates physics for all deployed trains.
+		for train in self.getDeployedTrains():
+			train.calculateForceSpeedAccelerationDistance(dt)
 
-    
+	
 # Global singleton instance
-_train_manager = None
+_trainManager = None
 
-def get_train_manager():
-    """Get the global TrainManager instance"""
-    global _train_manager
-    if _train_manager is None:
-        _train_manager = TrainManager()
-    return _train_manager
+def getTrainManager() -> TrainManager:
+	# Returns the global TrainManager instance.
+	global _trainManager
+	if _trainManager is None:
+		_trainManager = TrainManager()
+	return _trainManager
