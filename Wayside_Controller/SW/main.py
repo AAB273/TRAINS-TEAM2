@@ -10,6 +10,7 @@ from ui.center_panel import CenterPanel
 from ui.right_panel import RightPanel
 from data.models import RailwayData
 from TrainSocketServer import TrainSocketServer
+from datetime import datetime
 
 def load_socket_config():  
     config_path = Path("config.json")
@@ -66,6 +67,11 @@ class RailwayControlSystem:
             command = message.get('command')
             data = message.get('value', {})
             
+            # Check if message is from CTC and it's a switch command
+            if source_ui_id == "CTC" and command == "SW":
+                self._handle_ctc_switch(data)
+                return  # Stop processing here
+            
             if command == 'update_switch':
                 self._handle_switch_update(data)
             elif command == 'update_light':
@@ -76,9 +82,52 @@ class RailwayControlSystem:
                 self._handle_speed_auth_update(data)
             elif command == 'update_occupancy':
                 self._handle_occupancy_update(data)
+            
                 
         except Exception as e:
             print(f"Error processing message: {e}")
+
+    def _handle_ctc_switch(self, data):
+        """Log CTC switch command without updating the switch"""
+        try:
+            # Parse the data - CTC sends: [block, track] (NO direction!)
+            if isinstance(data, list) and len(data) >= 2:
+                block = str(data[0])
+                track = str(data[1])
+                
+                print(f"CTC wants to switch: Block {block} on {track} track")
+                
+                # Just log to UI, don't update the switch
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                # Different message since no direction specified
+                log_message = f"{current_time} CTC REQUEST: Toggle Switch {block} on {track} track"
+                
+                # Send to UI log via callback
+                if hasattr(self, 'center_panel') and hasattr(self.center_panel, 'log_callback'):
+                    self.center_panel.log_callback(log_message)
+                
+                print(f"✓ CTC switch request logged: {log_message}")
+                
+            else:
+                error_msg = f"Invalid CTC switch data format: {data}"
+                print(f"✗ {error_msg}")
+                
+                # Still log the error
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                log_message = f"{current_time} ERROR: Invalid CTC switch command format"
+                if hasattr(self, 'center_panel') and hasattr(self.center_panel, 'log_callback'):
+                    self.center_panel.log_callback(log_message)
+                    
+        except Exception as e:
+            error_msg = f"Error processing CTC switch command: {e}"
+            print(f"✗ {error_msg}")
+            
+            # Log the error
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log_message = f"{current_time} ERROR: Failed to process CTC switch command"
+            if hasattr(self, 'center_panel') and hasattr(self.center_panel, 'log_callback'):
+                self.center_panel.log_callback(log_message)
 
     def send_commanded_to_track_model(self, track, block, speed, authority):
         """Send commanded speed and authority to Track Model"""
@@ -104,12 +153,7 @@ class RailwayControlSystem:
             "switches": switch_list
         }
         
-        success = self.send_to_track_model(switch_message)
-        if success:
-            print(f"Sent to Track Model: {len(switch_list)} switch states")
-        else:
-            print(f"Failed to send switch states to Track Model")
-        return success
+        self.send_to_track_model(switch_message)
 
     def send_to_track_model(self, message):
         """Send message to Track Model"""
@@ -175,7 +219,6 @@ class RailwayControlSystem:
                 "command": "TL",
                 "value": [block, track]
             }
-            print("\n\n\nhere\n\n\n)")
             self.send_to_CTC(message)
 
        

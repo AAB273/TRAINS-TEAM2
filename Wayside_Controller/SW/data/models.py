@@ -356,13 +356,7 @@ class RailwayData:
                         # Extract block number and send
                         block = name.split(" ")[1] if " " in name else name
                         self.app.send_light_state(item_line, block, new_value)
-                        
-                    elif category == "switch_positions" and field == "direction":
-                        # Extract block number and send  
-                        block = name.split(" ")[1] if " " in name else name
-                        # Send switch state to CTC (would need to implement)
-                        #self.app.send_light_state(item_line, block, new_value)
-
+                
                     elif category == "railway_crossings":
                         # Extract block number and send  
                         block = name.split(" ")[1] if " " in name else name
