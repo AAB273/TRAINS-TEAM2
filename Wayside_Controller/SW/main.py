@@ -72,7 +72,7 @@ class RailwayControlSystem:
                 if command == "SW":
                     self.handle_ctc_switch(data)
                 elif command == "MAINT":  # Maintenance request from CTC
-                    self.handle_ctc_maintenance()
+                    self.handle_ctc_maintenance(data)
                 return  # Stop processing here
             
             if command == 'update_switch':
@@ -164,21 +164,37 @@ class RailwayControlSystem:
         }
         self.send_to_track_model(track_model_message)
 
-    def send_switch_to_track_model(self, track, block, direction):
-        """Send array of all switch directions to Track Model"""
+    def send_switch_to_track_model(self, track, block, position):
+        """Send all switch positions to Track Model"""
+        # Build array of all switch positions
         switch_list = []
         
-        # Get all switch directions
-        for switch_data in self.data.switch_positions.values():
-            switch_direction = switch_data["direction"]  # Changed from 'direction' to 'switch_direction'
-            switch_list.append(switch_direction)
+        # Add track identifier as first element (0 for Green, 1 for Red)
+        track_id = 0 if track == "Green" else 1 if track == "Red" else 2
+        switch_list.append(track_id)
+        
+        # Get all switches for the current track
+        switches = []
+        for switch_name, switch_data in self.data.switch_positions.items():
+            if switch_data.get("line") == track:
+                # Extract block number and convert to integer for sorting
+                block_num = int(switch_name.split(" ")[1])
+                switches.append((block_num, switch_data.get("numeric_position", 1)))
+        
+        # Sort by block number (smallest first)
+        switches.sort(key=lambda x: x[0])
+        
+        # Add positions in sorted order
+        for block_num, pos in switches:
+            switch_list.append(pos)
         
         switch_message = {
             "command": "switch_states",
-            "switches": switch_list
+            "value": switch_list  # This will be [track_id, pos1, pos2, ...] in block order
         }
         
-        self.send_to_track_model(switch_message)
+        print(f"Sending all switches to track model: {switch_message}")
+        return self.send_to_track_model(switch_message)
 
     def send_to_track_model(self, message):
         """Send message to Track Model"""
