@@ -90,7 +90,6 @@ class RailwayControlSystem:
         }
         self.send_to_track_model(track_model_message)
 
-    
     def send_switch_to_track_model(self, track, block, direction):
         """Send array of all switch directions to Track Model"""
         switch_list = []
@@ -153,12 +152,46 @@ class RailwayControlSystem:
            
     def send_light_state(self,track, block, color):
         """Send Light State to CTC and Track Model"""
+        if (color == 'Red'):
+            color = "00"
+        elif (color == 'Yellow'):
+            color = "01"
+        elif (color == 'Green'):
+            color = "10"
+        else:
+            color =="11"
+
         message = {
             "command": "LS",
             "value": [block, color, track]
         }
 
-        print("\n\n\nhere\n\n\n")
+        self.send_to_CTC(message)
+
+    def send_occupancy(self, track, block, occupied):
+        """Send Occupany to CTC"""
+        if (occupied == 'Yes'):
+            message = {
+                "command": "TL",
+                "value": [block, track]
+            }
+            print("\n\n\nhere\n\n\n)")
+            self.send_to_CTC(message)
+
+       
+    
+    def send_railway_state(self, track, block, bar):
+        """Send Light State to CTC and Track Model"""
+        if (bar == 'Closed'):
+            booly = "1"
+        else:
+            booly = "0"
+            
+        message = {
+            "command": "RC",
+            "value": [block, booly, track]
+        }
+        
         self.send_to_CTC(message)
 
 

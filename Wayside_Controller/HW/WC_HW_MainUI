@@ -77,7 +77,9 @@ def _process_message(self, data, connection=None, server_instance=None):
     """Process incoming messages from Test UI"""
     try:
         print(f"=== MAIN UI DEBUG ===")
-        print(f"Received data: {data}")
+        print(f"Received RAW data type: {type(data)}")
+        print(f"Received RAW data: {repr(data)}")  # repr shows special characters
+        print(f"Data length: {len(str(data)) if data else 0}")
         print(f"=== END DEBUG ===")
          # Parse the data if it's a string
         if isinstance(data, str):
@@ -85,20 +87,44 @@ def _process_message(self, data, connection=None, server_instance=None):
                 # Try to parse as JSON
                 import json
                 message_data = json.loads(data)
-                # print(f"Parsed JSON data: {parsed_data}")
+                print(f"Parsed JSON data: {message_data}")
                 # message_data = parsed_data
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as je:
                 # If it's not JSON, treat it as a plain string message
                 # print(f"Data is plain string, not JSON: {data}")
-                message_data = {'message': data}
-        else:
-            # Data is already a dictionary
+                print(f"Not valid JSON: {je}")
+                # message_data = {'message': data}
+            # Check if it's a simple string message
+                if data.strip() == "CTC":
+                    print("Got 'CTC' string - might be a connection test")
+                    add_to_message_log("CTC connection test received")
+                    return
+                else:
+                    # Try other parsing methods
+                    print(f"Treating as plain string message: {data}")
+                    message_data = {'message': data}
+                    
+        elif isinstance(data, dict):
+            print(f"Data is already a dictionary: {data}")
             message_data = data
+        else:
+            print(f"Unknown data type: {type(data)}")
+            return
+        # else:
+        #     # Data is already a dictionary
+        #     message_data = data
         # extract command and value 
-        command = message_data.get('command')
-        value = message_data.get('value')
-        # self.handle_ctc_message(message_data)
-        print(f"Processing command: {command}, value: {value}")
+        # command = message_data.get('command')
+        # value = message_data.get('value')
+        # # self.handle_ctc_message(message_data)
+        # print(f"Processing command: {command}, value: {value}")
+
+        # Now process the message_data
+        if message_data:
+            command = message_data.get('command')
+            value = message_data.get('value')
+            
+            print(f"Processing command: {command}, value: {value}")
 
         # Handle different commands
         if command == 'ctc_suggestion':
@@ -314,12 +340,12 @@ class UITestData:
 
         # SOCKET SERVER
         self.server1 = TrainSocketServer(port=12344, ui_id="Track HW")
-        self.server1.set_allowed_connections(["WC_HW_TestUI", "CTC", "Track Model"])
+        self.server1.set_allowed_connection(["WC_HW_TestUI", "CTC", "Track Model"])
         self.server1.start_server(_process_message)
         
         # Connect to other UIs
         self.server1.connect_to_ui('localhost', 12346, "WC_HW_TestUI")
-        self.server1.connect_to_ui('localhost', 12341, "CTC_MainScreenUI")
+        self.server1.connect_to_ui('localhost', 12341, "CTC")
         self.server1.connect_to_ui('localhost', 12344, "Track Model")
 
         # Current line

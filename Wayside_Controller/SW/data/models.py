@@ -192,7 +192,7 @@ class RailwayData:
                                 self.railway_crossings[crossing_name] = {
                                     "condition": "Normal Operation",
                                     "lights": "Off",    # Default state
-                                    "bar": "Opened",    # Default state  
+                                    "bar": "Open",    # Default state  
                                     "line": line        # Track which line this crossing belongs to
                                 }
 
@@ -308,7 +308,9 @@ class RailwayData:
                     if col_index == 0:
                         is_occupied = (new_value == "Yes")
                         self.filtered_blocks[block_key]["occupied"] = is_occupied
-                    
+                        if self.app:  # Only if we have app reference
+                                self.app.send_occupancy(current_line, block_num, new_value)
+                            
                     # If faulted changed (col 3)
                     elif col_index == 3:
                         is_faulted = (new_value == "Yes")
@@ -358,12 +360,18 @@ class RailwayData:
                     elif category == "switch_positions" and field == "direction":
                         # Extract block number and send  
                         block = name.split(" ")[1] if " " in name else name
-                        # Send switch state to CTC
-                        ctc_message = {
-                            "command": "SW",
-                            "value": [block, new_value, item_line]
-                        }
-                        self.app.send_to_CTC(ctc_message)
+                        # Send switch state to CTC (would need to implement)
+                        #self.app.send_light_state(item_line, block, new_value)
+
+                    elif category == "railway_crossings":
+                        # Extract block number and send  
+                        block = name.split(" ")[1] if " " in name else name
+                        # Get current crossing state
+                        crossing_data = data_dict[name]
+                        lights_state = crossing_data.get("lights", "Off")
+                        bar_state = crossing_data.get("bar", "Open")
+                        # Send crossing state to CTC
+                        self.app.send_railway_state(item_line, block, bar_state)
 
                 # Notify listeners that data changed
                 for callback in self.on_data_update:
