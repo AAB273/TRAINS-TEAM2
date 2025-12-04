@@ -288,11 +288,10 @@ class RailwayControlSystem:
         # Send to Track Model
         track_model_message = {
             "command": "light_states",
-            "value": light_list  # [{'0','1'}, {'0','1'}, ...] in block order
+            "value": light_list  # [['0','1'], ['0','1'], ...] in block order
         }
         
         self.send_to_track_model(track_model_message)
-        print(f"All lights for {track} track sent to Track Model: {light_list}")
 
     def send_occupancy(self, track, block, occupied):
         """Send Occupany to CTC"""
@@ -318,6 +317,41 @@ class RailwayControlSystem:
         }
         
         self.send_to_CTC(message)
+        self.send_rc_to_track_model(track)
+    
+    def send_rc_to_track_model(self, track):
+        """Send all railway crossing states to Track Model"""
+        # Build array of all railway crossing states
+        rc_list = []
+        
+        # Get all railway crossings for the current track
+        crossings = []
+        for crossing_name, crossing_data in self.data.railway_crossings.items():
+            if crossing_data.get("line") == track:
+                # Extract block number and convert to integer for sorting
+                block_num = int(crossing_name.split(" ")[1])
+                # Get crossing state (0 for Open, 1 for Closed)
+                bar_state = crossing_data.get("bar", "Open")
+                state = 1 if bar_state == "Closed" else 0
+                crossings.append((block_num, state))
+        
+        # Sort by block number (smallest first)
+        crossings.sort(key=lambda x: x[0])
+        
+        # Add states in sorted order
+        for block_num, state in crossings:
+            rc_list.append(state)
+        
+        rc_message = {
+            "command": "rc_states",  # Or "railway_crossing_states"
+            "value": rc_list  # This will be [state1, state2, ...] in block order
+        }
+        
+        print(f"Sending all railway crossings to track model: {rc_message}")
+        return self.send_to_track_model(rc_message)
+
+
+    
 
 
 
