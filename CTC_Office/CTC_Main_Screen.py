@@ -58,7 +58,7 @@ class MainScreen:
         self.totalPassengers = 0 
         self.numberOfTrains = 1
 
-        self.mmList = {12: [1, 13], 28: [29, 150], 77: [76, 101], 85: [86, 100], 0: [57, 63]}
+        self.mmList = {12: [1, 13], 28: [29, 150], 76: [77, 101], 85: [86, 100], 0: [57, 63]}
         self.trainList = {}
 
 
@@ -191,24 +191,10 @@ class MainScreen:
 
         elif (code == "LS"):  
         #light switch data case
-            location = ""
-            state = ""
-            commaInd = 0
+            location = data[0]
+            state = data[1]
+            line = data[2]
 
-            #grab data from message
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                location += data[i]
-            data = data[commaInd + 2:]
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                state += data[i]
-            line = data[commaInd + 2:]
-        
             if (state == "00"):
                 state = "red"
             elif (state == "01"):
@@ -224,7 +210,7 @@ class MainScreen:
             if (not children):  
             #if there is nothing added yet, add the first parent/child
                 level = self.lsArea.insert('', "end", text = line.title())
-                self.lsArea.insert(level, "end", text = "Block " + location, values = [state])
+                self.lsArea.insert(level, "end", text = "Block " + location + ", " + line, values = [state])
             else:
                 added = False
                 updated = False  
@@ -234,7 +220,7 @@ class MainScreen:
                     for item in self.lsArea.get_children(child):
                     #iterate for each child of every parent in the Treeview
                         loc = self.lsArea.item(item, "text")
-                        if ((loc == ("Block " + location))):  
+                        if ((loc == ("Block " + location + ", " + line))):  
                         #if location exists, update item
                             self.lsArea.item(item, values = [state])
                             updated = True
@@ -242,33 +228,20 @@ class MainScreen:
                             break
                     if ((not updated) and (line.title() == self.lsArea.item(child, "text"))):
                     #add to existing line if item does not exist yet
-                        self.lsArea.insert(child, "end", text = "Block " + location, values = [state])
+                        self.lsArea.insert(child, "end", text = "Block " + location + ", " + line, values = [state])
                         added = True
                         break
                 if (not added):
                 #if value is not already in the treeview, add a new parent/child set
                     level = self.lsArea.insert('', "end", text = line.title())
-                    self.lsArea.insert(level, "end", text = "Block " + location, values = [state])
+                    self.lsArea.insert(level, "end", text = "Block " + location + ", " + line, values = [state])
 
         elif (code == "RC"):
             #railway crossing data case
-            location = ""
-            state = ""
-            commaInd = 0
+            location = data[0]
+            state = data[1]
+            line = data[2]
             
-            #grab data from message
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                location += data[i]
-            data = data[commaInd + 2:]
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                state += data[i]
-            line = data[commaInd + 2:]
            
             if (state == "0"):
                 state = "inactive"
@@ -678,6 +651,7 @@ class MainScreen:
                     #grab specific block direction
 
                     self.send_to_ui("MM", location + ", " + direction + ", " + self.mmArea.item(self.mmArea.parent(rowID), "text").lower())
+                    self.send_to_ui("Track SW", {"commnand": "", "value": })
 
 ###############################################################################################################################################################
 

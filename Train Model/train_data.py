@@ -27,6 +27,7 @@ class Train:
         self.grade = 0
         self.elevation = 0
         self.speed_limit = 50
+        self.speed_limit_mps = self.speed_limit / 3.6  # Store in m/s for physics
         self.commanded_speed = 0
         self.commanded_authority = 0
         self.distance_left = self.commanded_authority
@@ -56,14 +57,16 @@ class Train:
         
         # Emergency brake and Service Brake
         self.emergency_brake_active = False
-        self.service_brake_active = True    #Needs to turn off once initial authority is given.
+        self.service_brake_active = True
         
         # Deployment status
         self.deployed = True
+        self.active = False
         
         # Line assignment
         self.line = "green" 
         self.block = 63
+        self.previous_block = None
         #self.line_data
 
         # Station
@@ -71,8 +74,12 @@ class Train:
         self.time_to_station = 0
         self.emergency_announcement = "EMERGENCY"
         
+        self.authority_received = False
+
         # Observers (callbacks for UI updates)
         self._observers = []
+
+
     
     def add_observer(self, callback):
         """Register a callback to be notified of changes"""
@@ -100,6 +107,7 @@ class Train:
         self._notify_observers
     
     def set_block(self,value):
+        self.previous_block = self.block
         self.block = value
         self.set_speed_limit(self.line_data.get_value(value,'speed_limit'))
         self.set_grade(self.line_data.get_value(value,'grade'))
@@ -158,7 +166,24 @@ class Train:
     def set_authority(self, value):
         try:
             self.commanded_authority = float(value)
+            
+            # Check if this is a state change (inactive -> active)
+            was_active = self.active
+            
+            if not self.authority_received:
+                self.authority_received = True
+                self.active = True
+                print(f"Train {self.train_id} received first authority - AUTO ACTIVATING")
+                self.service_brake_active = False
+            
+            # Notify observers
             self._notify_observers()
+            
+            # If state changed (was inactive, now active), trigger refresh
+            if not was_active and self.active:
+                print(f"Train {self.train_id} became active - should refresh selector")
+
+            
         except ValueError:
             pass
 
@@ -220,7 +245,10 @@ class Train:
     def set_disembarking(self, value):
         self.passengers_disembarking = int(value)
         self._notify_observers()
-        
+    
+    def set_active(self, active):
+        """Set whether train should receive physics updates"""
+        self.active = active
 
     def calculate_force_speed_acceleration_distance(self, dt=1.0):
 
@@ -277,9 +305,6 @@ class Train:
             a_new = self.acceleration  # Fallback
         
         
-        if self.speed >= self.speed_limit and a_new > 0:
-            a_new = 0
-        
         # Trapezoidal integration for speed
         if hasattr(self, 'acceleration_prev'):
             avg_acceleration = (a_new + self.acceleration_prev) / 2
@@ -294,10 +319,10 @@ class Train:
             a_new = 0
         
         if self.speed_limit != 0:
-            if new_speed > self.speed_limit:
-                new_speed = self.speed_limit
-        else:
-            pass
+            if new_speed > self.speed_limit_mps:
+                new_speed = self.speed_limit_mps
+                a_new = 0
+
         
         # NOW calculate distance with final speed values
         if hasattr(self, 'speed_prev'):
@@ -372,15 +397,21 @@ class Train:
         self._notify_observers()
     
     def get_state_dict(self):
-        """Return all train data as a dictionary"""
         return {
             'train_id': self.train_id,
             'speed': self.speed,
             'acceleration': self.acceleration,
             'passenger_count': self.passenger_count,
+            'passengers_disembarking': self.passengers_disembarking,
             'crew_count': self.crew_count,
             'power_command': self.power_command,
             'cabin_temp': self.cabin_temp,
+            'grade': self.grade,
+            'elevation': self.elevation,
+            'speed_limit': self.speed_limit,
+            'commanded_speed': self.commanded_speed,
+            'commanded_authority': self.commanded_authority,
+            'distance_left': self.distance_left,
             'height': self.height,
             'length': self.length,
             'width': self.width,
@@ -392,13 +423,24 @@ class Train:
             'signal_pickup_failure': self.signal_pickup_failure,
             'brake_failure': self.brake_failure,
             'emergency_brake_active': self.emergency_brake_active,
+            'service_brake_active': self.service_brake_active,
             'deployed': self.deployed,
+            'line': self.line,
+            'block': self.block,
+            'previous_block': self.previous_block,
+            'station': self.station,
+            'time_to_station': self.time_to_station,
+            'emergency_announcement': self.emergency_announcement,
+            'authority_received': self.authority_received,
+            'last_power_command': self.last_power_command,
+            'last_service_brake': self.last_service_brake,
+            'last_emergency_brake': self.last_emergency_brake
         }
 
 class TrainManager:
     """Manages all trains in the system"""
     
-    def __init__(self, num_trains=1):
+    def __init__(self, num_trains=14):
         self.trains = {i+1: Train(i+1) for i in range(num_trains)}
         self.selected_train_id = 1
     
@@ -420,6 +462,15 @@ class TrainManager:
     def get_all_trains(self):
         """Get dictionary of all trains"""
         return self.trains
+    
+    def get_deployed_trains(self):
+        """Get list of currently deployed trains"""
+        return [train for train in self.trains.values() if train.deployed]
+    
+    def update_all_physics(self, dt=0.1):
+        """Update physics for all deployed trains (call from background thread/timer)"""
+        for train in self.get_deployed_trains():
+            train.calculate_force_speed_acceleration_distance(dt)
 
     
 # Global singleton instance

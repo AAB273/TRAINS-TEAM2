@@ -6,6 +6,7 @@ class RailwayData:
         """Data model for railway control system - manages track data, blocks, and commands"""
         self.maintenance_mode = False
         self.current_line = "Green"  # Default line
+        self.app = None
         
         # Callbacks for UI updates
         self.on_line_change = []  # Called when line changes
@@ -191,7 +192,7 @@ class RailwayData:
                                 self.railway_crossings[crossing_name] = {
                                     "condition": "Normal Operation",
                                     "lights": "Off",    # Default state
-                                    "bar": "Opened",    # Default state  
+                                    "bar": "Open",    # Default state  
                                     "line": line        # Track which line this crossing belongs to
                                 }
 
@@ -307,7 +308,9 @@ class RailwayData:
                     if col_index == 0:
                         is_occupied = (new_value == "Yes")
                         self.filtered_blocks[block_key]["occupied"] = is_occupied
-                    
+                        if self.app:  # Only if we have app reference
+                                self.app.send_occupancy(current_line, block_num, new_value)
+                            
                     # If faulted changed (col 3)
                     elif col_index == 3:
                         is_faulted = (new_value == "Yes")
@@ -347,6 +350,23 @@ class RailwayData:
                     if category in filtered_map and name in filtered_map[category]:
                         filtered_map[category][name][field] = new_value
                 
+                # AUTO-SEND TO CTC FOR INFRASTRUCTURE CHANGES
+                if self.app:  # Only if we have app reference
+                    if category == "light_states" and field == "signal":
+                        # Extract block number and send
+                        block = name.split(" ")[1] if " " in name else name
+                        self.app.send_light_state(item_line, block, new_value)
+                
+                    elif category == "railway_crossings":
+                        # Extract block number and send  
+                        block = name.split(" ")[1] if " " in name else name
+                        # Get current crossing state
+                        crossing_data = data_dict[name]
+                        lights_state = crossing_data.get("lights", "Off")
+                        bar_state = crossing_data.get("bar", "Open")
+                        # Send crossing state to CTC
+                        self.app.send_railway_state(item_line, block, bar_state)
+
                 # Notify listeners that data changed
                 for callback in self.on_data_update:
                     try:
@@ -453,7 +473,7 @@ class RailwayData:
         """Set maintenance mode and notify all UI components"""
         self.maintenance_mode = mode
         mode_text = "activated" if mode else "deactivated"
-        print(f"🔧 Maintenance mode {mode_text}")
+        print(f"Maintenance mode {mode_text}")
         for callback in self.on_maintenance_mode_change:
             callback()
     

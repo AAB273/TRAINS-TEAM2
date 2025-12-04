@@ -29,7 +29,7 @@ class TrainModelPassengerGUI:
         self.off_color = '#4d4d6d'
         self.current_train = None
         self.train_manager = get_train_manager()
-        self.current_train = self.train_manager.get_selected_train()
+        self.current_train = self.train_manager.get_selected_train() 
         
         # Socket server setup
         module_config = load_socket_config()
@@ -56,6 +56,9 @@ class TrainModelPassengerGUI:
 
         self.previous_failure_signal_pickup_state = False
         self.failure_activation_in_progress = False
+
+        self.previous_active_trains = set()  # Track which trains were active last time
+
         
         self.setup_gui()
         
@@ -64,192 +67,286 @@ class TrainModelPassengerGUI:
         print("Socket server requesting train selector refresh")
         self.root.after(0, self.refresh_train_selector)
 
-    def _animate_temperature_change(self, target_temp):
+    def _animate_temperature_change(self, target_temp, train=None):
         """Gradually change temperature using Tkinter's after()"""
-        if not self.current_train:
+        if train is None:
+            train = self.current_train
+            
+        if not train:
             return
 
-        current_temp = self.current_train.cabin_temp
+        current_temp = train.cabin_temp
         target_temp = float(target_temp)
         
         if current_temp < target_temp:
             new_temp = current_temp + 1
-            self.current_train.set_cabin_temp(new_temp)
-            self.update_ui_from_train(self.current_train)
-            self.root.after(1000, lambda: self._animate_temperature_change(target_temp))
+            train.set_cabin_temp(new_temp)
+            if train == self.current_train:
+                self.update_ui_from_train(train)
+            self.root.after(1000, lambda: self._animate_temperature_change(target_temp, train))
         elif current_temp > target_temp:
             new_temp = current_temp - 1
-            self.current_train.set_cabin_temp(new_temp)
-            self.update_ui_from_train(self.current_train)
-            self.root.after(1000, lambda: self._animate_temperature_change(target_temp))
-            
-        self.server.send_to_ui("Train Controller",{"Temp",current_temp})
+            train.set_cabin_temp(new_temp)
+            if train == self.current_train:
+                self.update_ui_from_train(train)
+            self.root.after(1000, lambda: self._animate_temperature_change(target_temp, train))
+        
+        self.server.send_to_ui("Train SW", {
+            'command': "Temp",
+            'value': current_temp,
+            'train_id': train.train_id
+        })
+        self.server.send_to_ui("Train HW", {
+            'command': "Temp",
+            'value': current_temp,
+            'train_id': train.train_id
+        })
    
     def _process_message(self, message, source_ui_id):
+        try:
+            print(f"Received message from {source_ui_id}: {message}")
 
-            try:
-                print(f"Received message from {source_ui_id}: {message}")
-
-                command = message.get('command')
-                value = message.get('value')
-              #Test Commands###########################################################  
-                if command == 'set_power':
-                    self.current_train.last_power_command = self.current_train.power_command
-                    self.current_train.set_power_command(value)
-                elif command == 'set_right_door':
-                    if value == 'open':
-                        self.current_train.set_right_door(1)
-                    elif value == 'close':
-                        self.current_train.set_right_door(0)
-                elif command == 'set_left_door':
-                    if value == 'open':
-                        self.current_train.set_left_door(1)
-                    elif value == 'close':
-                        self.current_train.set_left_door(0)
-                elif command == 'set_headlights':
+            command = message.get('command')
+            value = message.get('value')
+            train_id = message.get('train_id')  # Add train_id to messages
+            
+            # Determine which train to operate on
+            if train_id is not None:
+                # Operate on specified train
+                train = self.train_manager.get_train(train_id)
+                if not train or not train.deployed:
+                    print(f"Train {train_id} not deployed or doesn't exist")
+                    return
+            else:
+                # Fall back to current train for backward compatibility
+                train = self.current_train
+                if not train:
+                    print("No current train selected")
+                    return
+            
+            # Test Commands ###########################################################
+            if command == 'set_power':
+                train.last_power_command = train.power_command
+                train.set_power_command(value)
+            elif command == 'set_active':
+                train.active = value
+            elif command == 'set_right_door':
+                if value == 'open':
+                    train.set_right_door(1)
+                elif value == 'close':
+                    train.set_right_door(0)
+            elif command == 'set_left_door':
+                if value == 'open':
+                    train.set_left_door(1)
+                elif value == 'close':
+                    train.set_left_door(0)
+            elif command == 'set_headlights':
+                if value == 'on':
+                    train.set_headlights(1)
+                else:
+                    train.set_headlights(0)
+            elif command == 'set_interior_lights':
+                if value == 'on':
+                    train.set_interior_lights(1)
+                elif value == 'off':
+                    train.set_interior_lights(0)
+            elif command == 'emergency_brake':
+                if value == 'on':
+                    self.emergency_brake_activated(train)
+                else:
+                    train.set_emergency_brake(0)
+            elif command == 'set_service_brake':
+                if self.failure_brake_var.get() and train == self.current_train:
+                    pass
+                else:
                     if value == 'on':
-                        self.current_train.set_headlights(1)
+                        train.set_service_brake(True)
                     else:
-                        self.current_train.set_headlights(0)
-                elif command == 'set_interior_lights':
-                    if value == 'on':
-                        self.current_train.set_interior_lights(1)
-                    elif value == 'off':
-                        self.current_train.set_interior_lights(0)
-                elif command == 'emergency_brake':
-                    if value == 'on':
-                        self.emergency_brake_activated()
-                    else:
-                        self.current_train.set_emergency_brake(0)
-                elif command == 'set_service_brake':
-                    if self.failure_brake_var.get():
-                        pass
-                    else:    
-                        if value == 'on':
-                            self.current_train.set_service_brake(True)
-                        else:
-                            self.current_train.set_service_brake(False)
-                elif command == 'set_passenger_count':
-                    self.current_train.set_passenger_count(value)
-                elif command == 'horn':
-                    playsound('Train Model\diesel-horn-02-98042.mp3')
-                elif command == 'set_speed_limit':
-                    self.current_train.set_speed_limit(value)
-                elif command == 'set_elevation':
-                    self.current_train.set_elevation(value)
-                elif command == 'set_grade':
-                    self.current_train.set_grade(value)
-                elif command == 'select_train':
-                    self.on_train_selected(value)
-                elif command == 'set_temperature':
-                    target_temp = value
-                    self._animate_temperature_change(target_temp)
-                elif command == 'set_authority':
-                    self.current_train.set_authority(value)
-                elif command == 'set_station':
-                    self.current_train.set_station(value)
-                elif command == 'set_time_to_station':
-                    self.current_train.set_time_to_station(value)
-                elif command == 'deploy_train':
-                    train_id = value
-                    train = self.train_manager.get_train(train_id)
-                    if train:
-                        train.deployed = True
-                        print(f"Deployed train {train_id}")
-                        self._socket_refresh_train_selector()
-                        train.calculate_force_speed_acceleration_()
-                elif command == 'undeploy_train':
-                    train_id = value
-                    train = self.train_manager.get_train(train_id)
-                    if train:
-                        train.deployed = False
-                        print(f"Undeployed train {train_id}")
-                        self._socket_refresh_train_selector()
-                elif command == 'deploy_all':
-                    for train_id in range(1, 15):
-                        train = self.train_manager.get_train(train_id)
-                        if train:
-                            train.deployed = True
-                            self.current_train.calculate_force_speed_acceleration_()
-                    print("Deployed all trains")
+                        train.set_service_brake(False)
+            elif command == 'set_passenger_count':
+                train.set_passenger_count(value)
+            elif command == 'horn':
+                playsound('Train Model\diesel-horn-02-98042.mp3')
+            elif command == 'set_speed_limit':
+                train.set_speed_limit(value)
+            elif command == 'set_elevation':
+                train.set_elevation(value)
+            elif command == 'set_grade':
+                train.set_grade(value)
+            elif command == 'select_train':
+                self.on_train_selected(value)
+            elif command == 'set_temperature':
+                target_temp = value
+                self._animate_temperature_change(target_temp, train)
+            elif command == 'set_authority':
+                was_active = train.active if train else False
+                train.set_authority(value)
+            
+                if not was_active and train.active:
+                    print(f"Train {train.train_id} activated - refreshing selector")
+                    self.refresh_train_selector_if_needed()  
+            
+            elif command == 'set_station':
+                train.set_station(value)
+            elif command == 'set_time_to_station':
+                train.set_time_to_station(value)
+            elif command == 'deploy_train':
+                train_id = value
+                train_obj = self.train_manager.get_train(train_id)
+                if train_obj:
+                    train_obj.deployed = True
+                    print(f"Deployed train {train_id}")
                     self._socket_refresh_train_selector()
-                elif command == 'undeploy_all':
-                    for train_id in range(1, 15):
-                        train = self.train_manager.get_train(train_id)
-                        if train:
-                            train.deployed = False
-                    print("Undeployed all trains")
+                    train_obj.calculate_force_speed_acceleration_()
+            elif command == 'undeploy_train':
+                train_id = value
+                train_obj = self.train_manager.get_train(train_id)
+                if train_obj:
+                    train_obj.deployed = False
+                    print(f"Undeployed train {train_id}")
                     self._socket_refresh_train_selector()
-                elif command == 'refresh_trains':
-                    self._socket_refresh_train_selector()
-                ############################################################ 
+            elif command == 'deploy_all':
+                for train_id in range(1, 15):
+                    train_obj = self.train_manager.get_train(train_id)
+                    if train_obj:
+                        train_obj.deployed = True
+                        self.current_train.calculate_force_speed_acceleration_()
+                print("Deployed all trains")
+                self._socket_refresh_train_selector()
+            elif command == 'undeploy_all':
+                for train_id in range(1, 15):
+                    train_obj = self.train_manager.get_train(train_id)
+                    if train_obj:
+                        train_obj.deployed = False
+                print("Undeployed all trains")
+                self._socket_refresh_train_selector()
+            elif command == 'refresh_trains':
+                self._socket_refresh_train_selector()
 
-
-                #MAIN COMMANDS ############################################# 
-                elif command == 'Cabin Interior Temperature Control':
-                    target_temp = value
-                    self._animate_temperature_change(target_temp)
-                elif command == 'Service Brake':
-                    if self.failure_brake_var.get:
-                        pass
-                    else:
-                        self.current_train.set_service_brake(value)
-                elif command == 'Emergency Brake':
-                    self.current_train.set_emergency_brake(value)
-                elif command == 'Left Door Signal':
-                    self.current_train.set_left_door(value)
-                elif command == 'Right Door Signal':
-                    self.current_train.set_right_door(value)
-                elif command == 'Headlights':
-                    self.current_train.set_headlights(value)
-                elif command == 'Cabin Lights':
-                    self.current_train.set_interior_lights(value)
-                elif command == 'Power Command':
-                    self.current_train.set_power_command(value)
-                elif command == 'Train Horn':
-                    playsound("Train Model/diesel-horn-02-98042.mp3")
-                elif command == 'Station Announcement Message':
-                    self.current_train.set_station(value)
-                elif command == 'Commanded Authority':
-                    self.current_train.set_authority(value)
-                    self.server.send_to_ui("Train SW",{'command': "Commanded Authority",'value': value})
-                    self.server.send_to_ui("Train HW",{'command': "Commanded Authority",'value':value})
-                elif command == 'Commanded Speed':
-                    self.current_train.set_commanded_speed(value)
-                    self.server.send_to_ui("Train SW",{'command':"Commanded Speed",'value':value})
-                    self.server.send_to_ui("Train HW",{'command':"Commanded Speed",'value':value})
-                    self.current_train.set_service_brake(False)
-                elif command == 'Block Occupancy': #Figure out signal pickup
-                    self.current_train.set_block(value)
-                elif command == 'Passengers Boarding':
-                    self.update_boarding(value)
-                elif command == 'Beacon':
-                    if self.current_train.line == 'Green':
-                        print("Implement beacon data, figure out how you are gonna reference it.")
-                self.update_ui_from_train(self.current_train)
+            # MAIN COMMANDS #############################################
+            elif command == 'Temp':
+                target_temp = value
+                self._animate_temperature_change(target_temp, train)
+            elif command == 'Service Brake':
+                if self.failure_brake_var.get and train == self.current_train:
+                    pass
+                else:
+                    train.set_service_brake(value)
+            elif command == 'Emergency Brake':
+                train.set_emergency_brake(value)
+            elif command == 'Left Door Signal':
+                train.set_left_door(value)
+            elif command == 'Right Door Signal':
+                train.set_right_door(value)
+            elif command == 'Headlights':
+                train.set_headlights(value)
+            elif command == 'Cabin Lights':
+                train.set_interior_lights(value)
+            elif command == 'Power Command':
+                train.set_power_command(value)
+            elif command == 'Train Horn':
+                playsound("Train Model/diesel-horn-02-98042.mp3")
+            elif command == 'Station Announcement Message':
+                train.set_station(value)
+            elif command == 'Commanded Authority':
+                train.set_authority(value)
+                self.server.send_to_ui("Train SW", {
+                    'command': "Commanded Authority",
+                    'value': value,
+                    'train_id': train_id if train_id else train.train_id
+                })
+                self.server.send_to_ui("Train HW", {
+                    'command': "Commanded Authority",
+                    'value': value,
+                    'train_id': train_id if train_id else train.train_id
+                })
+            elif command == 'Commanded Speed':
+                train.set_commanded_speed(value)
+                self.server.send_to_ui("Train SW", {
+                    'command': "Commanded Speed",
+                    'value': value,
+                    'train_id': train_id if train_id else train.train_id
+                })
+                self.server.send_to_ui("Train HW", {
+                    'command': "Commanded Speed",
+                    'value': value,
+                    'train_id': train_id if train_id else train.train_id
+                })
+            elif command == 'Block Occupancy':
+                train.set_block(value)
+            elif command == 'Passengers Boarding':
+                self.update_boarding(value, train)
+            elif command == 'Beacon':
+                if train.line == 'Green':
+                    print(f"Beacon data for train {train.train_id}")
+            
+            # Update UI if this is the currently selected train
+            if train == self.current_train:
+                self.update_ui_from_train(train)
                 
-            except Exception as e:
-                print(f"Error processing message: {e}")
+        except Exception as e:
+            print(f"Error processing message: {e}")
 
     def continuous_physics_update(self):
-        """Continuously update train physics for real-time speed changes"""
-        if self.current_train and self.current_train.deployed:
-            old_speed = self.current_train.speed
-            self.current_train.calculate_force_speed_acceleration_distance()
-            new_speed = self.current_train.speed
-            if new_speed != old_speed:    
-                self.server.send_to_ui("Train HW",{'command': "Current Speed",'value': self.current_train.speed})
-                self.server.send_to_ui("Train SW",{'command': "Current Speed",'value': self.current_train.speed})
-                self.server.send_to_ui("Track Model",{'command': 'Current Speed', 'value': self.current_train.speed})
+
+        # Process all active trains
+        for train_id in range(1, 15):  # Assuming 14 trains
+            train = self.train_manager.get_train(train_id)
+            if train and train.deployed and train.active:
+                # If calculate_force_speed_acceleration_distance needs to be called individually:
+                old_speed = train.speed
+                train.calculate_force_speed_acceleration_distance()
+                new_speed = train.speed
+                
+                if old_speed != new_speed:
+                    # Send updates for this train
+                    self.server.send_to_ui("Train HW", {
+                        'command': "Current Speed",
+                        'value': train.speed,
+                        'train_id': train.train_id
+                    })
+                    self.server.send_to_ui("Train SW", {
+                        'command': "Current Speed",
+                        'value': train.speed,
+                        'train_id': train.train_id
+                    })
+                    self.server.send_to_ui("Track Model", {
+                        'command': 'Current Speed',
+                        'value': train.speed,
+                        'train_id': train.train_id
+                    })
+                
+                
+                # Update passenger disembarking logic for each train
+                self.update_disembarking(train)
+        
+        # Update UI for the currently selected train only
+        if self.current_train and self.current_train.active:
             self.update_ui_from_train(self.current_train)
+        
+        # Schedule next update
         self.root.after(100, self.continuous_physics_update)
 
-    def emergency_brake_activated(self):
-        self.current_train.set_emergency_brake(True)
-        self.current_train.set_acceleration(-2.73)
-        self.server.send_to_ui("Train HW",{'command': "Passenger Emergency Signal",'value': True})
-        self.server.send_to_ui("Train SW",{'command': "Passenger Emergency Signal",'value': True})
-        print(f"EMERGENCY BRAKE ACTIVATED!")
+    def emergency_brake_activated(self, train=None):
+        if train is None:
+            train = self.current_train
+            
+        train.set_emergency_brake(True)
+        train.set_acceleration(-2.73)
+        self.server.send_to_ui("Train HW", {
+            'command': "Passenger Emergency Signal",
+            'value': True,
+            'train_id': train.train_id
+        })
+        self.server.send_to_ui("Train SW", {
+            'command': "Passenger Emergency Signal",
+            'value': True,
+            'train_id': train.train_id
+        })
+        print(f"EMERGENCY BRAKE ACTIVATED for train {train.train_id}!")
+        
+        if train == self.current_train:
+            self.update_ui_from_train(train)
 
     def failure_service_brake_var_changed(self):
         if self.failure_brake_var.get():
@@ -299,8 +396,7 @@ class TrainModelPassengerGUI:
         print(f"Signal Pickup Failure Activated")
         self.failure_activation_in_progress = True
         
-        # Set the values directly without calling methods that might cause loops
-        # Your periodic 100ms update will handle the UI refresh
+        
         self.current_train.speed_limit = 0
         self.current_train.grade = 0
         self.current_train.elevation = 0
@@ -310,26 +406,45 @@ class TrainModelPassengerGUI:
         
         self.failure_activation_in_progress = False
             
-    def update_disembarking(self):
-        if self.current_train and self.current_train.deployed and self.current_train.passenger_count != 0:
-            
-            if(self.current_train.speed == 0 and self.current_train.service_brake_active  and 
-            (self.current_train.right_door_open or self.current_train.left_door_open)):
+    def update_disembarking(self, train):
+        if train and train.deployed and train.passenger_count != 0:
+            if (train.speed == 0 and train.service_brake_active and 
+                (train.right_door_open or train.left_door_open)):
                 
-                passenger_count = self.current_train.passenger_count
-                disembarking = random(0,passenger_count)
+                passenger_count = train.passenger_count
+                disembarking = random.randint(0, passenger_count)
                 
-                self.current_train.set_disembarking(disembarking)
-                self.current_train.set_passenger_count(passenger_count - disembarking)
-                self.server.send_to_ui("Track Model",{"command": 'Passenger Disembarking', 'value': disembarking})
-                self.server.send_to_ui('Track Model',{'command' : 'Train Occupancy', 'value': self.current_train.passenger_count})
+                train.set_disembarking(disembarking)
+                train.set_passenger_count(passenger_count - disembarking)
+                
+                self.server.send_to_ui("Track Model", {
+                    "command": 'Passenger Disembarking', 
+                    'value': disembarking,
+                    'train_id': train.train_id
+                })
+                self.server.send_to_ui('Track Model', {
+                    'command': 'Train Occupancy', 
+                    'value': train.passenger_count,
+                    'train_id': train.train_id
+                })
 
-    def update_boarding(self,boarding):
+    def update_boarding(self, boarding, train=None):
+        if train is None:
+            train = self.current_train #SELFNOTE could fuck up if I try to change another value for a different train
+            
         MAX_CAPACITY = 222
         if boarding > MAX_CAPACITY:
-            self.current_train.passenger_count = MAX_CAPACITY + self.current_train.passenger_count
+            train.passenger_count = MAX_CAPACITY
         else:
-            self.current_train.passenger_count = self.current_train.passenger_count + boarding
+            train.passenger_count = train.passenger_count + boarding
+        
+        # Send update to track model
+        self.server.send_to_ui("Track Model", {
+            'command': 'Train Occupancy',
+            'value': train.passenger_count,
+            'train_id': train.train_id
+        })  
+
 
     def update_ui_from_train(self, train):
         """Update all UI elements when train data changes"""
@@ -404,44 +519,72 @@ class TrainModelPassengerGUI:
     def on_train_selected(self, train_id):
         """Handle train selection from dropdown"""
         train = self.train_manager.select_train(train_id)
-        if train and train.deployed:
+        if train and train.active:
             self.current_train = train
             self.update_ui_from_train(train)
             self.train_selector_var.set(f"Train {train_id}")
         else:
-            print(f"Train {train_id} is not deployed or doesn't exist")
-
-    def refresh_train_selector(self):
-        """Update the dropdown menu with currently deployed trains"""
-        print("Refreshing train selector dropdown...")
-        
-        current_selection = self.train_selector_var.get()
-        self.train_selector['menu'].delete(0, 'end')
-        
-        deployed_trains = []
+            print(f"Train {train_id} is not active or doesn't exist")
+    def refresh_train_selector_if_needed(self):
+        # Get current active trains
+        current_active_trains = set()
         for train_id in range(1, 15):
             train = self.train_manager.get_train(train_id)
-            if train and train.deployed:
-                deployed_trains.append(train_id)
+            if train and train.active:
+                current_active_trains.add(train_id)
         
-        print(f"Found {len(deployed_trains)} deployed trains: {deployed_trains}")
+        # Compare with previous state
+        if current_active_trains != self.previous_active_trains:
+            print(f"Active trains changed: {self.previous_active_trains} -> {current_active_trains}")
+            self.previous_active_trains = current_active_trains.copy()
+            self.refresh_train_selector()
+
+    def refresh_train_selector(self):
+        print("Refreshing train selector dropdown...")
         
-        for train_id in deployed_trains:
-            self.train_selector['menu'].add_command(
-                label=f"Train {train_id}", 
-                command=lambda tid=train_id: self.on_train_selected(tid)
-            )
+        # Get current selection
+        current_selection = self.train_selector_var.get()
         
-        self.train_selector_label.config(text=f"Select Train ({len(deployed_trains)} Deployed)")
+        # Get active trains (from our tracked state or calculate fresh)
+        active_trains = list(self.previous_active_trains)
+        active_trains.sort()  # Keep them in order
         
-        if self.current_train and hasattr(self.current_train, 'train_id') and self.current_train.train_id in deployed_trains:
-            self.train_selector_var.set(f"Train {self.current_train.train_id}")
-        elif deployed_trains:
-            first_train_id = deployed_trains[0]
-            self.train_selector_var.set(f"Train {first_train_id}")
-            self.on_train_selected(first_train_id)
+        print(f"Found {len(active_trains)} active trains: {active_trains}")
+        
+        # Only rebuild if we have trains
+        if active_trains:
+            # Rebuild menu
+            menu = self.train_selector['menu']
+            menu.delete(0, 'end')
+            
+            for train_id in active_trains:
+                menu.add_command(
+                    label=f"Train {train_id}", 
+                    command=lambda tid=train_id: self.on_train_selected(tid)
+                )
+            
+            # Update selection if needed
+            selected_id = None
+            if current_selection.startswith("Train "):
+                try:
+                    selected_id = int(current_selection.replace("Train ", ""))
+                except:
+                    selected_id = None
+            
+            # If selected train is no longer active or not set, select first available
+            if selected_id not in active_trains:
+                new_id = active_trains[0]
+                self.train_selector_var.set(f"Train {new_id}")
+                self.on_train_selected(new_id)
+            
+            self.train_selector_label.config(text=f"Select Train ({len(active_trains)} Active)")
         else:
-            self.train_selector_var.set("No Trains Deployed")
+            # No active trains
+            menu = self.train_selector['menu']
+            menu.delete(0, 'end')
+            self.train_selector_var.set("No Trains Active")
+            self.train_selector_label.config(text="Select Train (0 Active)")
+
 
     def setup_gui(self):
         """Setup the complete GUI"""
@@ -500,15 +643,29 @@ class TrainModelPassengerGUI:
         right_frame = tk.Frame(self.root, bg=self.main_color)
         right_frame.pack(side='right', fill='both', expand=True, padx=8, pady=3)
 
-        # Advertisement Frame 
-        ad_image = Image.open("Train Model/wendy's_AD.jpg")
-        converted_ad_image = ad_image.resize((400, 180))
-        converted_ad_image = ImageTk.PhotoImage(converted_ad_image)
+        self.converted_ad_images = []
+        self.ad_index = 1
+        ad_images = [
+            "Train Model/wendy's_AD.jpg",
+            "Train Model/wendy's_AD2.jpg",
+            "Train Model/wendy's_AD3.jpg",
+            "Train Model/wendy's_AD4.jpg"]
+        
+        self.converted_ad_images = []
+
+        for ad_path in ad_images:
+            ad_image = Image.open(ad_path)
+            converted_ad_image = ad_image.resize((400, 180))
+            converted_ad_image = ImageTk.PhotoImage(converted_ad_image)
+            self.converted_ad_images.append(converted_ad_image)
+
+        self.current_ad_image = self.converted_ad_images[0]
         Advertisement = tk.Frame(right_frame, height=190, highlightbackground="black", highlightthickness=2, bg=self.off_color)
         Advertisement.pack(side='top', padx=2, pady=2, fill='x')
         Advertisement.pack_propagate(False)
-        tk.Label(Advertisement, image=converted_ad_image).pack(padx=1, pady=1)
-        Advertisement.image = converted_ad_image
+        self.ad_label = tk.Label(Advertisement, image=self.current_ad_image)
+        self.ad_label.pack(padx=1, pady=1)
+        self.ad_label.image = self.current_ad_image
 
         # Doors/Lights Frame 
         doors_and_lights_frame = tk.Frame(right_frame, height=200, highlightbackground="black", highlightthickness=2, bg=self.off_color)
@@ -719,6 +876,21 @@ class TrainModelPassengerGUI:
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+    def cycle_through_ads(self):
+        # Get the next ad index
+        self.ad_index = (self.ad_index + 1) % len(self.converted_ad_images)
+        
+        # Update the ad image
+        self.current_ad_image = self.converted_ad_images[self.ad_index]
+        
+        # Update the label
+        if hasattr(self, 'ad_label'):
+            self.ad_label.config(image=self.current_ad_image)
+            self.ad_label.image = self.current_ad_image
+        
+        # Schedule next ad change (6000ms = 6 seconds)
+        self.root.after(6000, self.cycle_through_ads)  
+
     def updateTime(self):
     #continuously recall itself every second to update the time variable 
         
@@ -743,6 +915,8 @@ class TrainModelPassengerGUI:
         self.root.after(100, self.continuous_physics_update)
 
         self.root.after(100, self.updateTime)
+
+        self.root.after(5000, self.cycle_through_ads)
 
         self.root.mainloop()
 

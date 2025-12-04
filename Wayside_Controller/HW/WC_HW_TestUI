@@ -521,7 +521,7 @@ def initialize_socket_server():
     try:
         # Test UI uses port 12346
         server = TrainSocketServer(port=12346, ui_id="WC_HW_TestUI")
-        server.set_allowed_connections(["WC_HW_MainUI", "ui_3"])
+        server.set_allowed_connections(["Track HW", "ui_3"])
         server.start_server(update_callback)
         root.socket_server = server
         
