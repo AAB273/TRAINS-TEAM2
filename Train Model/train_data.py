@@ -60,6 +60,7 @@ class Train:
         
         # Deployment status
         self.deployed = True
+        self.active = False
         
         # Line assignment
         self.line = "green" 
@@ -167,13 +168,13 @@ class Train:
                 # Auto-deploy train on first authority received
                 if not self.authority_received:
                     self.authority_received = True
-                    self.deployed = True
-                    print(f"Train {self.train_id} received first authority - AUTO DEPLOYING")
-                    self.distance_left = self.commanded_authority
+                    self.active = True
+                    print(f"Train {self.train_id} received first authority - AUTO ACTIVATING")
+                    #self.distance_left = self.commanded_authority
                     self.service_brake_active = False  # Disengage service brake on deploy
-                else:
+                #else:  # CHANGE IT TO SUBTRACT BLOCKS AND NOT DISTANCE.
                     # Update distance_left for subsequent authority updates
-                    self.distance_left = self.commanded_authority
+                    #self.distance_left = self.commanded_authority
                 
                 self._notify_observers()
             except ValueError:
@@ -237,7 +238,10 @@ class Train:
     def set_disembarking(self, value):
         self.passengers_disembarking = int(value)
         self._notify_observers()
-        
+    
+    def set_active(self, active):
+        """Set whether train should receive physics updates"""
+        self.active = active
 
     def calculate_force_speed_acceleration_distance(self, dt=1.0):
 
@@ -389,15 +393,21 @@ class Train:
         self._notify_observers()
     
     def get_state_dict(self):
-        """Return all train data as a dictionary"""
         return {
             'train_id': self.train_id,
             'speed': self.speed,
             'acceleration': self.acceleration,
             'passenger_count': self.passenger_count,
+            'passengers_disembarking': self.passengers_disembarking,
             'crew_count': self.crew_count,
             'power_command': self.power_command,
             'cabin_temp': self.cabin_temp,
+            'grade': self.grade,
+            'elevation': self.elevation,
+            'speed_limit': self.speed_limit,
+            'commanded_speed': self.commanded_speed,
+            'commanded_authority': self.commanded_authority,
+            'distance_left': self.distance_left,
             'height': self.height,
             'length': self.length,
             'width': self.width,
@@ -409,7 +419,18 @@ class Train:
             'signal_pickup_failure': self.signal_pickup_failure,
             'brake_failure': self.brake_failure,
             'emergency_brake_active': self.emergency_brake_active,
+            'service_brake_active': self.service_brake_active,
             'deployed': self.deployed,
+            'line': self.line,
+            'block': self.block,
+            'previous_block': self.previous_block,
+            'station': self.station,
+            'time_to_station': self.time_to_station,
+            'emergency_announcement': self.emergency_announcement,
+            'authority_received': self.authority_received,
+            'last_power_command': self.last_power_command,
+            'last_service_brake': self.last_service_brake,
+            'last_emergency_brake': self.last_emergency_brake
         }
 
 class TrainManager:
