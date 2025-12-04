@@ -89,12 +89,12 @@ class TrainModelPassengerGUI:
             self.root.after(1000, lambda: self._animate_temperature_change(target_temp, train))
         
         self.server.send_to_ui("Train SW", {
-            'command': "Cabin Temperature",
+            'command': "Temp",
             'value': current_temp,
             'train_id': train.train_id
         })
         self.server.send_to_ui("Train HW", {
-            'command': "Cabin Temperature",
+            'command': "Temp",
             'value': current_temp,
             'train_id': train.train_id
         })
@@ -213,7 +213,7 @@ class TrainModelPassengerGUI:
                 self._socket_refresh_train_selector()
 
             # MAIN COMMANDS #############################################
-            elif command == 'Cabin Interior Temperature Control':
+            elif command == 'Temp':
                 target_temp = value
                 self._animate_temperature_change(target_temp, train)
             elif command == 'Service Brake':
@@ -277,19 +277,46 @@ class TrainModelPassengerGUI:
             print(f"Error processing message: {e}")
 
     def continuous_physics_update(self):
-        """Continuously update train physics for real-time speed changes"""
-         # Update all trains regardless of which one is selected
+        # Update physics for all deployed trains
         self.train_manager.update_all_physics(dt=0.1)
-
+        
+        # Process all deployed trains
+        for train_id in range(1, 15):  # Assuming 14 trains
+            train = self.train_manager.get_train(train_id)
+            if train and train.deployed and train.active:
+                # Get speed before physics update (note: update_all_physics already updated speeds)
+                # If calculate_force_speed_acceleration_distance needs to be called individually:
+                old_speed = train.speed
+                train.calculate_force_speed_acceleration_distance()
+                new_speed = train.speed
+                
+                if old_speed != new_speed:
+                    # Send updates for this train
+                    self.server.send_to_ui("Train HW", {
+                        'command': "Current Speed",
+                        'value': train.speed,
+                        'train_id': train.train_id
+                    })
+                    self.server.send_to_ui("Train SW", {
+                        'command': "Current Speed",
+                        'value': train.speed,
+                        'train_id': train.train_id
+                    })
+                    self.server.send_to_ui("Track Model", {
+                        'command': 'Current Speed',
+                        'value': train.speed,
+                        'train_id': train.train_id
+                    })
+                
+                
+                # Update passenger disembarking logic for each train
+                self.update_disembarking(train)
+        
+        # Update UI for the currently selected train only
         if self.current_train and self.current_train.deployed:
-            old_speed = self.current_train.speed
-            self.current_train.calculate_force_speed_acceleration_distance()
-            new_speed = self.current_train.speed
-            if new_speed != old_speed:    
-                self.server.send_to_ui("Train HW",{'command': "Current Speed",'value': self.current_train.speed})
-                self.server.send_to_ui("Train SW",{'command': "Current Speed",'value': self.current_train.speed})
-                self.server.send_to_ui("Track Model",{'command': 'Current Speed', 'value': self.current_train.speed})
             self.update_ui_from_train(self.current_train)
+        
+        # Schedule next update
         self.root.after(100, self.continuous_physics_update)
 
     def emergency_brake_activated(self, train=None):
@@ -371,19 +398,27 @@ class TrainModelPassengerGUI:
         
         self.failure_activation_in_progress = False
             
-    def update_disembarking(self):
-        if self.current_train and self.current_train.deployed and self.current_train.passenger_count != 0:
-            
-            if(self.current_train.speed == 0 and self.current_train.service_brake_active  and 
-            (self.current_train.right_door_open or self.current_train.left_door_open)):
+    def update_disembarking(self, train):
+        if train and train.deployed and train.passenger_count != 0:
+            if (train.speed == 0 and train.service_brake_active and 
+                (train.right_door_open or train.left_door_open)):
                 
-                passenger_count = self.current_train.passenger_count
-                disembarking = random(0,passenger_count)
+                passenger_count = train.passenger_count
+                disembarking = random.randint(0, passenger_count)
                 
-                self.current_train.set_disembarking(disembarking)
-                self.current_train.set_passenger_count(passenger_count - disembarking)
-                self.server.send_to_ui("Track Model",{"command": 'Passenger Disembarking', 'value': disembarking})
-                self.server.send_to_ui('Track Model',{'command' : 'Train Occupancy', 'value': self.current_train.passenger_count})
+                train.set_disembarking(disembarking)
+                train.set_passenger_count(passenger_count - disembarking)
+                
+                self.server.send_to_ui("Track Model", {
+                    "command": 'Passenger Disembarking', 
+                    'value': disembarking,
+                    'train_id': train.train_id
+                })
+                self.server.send_to_ui('Track Model', {
+                    'command': 'Train Occupancy', 
+                    'value': train.passenger_count,
+                    'train_id': train.train_id
+                })
 
     def update_boarding(self, boarding, train=None):
         if train is None:
@@ -484,36 +519,36 @@ class TrainModelPassengerGUI:
             print(f"Train {train_id} is not deployed or doesn't exist")
 
     def refresh_train_selector(self):
-        """Update the dropdown menu with currently deployed trains"""
+        """Update the dropdown menu with currently active trains"""
         print("Refreshing train selector dropdown...")
         
         current_selection = self.train_selector_var.get()
         self.train_selector['menu'].delete(0, 'end')
         
-        deployed_trains = []
+        active_trains = []
         for train_id in range(1, 15):
             train = self.train_manager.get_train(train_id)
-            if train and train.deployed:
-                deployed_trains.append(train_id)
+            if train and train.active:  # Changed from train.deployed to train.active
+                active_trains.append(train_id)
         
-        print(f"Found {len(deployed_trains)} deployed trains: {deployed_trains}")
+        print(f"Found {len(active_trains)} active trains: {active_trains}")
         
-        for train_id in deployed_trains:
+        for train_id in active_trains:
             self.train_selector['menu'].add_command(
                 label=f"Train {train_id}", 
                 command=lambda tid=train_id: self.on_train_selected(tid)
             )
         
-        self.train_selector_label.config(text=f"Select Train ({len(deployed_trains)} Deployed)")
+        self.train_selector_label.config(text=f"Select Train ({len(active_trains)} Active)")  # Updated label text
         
-        if self.current_train and hasattr(self.current_train, 'train_id') and self.current_train.train_id in deployed_trains:
+        if self.current_train and hasattr(self.current_train, 'train_id') and self.current_train.train_id in active_trains:
             self.train_selector_var.set(f"Train {self.current_train.train_id}")
-        elif deployed_trains:
-            first_train_id = deployed_trains[0]
+        elif active_trains:
+            first_train_id = active_trains[0]
             self.train_selector_var.set(f"Train {first_train_id}")
             self.on_train_selected(first_train_id)
         else:
-            self.train_selector_var.set("No Trains Deployed")
+            self.train_selector_var.set("No Trains Active")  # Updated message
 
     def setup_gui(self):
         """Setup the complete GUI"""
