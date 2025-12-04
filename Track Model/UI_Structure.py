@@ -5225,17 +5225,11 @@ class TrackModelUI(tk.Tk):
             # Example: [0, True] or [1, False]
             # ============================================================
             elif command == 'Railroad Crossings' or command == 'Crossing States':
-                # Extract line indicator and crossing state
-                line_indicator = None
+                # Extract crossing state directly (no line indicator)
                 actual_value = value
                 actual_data = data
                 
-                if isinstance(value, list) and len(value) >= 2:
-                    # Format: [line_indicator, crossing_state]
-                    line_indicator = value[0]
-                    actual_value = value[1]
-                    line_name = "Green Line" if line_indicator == 0 else "Red Line"
-                    print(f" Received Railroad Crossings for {line_name} (indicator: {line_indicator})")
+                print(f" Received Railroad Crossings")
                 
                 # Use block_number parameter if available
                 target_block = block_number
@@ -5302,18 +5296,12 @@ class TrackModelUI(tk.Tk):
             # Values are received sorted from lowest to highest block number
             # Example: [0, [False, True]] = Green Line, State 2
             # ============================================================
-            elif command == 'Light States':
-                # Extract line indicator and light state
-                line_indicator = None
+            elif command == 'light_states':
+                # Extract light state directly (no line indicator)
                 actual_value = value
                 actual_data = data
                 
-                if isinstance(value, list) and len(value) >= 2:
-                    # Format: [line_indicator, [bit0, bit1]]
-                    line_indicator = value[0]
-                    actual_value = value[1]
-                    line_name = "Green Line" if line_indicator == 0 else "Red Line"
-                    print(f" Received Light States for {line_name} (indicator: {line_indicator})")
+                print(f" Received Light States")
                 
                 # Use block_number parameter if available
                 target_block = block_number
