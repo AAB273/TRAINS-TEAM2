@@ -2270,10 +2270,11 @@ class TrackModelUI(tk.Tk):
                 
                 # Check for Red Line backward mode FIRST
                 if self.train_directions.get(train_id) == 'red_backward_66_to_16':
-                    # Red Line backward mode - reached block 1, exit backward mode
+                    # Red Line backward mode - reached block 1
+                    # Always exit backward mode and go to block 16 to rejoin main track
                     self.train_directions[train_id] = 'forward'
-                    print(f"[ROUTING] RED LINE: Reached block 1, exiting backward mode → 2")
-                    return 2
+                    print(f"[ROUTING] RED LINE: Reached block 1 in backward mode, exiting to main track → 16")
+                    return 16
                 
                 # If in backward loop from 150, exit based on switch position
                 if self.train_directions.get(train_id) == 'backward_loop':
@@ -2303,25 +2304,13 @@ class TrackModelUI(tk.Tk):
             is_red_line = current_line and current_line.get() == "Red Line"
             
             if is_red_line:
-                # Check switch 15 state (physical switch that controls routing from block 1)
-                if len(self.data_manager.blocks) > 14:
-                    block_15 = self.data_manager.blocks[14]  # Switch at block 15 (index 14)
-                    if hasattr(block_15, 'switch_state'):
-                        # After swap: True = "1 to 16", False = "15 to 16"
-                        if block_15.switch_state:  # True = checked = "1 to 16"
-                            # Jump to block 16
-                            print(f"[ROUTING] RED LINE: Block 1 → 16 (Switch 15 set to '1 to 16', jump)")
-                            if train_idx < len(self.data_manager.active_trains):
-                                train_id = self.data_manager.active_trains[train_idx]
-                                self.train_directions[train_id] = 'forward'
-                            return 16
-                        else:  # False = unchecked = "15 to 16"
-                            # Normal forward to block 2
-                            print(f"[ROUTING] RED LINE: Block 1 → 2 (Switch 15 set to '15 to 16', normal)")
-                            return 2
-                
-                # Default: normal forward to 2
-                return 2
+                # RED LINE: Block 1 always goes to 16 to join the main track
+                # (Blocks 1-5 are a spur that connects to the main line at block 16)
+                print(f"[ROUTING] RED LINE: Block 1 → 16 (joining main track)")
+                if train_idx < len(self.data_manager.active_trains):
+                    train_id = self.data_manager.active_trains[train_idx]
+                    self.train_directions[train_id] = 'forward'
+                return 16
             
             # Green Line: Check switch at block 12 for normal routing
             if len(self.data_manager.blocks) > 11:
@@ -5306,7 +5295,7 @@ class TrackModelUI(tk.Tk):
             # TEST COMMAND
             # ============================================================
             elif command == 'test_command':
-                print(f"🧪 Test message received: {value}")
+                print(f" Test message received: {value}")
             
             # ============================================================
             # ACTUAL SPEED - From Train Model
@@ -5570,7 +5559,7 @@ class TrackModelUI(tk.Tk):
         # Test with array format: [block_num, occupancy]
         test_occupancy = [block_num, occupancy]
         
-        print(f"\n🧪 TEST BLOCK OCCUPANCY:")
+        print(f"\n TEST BLOCK OCCUPANCY:")
         print(f"   Sending: {test_occupancy}")
         
         # Simulate receiving the occupancy command
@@ -5581,7 +5570,7 @@ class TrackModelUI(tk.Tk):
         
         # Also test the dictionary format
         test_occupancy_dict = {block_num: occupancy}
-        print(f"\n🧪 TEST BLOCK OCCUPANCY (dict format):")
+        print(f"\n TEST BLOCK OCCUPANCY (dict format):")
         print(f"   Sending: {test_occupancy_dict}")
         
         self._process_message({
@@ -5615,7 +5604,7 @@ if __name__ == "__main__":
     print("="*60 + "\n")
     
     # Test sending data (optional - uncomment to test immediately)
-    # print("🧪 Testing data transmission...")
+    # print(" Testing data transmission...")
     # app.send_all_outputs()
     
     tester.lift()
