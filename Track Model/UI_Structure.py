@@ -4976,11 +4976,79 @@ class TrackModelUI(tk.Tk):
                     print(f" Invalid Speed and Authority format. Got speed={commanded_speed}, auth={commanded_authority}, block={block_num}")
             
             # ============================================================
+            # SWITCH STATES - From Wayside Controller (bulk update)
+            # Format: [line_indicator, pos1, pos2, pos3, ...]
+            # line_indicator: 0 = Green Line, 1 = Red Line
+            # Positions are sent in order of block numbers (lowest to highest)
+            # Position values: 0 = reverse, 1 = normal
+            # Example: [0, 1, 0, 1, 1, 1, 1] for Green Line switches
+            # ============================================================
+            elif command == 'switch_states':
+                if isinstance(value, list) and len(value) >= 1:
+                    # First element is line indicator
+                    line_indicator = value[0]
+                    line_name = "Green Line" if line_indicator == 0 else "Red Line" if line_indicator == 1 else "Unknown"
+                    
+                    print(f" Received switch states from {source_ui_id}")
+                    
+                    # Get the switch blocks for the current line
+                    if line_indicator == 0:  # Green Line
+                        switch_blocks = sorted(self.switch_routing_green.keys())
+                    elif line_indicator == 1:  # Red Line
+                        switch_blocks = sorted([k for k in self.switch_routing_red.keys() if k not in [1, 16]])  # Exclude bidirectional entries
+                    else:
+                        print(f" Unknown line indicator: {line_indicator}")
+                        switch_blocks = []
+                    
+                    # Process each switch position
+                    for i, pos in enumerate(value[1:]):  # Skip first element (line_indicator)
+                        if i < len(switch_blocks):
+                            block_num = switch_blocks[i]
+                            
+                            # Update the switch state
+                            if 1 <= block_num <= len(self.data_manager.blocks):
+                                block = self.data_manager.blocks[block_num - 1]
+                                # FLIPPED LOGIC: 0 = True (reverse), 1 = False (normal)
+                                block.switch_state = not bool(pos)
+                                
+                                direction = "normal" if pos else "reverse"
+                                print(f"   Updated switch at block {block_num}: {direction}")
+                                
+                                # Log the switch routing if available
+                                if line_indicator == 0 and block_num in self.switch_routing_green:
+                                    next_block = self.switch_routing_green[block_num][direction]
+                                    print(f"   Switch {block_num}: {direction} → routes to block {next_block}")
+                                elif line_indicator == 1 and block_num in self.switch_routing_red:
+                                    next_block = self.switch_routing_red[block_num][direction]
+                                    print(f"   Switch {block_num}: {direction} → routes to block {next_block}")
+                    
+                    # Refresh UI to show switch updates
+                    self.refresh_bidirectional_controls()
+                    self.refresh_ui()
+                    print(f"[DEBUG] update_switch_display called")
+                else:
+                    print(f" Invalid switch_states format: {value}")
+            
+            # ============================================================
             # SWITCH POSITIONS - Update switch states
-            # value should be a string like "76-77" where 76 is current block, 77 is next block
-            # OR a dict like {5: "76-77", 10: "85-86"} for multiple switches
+            # Format: [line_indicator, switch_state]
+            # line_indicator: 0 = Green Line, 1 = Red Line
+            # switch_state: bool - switch state for the block
+            # Values are received sorted from lowest to highest block number
+            # Example: [0, True] or [1, False]
             # ============================================================
             elif command == 'Switch Positions':
+                # Extract line indicator and switch state
+                line_indicator = None
+                actual_value = value
+                
+                if isinstance(value, list) and len(value) >= 2:
+                    # Format: [line_indicator, switch_state]
+                    line_indicator = value[0]
+                    actual_value = value[1]
+                    line_name = "Green Line" if line_indicator == 0 else "Red Line"
+                    print(f" Received Switch Positions for {line_name} (indicator: {line_indicator})")
+                
                 def parse_switch_direction(switch_string, switch_block_num=None):
                     """
                     Parse a switch direction string like "76-77" to determine switch state.
@@ -5055,9 +5123,12 @@ class TrackModelUI(tk.Tk):
                         # Backward or branching backward
                         return False
                 
-                if isinstance(value, dict):
+                # Use block_number parameter if available
+                target_block = block_number
+                
+                if isinstance(actual_value, dict):
                     # Multiple switches: {block_num: "from-to", ...}
-                    for block_num, switch_string in value.items():
+                    for block_num, switch_string in actual_value.items():
                         # Convert block_num from string to int if needed
                         if isinstance(block_num, str):
                             try:
@@ -5083,32 +5154,29 @@ class TrackModelUI(tk.Tk):
                     self.refresh_bidirectional_controls()  # Update bidirectional directions
                     self.refresh_ui()
                     
-                elif isinstance(value, str) and '-' in value:
+                elif isinstance(actual_value, str) and '-' in actual_value:
                     # Single switch update with "from-to" format
-                    # If block_number is provided, use it as the switch block
-                    # Otherwise, try to determine the switch block from the from/to blocks
-                    
-                    if block_number:
-                        # Switch block explicitly specified
-                        if 1 <= block_number <= len(self.data_manager.blocks):
-                            block = self.data_manager.blocks[block_number - 1]
+                    if target_block:
+                        # Switch block specified via parameter
+                        if 1 <= target_block <= len(self.data_manager.blocks):
+                            block = self.data_manager.blocks[target_block - 1]
                             # Parse the from-to string to get context
-                            parts = value.split('-')
+                            parts = actual_value.split('-')
                             from_block = int(parts[0].strip()) if len(parts) == 2 else 0
                             to_block = int(parts[1].strip()) if len(parts) == 2 else 0
                             
-                            state = parse_switch_direction(value, block_number)
+                            state = parse_switch_direction(actual_value, target_block)
                             if state is not None:
                                 block.switch_state = state
                                 if from_block and to_block:
-                                    self.log_switch_change(block_number, from_block, to_block, state)
+                                    self.log_switch_change(target_block, from_block, to_block, state)
                                 else:
-                                    print(f" Updated switch at block {block_number}: {'Right/Forward' if state else 'Left/Backward'} (from {value})")
+                                    print(f" Updated switch at block {target_block}: {'Right/Forward' if state else 'Left/Backward'} (from {actual_value})")
                                 self.refresh_bidirectional_controls()
                                 self.refresh_ui()
                     else:
                         # Try to determine switch block from the from-to string
-                        parts = value.split('-')
+                        parts = actual_value.split('-')
                         if len(parts) == 2:
                             try:
                                 from_block = int(parts[0].strip())
@@ -5116,21 +5184,21 @@ class TrackModelUI(tk.Tk):
                                 # The switch is typically at or near the from_block
                                 if 1 <= from_block <= len(self.data_manager.blocks):
                                     block = self.data_manager.blocks[from_block - 1]
-                                    state = parse_switch_direction(value, from_block)
+                                    state = parse_switch_direction(actual_value, from_block)
                                     if state is not None:
                                         block.switch_state = state
                                         self.log_switch_change(from_block, from_block, to_block, state)
                                         self.refresh_bidirectional_controls()
                                         self.refresh_ui()
                             except (ValueError, TypeError):
-                                print(f" Could not parse switch position from: {value}")
+                                print(f" Could not parse switch position from: {actual_value}")
                 
-                # Keep backward compatibility with old boolean format
-                elif isinstance(value, bool) and block_number:
-                    if 1 <= block_number <= len(self.data_manager.blocks):
-                        block = self.data_manager.blocks[block_number - 1]
-                        block.switch_state = value
-                        route_info = self.get_switch_destination(block_number, value)
+                # Handle boolean switch state
+                elif isinstance(actual_value, bool) and target_block:
+                    if 1 <= target_block <= len(self.data_manager.blocks):
+                        block = self.data_manager.blocks[target_block - 1]
+                        block.switch_state = actual_value
+                        route_info = self.get_switch_destination(target_block, actual_value)
                         if isinstance(route_info, tuple) and len(route_info) == 2:
                             from_block, to_block = route_info
                             if from_block == "Yard":
@@ -5141,22 +5209,40 @@ class TrackModelUI(tk.Tk):
                                 destination_text = f"{from_block} to {to_block}"
                         else:
                             destination_text = f"To {route_info}"
-                        print(f" Updated switch at block {block_number}: {destination_text} (legacy boolean format)")
+                        print(f" Updated switch at block {target_block}: {destination_text} (state: {actual_value})")
                         self.refresh_bidirectional_controls()
                         self.refresh_ui()
                         
                 else:
-                    print(f" Unrecognized switch position format. Expected 'from-to' string or dict, got: {type(value)} = {value}")
+                    print(f" Unrecognized switch position format. Expected [line_indicator, switch_state], got: {type(value)} = {value}")
             
             # ============================================================
             # RAILROAD CROSSINGS - From Wayside Controller
-            # Receives crossing states as boolean values (True = active/down, False = inactive/up)
-            # Can be sent as dict {block_num: state} or single value with block_number
+            # Format: [line_indicator, crossing_state]
+            # line_indicator: 0 = Green Line, 1 = Red Line
+            # crossing_state: bool (True = active/down, False = inactive/up)
+            # Values are received sorted from lowest to highest block number
+            # Example: [0, True] or [1, False]
             # ============================================================
             elif command == 'Railroad Crossings' or command == 'Crossing States':
-                if isinstance(data, dict):
+                # Extract line indicator and crossing state
+                line_indicator = None
+                actual_value = value
+                actual_data = data
+                
+                if isinstance(value, list) and len(value) >= 2:
+                    # Format: [line_indicator, crossing_state]
+                    line_indicator = value[0]
+                    actual_value = value[1]
+                    line_name = "Green Line" if line_indicator == 0 else "Red Line"
+                    print(f" Received Railroad Crossings for {line_name} (indicator: {line_indicator})")
+                
+                # Use block_number parameter if available
+                target_block = block_number
+                
+                if isinstance(actual_data, dict):
                     # Multiple crossings: {block_num: state, ...}
-                    for block_num, crossing_state in data.items():
+                    for block_num, crossing_state in actual_data.items():
                         # Convert block_num from string to int if needed
                         if isinstance(block_num, str):
                             try:
@@ -5174,9 +5260,9 @@ class TrackModelUI(tk.Tk):
                     self.refresh_bidirectional_controls()  # Update bidirectional directions
                     self.refresh_ui()
                     
-                elif isinstance(value, dict):
+                elif isinstance(actual_value, dict):
                     # Multiple crossings in value field: {block_num: state, ...}
-                    for block_num, crossing_state in value.items():
+                    for block_num, crossing_state in actual_value.items():
                         # Convert block_num from string to int if needed
                         if isinstance(block_num, str):
                             try:
@@ -5194,26 +5280,46 @@ class TrackModelUI(tk.Tk):
                     self.refresh_bidirectional_controls()  # Update bidirectional directions
                     self.refresh_ui()
                     
-                elif block_number and value is not None:
-                    # Single crossing update
-                    if 1 <= block_number <= len(self.data_manager.blocks):
-                        block = self.data_manager.blocks[block_number - 1]
+                elif target_block and actual_value is not None:
+                    # Single crossing update with specified block
+                    if 1 <= target_block <= len(self.data_manager.blocks):
+                        block = self.data_manager.blocks[target_block - 1]
                         # Set crossing state (True = active/down, False = inactive/up)
-                        block.crossing_state = bool(value)
-                        state_text = "ACTIVE (DOWN)" if value else "INACTIVE (UP)"
-                        print(f" Updated railroad crossing at block {block_number}: {state_text}")
+                        block.crossing_state = bool(actual_value)
+                        state_text = "ACTIVE (DOWN)" if actual_value else "INACTIVE (UP)"
+                        print(f" Updated railroad crossing at block {target_block}: {state_text}")
                         self.refresh_bidirectional_controls()  # Update bidirectional directions
                         self.refresh_ui()
                 else:
-                    print(f" Unrecognized railroad crossing format. Expected boolean or dict, got: {type(value)} = {value}")
+                    print(f" Unrecognized railroad crossing format. Expected [line_indicator, bool], got: {type(value)} = {value}")
             
             # ============================================================
             # LIGHT STATES / SIGNALS - From Wayside Controller
-            # Receives as two-bit boolean arrays: [bit0, bit1]
+            # Format: [line_indicator, [bit0, bit1]]
+            # line_indicator: 0 = Green Line, 1 = Red Line
+            # light_state: two-bit boolean array [bit0, bit1]
+            # Bit encoding: [False, False] = 0, [True, False] = 1, [False, True] = 2, [True, True] = 3
+            # Values are received sorted from lowest to highest block number
+            # Example: [0, [False, True]] = Green Line, State 2
             # ============================================================
             elif command == 'Light States':
-                if isinstance(data, dict):
-                    for block_num, bit_array in data.items():
+                # Extract line indicator and light state
+                line_indicator = None
+                actual_value = value
+                actual_data = data
+                
+                if isinstance(value, list) and len(value) >= 2:
+                    # Format: [line_indicator, [bit0, bit1]]
+                    line_indicator = value[0]
+                    actual_value = value[1]
+                    line_name = "Green Line" if line_indicator == 0 else "Red Line"
+                    print(f" Received Light States for {line_name} (indicator: {line_indicator})")
+                
+                # Use block_number parameter if available
+                target_block = block_number
+                
+                if isinstance(actual_data, dict):
+                    for block_num, bit_array in actual_data.items():
                         # Convert block_num from string to int if needed
                         if isinstance(block_num, str):
                             try:
@@ -5235,8 +5341,8 @@ class TrackModelUI(tk.Tk):
                                 print(f" Invalid bit array format for block {block_num}: {bit_array}")
                     self.refresh_bidirectional_controls()  # Update bidirectional directions
                     self.refresh_ui()
-                elif isinstance(value, dict):
-                    for block_num, bit_array in value.items():
+                elif isinstance(actual_value, dict):
+                    for block_num, bit_array in actual_value.items():
                         # Convert block_num from string to int if needed
                         if isinstance(block_num, str):
                             try:
@@ -5256,18 +5362,20 @@ class TrackModelUI(tk.Tk):
                                 print(f" Invalid bit array format for block {block_num}: {bit_array}")
                     self.refresh_bidirectional_controls()  # Update bidirectional directions
                     self.refresh_ui()
-                elif block_number and value is not None:
-                    if 1 <= block_number <= len(self.data_manager.blocks):
-                        block = self.data_manager.blocks[block_number - 1]
+                elif target_block and actual_value is not None:
+                    if 1 <= target_block <= len(self.data_manager.blocks):
+                        block = self.data_manager.blocks[target_block - 1]
                         # Convert two-bit boolean array to state (0-3)
-                        if isinstance(value, list) and len(value) == 2:
-                            state = (1 if value[0] else 0) + (2 if value[1] else 0)
+                        if isinstance(actual_value, list) and len(actual_value) == 2:
+                            state = (1 if actual_value[0] else 0) + (2 if actual_value[1] else 0)
                             block.traffic_light_state = state
-                            print(f" Updated signal at block {block_number}: State {state} from bits {value}")
+                            print(f" Updated signal at block {target_block}: State {state} from bits {actual_value}")
                         else:
-                            print(f" Invalid bit array format for block {block_number}: {value}")
+                            print(f" Invalid bit array format for block {target_block}: {actual_value}")
                         self.refresh_bidirectional_controls()  # Update bidirectional directions
                         self.refresh_ui()
+                else:
+                    print(f" Unrecognized light state format. Expected [line_indicator, [bit0, bit1]], got: {type(value)} = {value}")
 
             # ============================================================
             # CURRENT SPEED - From Train Model (Passenger_UI)
@@ -5694,6 +5802,3 @@ if __name__ == "__main__":
     
     tester.lift()
     app.mainloop()
-
-
-    # [0, {0, 1}, {0, 0}]
