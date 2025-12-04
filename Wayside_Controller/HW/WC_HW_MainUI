@@ -340,7 +340,7 @@ class UITestData:
 
         # SOCKET SERVER
         self.server1 = TrainSocketServer(port=12344, ui_id="Track HW")
-        self.server1.set_allowed_connection(["WC_HW_TestUI", "CTC", "Track Model"])
+        self.server1.set_allowed_connections(["WC_HW_TestUI", "CTC", "Track Model"])
         self.server1.start_server(_process_message)
         
         # Connect to other UIs
