@@ -283,7 +283,7 @@ class ScheduleScreen:
                     level = self.meArea.insert('', "end", text = line.title())
                     self.meArea.insert(level, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination, time])
 
-            self.trainRoutes[self.trainNum] = [64, destination]
+            self.trainRoutes[self.trainNum] = [63, line, destination]
 
             self.trainNum += 1
 
@@ -301,29 +301,83 @@ class ScheduleScreen:
 
             self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(self.trainNum - 1), f"{speed:.3f}", str(auth), line]})
             self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": "Green", "block": "63", "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
-            #self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": "Green", "block": "63", "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
+            self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": "Green", "block": "63", "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
             #hardcoded 63 for now
             return auth  #for test case 1
         
         else:
         #if we are updating a train on the line
+            updated = False
+
             for key in self.trainRoutes:
-                if (self.trainRoutes[key][0] == int(location)):
-                    children = self.meArea.get_children("")
+                '''add cases for moving backwards here'''
+                if (line == "green"):
+                    if ((self.trainRoutes[key][0] + 1) == int(location)):
+                        self.updateTrainInManualEdit(key, location)
+                        updated = True
+                        break
+                    elif (self.trainRoutes[key][0] == 100 and int(location) == 85):
+                    #switch from 100->85
+                        self.updateTrainInManualEdit(key, location)
+                        updated = True
+                        break
+                    elif (self.trainRoutes[key][0] == 76 and int(location) == 101):
+                    #switch from 76->101
+                        self.updateTrainInManualEdit(key, location)
+                        updated = True
+                        break
+                    elif (self.trainRoutes[key][0] == 150 and int(location) == 28):
+                    #switch from 150->28
+                        self.updateTrainInManualEdit(key, location)
+                        updated = True
+                        break
+                    elif (self.trainRoutes[key][0] == 1 and int(location) == 13):
+                    #switch from 1->13
+                        self.updateTrainInManualEdit(key, location)
+                        updated = True
+                        break
+                    elif (self.trainRoutes[key][0] in range(1, 29) and self.trainRoutes[key][0] == int(location) + 1):
+                    #if moving backwards
+                        self.updateTrainInManualEdit(key, location)
+                        updated = True
+                        break
+                    elif (self.trainRoutes[key][0] in range(76, 86) and self.trainRoutes[key][0] == int(location) + 1):
+                    #if moving backwards
+                        self.updateTrainInManualEdit(key, location)
+                        updated = True
+                        break
+                
+                else:
+                #if line is the red line
+                    if ((self.trainRoutes[key][0] + 1) == int(location)):
+                        self.updateTrainInManualEdit(key, location)
+                        updated = True
+                        break
 
-                    for child in children: 
-                    #iterate for each parent in the Treeview
-                        for item in self.meArea.get_children(child):
-                            dest = self.meArea.item(item, "text")
-                            if ("Train " + str(key) == dest):
-                                self.meArea.set(item, column = "Location", value = "Block " + str(location))
-                                self.mainScreen.tlArea.set(item, column = "Location", value = "Block " + str(location))
+                
+            if (not updated):
+            #case for if this is not the next block for any train
+                self.mainScreen.updateMainScreen("TS", [location, line])
+
+            
 
 
-                    self.trainRoutes[key][0] += 1
+
+###############################################################################################################################################################
+
+    def updateTrainInManualEdit(self, key, location):
+        children = self.meArea.get_children("")
+
+        for child in children: 
+        #iterate for each parent in the Treeview
+            for item in self.meArea.get_children(child):
+                dest = self.meArea.item(item, "text")
+                if ("Train " + str(key) == dest):
+                    self.meArea.set(item, column = "Location", value = "Block " + str(location))
+                    self.mainScreen.tlArea.set(item, column = "Location", value = "Block " + str(location))
                     break
-
-
+        
+        self.trainRoutes[key][0] = int(location)
 
 ###############################################################################################################################################################
 

@@ -31,15 +31,12 @@ class RailwayData:
         self.load_all_track_data()  # This will populate the separate variables
         print("Track data loaded from files")
         
-        # Initialize block data (contains occupancy AND fault status)
+        # Initialize block data (contains occupancy)
         self.block_data = self.load_all_block_data()
         print("Block data loaded from files")
         
         # Keep original data for filtering
         self.block_data_original = self.block_data.copy()
-
-        self.ensure_faulted_column()  # Ensure all blocks have faulted status
-        print("Faulted column ensured for all blocks")
 
         # Initialize filtered data structures for current line
         self.filtered_light_states = {}
@@ -109,15 +106,6 @@ class RailwayData:
                 blocks.append(block_num)
         return blocks
     
-    def ensure_faulted_column(self):
-        """Ensure all blocks have the Faulted column (index 3) for data consistency"""
-        for row in self.block_data:
-            if len(row) < 4:
-                row.append("No")  # Default to not faulted
-        for row in self.block_data_original:
-            if len(row) < 4:
-                row.append("No")  # Default to not faulted
-
     def initialize_track_blocks(self):
         """Initialize blocks with proper structure for PLC processing"""
         self.filtered_blocks = {}
@@ -135,7 +123,6 @@ class RailwayData:
                     "authority": 0,                 # Default authority (will be set by commands)
                     "speed": 0,                     # Default speed (will be set by commands)
                     "next_block": self.get_next_block(block_num),  # Calculate next block
-                    "faulted": (row[3] == "Yes") if len(row) > 3 else False  # Fault status from block data
                 }
 
     def get_next_block(self, current_block):
@@ -179,11 +166,19 @@ class RailwayData:
                             if 'Switch' in infrastructure:
                                 switch_name = f"Switch {block}"
                                 directions = self.extract_switch_directions(infrastructure)
+                                
+                                #set first direction as the default
+                                default_direction = directions[0] if directions else "Unknown"
+                                
+                                # Initialize numeric position (1 for first/default)
+                                numeric_position = 1
+                                
                                 self.switch_positions[switch_name] = {
-                                    "condition": "Normal Operation",
-                                    "direction": directions[0] if directions else "Unknown",
+                                    "condition": default_direction,
+                                    "direction": default_direction,
                                     "options": directions,  # Store all possible directions for UI
-                                    "line": line  # Track which line this switch belongs to
+                                    "line": line,  # Track which line this switch belongs to
+                                    "numeric_position": numeric_position  # ADD THIS LINE
                                 }
 
                             # --- RAILWAY CROSSINGS ---
@@ -209,7 +204,7 @@ class RailwayData:
                 print(f"Warning: {file_path} not found. Skipping {line} line data.")
 
     def load_all_block_data(self):
-        """Load all block data from TXT files - each block starts unoccupied and not faulted"""
+        """Load all block data from TXT files - each block starts unoccupied"""
         all_block_data = []
         txt_files = {
             "Green": "Wayside_Controller/SW/data/green_line.txt", 
@@ -224,7 +219,7 @@ class RailwayData:
                     for row_line in lines[1:]:
                         row = row_line.strip().split(',')
                         if len(row) >= 2:  # Need at least block number
-                            # Each block starts as unoccupied and not faulted: 
+                            # Each block starts as unoccupied: 
                             # ["No", line, block_number, "No"]
                             all_block_data.append(["No", line, row[1], "No"])
             except FileNotFoundError:
@@ -269,8 +264,8 @@ class RailwayData:
     def update_block_data(self, row_index, col_index, new_value):
         """Update block data and keep original data in sync - FIXED VERSION"""
         if 0 <= row_index < len(self.block_data_original):
-            # Ensure row has 4 columns (occupied, line, block, faulted)
-            if len(self.block_data_original[row_index]) < 4:
+            # Ensure row has 3 columns (occupied, line, block)
+            if len(self.block_data_original[row_index]) < 3:
                 self.block_data_original[row_index].append("No")
             
             # Store the old value for comparison
@@ -308,11 +303,10 @@ class RailwayData:
                     if col_index == 0:
                         is_occupied = (new_value == "Yes")
                         self.filtered_blocks[block_key]["occupied"] = is_occupied
+                        if self.app:  # Only if we have app reference
+                                self.app.send_occupancy(current_line, block_num, new_value)
+                            
                     
-                    # If faulted changed (col 3)
-                    elif col_index == 3:
-                        is_faulted = (new_value == "Yes")
-                        self.filtered_blocks[block_key]["faulted"] = is_faulted
             
             # Trigger callbacks to update UI components
             for callback in self.on_data_update:
@@ -348,19 +342,29 @@ class RailwayData:
                     if category in filtered_map and name in filtered_map[category]:
                         filtered_map[category][name][field] = new_value
                 
+                # For switches, update numeric position when direction changes
+                if category == "switch_positions" and field == "direction":
+                    # Calculate numeric position (1 for first option, 2 for second, etc.)
+                    switch_data = data_dict[name]
+                    options = switch_data.get("options", [])
+                    if new_value in options:
+                        numeric_position = options.index(new_value) + 1  # 1-based index
+                        switch_data["numeric_position"] = numeric_position
+                        
+                        # SEND SWITCH POSITION TO TRACK MODEL HERE
+                        if self.app:
+                            block = name.split(" ")[1] if " " in name else name
+                            item_line = data_dict[name].get("line")
+                            self.app.send_switch_to_track_model(item_line, block, numeric_position)
+                            print(f"✓ Switch {block} on {item_line} sent to track model with position: {numeric_position}")
+                
                 # AUTO-SEND TO CTC FOR INFRASTRUCTURE CHANGES
                 if self.app:  # Only if we have app reference
                     if category == "light_states" and field == "signal":
                         # Extract block number and send
                         block = name.split(" ")[1] if " " in name else name
                         self.app.send_light_state(item_line, block, new_value)
-                        
-                    elif category == "switch_positions" and field == "direction":
-                        # Extract block number and send  
-                        block = name.split(" ")[1] if " " in name else name
-                        # Send switch state to CTC (would need to implement)
-                        #self.app.send_light_state(item_line, block, new_value)
-
+                
                     elif category == "railway_crossings":
                         # Extract block number and send  
                         block = name.split(" ")[1] if " " in name else name
@@ -512,22 +516,6 @@ class RailwayData:
                                 self.block_data_original[idx][0] = new_occupied_str
                         break
             
-            # If updating faulted, also sync to block_data
-            if field == "faulted":
-                new_faulted_str = "Yes" if value else "No"
-                for idx, row in enumerate(self.block_data):
-                    if row[1] == self.current_line and str(row[2]) == str(block_num):
-                        # Ensure row has 4 columns
-                        if len(row) < 4:
-                            row.append("No")
-                        if len(row) > 3 and row[3] != new_faulted_str:
-                            self.block_data[idx][3] = new_faulted_str
-                            if idx < len(self.block_data_original):
-                                if len(self.block_data_original[idx]) < 4:
-                                    self.block_data_original[idx].append("No")
-                                self.block_data_original[idx][3] = new_faulted_str
-                        break
-
 
 
     #for PLC program
