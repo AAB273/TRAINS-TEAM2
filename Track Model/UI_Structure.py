@@ -4546,10 +4546,29 @@ class TrackModelUI(tk.Tk):
     def send_all_station_data_to_ctc(self):
         """
         Send ticket sales and passengers disembarking for ALL stations to CTC.
+        Format: [ticket_sales (int), passengers_disembarking (int)]
+        Uses 0 if no ticket sales or passengers disembarking are generated.
         This is called periodically by send_all_outputs().
         """
         for block_num, station_name in self.data_manager.station_location:
-            self.send_station_data_to_ctc(block_num)
+            idx = block_num - 1
+            
+            # Get ticket sales, default to 0 if not available
+            ticket_count = 0
+            if hasattr(self.data_manager, 'ticket_sales') and 0 <= idx < len(self.data_manager.ticket_sales):
+                ticket_count = int(self.data_manager.ticket_sales[idx])
+            
+            # Get passengers disembarking, default to 0 if not available
+            disembarking_count = 0
+            if hasattr(self.data_manager, 'passengers_disembarking') and 0 <= idx < len(self.data_manager.passengers_disembarking):
+                disembarking_count = int(self.data_manager.passengers_disembarking[idx])
+            
+            # Send as [ticket_sales, passengers_disembarking] format
+            self.server.send_to_ui("CTC", {
+                'command': 'TP',
+                'value': [ticket_count, disembarking_count]
+            })
+            print(f" Sent station data to CTC for {station_name} (Block {block_num}): [tickets={ticket_count}, disembarking={disembarking_count}]")
 
     def send_failure_modes_to_wayside(self):
         """Send failure modes to Wayside Controller."""
