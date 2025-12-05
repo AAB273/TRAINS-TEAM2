@@ -746,14 +746,22 @@ run_plc_btn.pack(side="left", padx=10)
 #toggle button for map choice (red vs green)
 def toggle_line_map():
     """Switches between red and green line data"""
+    global current_line
+    global test_data
+
     if test_data.current_line== "Green":
         test_data.current_line = "Red"
         map_toggle_btn.config(text="Switch to Green Line", bg="#66cc66")
         add_to_message_log("Switched to Red Line data")
+        load_line_data("Red")
     else:
         test_data.current_line = "Green"
         map_toggle_btn.config(text="Switch to Red Line", bg="#ff6666")
         add_to_message_log("Switched to Green Line data")
+        load_line_data("Green")
+
+    # update test_data
+    test_data.current_line = current_line
 
     # Load the appropriate track data
     load_line_data(test_data.current_line)
@@ -761,6 +769,11 @@ def toggle_line_map():
     # Trigger line change callbacks to update all panels
     for callback in test_data.on_line_change:
         callback()
+    
+    # forcing an update on the RightPanel with data
+    right_panel.on_line_changed()
+
+    add_to_message_log("Data displayed = True")
 
 def load_line_data(line_name):
     """Load track data for the specified line"""
