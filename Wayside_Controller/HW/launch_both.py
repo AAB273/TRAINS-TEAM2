@@ -5,8 +5,10 @@ import os
 
 def launch_both_guis():
     # Replace these with your exact filepaths
-    PASSENGER_UI_PATH = r"/home/siram/TRAINS-TEAM2/Wayside_Controller/HW/WC_HW_MainUI"  # Use raw string or forward slashes
-    TEST_UI_PATH = r"/home/siram/TRAINS-TEAM2/Wayside_Controller/HW/WC_HW_TestUI"
+    # PASSENGER_UI_PATH = r"/home/siram/TRAINS-TEAM2/Wayside_Controller/HW/WC_HW_MainUI"  # Use raw string or forward slashes
+    PASSENGER_UI_PATH = "Wayside_Controller/HW/WC_HW_MainUI"
+    TEST_UI_PATH = "CTC_Office/CTC_UI.py"
+    # TEST_UI_PATH = r"/home/siram/TRAINS-TEAM2/Wayside_Controller/HW/WC_HW_TestUI"
     
     
     # Verify files exist

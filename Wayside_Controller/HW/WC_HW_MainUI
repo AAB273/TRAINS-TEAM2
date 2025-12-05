@@ -806,11 +806,13 @@ def load_line_data(line_name):
             # Updated track data for first half of Red Line (A-G sections)
             test_data.track_data = {
                 "crossings": {
-                    "Railway Crossing: 11": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
+                    "Railway Crossing: 19": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
                 },
                 "switches": {
-                    "Switch 9-10": {"condition": "Normal", "direction": "Blocks 9-10"},
-                    "Switch 15-16": {"condition": "Normal", "direction": "Blocks 15-16"}
+                    "Switch 12-13": {"condition": "Normal", "direction": "Blocks 12-13 (C-D)"},
+                    "Switch 1-13": {"condition": "Normal", "direction": "Blocks 1-13 (D-A)"},
+                    "Switch 28-29": {"condition": "Normal", "direction": "Blocks 28-29(F-G)"},
+                    "Switch 150-28": {"condition": "Normal", "direction": "Blocks 150-28(F-Z)"}
                 },
                 "lights": {
                     "Light 9": {"condition": "Normal", "signal": "Green"},
@@ -1260,6 +1262,7 @@ class LeftPanel(tk.Frame):
         tk.Label(switch_frame, text="Direction:", bg='#cccccc').pack()
         self.switch_direction = ttk.Combobox(switch_frame, width=18,
                                             values=["Blocks 5-11", "Blocks 5-15"])
+                                            # state='readonly') # this makes the dropdown BLANK - FIX THIS
         self.switch_direction.pack()
         self.switch_direction.bind('<<ComboboxSelected>>', self.update_switch_direction)
 
