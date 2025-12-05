@@ -25,10 +25,6 @@ class ScheduleScreen:
     self.clockText: a ttk.Label() that holds the current time
     self.clockTimer: contains the call to updateTime, allowing the program to cancel the timer when switching tabs
 
-    self.distToNext: dictionary containing the distance to go to the next station from where the train currently is
-                     example data "from 
-    self.blocksToNext: dictionary like distToNext, but with the number of blocks rather than the distance
-
     self.trainRoutes: dictionary containing each train's route (defined as the block it will travel to next, plus its scheduled stops)
     '''
 
@@ -41,16 +37,6 @@ class ScheduleScreen:
         self.notebook = notebook  #variable to hold data about the tab buttons
         self.trainNum = 1;  #number of trains that have been sent to the system
 
-        self.distToNext = {"from Yard": 400, "from Glenbury 1": 900, "from Dormont 1": 600, "from Mt. Lebanon": 2686.6,
-                           "from Poplar": 600, "from Castle Shannon": 715, "from Dormont 2": 952, "from Glenbury 2": 540,
-                           "from Overbrook 1": 450, "from Inglewood 1": 450, "from Central 1": 759, "from Pioneer": 700,
-                           "from Edgebrook": 900, "from LLC Plaza": 1200, "from Whited": 1150, "from South Bank": 400, "from Central 2": 450,
-                           "from Inglewood 2": 450, "from Overbrook 2": 650}
-        self.blocksToNext = {"from Yard": 2, "from Glenbury 1": 7, "from Dormont 1": 3, "from Mt. Lebanon": 10,
-                             "from Poplar": 7, "from Castle Shannon": 8, "from Dormont 2": 8, "from Glenbury 2": 8,
-                             "from Overbrook 1": 8, "from Inglewood 1": 8, "from Central 1": 10, "from Pioneer": 6,
-                             "from Edgebrook": 6, "from LLC Plaza": 5, "from Whited": 8, "from South Bank": 7, "from Central 2": 8,
-                             "from Inglewood 2": 8, "from Overbrook 2": 7}
         self.greenStationLocations = {63: "start", 65: "Glenbury", 73: "Dormont", 77: "Mt. Lebanon", 88: "Poplar",
                                       96: "Castle Shannon", 105: "Dormont", 114: "Glenbury", 123: "Overbrook", 132: "Inglewood",
                                       141: "Central", 2: "Pioneer", 9: "Edgebrook", 16: "LLC Plaza", 22: "Whited", 31: "South Bank",
@@ -253,7 +239,6 @@ class ScheduleScreen:
     #update the manual edit tab
         if (time != None):
         #if we are creating a new train on the line
-            distToStation = 0.0
             arrTime = self.timeToSeconds(time)
             speed = 0
             auth = 0
@@ -291,13 +276,9 @@ class ScheduleScreen:
 
             self.trainNum += 1
             
-            for key in self.distToNext:
-                if (key == "from " + destination):
-                    break
-                distToStation += self.distToNext[key]
-            
-            auth = self.calculateAuthority(self.trainRoutes[self.trainNum - 1], destination) - 1
-            speed = float(distToStation) / arrTime * 2.237
+            values = self.calculateAuthority(self.trainRoutes[self.trainNum - 1], destination)
+            auth = values[0] - 1
+            speed = float(values[1]) / arrTime * 2.237
 
             self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(self.trainNum - 1), f"{speed:.3f}", str(auth), line]})
             self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": "Green", "block": "63", "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
@@ -348,7 +329,17 @@ class ScheduleScreen:
 
                     if (len(self.trainRoutes[key]) == 3):
                         if (self.trainRoutes[key][0] == 58):
-                            pass
+                            children = self.meArea.get_children("")
+                            for child in children: 
+                            #iterate for each parent in the Treeview
+                                for item in self.meArea.get_children(child):
+                                #iterate for each child of every parent in the Treeview
+                                    dest = self.meArea.item(item, "text")
+                                    if (dest == "Train " + str(key)):
+                                        self.meArea.delete(item)
+                                        self.mainScreen.tlArea.delete(item)
+                                        train = key
+                                        break
 
                     else:
                         if (self.trainRoutes[key][0] in self.greenStationLocations):
@@ -368,6 +359,7 @@ class ScheduleScreen:
                                             dest = self.meArea.item(item, "text")
                                             if (dest == "Train " + str(key)):
                                                 self.meArea.item(item, values = ["Block " + location, "Yard", "00:00"])
+                                                self.mainScreen.tlArea.item(item, values = ["Block " + location, "Yard", "00:00"])
                                                 break
                                 else:
                                 #otherwise go to next station
@@ -378,10 +370,9 @@ class ScheduleScreen:
             #case for if this is not the next block for any train
                 self.mainScreen.updateMainScreen("TS", [location, line])
                 return
-
             
-
-
+            if (not (train == 0)):
+                del self.trainRoutes[train]
 
 ###############################################################################################################################################################
 
@@ -409,10 +400,59 @@ class ScheduleScreen:
             dir = data[2]
 
             authority = 0
+            dist = 0
             #running total
 
             found = False
             while (not found):
+                
+                #add distance
+                if (pos == 101 or pos == 150):
+                    dist += 35
+                elif (pos == 119 or pos == 149):
+                    dist += 40
+                elif ((pos in range(28, 63)) or pos == 117 or pos == 118 or (pos in range(120, 148))):
+                    if (pos == 31 or pos == 39 or pos == 48 or pos == 57 or pos == 123 or pos == 132 or pos == 141):
+                        dist += 25
+                    else:
+                        dist += 50
+                elif (pos in range(89, 101)):
+                    if (pos == 96):
+                        dist += 37.5
+                    else:
+                        dist += 75
+                elif (pos == 104):
+                    dist += 104
+                elif (pos == 86.6):
+                    dist += 86.6
+                elif (pos == 107):
+                    dist += 90
+                elif ((pos in range(1, 13)) or pos == 26 or pos == 63 or pos == 64 or (pos in range(67, 77)) or pos == 86
+                       or pos == 88 or pos == 102 or pos == 103 or pos == 105 or pos == 106 or (pos in range(108, 114))
+                       or pos == 115 or pos == 116):
+                    if (pos == 2 or pos == 9 or pos == 73 or pos == 88 or pos == 105):
+                        dist += 50
+                    else:
+                        dist += 100
+                elif (pos in range(13, 21)):
+                    if (pos == 16):
+                        dist += 75
+                    else:
+                        dist += 150
+                elif (pos == 114):
+                    dist += 81
+                elif (pos == 148):
+                    dist += 184
+                elif (pos == 25 or pos == 66):
+                    dist += 200
+                elif (pos == 65):
+                    dist += 100
+                else:
+                    if (pos == 22 or pos == 77):
+                        dist += 150
+                    else:
+                        dist += 300
+
                 if (dir == "forward"):
                     if (pos == 100):
                         authority += 1
@@ -450,7 +490,7 @@ class ScheduleScreen:
         else:
             pass
 
-        return authority
+        return [authority, dist]
 
 ###############################################################################################################################################################
 
