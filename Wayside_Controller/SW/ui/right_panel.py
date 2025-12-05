@@ -20,9 +20,6 @@ class RightPanel(tk.Frame):
         self.suggested_authority = {"Blue": {}, "Green": {}, "Red": {}}
         self.suggested_speed = {"Blue": {}, "Green": {}, "Red": {}}
         
-        # Ensure all blocks have faulted column for consistency
-        self.ensure_faulted_column()
-        
         # Build all UI components
         self.create_widgets()
 
@@ -32,15 +29,6 @@ class RightPanel(tk.Frame):
         # Connect callbacks for real-time updates
         self.data.on_line_change.append(self.on_line_changed)  # When line changes
         self.data.on_data_update.append(self.refresh_ui)       # When data updates
-    
-    def ensure_faulted_column(self):
-        """Ensure all blocks have the Faulted column (index 3) for data consistency"""
-        for row in self.data.block_data:
-            if len(row) < 4:
-                row.append("No")  # Default to not faulted
-        for row in self.data.block_data_original:
-            if len(row) < 4:
-                row.append("No")  # Default to not faulted
     
     def set_log_callback(self, callback):
         """Set the callback function for logging messages to system log"""
@@ -78,7 +66,7 @@ class RightPanel(tk.Frame):
 
     def update_block_options(self):
         """Update block selector dropdown based on current line"""
-        # row format: [occupied, line, block, faulted]
+        # row format: [occupied, line, block]
         # Filter blocks for current line and sort numerically
         blocks = sorted([row[2] for row in self.data.block_data if row[1] == self.data.current_line], key=int)
         self.block_combo['values'] = blocks
@@ -102,14 +90,13 @@ class RightPanel(tk.Frame):
         selected_block = self.block_combo.get()
         if selected_block:
             # Find the block data for current line and selected block
-            # row format: [occupied, line, block, faulted]
+            # row format: [occupied, line, block]
             for row in self.data.block_data:
                 if row[1] == self.data.current_line and str(row[2]) == str(selected_block):
                     self.current_block_info = {
                         'block': row[2],
                         'line': row[1],
                         'occupied': row[0],
-                        'faulted': row[3] if len(row) > 3 else 'No'  # Handle missing faulted data
                     }
                     self.update_current_block_display()  # Update UI
                     break
@@ -120,11 +107,10 @@ class RightPanel(tk.Frame):
                                                bg='#cccccc', font=('Arial', 10, 'bold'))
         self.current_block_frame.pack(fill=tk.X, pady=5)
         
-        # Create labels for block number, occupied status, and faulted status
+        # Create labels for block number, and occupied status
         labels = [
             ("Block #:", "block_num_label"),    # Block number display
             ("Occupied:", "occupied_label"),    # Occupancy status (Yes/No)
-            ("Faulted:", "faulted_label")       # Fault status (Yes/No)
         ]
         
         for label_text, attr_name in labels:
@@ -148,10 +134,6 @@ class RightPanel(tk.Frame):
                 occupied_color = '#ffcccc' if self.current_block_info['occupied'] == "Yes" else '#ccffcc'
                 self.occupied_label.config(text=occupied_text, bg=occupied_color)
                 
-                # Faulted display with color coding
-                faulted_text = self.current_block_info.get('faulted', 'No')
-                faulted_color = '#ffcccc' if faulted_text == "Yes" else '#ccffcc'
-                self.faulted_label.config(text=faulted_text, bg=faulted_color)
 
     def create_suggested_section(self):
         """Display suggested authority and speed from CTC office"""
@@ -454,19 +436,17 @@ class RightPanel(tk.Frame):
         headers_frame.columnconfigure(0, weight=1, minsize=80)  # Line - wider
         headers_frame.columnconfigure(1, weight=1, minsize=60)  # Block - wider
         headers_frame.columnconfigure(2, weight=1, minsize=80)  # Occupied - wider
-        headers_frame.columnconfigure(3, weight=1, minsize=70)  # Faulted - wider
         
         # Header labels
-        headers = ["Line", "Block", "Occupied", "Faulted"]
+        headers = ["Line", "Block", "Occupied"]
         widths = [10, 8, 10, 8]  # Corresponding widths
         
         for i, (header, width) in enumerate(zip(headers, widths)):
             tk.Label(headers_frame, text=header, bg='#cccccc', width=width,
                     font=('Arial', 9, 'bold'), anchor='center').grid(row=0, column=i, sticky='ew', padx=1)
         
-        # Data rows - Format: [occupied, line, block, faulted]
+        # Data rows - Format: [occupied, line, block]
         self.block_combos = []  # Store references to comboboxes for maintenance mode
-        self.faulted_combos = []  # Store references to faulted comboboxes
         
         # Get blocks for current line only
         line_blocks = [row for row in self.data.block_data if row[1] == self.data.current_line]
@@ -476,14 +456,14 @@ class RightPanel(tk.Frame):
             row_frame.pack(fill=tk.X)
             
             # Configure grid columns for this row with same widths as headers
-            for i in range(4):
+            for i in range(3):
                 row_frame.columnconfigure(i, weight=1)
             
             # Get actual index in full block_data for callbacks
             actual_index = self.data.block_data.index(row)
             
             if self.data.maintenance_mode:
-                # MAINTENANCE MODE: Line and Block are VISIBLE READ-ONLY, Occupied and Faulted are EDITABLE
+                # MAINTENANCE MODE: Line and Block are VISIBLE READ-ONLY, Occupied EDITABLE
                 
                 # COLUMN 1: LINE (read-only but clearly visible)
                 bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
@@ -509,17 +489,6 @@ class RightPanel(tk.Frame):
                     self.on_block_data_change(idx, 0, combo.get()))
                 self.block_combos.append(occ_combo)
                 
-                # COLUMN 4: FAULTED COMBO (editable in maintenance mode)
-                faulted_value = row[3] if len(row) > 3 else "No"
-                faulted_combo = ttk.Combobox(row_frame, values=["Yes", "No"],
-                                        font=('Arial', 9), width=8,
-                                        state="readonly")
-                faulted_combo.set(faulted_value)
-                faulted_combo.grid(row=0, column=3, sticky='ew', padx=1, ipady=2)
-                faulted_combo.bind('<<ComboboxSelected>>', 
-                    lambda event, idx=actual_index, combo=faulted_combo: 
-                    self.on_block_data_change(idx, 3, combo.get()))
-                self.faulted_combos.append(faulted_combo)
                 
             else:
                 # NORMAL MODE: All columns are READ-ONLY with color coding
@@ -543,13 +512,7 @@ class RightPanel(tk.Frame):
                         borderwidth=1, relief=tk.RAISED, anchor='center')
                 occupied_label.grid(row=0, column=2, sticky='ew', padx=1, ipady=3)
                 
-                # COLUMN 4: FAULTED with color coding (red for faulted, green for normal)
-                faulted_value = row[3] if len(row) > 3 else "No"
-                faulted_color = '#ff6666' if faulted_value == "Yes" else '#ccffcc'
-                faulted_label = tk.Label(row_frame, text=faulted_value, bg=faulted_color, fg='black',
-                        font=('Arial', 9, 'bold'), width=8,
-                        borderwidth=1, relief=tk.RAISED, anchor='center')
-                faulted_label.grid(row=0, column=3, sticky='ew', padx=1, ipady=3)
+
         
         # Update the scroll region after creating the table
         self._on_frame_configure()
@@ -566,10 +529,6 @@ class RightPanel(tk.Frame):
         # Determine which field was changed for logging
         if col_index == 0:
             field_name = "occupancy"
-        elif col_index == 3:
-            field_name = "fault status"
-        else:
-            field_name = f"column {col_index}"
         
         if self.log_callback:
             self.log_callback(f"{current_time} UPDATE: Block {block_num} {field_name} changed to '{new_value}' on {self.data.current_line} track")

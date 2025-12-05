@@ -120,19 +120,12 @@ class MainScreen:
     #update any data according to the data file
 
         if (code == "TL"):
-            self.schedule_screen.updateManualEdit(data[0], None, None, None)
+            self.schedule_screen.updateManualEdit(data[0], None, None, data[1])
 
         elif (code == "TS"):
         #track state data case
-            location = ""
-            commaInd = 0
-            #index of the space to allow us to grab other data from the string
-            for i in range(len(data)):
-                if (data[i] == ","):
-                    commaInd = i
-                    break
-                location += data[i]
-            line = data[(commaInd + 2):]
+            location = data[0]
+            line = data[1]
 
             children = self.tsArea.get_children("")
             #get a list of the items in the Treeview
@@ -167,6 +160,7 @@ class MainScreen:
         #throughput data case
             tickets = data[0]
             disemb = data[1]
+            line = data[2]
 
             self.totalPassengers += (tickets - disemb)
             #add new passengers to total
@@ -607,12 +601,15 @@ class MainScreen:
                         if (char.isdigit()):
                             location += char
 
-                    self.send_to_ui("TS", location + ", " + self.tsArea.item(self.tsArea.parent(rowID), "text").lower())
+                    #self.send_to_ui("TS", location + ", " + self.tsArea.item(self.tsArea.parent(rowID), "text").lower())
+                    self.send_to_ui("Track SW", {"command": "MAINT", "value": ""})
 
 ###############################################################################################################################################################
     
     def switchTrack(self, event):
     #handle user clicks in the maintenance mode Treeview
+
+        line = "Green"
     
         rowID = self.mmArea.identify_row(event.y)
         #grab row user clicked in 
@@ -650,8 +647,8 @@ class MainScreen:
                             direction += char
                     #grab specific block direction
 
-                    self.send_to_ui("MM", location + ", " + direction + ", " + self.mmArea.item(self.mmArea.parent(rowID), "text").lower())
-                    self.send_to_ui("Track SW", {"commnand": "", "value": })
+                    #self.send_to_ui("MM", location + ", " + direction + ", " + self.mmArea.item(self.mmArea.parent(rowID), "text").lower())
+                    self.send_to_ui("Track SW", {"command": "SW", "value": [location, line]})
 
 ###############################################################################################################################################################
 
