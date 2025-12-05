@@ -23,9 +23,6 @@ class RightPanel(tk.Frame):
         # Build all UI components
         self.create_widgets()
 
-        # HARDCODE the yard to station commands
-        self.set_yard_to_station_commands()
-
         # Connect callbacks for real-time updates
         self.data.on_line_change.append(self.on_line_changed)  # When line changes
         self.data.on_data_update.append(self.refresh_ui)       # When data updates
@@ -435,11 +432,12 @@ class RightPanel(tk.Frame):
         # Configure grid columns with specific widths
         headers_frame.columnconfigure(0, weight=1, minsize=80)  # Line - wider
         headers_frame.columnconfigure(1, weight=1, minsize=60)  # Block - wider
-        headers_frame.columnconfigure(2, weight=1, minsize=80)  # Occupied - wider
+        headers_frame.columnconfigure(2, weight=1, minsize=60)  # Occupied
+        headers_frame.columnconfigure(3, weight=1, minsize=80)  # Occupied - wider
         
         # Header labels
-        headers = ["Line", "Block", "Occupied"]
-        widths = [10, 8, 10, 8]  # Corresponding widths
+        headers = ["Line", "Block", "Section", "Occupied"]
+        widths = [8, 8, 8, 10]  # Corresponding widths
         
         for i, (header, width) in enumerate(zip(headers, widths)):
             tk.Label(headers_frame, text=header, bg='#cccccc', width=width,
@@ -478,12 +476,20 @@ class RightPanel(tk.Frame):
                         borderwidth=1, relief=tk.RAISED, anchor='center')
                 block_label.grid(row=0, column=1, sticky='ew', padx=1, ipady=3)
                 
+                # COLUMN 3: SECTION (read-only)
+                # Get section from data model
+                section = self.data.get_section_for_block(self.data.current_line, str(row[2]))
+                section_label = tk.Label(row_frame, text=section, bg='#f0f0f0', fg='black',
+                        font=('Arial', 9, 'bold'), width=8,
+                        borderwidth=1, relief=tk.RAISED, anchor='center')
+                section_label.grid(row=0, column=2, sticky='ew', padx=1, ipady=3)
+
                 # COLUMN 3: OCCUPIED COMBO (editable in maintenance mode)
                 occ_combo = ttk.Combobox(row_frame, values=["Yes", "No"], 
                                     font=('Arial', 9), width=8,
                                     state="readonly")
                 occ_combo.set(row[0])
-                occ_combo.grid(row=0, column=2, sticky='ew', padx=1, ipady=2)
+                occ_combo.grid(row=0, column=3, sticky='ew', padx=1, ipady=2)
                 occ_combo.bind('<<ComboboxSelected>>', 
                     lambda event, idx=actual_index, combo=occ_combo: 
                     self.on_block_data_change(idx, 0, combo.get()))
@@ -505,12 +511,20 @@ class RightPanel(tk.Frame):
                         borderwidth=1, relief=tk.RAISED, anchor='center')
                 block_label.grid(row=0, column=1, sticky='ew', padx=1, ipady=3)
                 
+                # COLUMN 3: SECTION (read-only)
+                # Get section from data model
+                section = self.data.get_section_for_block(self.data.current_line, str(row[2]))
+                section_label = tk.Label(row_frame, text=section, bg='#f0f0f0', fg='black',
+                        font=('Arial', 9, 'bold'), width=8,
+                        borderwidth=1, relief=tk.RAISED, anchor='center')
+                section_label.grid(row=0, column=2, sticky='ew', padx=1, ipady=3)
+
                 # COLUMN 3: OCCUPIED with color coding (red for occupied, green for free)
                 occupied_color = '#ff6666' if row[0] == "Yes" else '#ccffcc'
                 occupied_label = tk.Label(row_frame, text=row[0], bg=occupied_color, fg='black',
                         font=('Arial', 9, 'bold'), width=10,
                         borderwidth=1, relief=tk.RAISED, anchor='center')
-                occupied_label.grid(row=0, column=2, sticky='ew', padx=1, ipady=3)
+                occupied_label.grid(row=0, column=3, sticky='ew', padx=1, ipady=3)
                 
 
         
@@ -576,33 +590,3 @@ class RightPanel(tk.Frame):
         
         # Update the display
         self.update_commanded_display()
-
-
-    def set_yard_to_station_commands(self):
-        """Hardcode commanded authority and speed from yard (63) to station (96) and back to yard (57)"""
-        current_line = "Green"
-        
-        # Outbound: Yard (63) to Station (96) - decreasing authority
-        blocks_outbound = list(range(63, 97))  # 63 to 96
-        authority = len(blocks_outbound) - 1  # Start with full authority
-        
-        for block_num in blocks_outbound:
-            self.commanded_authority[current_line][str(block_num)] = str(authority)
-            self.commanded_speed[current_line][str(block_num)] = "31" if authority > 0 else "0"
-            authority -= 1
-        
-        # Return: Station (96) back to Yard (57) - decreasing authority  
-        blocks_return = list(range(96, 56, -1))  # 96 down to 57
-        authority = len(blocks_return) - 1  # Start with full authority
-        
-        for block_num in blocks_return:
-            self.commanded_authority[current_line][str(block_num)] = str(authority)
-            self.commanded_speed[current_line][str(block_num)] = "31" if authority > 0 else "0"
-            authority -= 1
-        
-        # Set final destinations to 0 authority
-        self.commanded_authority[current_line]["96"] = "0"  # Station - stop here
-        self.commanded_speed[current_line]["96"] = "0"
-        
-        self.commanded_authority[current_line]["57"] = "0"  # Yard - stop here  
-        self.commanded_speed[current_line]["57"] = "0"
