@@ -746,14 +746,22 @@ run_plc_btn.pack(side="left", padx=10)
 #toggle button for map choice (red vs green)
 def toggle_line_map():
     """Switches between red and green line data"""
+    global current_line
+    global test_data
+
     if test_data.current_line== "Green":
         test_data.current_line = "Red"
         map_toggle_btn.config(text="Switch to Green Line", bg="#66cc66")
         add_to_message_log("Switched to Red Line data")
+        load_line_data("Red")
     else:
         test_data.current_line = "Green"
         map_toggle_btn.config(text="Switch to Red Line", bg="#ff6666")
         add_to_message_log("Switched to Green Line data")
+        load_line_data("Green")
+
+    # update test_data
+    test_data.current_line = current_line
 
     # Load the appropriate track data
     load_line_data(test_data.current_line)
@@ -761,6 +769,11 @@ def toggle_line_map():
     # Trigger line change callbacks to update all panels
     for callback in test_data.on_line_change:
         callback()
+    
+    # forcing an update on the RightPanel with data
+    right_panel.on_line_changed()
+
+    add_to_message_log("Data displayed = True")
 
 def load_line_data(line_name):
     """Load track data for the specified line"""
@@ -806,11 +819,13 @@ def load_line_data(line_name):
             # Updated track data for first half of Red Line (A-G sections)
             test_data.track_data = {
                 "crossings": {
-                    "Railway Crossing: 11": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
+                    "Railway Crossing: 19": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
                 },
                 "switches": {
-                    "Switch 9-10": {"condition": "Normal", "direction": "Blocks 9-10"},
-                    "Switch 15-16": {"condition": "Normal", "direction": "Blocks 15-16"}
+                    "Switch 12-13": {"condition": "Normal", "direction": "Blocks 12-13 (C-D)"},
+                    "Switch 1-13": {"condition": "Normal", "direction": "Blocks 1-13 (D-A)"},
+                    "Switch 28-29": {"condition": "Normal", "direction": "Blocks 28-29(F-G)"},
+                    "Switch 150-28": {"condition": "Normal", "direction": "Blocks 150-28(F-Z)"}
                 },
                 "lights": {
                     "Light 9": {"condition": "Normal", "signal": "Green"},
@@ -1260,6 +1275,7 @@ class LeftPanel(tk.Frame):
         tk.Label(switch_frame, text="Direction:", bg='#cccccc').pack()
         self.switch_direction = ttk.Combobox(switch_frame, width=18,
                                             values=["Blocks 5-11", "Blocks 5-15"])
+                                            # state='readonly') # this makes the dropdown BLANK - FIX THIS
         self.switch_direction.pack()
         self.switch_direction.bind('<<ComboboxSelected>>', self.update_switch_direction)
 
@@ -1458,33 +1474,65 @@ left_panel.pack(side="left", fill="y", padx=5, pady=5)
 
 #######################################################################################
 #######################################################################################
+
 # ---------- RIGHT PANEL ---------- #
 class RightPanel(tk.Frame):
+    # Check how you're creating the RightPanel
+# Ensure test_data contains the full block_data with all columns
+    print(f"DEBUG: Block data length: {len(test_data.block_data)}")
+    print(f"DEBUG: First row: {test_data.block_data[0] if test_data.block_data else 'Empty'}")
+    print(f"DEBUG: Row structure: {[len(row) for row in test_data.block_data[:5]] if test_data.block_data else 'No data'}")
+
     def __init__(self, parent, data):
         super().__init__(parent, bg='#1a1a4d', width=250)
         self.pack_propagate(False)
         self.data = data
         
-        #attributes for suggested speed/authority
-        self.suggested_speed_label = None
-        self.suggested_authority_label = None
-        # self.create_suggested_section()
+        # Store information about currently selected block
+        self.current_block_info = {}
+        
+        # Dictionaries for commanded values by line and block
+        self.commanded_authority = {"Blue": {}, "Green": {}, "Red": {}}
+        self.commanded_speed = {"Blue": {}, "Green": {}, "Red": {}}
+        
+        # Dictionaries for suggested values by line and block
+        self.suggested_authority = {"Blue": {}, "Green": {}, "Red": {}}
+        self.suggested_speed = {"Blue": {}, "Green": {}, "Red": {}}
 
         # Connect line change callback
         self.data.on_line_change.append(self.on_line_changed)
         self.data.on_block_change.append(self.on_block_data_changed)
 
-         # Clear any search filters and show all data
+        # Clear any search filters and show all data
         if hasattr(self.data, 'filtered_block_data'):
             self.data.filtered_block_data = self.data.block_data.copy()
+        
+        # Create all UI components
         self.create_widgets()
+        
+        # Initialize with current data
+        self.update_block_options()
+        
+        # Set initial yard to station commands
+        self.set_yard_to_station_commands()
+        
     def on_block_data_changed(self, row_index, col_index, new_value):
-        # Update only the affected row in the table if maintenance mode
+        """Update UI when block data changes"""
+        # Update current block display if the changed block is selected
+        selected_block = self.block_combo.get()
+        if selected_block:
+            block_num = self.data.block_data[row_index][2]
+            if str(block_num) == str(selected_block):
+                self.update_current_block_info()
+        
+        # Update the table in maintenance mode
         if self.data.maintenance_mode:
-            self.create_block_table()  # Simple approach: rebuild table
+            self.create_block_table()
+        
         add_to_message_log(f"[Main UI] Block {self.data.block_data[row_index][2]} updated to {new_value}")
    
     def create_widgets(self):
+        """Create all UI components"""
         # Block selector
         block_frame = tk.Frame(self, bg='#cccccc')
         block_frame.pack(fill=tk.X, pady=5)
@@ -1493,12 +1541,15 @@ class RightPanel(tk.Frame):
         # Update block combo based on current line
         self.block_combo = ttk.Combobox(block_frame, width=15, state='readonly')
         self.block_combo.pack(side=tk.LEFT, padx=5)
-        self.update_block_options()
-
+        self.block_combo.bind('<<ComboboxSelected>>', self.on_block_selected)
+        
+        # Current block section
+        self.create_current_block_section()
+        
         # Suggested section
         self.create_suggested_section()
        
-        # Commanded section
+        # Commanded section (YOUR ORIGINAL DESIGN)
         self.create_commanded_section()
        
         # Search and block table
@@ -1506,36 +1557,120 @@ class RightPanel(tk.Frame):
 
     def update_block_options(self):
         """Update block selector based on current line"""
-        blocks = [row[2] for row in self.data.block_data]
+        # Filter blocks for current line and sort numerically
+        blocks = sorted([str(row[2]) for row in self.data.block_data 
+                        if row[1] == self.data.current_line], key=int)
         self.block_combo['values'] = blocks
         if blocks:
-            self.block_combo.set(blocks[0])
-   
-    def on_line_changed(self):
-        """Refresh right panel when line changes"""
-        print(f"Right panel: Line changed to {self.data.current_line}")
-        self.update_block_options()
-        self.create_block_table()
-   
+            # Preserve selection if possible
+            current_selection = self.block_combo.get()
+            if current_selection in blocks:
+                self.block_combo.set(current_selection)
+            else:
+                self.block_combo.set(blocks[0])
+            self.update_current_block_info()
+
+    def on_block_selected(self, event):
+        """When a block is selected from dropdown"""
+        self.update_current_block_info()
+        self.update_suggested_display()
+        self.update_commanded_display()
+
+    def create_current_block_section(self):
+        """Display current selected block information"""
+        self.current_block_frame = tk.LabelFrame(self, text="Current Block:", 
+                                               bg='#cccccc', font=('Arial', 10, 'bold'))
+        self.current_block_frame.pack(fill=tk.X, pady=5)
+        
+        # Block number display
+        tk.Label(self.current_block_frame, text="Block #:", bg='#cccccc', 
+                width=10).pack(side=tk.LEFT, padx=5, pady=2)
+        self.block_num_label = tk.Label(self.current_block_frame, text="", bg='white', 
+                                       width=8, relief=tk.SUNKEN, anchor='w')
+        self.block_num_label.pack(side=tk.LEFT, padx=2, pady=2)
+        
+        # Occupied status display
+        tk.Label(self.current_block_frame, text="Occupied:", bg='#cccccc',
+                width=10).pack(side=tk.LEFT, padx=5, pady=2)
+        self.occupied_label = tk.Label(self.current_block_frame, text="", bg='white',
+                                      width=8, relief=tk.SUNKEN, anchor='w')
+        self.occupied_label.pack(side=tk.LEFT, padx=2, pady=2)
+
+    def update_current_block_info(self):
+        """Update current block display from data"""
+        selected_block = self.block_combo.get()
+        if selected_block:
+            # Find block data
+            for row in self.data.block_data:
+                if row[1] == self.data.current_line and str(row[2]) == str(selected_block):
+                    self.current_block_info = {
+                        'block': row[2],
+                        'line': row[1],
+                        'occupied': row[0],
+                        'section': row[3],
+                        'infrastructure': row[4]
+                    }
+                    
+                    # Update display
+                    self.block_num_label.config(text=row[2])
+                    
+                    # Color coding for occupancy
+                    occupied_text = row[0]
+                    occupied_color = '#ffcccc' if occupied_text == "Yes" else '#ccffcc'
+                    self.occupied_label.config(text=occupied_text, bg=occupied_color)
+                    break
+
     def create_suggested_section(self):
+        """Display suggested authority and speed"""
         suggested_frame = tk.LabelFrame(self, text="Suggested:",
                                        bg='#cccccc', font=('Arial', 10, 'bold'))
         suggested_frame.pack(fill=tk.X, pady=5)
-       # Authority:
-        tk.Label(suggested_frame, text="Authority:", bg='#cccccc').pack(anchor='w', padx=5)
-        tk.Label(suggested_frame, text="0 blocks", bg='white',
-                relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
-        #Speed:
-        tk.Label(suggested_frame, text="Speed:", bg='#cccccc').pack(anchor='w', padx=5)
-        tk.Label(suggested_frame, text="0.000 mph", bg='white',
-                relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
+        
+        # Authority display
+        auth_frame = tk.Frame(suggested_frame, bg='#cccccc')
+        auth_frame.pack(fill=tk.X, padx=5, pady=2)
+        tk.Label(auth_frame, text="Authority:", bg='#cccccc').pack(side=tk.LEFT)
+        self.suggested_auth_label = tk.Label(auth_frame, text="0 blocks", bg='white',
+                                           relief=tk.SUNKEN, width=12, anchor='w')
+        self.suggested_auth_label.pack(side=tk.LEFT, padx=2)
+        
+        # Speed display
+        speed_frame = tk.Frame(suggested_frame, bg='#cccccc')
+        speed_frame.pack(fill=tk.X, padx=5, pady=2)
+        tk.Label(speed_frame, text="Speed:", bg='#cccccc').pack(side=tk.LEFT)
+        self.suggested_speed_label = tk.Label(speed_frame, text="0 mph", bg='white',
+                                            relief=tk.SUNKEN, width=12, anchor='w')
+        self.suggested_speed_label.pack(side=tk.LEFT, padx=2)
+   
+    def update_suggested_display(self):
+        """Update suggested values display"""
+        selected_block = self.block_combo.get()
+        current_line = self.data.current_line
+        
+        if selected_block and current_line:
+            # Check local storage first
+            local_auth = self.suggested_authority.get(current_line, {}).get(selected_block)
+            local_speed = self.suggested_speed.get(current_line, {}).get(selected_block)
+            
+            if local_auth is not None:
+                self.suggested_auth_label.config(text=f"{local_auth} blocks")
+                self.suggested_speed_label.config(text=f"{local_speed} mph")
+            else:
+                # No values found - show defaults
+                self.suggested_auth_label.config(text="0 blocks")
+                self.suggested_speed_label.config(text="0 mph")
+        else:
+            # No block selected
+            self.suggested_auth_label.config(text="N/A")
+            self.suggested_speed_label.config(text="N/A")
    
     def create_commanded_section(self):
+        """Create commanded values input section - YOUR ORIGINAL DESIGN"""
         commanded_frame = tk.LabelFrame(self, text="Commanded:",
                                    bg='#cccccc', font=('Arial', 10, 'bold'))
         commanded_frame.pack(fill=tk.X, pady=5)
    
-    # Authority section
+        # Authority section - YOUR ORIGINAL DESIGN
         auth_frame = tk.Frame(commanded_frame, bg='#cccccc')
         auth_frame.pack(fill=tk.X, padx=5, pady=2)
         tk.Label(auth_frame, text="Authority:", bg='#cccccc').pack(side=tk.LEFT)
@@ -1547,7 +1682,7 @@ class RightPanel(tk.Frame):
         auth_button = tk.Button(auth_frame, text="Send", width=5, command=self.update_authority)
         auth_button.pack(side=tk.LEFT)
    
-    # Speed section
+        # Speed section - YOUR ORIGINAL DESIGN
         speed_frame = tk.Frame(commanded_frame, bg='#cccccc')
         speed_frame.pack(fill=tk.X, padx=5, pady=2)
         tk.Label(speed_frame, text="Speed:", bg='#cccccc').pack(side=tk.LEFT)
@@ -1562,45 +1697,97 @@ class RightPanel(tk.Frame):
     def update_authority(self):
         """Update commanded authority and log the change"""
         new_authority = self.auth_entry.get()
+        block = self.block_combo.get()
+        current_line = self.data.current_line
+        
+        if block and current_line:
+            # Store in local storage
+            self.commanded_authority[current_line][block] = new_authority
+            # Store in shared data if available
+            if hasattr(self.data, 'commanded_authority'):
+                self.data.commanded_authority[current_line][block] = new_authority
+        
         add_to_message_log(f"Commanded Authority updated to: {new_authority}")
-        # Here you would also update the backend data structure
-        # commanded_authority.append(new_authority)
+        self.update_commanded_display()
 
     def update_speed(self):
         """Update commanded speed and log the change"""
         new_speed = self.speed_entry.get()
+        block = self.block_combo.get()
+        current_line = self.data.current_line
+        
+        if block and current_line:
+            # Store in local storage
+            self.commanded_speed[current_line][block] = new_speed
+            # Store in shared data if available
+            if hasattr(self.data, 'commanded_speed'):
+                self.data.commanded_speed[current_line][block] = new_speed
+        
         add_to_message_log(f"Commanded Speed updated to: {new_speed}")
-    # Here you would also update the backend data structure
-    # commanded_speed.append(new_speed)
-    #######################################################################################################################
-    ######################################################################################################################
+        self.update_commanded_display()
+
+    def update_commanded_display(self):
+        """Update commanded values display"""
+        selected_block = self.block_combo.get()
+        current_line = self.data.current_line
+        
+        if selected_block and current_line:
+            # Check shared data from RailwayData if available
+            if hasattr(self.data, 'commanded_authority'):
+                data_auth = self.data.commanded_authority.get(current_line, {}).get(selected_block)
+                data_speed = self.data.commanded_speed.get(current_line, {}).get(selected_block)
+                
+                if data_auth is not None or data_speed is not None:
+                    # Update entry fields with values from shared data
+                    if data_auth is not None and self.auth_entry.get() != data_auth:
+                        self.auth_entry.delete(0, tk.END)
+                        self.auth_entry.insert(0, data_auth)
+                    if data_speed is not None and self.speed_entry.get() != data_speed:
+                        self.speed_entry.delete(0, tk.END)
+                        self.speed_entry.insert(0, data_speed)
+                    
+                    # Update local storage
+                    if data_auth is not None:
+                        self.commanded_authority[current_line][selected_block] = data_auth
+                    if data_speed is not None:
+                        self.commanded_speed[current_line][selected_block] = data_speed
+                    return
+            
+            # Fallback to local storage - update entry fields
+            local_auth = self.commanded_authority.get(current_line, {}).get(selected_block)
+            local_speed = self.commanded_speed.get(current_line, {}).get(selected_block)
+            
+            if local_auth is not None and self.auth_entry.get() != local_auth:
+                self.auth_entry.delete(0, tk.END)
+                self.auth_entry.insert(0, local_auth)
+            
+            if local_speed is not None and self.speed_entry.get() != local_speed:
+                self.speed_entry.delete(0, tk.END)
+                self.speed_entry.insert(0, local_speed)
+
     def update_suggested_speed(self, speed_value):
-    # """Update the suggested speed display with formatted value"""
-        try:
-            if speed_value is not None:
-                formatted_speed = f"{speed_value:.3f} mph"
-                self.suggested_speed_label.config(text=formatted_speed)
-                add_to_message_log(f"Suggested Speed updated to: {formatted_speed}")
-            else:
-                add_to_message_log(f"ERROR: Invalid speed value received", "ERROR")
-        except Exception as e:
-            add_to_message_log(f"ERROR updating speed display: {e}", "ERROR")
+        """Update suggested speed from external source"""
+        selected_block = self.block_combo.get()
+        current_line = self.data.current_line
+        
+        if selected_block and current_line and speed_value is not None:
+            self.suggested_speed[current_line][selected_block] = speed_value
+            self.suggested_speed_label.config(text=f"{speed_value:.3f} mph")
+            add_to_message_log(f"Suggested Speed updated to: {speed_value:.3f} mph")
 
     def update_suggested_authority(self, authority_value):
-        """Update the suggested authority display"""
-        try:
-            if authority_value is not None:
-                formatted_authority = f"{authority_value} blocks"
-                self.suggested_authority_label.config(text=formatted_authority)
-                add_to_message_log(f"Suggested Authority updated to: {formatted_authority}")
-            # else:
-            #     add_to_message_log("ERROR: Invalid authority value received", "ERROR")
-        except Exception as e:
-            add_to_message_log(f"ERROR updating authority display: {e}", "ERROR")
-   ############################################################################################################################
-   ##############################################################################################################################
+        """Update suggested authority from external source"""
+        selected_block = self.block_combo.get()
+        current_line = self.data.current_line
+        
+        if selected_block and current_line and authority_value is not None:
+            self.suggested_authority[current_line][selected_block] = authority_value
+            self.suggested_auth_label.config(text=f"{authority_value} blocks")
+            add_to_message_log(f"Suggested Authority updated to: {authority_value} blocks")
+
     def create_block_table_section(self):
-    # Search
+        """Create block status table section with horizontal scroll"""
+        # Search frame
         search_frame = tk.Frame(self, bg='#1a1a4d')
         search_frame.pack(fill=tk.X, pady=5)
         self.block_search_var = tk.StringVar()
@@ -1609,176 +1796,561 @@ class RightPanel(tk.Frame):
         block_search.pack(side=tk.LEFT, padx=5)
         tk.Label(search_frame, text="Search", bg='#1a1a4d', fg='white', font=('Arial', 9)).pack(side=tk.LEFT)
    
-    # Create scrollable table with fixed height
-        table_container = tk.Frame(self, bg='white', relief=tk.SUNKEN, borderwidth=2, height=300)
+        # Table container - FIXED HEIGHT to match other sections
+        table_container = tk.Frame(self, bg='#1a1a4d', height=300)
         table_container.pack(fill=tk.BOTH, expand=True, pady=5)
         table_container.pack_propagate(False)  # Prevent container from shrinking
    
-    # Canvas and scrollbar
-        canvas = tk.Canvas(table_container, bg='white', highlightthickness=0, width=350)
-        scrollbar = tk.Scrollbar(table_container, orient="vertical", command=canvas.yview)
-        self.block_table_frame = tk.Frame(canvas, bg='white')
-    
-    # # Create a frame for canvas and scrollbar
-        # scroll_frame = tk.Frame(table_container, bg='white')
-        # scroll_frame.pack(fill=tk.BOTH, expand=True)
-   
-   
-    # Configure scrolling
-        self.block_table_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-   
-        canvas.create_window((0, 0), window=self.block_table_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-   
-    # Pack canvas and scrollbar
-    # def configure_canvas(event):
-    #     canvas.itemconfig(canvas_window, width=event.width)
-    #     canvas.bind("<Configure>", configure_canvas)
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-   
-    # Add mousewheel scrolling
-    def _on_mousewheel(self, event):
-        canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-
-        # Force the table to be created immediately with ALL data
-        self.block_search_var.set("")  # Clear any search text
-        self.data.filter_block_data("")  # Show all data
-        return "break" # Prevent default scrolling
-    
-        canvas.bind("<MouseWheel>", _on_mousewheel)
+        # Create a frame for canvas and scrollbars
+        canvas_frame = tk.Frame(table_container, bg='#1a1a4d')
+        canvas_frame.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
+        
+        # Horizontal scrollbar (top)
+        x_scrollbar = tk.Scrollbar(canvas_frame, orient="horizontal")
+        x_scrollbar.pack(side="bottom", fill="x")
+        
+        # Vertical scrollbar (right)
+        y_scrollbar = tk.Scrollbar(canvas_frame)
+        y_scrollbar.pack(side="right", fill="y")
+        
+        # Canvas for scrolling with BOTH scrollbars
+        self.table_canvas = tk.Canvas(canvas_frame, bg='white', highlightthickness=0,
+                                     xscrollcommand=x_scrollbar.set,
+                                     yscrollcommand=y_scrollbar.set)
+        self.table_canvas.pack(side="left", fill="both", expand=True)
+        
+        # Configure scrollbars
+        x_scrollbar.config(command=self.table_canvas.xview)
+        y_scrollbar.config(command=self.table_canvas.yview)
+        
+        # Frame inside canvas for table content
+        self.block_table_frame = tk.Frame(self.table_canvas, bg='white')
+        self.canvas_window = self.table_canvas.create_window((0, 0), window=self.block_table_frame, anchor="nw")
+        
+        # Configure canvas to expand with container
+        def configure_canvas(event):
+            # Update canvas window width when canvas is resized
+            self.table_canvas.itemconfig(self.canvas_window, width=event.width)
+            # Update scroll region
+            self.table_canvas.configure(scrollregion=self.table_canvas.bbox("all"))
+        
+        self.table_canvas.bind("<Configure>", configure_canvas)
+        
+        # Mousewheel scrolling for vertical only
+        def _on_mousewheel(event):
+            self.table_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        self.table_canvas.bind("<MouseWheel>", _on_mousewheel)
         self.block_table_frame.bind("<MouseWheel>", _on_mousewheel)
-        table_container.bind("<MouseWheel>", _on_mousewheel)
-        # self.block_search_var.set("")  # Clear any search text
-        self.data.filter_block_data("")  # Show all data
+        
+        # Initial table creation
         self.create_block_table()
 
     def create_block_table(self):
-        print(f"DEBUG: Creating block table in frame: {self.block_table_frame}")
-        # print(f"DEBUG: Frame width: {self.block_table_frame.winfo_width()}, height: {self.block_table_frame.winfo_height()}")
-
-    # Clear existing widgets
+        """Create block status table with compact layout"""
+        # Clear existing widgets
         for widget in self.block_table_frame.winfo_children():
             widget.destroy()
-     # Get the filtered data
-        block_data = self.data.get_block_table_data()
-
-        # print(f"DEBUG: Block data received: {len(block_data)} rows")
-        # if block_data:
-            # print(f"DEBUG: First row: {block_data[0]}")
-            # print(f"DEBUG: Row structure: {[len(row) for row in block_data]}")
-
-    # Headers - 4 columns
+        
+        # Get filtered data for current line
+        display_data = []
+        if hasattr(self.data, 'filtered_block_data'):
+            # Use filtered data for current line
+            display_data = [row for row in self.data.filtered_block_data 
+                          if row[1] == self.data.current_line]
+        else:
+            # Use all data for current line
+            display_data = [row for row in self.data.block_data 
+                          if row[1] == self.data.current_line]
+        
+        # Headers - 5 columns with COMPACT widths to fit
         headers_frame = tk.Frame(self.block_table_frame, bg='#cccccc')
         headers_frame.pack(fill=tk.X)
-   
-    # define consistent widths for all columns
+        
+        # COMPACT column widths - adjusted to fit within panel width
         col_widths = {
-            'occupied': 8,
-            'line': 4,
-            'block': 5,
-            'section': 6,
-            'infrastructure': 14
+            'occupied': 6,      # Reduced from 8
+            'line': 4,          # Reduced from 4
+            'block': 5,         # Reduced from 5
+            'section': 5,       # Reduced from 6
+            'infrastructure': 9 # Reduced from 14
         }
-
-        tk.Label(headers_frame, text="Occupied", bg='#cccccc',
-            font=('Arial', 8, 'bold'), width=col_widths['occupied']).pack(side=tk.LEFT, padx=1)
+        
+        # Occupied header
+        tk.Label(headers_frame, text="Occ", bg='#cccccc',
+                font=('Arial', 8, 'bold'), width=col_widths['occupied']).pack(side=tk.LEFT, padx=1)
+        # Line header
         tk.Label(headers_frame, text="Line", bg='#cccccc',
-            font=('Arial', 8, 'bold'), width=col_widths['line']).pack(side=tk.LEFT, padx=1)
+                font=('Arial', 8, 'bold'), width=col_widths['line']).pack(side=tk.LEFT, padx=1)
+        # Block header
         tk.Label(headers_frame, text="Block", bg='#cccccc',
-            font=('Arial', 8, 'bold'), width=col_widths['block']).pack(side=tk.LEFT, padx=1)
-        tk.Label(headers_frame, text="Section", bg='#cccccc',
-            font=('Arial', 8, 'bold'), width=col_widths['section']).pack(side=tk.LEFT, padx=1)
-        tk.Label(headers_frame, text="Infrastructure", bg='#cccccc',
-            font=('Arial', 8, 'bold'), width=col_widths['infrastructure']).pack(side=tk.LEFT, padx=1)
-    # Data rows
-        self.block_combos = []  # Store references to comboboxes
-
-        # Use filtered data for display
-        display_data = self.data.filtered_block_data if hasattr(self.data, 'filtered_block_data') else self.data.block_data
-
+                font=('Arial', 8, 'bold'), width=col_widths['block']).pack(side=tk.LEFT, padx=1)
+        # Section header
+        tk.Label(headers_frame, text="Sec", bg='#cccccc',
+                font=('Arial', 8, 'bold'), width=col_widths['section']).pack(side=tk.LEFT, padx=1)
+        # Infrastructure header (abbreviated)
+        tk.Label(headers_frame, text="Infra", bg='#cccccc',
+                font=('Arial', 8, 'bold'), width=col_widths['infrastructure']).pack(side=tk.LEFT, padx=1)
+        
+        # Data rows
+        self.block_combos = []
+        
         for row_index, row in enumerate(display_data):
-            # print(f"DEBUG: Processing row {row_index}: {row}")
             row_frame = tk.Frame(self.block_table_frame, bg='white')
             row_frame.pack(fill='x', pady=1)
+            
+            # Find actual index in full block_data
             try:
-                while len(row) < 5:
-                    row.append("")  # Add empty strings for missing columns
-
-                if self.data.maintenance_mode:
-            # Editable in maintenance mode - OCCUPIED COMBO
-                    occ_combo = ttk.Combobox(row_frame, values=["Yes", "No"], width=col_widths['occupied']-2)
-                    occ_combo.set(row[0])
-                    occ_combo.pack(side=tk.LEFT, padx=1)
-
-            # Bind the change event to update data model
-                    occ_combo.bind('<<ComboboxSelected>>',
-                        lambda event, idx=row_index, combo=occ_combo:
-                        self.on_block_data_change(idx, 0, combo.get()))
-           
-            # LINE - READ ONLY (track color should not change)
-                    bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
-                    tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
-                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-           
-            # Block number (read-only)
-                    tk.Label(row_frame, text=row[2], bg='white', width=col_widths['block'],
-                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+                actual_index = self.data.block_data.index(row)
+            except ValueError:
+                actual_index = row_index
             
-            # Section letter (read-only)
-                    tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
-                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-             
-            #  Infrastructure (read-only) 
-                    tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
-                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-            # Store combos for potential access
-                    self.block_combos.append(occ_combo)
-           
-                else:
-            # print(f"DEBUG: Creating normal mode labels for block {row[2]}")
-                    tk.Label(row_frame, text=row[0], bg='white', width=col_widths['occupied'],
-                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-            
-                    bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
-                    tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
-                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-            
-                    tk.Label(row_frame, text=row[2], bg='white', width=col_widths['block'],
-                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-            
-                    tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
-                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-
-                    tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
-                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-            except Exception as e:
-                print(f"Error creating row {row_index}: {e} - Row data: {row}")
-    
-        # if i < 3:  # Debug first 3 rows
-        #     print(f"DEBUG: Created row {i}: {row}")
-    
-        # print(f"DEBUG: Finished creating {len(block_data)} rows")
-    # Force update
-        self.block_table_frame.update()            
-    # print("DEBUG: Finished creating block table")
+            if self.data.maintenance_mode:
+                # MAINTENANCE MODE - Editable occupancy
+                # Occupied (editable combo)
+                occ_combo = ttk.Combobox(row_frame, values=["Yes", "No"], 
+                                      width=col_widths['occupied']-2)
+                occ_combo.set(row[0])
+                occ_combo.pack(side=tk.LEFT, padx=1)
+                occ_combo.bind('<<ComboboxSelected>>',
+                    lambda event, idx=actual_index, combo=occ_combo:
+                    self.on_block_data_change(idx, 0, combo.get()))
+                self.block_combos.append(occ_combo)
+                
+                # Line (read-only with color)
+                bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
+                tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
+                       borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+                
+                # Block (read-only)
+                tk.Label(row_frame, text=str(row[2]), bg='white', width=col_widths['block'],
+                       borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+                
+                # Section (read-only)
+                tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
+                       borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+                
+                # Infrastructure (read-only, truncated if too long)
+                infra_text = str(row[4])
+                if len(infra_text) > 12:  # Truncate long infrastructure text
+                    infra_text = infra_text[:10] + "..."
+                tk.Label(row_frame, text=infra_text, bg='white', width=col_widths['infrastructure'],
+                       borderwidth=1, relief=tk.GROOVE, anchor='w').pack(side=tk.LEFT, padx=1)
+                
+            else:
+                # NORMAL MODE - all read-only
+                # Occupied with color coding
+                occupied_color = '#ff6666' if row[0] == "Yes" else '#ccffcc'
+                tk.Label(row_frame, text=row[0], bg=occupied_color, width=col_widths['occupied'],
+                       borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+                
+                # Line with color
+                bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
+                tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
+                       borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+                
+                # Block
+                tk.Label(row_frame, text=str(row[2]), bg='white', width=col_widths['block'],
+                       borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+                
+                # Section
+                tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
+                       borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+                
+                # Infrastructure (truncated if too long)
+                infra_text = str(row[4])
+                if len(infra_text) > 12:  # Truncate long infrastructure text
+                    infra_text = infra_text[:10] + "..."
+                tk.Label(row_frame, text=infra_text, bg='white', width=col_widths['infrastructure'],
+                       borderwidth=1, relief=tk.GROOVE, anchor='w').pack(side=tk.LEFT, padx=1)
 
     def on_block_data_change(self, row_index, col_index, new_value):
-        """Callback when any block data is changed in maintenance mode"""
-        print(f"Block data changed: row {row_index}, col {col_index}, value '{new_value}'")
+        """Callback when block data is changed in maintenance mode"""
         self.data.update_block_data(row_index, col_index, new_value)
+        
+        # Update current block display if this is the selected block
+        selected_block = self.block_combo.get()
+        if selected_block:
+            block_num = self.data.block_data[row_index][2]
+            if str(block_num) == str(selected_block):
+                self.update_current_block_info()
        
     def filter_block_table(self, *args):
+        """Filter block table based on search term"""
         search_term = self.block_search_var.get().lower()
         self.data.filter_block_data(search_term)
         self.create_block_table()
    
     def update_mode_ui(self):
-        """Refresh block table when mode changes"""
+        """Refresh UI when maintenance mode changes"""
         self.create_block_table()
+        self.update_current_block_info()
+   
+    def on_line_changed(self):
+        """Refresh right panel when line changes"""
+        self.update_block_options()
+        self.create_block_table()
+        self.update_current_block_info()
+        self.update_suggested_display()
+        self.update_commanded_display()
+        
+    def set_yard_to_station_commands(self):
+        """Set hardcoded commanded values for yard to station"""
+        current_line = "Green"
+        
+        # Outbound: Yard (63) to Station (96)
+        blocks_outbound = list(range(63, 97))
+        authority = len(blocks_outbound) - 1
+        
+        for block_num in blocks_outbound:
+            self.commanded_authority[current_line][str(block_num)] = f"{authority} blocks"
+            self.commanded_speed[current_line][str(block_num)] = "31 mph" if authority > 0 else "0 mph"
+            authority -= 1
+        
+        # Return: Station (96) back to Yard (57)
+        blocks_return = list(range(96, 56, -1))
+        authority = len(blocks_return) - 1
+        
+        for block_num in blocks_return:
+            self.commanded_authority[current_line][str(block_num)] = f"{authority} blocks"
+            self.commanded_speed[current_line][str(block_num)] = "31 mph" if authority > 0 else "0 mph"
+            authority -= 1
+        
+        # Final destinations
+        self.commanded_authority[current_line]["96"] = "0 blocks"
+        self.commanded_speed[current_line]["96"] = "0 mph"
+        self.commanded_authority[current_line]["57"] = "0 blocks"
+        self.commanded_speed[current_line]["57"] = "0 mph"
+        
+        # Update display if on Green line
+        if self.data.current_line == "Green":
+            self.update_commanded_display()
+
+
+
+
+
+# # ---------- RIGHT PANEL ---------- #
+# class RightPanel(tk.Frame):
+#     def __init__(self, parent, data):
+#         super().__init__(parent, bg='#1a1a4d', width=250)
+#         self.pack_propagate(False)
+#         self.data = data
+        
+#         #attributes for suggested speed/authority
+#         self.suggested_speed_label = None
+#         self.suggested_authority_label = None
+#         # self.create_suggested_section()
+
+#         # Connect line change callback
+#         self.data.on_line_change.append(self.on_line_changed)
+#         self.data.on_block_change.append(self.on_block_data_changed)
+
+#          # Clear any search filters and show all data
+#         if hasattr(self.data, 'filtered_block_data'):
+#             self.data.filtered_block_data = self.data.block_data.copy()
+#         self.create_widgets()
+#     def on_block_data_changed(self, row_index, col_index, new_value):
+#         # Update only the affected row in the table if maintenance mode
+#         if self.data.maintenance_mode:
+#             self.create_block_table()  # Simple approach: rebuild table
+#         add_to_message_log(f"[Main UI] Block {self.data.block_data[row_index][2]} updated to {new_value}")
+   
+#     def create_widgets(self):
+#         # Block selector
+#         block_frame = tk.Frame(self, bg='#cccccc')
+#         block_frame.pack(fill=tk.X, pady=5)
+#         tk.Label(block_frame, text="Block", bg='#cccccc').pack(side=tk.LEFT, padx=5)
+       
+#         # Update block combo based on current line
+#         self.block_combo = ttk.Combobox(block_frame, width=15, state='readonly')
+#         self.block_combo.pack(side=tk.LEFT, padx=5)
+#         self.update_block_options()
+
+#         # Suggested section
+#         self.create_suggested_section()
+       
+#         # Commanded section
+#         self.create_commanded_section()
+       
+#         # Search and block table
+#         self.create_block_table_section()
+
+#     def update_block_options(self):
+#         """Update block selector based on current line"""
+#         blocks = [row[2] for row in self.data.block_data]
+#         self.block_combo['values'] = blocks
+#         if blocks:
+#             self.block_combo.set(blocks[0])
+   
+#     def on_line_changed(self):
+#         """Refresh right panel when line changes"""
+#         print(f"Right panel: Line changed to {self.data.current_line}")
+#         self.update_block_options()
+#         self.create_block_table()
+   
+#     def create_suggested_section(self):
+#         suggested_frame = tk.LabelFrame(self, text="Suggested:",
+#                                        bg='#cccccc', font=('Arial', 10, 'bold'))
+#         suggested_frame.pack(fill=tk.X, pady=5)
+#        # Authority:
+#         tk.Label(suggested_frame, text="Authority:", bg='#cccccc').pack(anchor='w', padx=5)
+#         tk.Label(suggested_frame, text="0 blocks", bg='white',
+#                 relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
+#         #Speed:
+#         tk.Label(suggested_frame, text="Speed:", bg='#cccccc').pack(anchor='w', padx=5)
+#         tk.Label(suggested_frame, text="0.000 mph", bg='white',
+#                 relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
+   
+#     def create_commanded_section(self):
+#         commanded_frame = tk.LabelFrame(self, text="Commanded:",
+#                                    bg='#cccccc', font=('Arial', 10, 'bold'))
+#         commanded_frame.pack(fill=tk.X, pady=5)
+   
+#     # Authority section
+#         auth_frame = tk.Frame(commanded_frame, bg='#cccccc')
+#         auth_frame.pack(fill=tk.X, padx=5, pady=2)
+#         tk.Label(auth_frame, text="Authority:", bg='#cccccc').pack(side=tk.LEFT)
+   
+#         self.auth_entry = tk.Entry(auth_frame, width=10)
+#         self.auth_entry.insert(0, "2 blocks")  # Default value
+#         self.auth_entry.pack(side=tk.LEFT, padx=2)
+   
+#         auth_button = tk.Button(auth_frame, text="Send", width=5, command=self.update_authority)
+#         auth_button.pack(side=tk.LEFT)
+   
+#     # Speed section
+#         speed_frame = tk.Frame(commanded_frame, bg='#cccccc')
+#         speed_frame.pack(fill=tk.X, padx=5, pady=2)
+#         tk.Label(speed_frame, text="Speed:", bg='#cccccc').pack(side=tk.LEFT)
+   
+#         self.speed_entry = tk.Entry(speed_frame, width=10)
+#         self.speed_entry.insert(0, "38 mph")  # Default value
+#         self.speed_entry.pack(side=tk.LEFT, padx=2)
+   
+#         speed_button = tk.Button(speed_frame, text="Send", width=5, command=self.update_speed)
+#         speed_button.pack(side=tk.LEFT)
+
+#     def update_authority(self):
+#         """Update commanded authority and log the change"""
+#         new_authority = self.auth_entry.get()
+#         add_to_message_log(f"Commanded Authority updated to: {new_authority}")
+#         # Here you would also update the backend data structure
+#         # commanded_authority.append(new_authority)
+
+#     def update_speed(self):
+#         """Update commanded speed and log the change"""
+#         new_speed = self.speed_entry.get()
+#         add_to_message_log(f"Commanded Speed updated to: {new_speed}")
+#     # Here you would also update the backend data structure
+#     # commanded_speed.append(new_speed)
+#     #######################################################################################################################
+#     ######################################################################################################################
+#     def update_suggested_speed(self, speed_value):
+#     # """Update the suggested speed display with formatted value"""
+#         try:
+#             if speed_value is not None:
+#                 formatted_speed = f"{speed_value:.3f} mph"
+#                 self.suggested_speed_label.config(text=formatted_speed)
+#                 add_to_message_log(f"Suggested Speed updated to: {formatted_speed}")
+#             else:
+#                 add_to_message_log(f"ERROR: Invalid speed value received", "ERROR")
+#         except Exception as e:
+#             add_to_message_log(f"ERROR updating speed display: {e}", "ERROR")
+
+#     def update_suggested_authority(self, authority_value):
+#         """Update the suggested authority display"""
+#         try:
+#             if authority_value is not None:
+#                 formatted_authority = f"{authority_value} blocks"
+#                 self.suggested_authority_label.config(text=formatted_authority)
+#                 add_to_message_log(f"Suggested Authority updated to: {formatted_authority}")
+#             # else:
+#             #     add_to_message_log("ERROR: Invalid authority value received", "ERROR")
+#         except Exception as e:
+#             add_to_message_log(f"ERROR updating authority display: {e}", "ERROR")
+#    ############################################################################################################################
+#    ##############################################################################################################################
+#     def create_block_table_section(self):
+#     # Search
+#         search_frame = tk.Frame(self, bg='#1a1a4d')
+#         search_frame.pack(fill=tk.X, pady=5)
+#         self.block_search_var = tk.StringVar()
+#         self.block_search_var.trace('w', self.filter_block_table)
+#         block_search = tk.Entry(search_frame, textvariable=self.block_search_var, width=20)
+#         block_search.pack(side=tk.LEFT, padx=5)
+#         tk.Label(search_frame, text="Search", bg='#1a1a4d', fg='white', font=('Arial', 9)).pack(side=tk.LEFT)
+   
+#     # Create scrollable table with fixed height
+#         table_container = tk.Frame(self, bg='white', relief=tk.SUNKEN, borderwidth=2, height=300)
+#         table_container.pack(fill=tk.BOTH, expand=True, pady=5)
+#         table_container.pack_propagate(False)  # Prevent container from shrinking
+   
+#     # Canvas and scrollbar
+#         canvas = tk.Canvas(table_container, bg='white', highlightthickness=0, width=350)
+#         scrollbar = tk.Scrollbar(table_container, orient="vertical", command=canvas.yview)
+#         self.block_table_frame = tk.Frame(canvas, bg='white')
+    
+#     # # Create a frame for canvas and scrollbar
+#         # scroll_frame = tk.Frame(table_container, bg='white')
+#         # scroll_frame.pack(fill=tk.BOTH, expand=True)
+   
+   
+#     # Configure scrolling
+#         self.block_table_frame.bind(
+#             "<Configure>",
+#             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+#         )
+   
+#         canvas.create_window((0, 0), window=self.block_table_frame, anchor="nw")
+#         canvas.configure(yscrollcommand=scrollbar.set)
+   
+#     # Pack canvas and scrollbar
+#     # def configure_canvas(event):
+#     #     canvas.itemconfig(canvas_window, width=event.width)
+#     #     canvas.bind("<Configure>", configure_canvas)
+#         canvas.pack(side="left", fill="both", expand=True)
+#         scrollbar.pack(side="right", fill="y")
+   
+#     # Add mousewheel scrolling
+#     def _on_mousewheel(self, event):
+#         canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+
+#         # Force the table to be created immediately with ALL data
+#         self.block_search_var.set("")  # Clear any search text
+#         self.data.filter_block_data("")  # Show all data
+#         return "break" # Prevent default scrolling
+    
+#         canvas.bind("<MouseWheel>", _on_mousewheel)
+#         self.block_table_frame.bind("<MouseWheel>", _on_mousewheel)
+#         table_container.bind("<MouseWheel>", _on_mousewheel)
+#         # self.block_search_var.set("")  # Clear any search text
+#         self.data.filter_block_data("")  # Show all data
+#         self.create_block_table()
+
+#     def create_block_table(self):
+#         print(f"DEBUG: Creating block table in frame: {self.block_table_frame}")
+#         # print(f"DEBUG: Frame width: {self.block_table_frame.winfo_width()}, height: {self.block_table_frame.winfo_height()}")
+
+#     # Clear existing widgets
+#         for widget in self.block_table_frame.winfo_children():
+#             widget.destroy()
+#      # Get the filtered data
+#         block_data = self.data.get_block_table_data()
+
+#         # print(f"DEBUG: Block data received: {len(block_data)} rows")
+#         # if block_data:
+#             # print(f"DEBUG: First row: {block_data[0]}")
+#             # print(f"DEBUG: Row structure: {[len(row) for row in block_data]}")
+
+#     # Headers - 4 columns
+#         headers_frame = tk.Frame(self.block_table_frame, bg='#cccccc')
+#         headers_frame.pack(fill=tk.X)
+   
+#     # define consistent widths for all columns
+#         col_widths = {
+#             'occupied': 8,
+#             'line': 4,
+#             'block': 5,
+#             'section': 6,
+#             'infrastructure': 14
+#         }
+
+#         tk.Label(headers_frame, text="Occupied", bg='#cccccc',
+#             font=('Arial', 8, 'bold'), width=col_widths['occupied']).pack(side=tk.LEFT, padx=1)
+#         tk.Label(headers_frame, text="Line", bg='#cccccc',
+#             font=('Arial', 8, 'bold'), width=col_widths['line']).pack(side=tk.LEFT, padx=1)
+#         tk.Label(headers_frame, text="Block", bg='#cccccc',
+#             font=('Arial', 8, 'bold'), width=col_widths['block']).pack(side=tk.LEFT, padx=1)
+#         tk.Label(headers_frame, text="Section", bg='#cccccc',
+#             font=('Arial', 8, 'bold'), width=col_widths['section']).pack(side=tk.LEFT, padx=1)
+#         tk.Label(headers_frame, text="Infrastructure", bg='#cccccc',
+#             font=('Arial', 8, 'bold'), width=col_widths['infrastructure']).pack(side=tk.LEFT, padx=1)
+#     # Data rows
+#         self.block_combos = []  # Store references to comboboxes
+
+#         # Use filtered data for display
+#         display_data = self.data.filtered_block_data if hasattr(self.data, 'filtered_block_data') else self.data.block_data
+
+#         for row_index, row in enumerate(display_data):
+#             # print(f"DEBUG: Processing row {row_index}: {row}")
+#             row_frame = tk.Frame(self.block_table_frame, bg='white')
+#             row_frame.pack(fill='x', pady=1)
+#             try:
+#                 while len(row) < 5:
+#                     row.append("")  # Add empty strings for missing columns
+
+#                 if self.data.maintenance_mode:
+#             # Editable in maintenance mode - OCCUPIED COMBO
+#                     occ_combo = ttk.Combobox(row_frame, values=["Yes", "No"], width=col_widths['occupied']-2)
+#                     occ_combo.set(row[0])
+#                     occ_combo.pack(side=tk.LEFT, padx=1)
+
+#             # Bind the change event to update data model
+#                     occ_combo.bind('<<ComboboxSelected>>',
+#                         lambda event, idx=row_index, combo=occ_combo:
+#                         self.on_block_data_change(idx, 0, combo.get()))
+           
+#             # LINE - READ ONLY (track color should not change)
+#                     bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
+#                     tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
+#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+           
+#             # Block number (read-only)
+#                     tk.Label(row_frame, text=row[2], bg='white', width=col_widths['block'],
+#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+            
+#             # Section letter (read-only)
+#                     tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
+#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+             
+#             #  Infrastructure (read-only) 
+#                     tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
+#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+#             # Store combos for potential access
+#                     self.block_combos.append(occ_combo)
+           
+#                 else:
+#             # print(f"DEBUG: Creating normal mode labels for block {row[2]}")
+#                     tk.Label(row_frame, text=row[0], bg='white', width=col_widths['occupied'],
+#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+            
+#                     bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
+#                     tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
+#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+            
+#                     tk.Label(row_frame, text=row[2], bg='white', width=col_widths['block'],
+#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+            
+#                     tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
+#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+
+#                     tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
+#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
+#             except Exception as e:
+#                 print(f"Error creating row {row_index}: {e} - Row data: {row}")
+    
+#         # if i < 3:  # Debug first 3 rows
+#         #     print(f"DEBUG: Created row {i}: {row}")
+    
+#         # print(f"DEBUG: Finished creating {len(block_data)} rows")
+#     # Force update
+#         self.block_table_frame.update()            
+#     # print("DEBUG: Finished creating block table")
+
+#     def on_block_data_change(self, row_index, col_index, new_value):
+#         """Callback when any block data is changed in maintenance mode"""
+#         print(f"Block data changed: row {row_index}, col {col_index}, value '{new_value}'")
+#         self.data.update_block_data(row_index, col_index, new_value)
+       
+#     def filter_block_table(self, *args):
+#         search_term = self.block_search_var.get().lower()
+#         self.data.filter_block_data(search_term)
+#         self.create_block_table()
+   
+#     def update_mode_ui(self):
+#         """Refresh block table when mode changes"""
+#         self.create_block_table()
 #############################################################################################################
 ################################################################################################################
     
