@@ -1,5 +1,3 @@
-from BeaconData import BeaconData
-
 class GreenLine:
     def __init__(self):
         self.blocks = [
@@ -150,11 +148,7 @@ class GreenLine:
             {"block_number": 145, "section": "X", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
             {"block_number": 146, "section": "X", "block_length_m": 164, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
         ]
-    YardToGlenbury1 = BeaconData(64, 2000, "Glenbury")
-    Glenbury1ToDormont1 = BeaconData(102, 800, "Dormont")
-    Dormont1ToMtLebanon = BeaconData(97, 700, "Mt Lebanon")
-    MtLebanonToPoplar = BeaconData(72, 600, "Poplar")
-    PoplarToCastleShannon = BeaconData(80, 500, "Castle Shannon")
+
     def get_value(self, block_number, key):
         """
         Get a value from a specific block.
@@ -186,3 +180,240 @@ class GreenLine:
                 return block
         return None
 
+class BeaconData:
+    def __init__(self, beacon_number, distance_to_next=None, forward_station_name=None, backward_station_name=None):
+        self.block_number = beacon_number
+        self.distance_to_next = distance_to_next
+        self.forward_station_name = forward_station_name
+        self.backward_station_name = backward_station_name
+
+
+# Beacon 1: Glenbury (Block 60) to Dormont (Block 68)
+# Distance: 50 + 100 + 100 + 100 + 100 + 100 + 100 + 50 = 800m
+# Midpoint distance: 400m from each station
+# Beacon placed at: Block 64 (midpoint between blocks)
+glenburyToDormont = BeaconData(
+    beacon_number=64,
+    distance_to_next=400.0,
+    forward_station_name="Dormont",
+    backward_station_name="Glenbury"
+)
+
+# Beacon 2: Dormont (Block 68) to MT Lebanon (Block 71)
+# Distance: 50 + 100 + 100 + 50 = 300m
+# Midpoint distance: 150m from each station
+# Beacon placed at: Block 70 (midpoint between blocks)
+dormountToMTLebanon = BeaconData(
+    beacon_number=70,
+    distance_to_next=150.0,
+    forward_station_name="MT Lebanon",
+    backward_station_name="Dormont"
+)
+
+# Beacon 3: MT Lebanon (Block 71) to Poplar (Block 79)
+# Distance: 50 + 200 + 300 + 300 + 300 + 200 + 100 + 50 = 1500m
+# Midpoint distance: 750m from each station
+# Beacon placed at: Block 75 (midpoint between blocks)
+mtLebanoToPoplar = BeaconData(
+    beacon_number=75,
+    distance_to_next=750.0,
+    forward_station_name="Poplar",
+    backward_station_name="MT Lebanon"
+)
+
+# Beacon 4: Poplar (Block 79) to Castle Shannon (Block 85)
+# Distance: 50 + 75 + 75 + 75 + 75 + 75 + 50 = 475m
+# Midpoint distance: 237.5m from each station
+# Beacon placed at: Block 82 (midpoint between blocks)
+poplarToCastleShannon = BeaconData(
+    beacon_number=82,
+    distance_to_next=237.5,
+    forward_station_name="Castle Shannon",
+    backward_station_name="Poplar"
+)
+
+# Beacon 5: Castle Shannon (Block 85) to MT Lebanon (Block 71)
+# Distance: 50 + 75 + 75 + 100 + 100 + 100 + 100 + 100 + 100 + 100 + 100 + 100 + 50 = 1150m
+# Midpoint distance: 575m from each station
+# Beacon placed at: Block 78 (midpoint between blocks)
+castleShannonToMTLebanon = BeaconData(
+    beacon_number=78,
+    distance_to_next=575.0,
+    forward_station_name="MT Lebanon",
+    backward_station_name="Castle Shannon"
+)
+
+# Beacon 6: MT Lebanon (Block 71) to Dormont (Block 96)
+# Distance: 50 + 100 + 100 + 100 + 100 + 100 + 100 + 100 + 100 + 100 + 100 + 80 + 50 = 1180m
+# Midpoint distance: 590m from each station
+# Beacon placed at: Block 83 (midpoint between blocks)
+mtLebanonToDormount2 = BeaconData(
+    beacon_number=83,
+    distance_to_next=590.0,
+    forward_station_name="Dormont",
+    backward_station_name="MT Lebanon"
+)
+
+# Beacon 7: Dormont (Block 96) to Glenbury (Block 101)
+# Distance: 50 + 100 + 100 + 100 + 100 + 50 = 500m
+# Midpoint distance: 250m from each station
+# Beacon placed at: Block 98 (midpoint between blocks)
+dormountToGlenbury = BeaconData(
+    beacon_number=98,
+    distance_to_next=250.0,
+    forward_station_name="Glenbury",
+    backward_station_name="Dormont"
+)
+
+# Beacon 8: Glenbury (Block 101) to Overbrook (Block 122)
+# Distance: 50 + 100 + 100 + 100 + 100 + 50 + 50 + 50 + 50 + 50 + 50 + 50 + 50 + 50 + 50 + 50 + 50 + 50 + 50 + 50 + 50 = 1300m
+# Midpoint distance: 650m from each station
+# Beacon placed at: Block 111 (midpoint between blocks)
+glenburyToOverbrook = BeaconData(
+    beacon_number=111,
+    distance_to_next=650.0,
+    forward_station_name="Overbrook",
+    backward_station_name="Glenbury"
+)
+
+# Beacon 9: Overbrook (Block 122) to Inglewood (Block 132)
+# Distance: 25 + 50 + 50 + 50 + 50 + 50 + 50 + 50 + 50 + 50 + 25 = 500m
+# Midpoint distance: 250m from each station
+# Beacon placed at: Block 127 (midpoint between blocks)
+overbrookToInglewood = BeaconData(
+    beacon_number=127,
+    distance_to_next=250.0,
+    forward_station_name="Inglewood",
+    backward_station_name="Overbrook"
+)
+
+# Beacon 10: Inglewood (Block 132) to Central (Block 140)
+# Distance: 25 + 50 + 50 + 50 + 50 + 50 + 50 + 50 + 25 = 400m
+# Midpoint distance: 200m from each station
+# Beacon placed at: Block 136 (midpoint between blocks)
+inglewoodToCentral = BeaconData(
+    beacon_number=136,
+    distance_to_next=200.0,
+    forward_station_name="Central",
+    backward_station_name="Inglewood"
+)
+
+# Beacon 11: Central (Block 140) to Whited (Block 16)
+# Distance: 25 + 50*54 + 75 + 25 = 5325m
+# Midpoint distance: 2662.5m from each station
+# Beacon placed at: Block 78 (midpoint between blocks)
+centralToWhited = BeaconData(
+    beacon_number=78,
+    distance_to_next=2662.5,
+    forward_station_name="Whited",
+    backward_station_name="Central"
+)
+
+# Beacon 12: Whited (Block 16) to LLC (Block 13)
+# Distance: 75 + 150 + 75 = 300m
+# Midpoint distance: 150m from each station
+# Beacon placed at: Block 14 (midpoint between blocks)
+whitedToLLC = BeaconData(
+    beacon_number=14,
+    distance_to_next=150.0,
+    forward_station_name="LLC",
+    backward_station_name="Whited"
+)
+
+# Beacon 13: LLC (Block 13) to Edgebrook (Block 7)
+# Distance: 75 + 100 + 100 + 100 + 100 + 75 = 550m
+# Midpoint distance: 275m from each station
+# Beacon placed at: Block 10 (midpoint between blocks)
+llcToEdgebrook = BeaconData(
+    beacon_number=10,
+    distance_to_next=275.0,
+    forward_station_name="Edgebrook",
+    backward_station_name="LLC"
+)
+
+# Beacon 14: Edgebrook (Block 7) to Pioneer (Block 1)
+# Distance: 50 + 100 + 100 + 100 + 100 + 50 = 500m
+# Midpoint distance: 250m from each station
+# Beacon placed at: Block 4 (midpoint between blocks)
+edgebrookToPioneer = BeaconData(
+    beacon_number=4,
+    distance_to_next=250.0,
+    forward_station_name="Pioneer",
+    backward_station_name="Edgebrook"
+)
+
+# Beacon 15: Pioneer (Block 1) to LLC (Block 13)
+# Distance: 50 + 100 + 100 + 100 + 100 + 75 + 150 + 75 = 750m
+# Midpoint distance: 375m from each station
+# Beacon placed at: Block 7 (midpoint between blocks)
+pioneerToLLC = BeaconData(
+    beacon_number=7,
+    distance_to_next=375.0,
+    forward_station_name="LLC",
+    backward_station_name="Pioneer"
+)
+
+# Beacon 16: LLC (Block 13) to Whited (Block 16)
+# Distance: 75 + 150 + 75 = 300m
+# Midpoint distance: 150m from each station
+# Beacon placed at: Block 14 (midpoint between blocks)
+llcToWhited = BeaconData(
+    beacon_number=14,
+    distance_to_next=150.0,
+    forward_station_name="Whited",
+    backward_station_name="LLC"
+)
+
+# Beacon 17: Whited (Block 16) to South Bank (Block 25)
+# Distance: 75 + 50 + 50 + 50 + 50 + 50 + 50 + 75 = 400m
+# Midpoint distance: 200m from each station
+# Beacon placed at: Block 20 (midpoint between blocks)
+whitedToSouthBank = BeaconData(
+    beacon_number=20,
+    distance_to_next=200.0,
+    forward_station_name="South Bank",
+    backward_station_name="Whited"
+)
+
+# Beacon 18: South Bank (Block 25) to Central (Block 31)
+# Distance: 25 + 50 + 50 + 50 + 50 + 50 + 25 = 300m
+# Midpoint distance: 150m from each station
+# Beacon placed at: Block 28 (midpoint between blocks)
+southBankToCentral = BeaconData(
+    beacon_number=28,
+    distance_to_next=150.0,
+    forward_station_name="Central",
+    backward_station_name="South Bank"
+)
+
+# Create list of all beacons
+beacons = [
+    glenburyToDormont,
+    dormountToMTLebanon,
+    mtLebanoToPoplar,
+    poplarToCastleShannon,
+    castleShannonToMTLebanon,
+    mtLebanonToDormount2,
+    dormountToGlenbury,
+    glenburyToOverbrook,
+    overbrookToInglewood,
+    inglewoodToCentral,
+    centralToWhited,
+    whitedToLLC,
+    llcToEdgebrook,
+    edgebrookToPioneer,
+    pioneerToLLC,
+    llcToWhited,
+    whitedToSouthBank,
+    southBankToCentral,
+]
+
+# Display beacon data
+print("Green Line Beacon Midpoints\n" + "="*120)
+print(f"{'Beacon':<10} {'Block':<8} {'Distance to Station (m)':<25} {'Backward Station':<20} {'→':<3} {'Forward Station':<20}")
+print("="*120)
+for idx, beacon in enumerate(beacons, 1):
+    print(f"{idx:<10} {beacon.block_number:<8} {beacon.distance_to_next:<25.1f} {beacon.backward_station_name:<20} {'→':<3} {beacon.forward_station_name:<20}")
+
+print("="*120)
+print(f"Total Beacons: {len(beacons)}")
