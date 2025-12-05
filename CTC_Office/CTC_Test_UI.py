@@ -485,5 +485,5 @@ class TestUI:
 
         self.send_to_ui("TL", ["13", "green"])
 
-        for i in range (14, 64):
+        for i in range (14, 59):
             self.send_to_ui("TL", [str(i), "green"])

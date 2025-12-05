@@ -238,20 +238,60 @@ class RailwayControlSystem:
     def send_light_state(self,track, block, color):
         """Send Light State to CTC and Track Model"""
         if (color == 'Red'):
-            color = "00"
+            color_ctc = "00"
         elif (color == 'Yellow'):
-            color = "01"
+            color_ctc = "01"
         elif (color == 'Green'):
-            color = "10"
+            color_ctc = "10"
         else:
-            color ="11"
+            color_ctc ="11"
 
         message = {
             "command": "LS",
-            "value": [block, color, track]
+            "value": [block, color_ctc, track]
         }
 
         self.send_to_CTC(message)
+
+        # Send ALL light states to Track Model in [{'0','1'}, {'0','1'}, ...] format
+        self.send_all_lights_to_track_model(track)
+
+    def send_all_lights_to_track_model(self, track):
+        """Send ALL light states for a track to Track Model in [{'0','1'}, ...] format"""
+        # Build array of all light states
+        light_list = []
+        
+        # Get all lights for this track, sorted by block number
+        lights = []
+        for light_name, light_data in self.data.light_states.items():
+            if light_data.get("line") == track:
+                block_num = int(light_name.split(" ")[1])
+                signal = light_data.get("signal", "Green")
+                # Convert signal to {'0','1'} format
+                if signal == 'Red':
+                    color_set = ['0','0']
+                elif signal == 'Yellow':
+                    color_set = ['0','1']
+                elif signal == 'Green':
+                    color_set = ['1','0']
+                else:  # super green
+                    color_set = ['1','1']
+                lights.append((block_num, color_set))
+        
+        # Sort by block number (smallest first)
+        lights.sort(key=lambda x: x[0])
+        
+        # Add color sets in sorted order
+        for block_num, color_set in lights:
+            light_list.append(color_set)
+        
+        # Send to Track Model
+        track_model_message = {
+            "command": "light_states",
+            "value": light_list  # [['0','1'], ['0','1'], ...] in block order
+        }
+        
+        self.send_to_track_model(track_model_message)
 
     def send_occupancy(self, track, block, occupied):
         """Send Occupany to CTC"""
@@ -277,6 +317,41 @@ class RailwayControlSystem:
         }
         
         self.send_to_CTC(message)
+        self.send_rc_to_track_model(track)
+    
+    def send_rc_to_track_model(self, track):
+        """Send all railway crossing states to Track Model"""
+        # Build array of all railway crossing states
+        rc_list = []
+        
+        # Get all railway crossings for the current track
+        crossings = []
+        for crossing_name, crossing_data in self.data.railway_crossings.items():
+            if crossing_data.get("line") == track:
+                # Extract block number and convert to integer for sorting
+                block_num = int(crossing_name.split(" ")[1])
+                # Get crossing state (0 for Open, 1 for Closed)
+                bar_state = crossing_data.get("bar", "Open")
+                state = 1 if bar_state == "Closed" else 0
+                crossings.append((block_num, state))
+        
+        # Sort by block number (smallest first)
+        crossings.sort(key=lambda x: x[0])
+        
+        # Add states in sorted order
+        for block_num, state in crossings:
+            rc_list.append(state)
+        
+        rc_message = {
+            "command": "rc_states",  # Or "railway_crossing_states"
+            "value": rc_list  # This will be [state1, state2, ...] in block order
+        }
+        
+        print(f"Sending all railway crossings to track model: {rc_message}")
+        return self.send_to_track_model(rc_message)
+
+
+    
 
 
 
