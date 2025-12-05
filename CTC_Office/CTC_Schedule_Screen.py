@@ -51,6 +51,10 @@ class ScheduleScreen:
                              "from Overbrook 1": 8, "from Inglewood 1": 8, "from Central 1": 10, "from Pioneer": 6,
                              "from Edgebrook": 6, "from LLC Plaza": 5, "from Whited": 8, "from South Bank": 7, "from Central 2": 8,
                              "from Inglewood 2": 8, "from Overbrook 2": 7}
+        self.greenStationLocations = {63: "start", 65: "Glenbury", 73: "Dormont", 77: "Mt. Lebanon", 88: "Poplar",
+                                      96: "Castle Shannon", 105: "Dormont", 114: "Glenbury", 123: "Overbrook", 132: "Inglewood",
+                                      141: "Central", 2: "Pioneer", 9: "Edgebrook", 16: "LLC Plaza", 22: "Whited", 31: "South Bank",
+                                      39: "Central", 48: "Inglewood", 57: "Overbrook", 58: "end"}
 
         self.trainRoutes = {}
 
@@ -283,20 +287,16 @@ class ScheduleScreen:
                     level = self.meArea.insert('', "end", text = line.title())
                     self.meArea.insert(level, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination, time])
 
-            self.trainRoutes[self.trainNum] = [63, line, destination]
+            self.trainRoutes[self.trainNum] = [63, line, "forward", destination]
 
             self.trainNum += 1
-
-            if (destination == "Glenbury" or destination == "Dormont" or destination == "Overbrook" or destination == "Inglewood" or destination == "Central"):
-                destination = destination + " 1"
             
             for key in self.distToNext:
                 if (key == "from " + destination):
                     break
                 distToStation += self.distToNext[key]
-                auth += self.blocksToNext[key]
-                auth += 1
-            auth -= 2 #-1 for yard, -1 for giving train time to stop
+            
+            auth = self.calculateAuthority(self.trainRoutes[self.trainNum - 1], destination) - 1
             speed = float(distToStation) / arrTime * 2.237
 
             self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(self.trainNum - 1), f"{speed:.3f}", str(auth), line]})
@@ -308,56 +308,76 @@ class ScheduleScreen:
         else:
         #if we are updating a train on the line
             updated = False
+            train = 0
 
             for key in self.trainRoutes:
-                '''add cases for moving backwards here'''
                 if (line == "green"):
+
+                    '''statements to move the train'''
                     if ((self.trainRoutes[key][0] + 1) == int(location)):
                         self.updateTrainInManualEdit(key, location)
                         updated = True
-                        break
                     elif (self.trainRoutes[key][0] == 100 and int(location) == 85):
                     #switch from 100->85
                         self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "backward"
                         updated = True
-                        break
                     elif (self.trainRoutes[key][0] == 76 and int(location) == 101):
                     #switch from 76->101
                         self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "forward"
                         updated = True
-                        break
                     elif (self.trainRoutes[key][0] == 150 and int(location) == 28):
                     #switch from 150->28
                         self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "backward"
                         updated = True
-                        break
                     elif (self.trainRoutes[key][0] == 1 and int(location) == 13):
                     #switch from 1->13
                         self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "forward"
                         updated = True
-                        break
                     elif (self.trainRoutes[key][0] in range(1, 29) and self.trainRoutes[key][0] == int(location) + 1):
                     #if moving backwards
                         self.updateTrainInManualEdit(key, location)
                         updated = True
-                        break
                     elif (self.trainRoutes[key][0] in range(76, 86) and self.trainRoutes[key][0] == int(location) + 1):
                     #if moving backwards
                         self.updateTrainInManualEdit(key, location)
                         updated = True
-                        break
-                
-                else:
-                #if line is the red line
-                    if ((self.trainRoutes[key][0] + 1) == int(location)):
-                        self.updateTrainInManualEdit(key, location)
-                        updated = True
-                        break
+
+                    if (len(self.trainRoutes[key]) == 3):
+                        if (self.trainRoutes[key][0] == 58):
+                            pass
+
+                    else:
+                        if (self.trainRoutes[key][0] in self.greenStationLocations):
+                            if (self.trainRoutes[key][3] == self.greenStationLocations[self.trainRoutes[key][0]]):
+
+                                self.trainRoutes[key].remove(self.trainRoutes[key][3])
+
+                                if (len(self.trainRoutes[key]) == 3):
+                                #if there is no more destination backlog go to yard
+                                    auth = self.calculateAuthority(self.trainRoutes[key], "end")
+
+                                    children = self.meArea.get_children("")
+                                    for child in children: 
+                                    #iterate for each parent in the Treeview
+                                        for item in self.meArea.get_children(child):
+                                        #iterate for each child of every parent in the Treeview
+                                            dest = self.meArea.item(item, "text")
+                                            if (dest == "Train " + str(key)):
+                                                self.meArea.item(item, values = ["Block " + location, "Yard", "00:00"])
+                                                break
+                                else:
+                                #otherwise go to next station
+                                    pass
 
                 
             if (not updated):
             #case for if this is not the next block for any train
                 self.mainScreen.updateMainScreen("TS", [location, line])
+                return
 
             
 
@@ -378,6 +398,59 @@ class ScheduleScreen:
                     break
         
         self.trainRoutes[key][0] = int(location)
+
+###############################################################################################################################################################
+
+    def calculateAuthority(self, data, destination):
+    #calculate the authority to the next station
+        '''can add calculating distance as well'''
+        if (data[1] == "green"):
+            pos = data[0]
+            dir = data[2]
+
+            authority = 0
+            #running total
+
+            found = False
+            while (not found):
+                if (dir == "forward"):
+                    if (pos == 100):
+                        authority += 1
+                        dir = "backward"
+                        pos = 85
+
+                    elif (pos == 150):
+                        authority += 1
+                        dir = "backward"
+                        pos = 28
+
+                    else:
+                        authority += 1
+                        pos += 1
+                else:
+                    if (pos == 76):
+                        authority += 1
+                        dir = "forward"
+                        pos = 101
+                    
+                    elif (pos == 1):
+                        authority += 1
+                        dir = "forward"
+                        pos = 13
+
+                    else:
+                        authority += 1
+                        pos -= 1
+
+                if (pos in self.greenStationLocations):
+                    if (self.greenStationLocations[pos] == destination):
+                        found = True
+
+
+        else:
+            pass
+
+        return authority
 
 ###############################################################################################################################################################
 

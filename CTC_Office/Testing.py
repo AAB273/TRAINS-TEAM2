@@ -32,8 +32,7 @@ def testSuggestedAuthority():
     scheduleScreen = CTC_Schedule_Screen.ScheduleScreen(root, mainScreen, scheduleFrame, mainNotebook)
     mainScreen.schedule_screen = scheduleScreen
 
-    suggAuth = scheduleScreen.updateManualEdit("63", "Castle Shannon", "22:00", "green")
-    print(f"\n\nStart block: 63\nDestination: Castle Shannon, block 96")
+    suggAuth = scheduleScreen.calculateAuthority([88, "green", "forward"], "Mt. Lebanon")
     print(f"Suggested Authority: {suggAuth}")
 
     root.mainloop()
