@@ -622,15 +622,24 @@ class ScheduleScreen:
             #grab text from file
             for i in range(0, len(schedule) - 1):
                 dest = schedule.iloc[i, 0].split("-")
-                time = schedule.iloc[i, 1]
+                arrTime = schedule.iloc[i, 1]
                 line = schedule.iloc[i, 2]
-                self.sendDeployData("63", dest[0], time, line)
-                self.updateManualEdit("63", dest, time, line)
+                launchTime = schedule.iloc[i, 3]
+
+                if (arrTime == launchTime):
+                    self.sendDeployData("63", dest[0], arrTime, line)
+                    self.updateManualEdit("63", dest, arrTime, line)
+                else:
+                    self.scheduleBacklog([dest, arrTime, line, launchTime])
 
 ###############################################################################################################################################################
 
     def scheduleBacklog(self, data):
-        pass
+        if (clock.clock.getTime() == data[3]):
+            self.sendDeployData("63", data[0][0], data[1], data[2])
+            self.updateManualEdit("63", data[0], data[1], data[2])
+        else:
+            self.root.after(100, lambda: self.scheduleBacklog(data))
 
 ###############################################################################################################################################################
 
