@@ -1,191 +1,191 @@
 class GreenLine:
     def __init__(self):
         self.blocks = [
-            {"block_number": 1, "section": "A", "block_length_m": 100, "block_grade_percent": 0.5, "speed_limit": 45, "infrastructure": "STATION; PIONEER", "station_side": "Left", "elevation_m": 0.5, "cumulative_elevation_m": 8.0},
-            {"block_number": 2, "section": "A", "block_length_m": 100, "block_grade_percent": 1, "speed_limit": 45, "infrastructure": "", "station_side": "", "elevation_m": 1, "cumulative_elevation_m": 9.0},
-            {"block_number": 3, "section": "A", "block_length_m": 100, "block_grade_percent": 1.5, "speed_limit": 45, "infrastructure": "", "station_side": "", "elevation_m": 1.5, "cumulative_elevation_m": 10.5},
-            {"block_number": 4, "section": "B", "block_length_m": 100, "block_grade_percent": 2, "speed_limit": 45, "infrastructure": "", "station_side": "", "elevation_m": 2, "cumulative_elevation_m": 12.5},
-            {"block_number": 5, "section": "B", "block_length_m": 100, "block_grade_percent": 1.5, "speed_limit": 45, "infrastructure": "", "station_side": "", "elevation_m": 1.5, "cumulative_elevation_m": 14.0},
-            {"block_number": 6, "section": "B", "block_length_m": 100, "block_grade_percent": 1, "speed_limit": 45, "infrastructure": "", "station_side": "", "elevation_m": 1, "cumulative_elevation_m": 15.0},
-            {"block_number": 7, "section": "C", "block_length_m": 100, "block_grade_percent": 0.5, "speed_limit": 45, "infrastructure": "STATION; EDGEBROOK", "station_side": "Left", "elevation_m": 0.5, "cumulative_elevation_m": 15.5},
-            {"block_number": 8, "section": "C", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 45, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 15.5},
-            {"block_number": 9, "section": "C", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 45, "infrastructure": "SWITCH (12-13; 1-13)", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 15.5},
-            {"block_number": 10, "section": "C", "block_length_m": 100, "block_grade_percent": 4.5, "speed_limit": 45, "infrastructure": "", "station_side": "", "elevation_m": 4.5, "cumulative_elevation_m": 20.0},
-            {"block_number": 11, "section": "D", "block_length_m": 100, "block_grade_percent": 4.5, "speed_limit": 45, "infrastructure": "", "station_side": "", "elevation_m": 4.5, "cumulative_elevation_m": 24.5},
-            {"block_number": 12, "section": "D", "block_length_m": 150, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 13, "section": "D", "block_length_m": 150, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "STATION", "station_side": "Left/Right", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 14, "section": "D", "block_length_m": 150, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 15, "section": "E", "block_length_m": 150, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "RAILWAY CROSSING", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 16, "section": "E", "block_length_m": 150, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "STATION; WAITES", "station_side": "Left/Right", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 17, "section": "F", "block_length_m": 300, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 18, "section": "F", "block_length_m": 300, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 19, "section": "F", "block_length_m": 150, "block_grade_percent": 0, "speed_limit": 60, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 20, "section": "F", "block_length_m": 300, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 21, "section": "F", "block_length_m": 300, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 22, "section": "F", "block_length_m": 200, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 23, "section": "F", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "SWITCH (28-29; 150-28)", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 24, "section": "G", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 25, "section": "G", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "STATION; SOUTH BANK", "station_side": "Left", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 26, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 27, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 28, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 29, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 30, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 31, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "STATION; CENTRAL; UNDERGROUND", "station_side": "Right", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 32, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 33, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 34, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 35, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 36, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 37, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 38, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 39, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 40, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 41, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 42, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 43, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 44, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 45, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "STATION; DOWNTOWN; RIGHT", "station_side": "Right", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 46, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 47, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 48, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 49, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 50, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 51, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 52, "section": "I", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 53, "section": "J", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "UNDERGROUND; STATION", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 54, "section": "J", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "SWITCH TO YARD (52 yards)", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 55, "section": "J", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 56, "section": "J", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 57, "section": "J", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 58, "section": "K", "block_length_m": 200, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "SWITCH (FROM YARD) (Yard 63)", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 59, "section": "K", "block_length_m": 200, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 60, "section": "K", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "STATION; GLENBURY", "station_side": "Right", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 61, "section": "L", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 40, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 62, "section": "L", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 40, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 63, "section": "L", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 40, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 64, "section": "L", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 40, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 65, "section": "L", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 40, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 66, "section": "L", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 40, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 67, "section": "L", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 40, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 68, "section": "L", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 40, "infrastructure": "STATION; DORMONT", "station_side": "Right", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 69, "section": "M", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 40, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 70, "section": "M", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 40, "infrastructure": "SWITCH (26-27; 27-101)", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 71, "section": "M", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 40, "infrastructure": "STATION; MT LEBANON", "station_side": "Left/Right", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 72, "section": "N", "block_length_m": 200, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 73, "section": "N", "block_length_m": 300, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 74, "section": "N", "block_length_m": 300, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 75, "section": "N", "block_length_m": 300, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 76, "section": "N", "block_length_m": 200, "block_grade_percent": 0, "speed_limit": 70, "infrastructure": "SWITCH (85-86; 100-85)", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 77, "section": "O", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 25, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 78, "section": "O", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 25, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 79, "section": "O", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 25, "infrastructure": "STATION; POPLAR", "station_side": "Left", "elevation_m": 0, "cumulative_elevation_m": 24.5},
-            {"block_number": 80, "section": "P", "block_length_m": 75, "block_grade_percent": -0.5, "speed_limit": 25, "infrastructure": "", "station_side": "", "elevation_m": -0.375, "cumulative_elevation_m": 10.8},
-            {"block_number": 81, "section": "P", "block_length_m": 75, "block_grade_percent": -0.5, "speed_limit": 25, "infrastructure": "", "station_side": "", "elevation_m": -0.375, "cumulative_elevation_m": 10.8},
-            {"block_number": 82, "section": "P", "block_length_m": 75, "block_grade_percent": 0, "speed_limit": 25, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 83, "section": "P", "block_length_m": 75, "block_grade_percent": 0, "speed_limit": 25, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 84, "section": "P", "block_length_m": 75, "block_grade_percent": 0.5, "speed_limit": 25, "infrastructure": "", "station_side": "", "elevation_m": 0.375, "cumulative_elevation_m": 10.8},
-            {"block_number": 85, "section": "P", "block_length_m": 75, "block_grade_percent": 0.5, "speed_limit": 25, "infrastructure": "STATION; CASTLE SHANNON", "station_side": "Left", "elevation_m": 0.375, "cumulative_elevation_m": 10.8},
-            {"block_number": 86, "section": "Q", "block_length_m": 75, "block_grade_percent": 0, "speed_limit": 25, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 87, "section": "Q", "block_length_m": 75, "block_grade_percent": 0, "speed_limit": 25, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 88, "section": "Q", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 25, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 89, "section": "R", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 25, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 90, "section": "R", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 25, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 91, "section": "R", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 25, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 92, "section": "R", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 25, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 93, "section": "S", "block_length_m": 80, "block_grade_percent": 0, "speed_limit": 28, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 94, "section": "S", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 28, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 95, "section": "S", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 28, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 96, "section": "S", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 28, "infrastructure": "STATION; DORMONT", "station_side": "Right", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 97, "section": "T", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 28, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 98, "section": "T", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 28, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 99, "section": "T", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 28, "infrastructure": "RAILWAY CROSSING", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 100, "section": "T", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 28, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 101, "section": "U", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "STATION; GLENBURY", "station_side": "Right", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 102, "section": "U", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 103, "section": "U", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 104, "section": "U", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 105, "section": "U", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 30, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 106, "section": "V", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 28, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 107, "section": "V", "block_length_m": 100, "block_grade_percent": 0, "speed_limit": 28, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 108, "section": "V", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 15, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 109, "section": "V", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 15, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 110, "section": "V", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 15, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 111, "section": "V", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 15, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 112, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 113, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 114, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 115, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 116, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 117, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 118, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 119, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 120, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 121, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 122, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "STATION; OVERBROOK; UNDERGROUND", "station_side": "Right", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 123, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 124, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 125, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 126, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 127, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 128, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 129, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 130, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 131, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 132, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "Left", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 133, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 134, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 135, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 136, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 137, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 138, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 139, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 140, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "STATION; CENTRAL; UNDERGROUND", "station_side": "Right", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 141, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 142, "section": "W", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 143, "section": "X", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 144, "section": "X", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 145, "section": "X", "block_length_m": 50, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
-            {"block_number": 146, "section": "X", "block_length_m": 164, "block_grade_percent": 0, "speed_limit": 20, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0, "cumulative_elevation_m": 10.8},
+            {"blockNumber": 1, "section": "A", "blockLengthM": 100, "blockGradePercent": 0.5, "speedLimit": 45, "infrastructure": "STATION; PIONEER", "stationSide": "Left", "elevationM": 0.5, "cumulativeElevationM": 8.0},
+            {"blockNumber": 2, "section": "A", "blockLengthM": 100, "blockGradePercent": 1, "speedLimit": 45, "infrastructure": "", "stationSide": "", "elevationM": 1, "cumulativeElevationM": 9.0},
+            {"blockNumber": 3, "section": "A", "blockLengthM": 100, "blockGradePercent": 1.5, "speedLimit": 45, "infrastructure": "", "stationSide": "", "elevationM": 1.5, "cumulativeElevationM": 10.5},
+            {"blockNumber": 4, "section": "B", "blockLengthM": 100, "blockGradePercent": 2, "speedLimit": 45, "infrastructure": "", "stationSide": "", "elevationM": 2, "cumulativeElevationM": 12.5},
+            {"blockNumber": 5, "section": "B", "blockLengthM": 100, "blockGradePercent": 1.5, "speedLimit": 45, "infrastructure": "", "stationSide": "", "elevationM": 1.5, "cumulativeElevationM": 14.0},
+            {"blockNumber": 6, "section": "B", "blockLengthM": 100, "blockGradePercent": 1, "speedLimit": 45, "infrastructure": "", "stationSide": "", "elevationM": 1, "cumulativeElevationM": 15.0},
+            {"blockNumber": 7, "section": "C", "blockLengthM": 100, "blockGradePercent": 0.5, "speedLimit": 45, "infrastructure": "STATION; EDGEBROOK", "stationSide": "Left", "elevationM": 0.5, "cumulativeElevationM": 15.5},
+            {"blockNumber": 8, "section": "C", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 45, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 15.5},
+            {"blockNumber": 9, "section": "C", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 45, "infrastructure": "SWITCH (12-13; 1-13)", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 15.5},
+            {"blockNumber": 10, "section": "C", "blockLengthM": 100, "blockGradePercent": 4.5, "speedLimit": 45, "infrastructure": "", "stationSide": "", "elevationM": 4.5, "cumulativeElevationM": 20.0},
+            {"blockNumber": 11, "section": "D", "blockLengthM": 100, "blockGradePercent": 4.5, "speedLimit": 45, "infrastructure": "", "stationSide": "", "elevationM": 4.5, "cumulativeElevationM": 24.5},
+            {"blockNumber": 12, "section": "D", "blockLengthM": 150, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 13, "section": "D", "blockLengthM": 150, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "STATION", "stationSide": "Left/Right", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 14, "section": "D", "blockLengthM": 150, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 15, "section": "E", "blockLengthM": 150, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "RAILWAY CROSSING", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 16, "section": "E", "blockLengthM": 150, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "STATION; WAITES", "stationSide": "Left/Right", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 17, "section": "F", "blockLengthM": 300, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 18, "section": "F", "blockLengthM": 300, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 19, "section": "F", "blockLengthM": 150, "blockGradePercent": 0, "speedLimit": 60, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 20, "section": "F", "blockLengthM": 300, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 21, "section": "F", "blockLengthM": 300, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 22, "section": "F", "blockLengthM": 200, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 23, "section": "F", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "SWITCH (28-29; 150-28)", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 24, "section": "G", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 25, "section": "G", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "STATION; SOUTH BANK", "stationSide": "Left", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 26, "section": "H", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 27, "section": "H", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 28, "section": "H", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 29, "section": "H", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 30, "section": "H", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 31, "section": "H", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "STATION; CENTRAL; UNDERGROUND", "stationSide": "Right", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 32, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 33, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 34, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 35, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 36, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 37, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 38, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 39, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 40, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 41, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 42, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 43, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 44, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 45, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "STATION; DOWNTOWN; RIGHT", "stationSide": "Right", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 46, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 47, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 48, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 49, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 50, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 51, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 52, "section": "I", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 53, "section": "J", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "UNDERGROUND; STATION", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 54, "section": "J", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "SWITCH TO YARD (52 yards)", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 55, "section": "J", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 56, "section": "J", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 57, "section": "J", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 58, "section": "K", "blockLengthM": 200, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "SWITCH (FROM YARD) (Yard 63)", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 59, "section": "K", "blockLengthM": 200, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 60, "section": "K", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "STATION; GLENBURY", "stationSide": "Right", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 61, "section": "L", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 40, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 62, "section": "L", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 40, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 63, "section": "L", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 40, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 64, "section": "L", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 40, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 65, "section": "L", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 40, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 66, "section": "L", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 40, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 67, "section": "L", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 40, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 68, "section": "L", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 40, "infrastructure": "STATION; DORMONT", "stationSide": "Right", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 69, "section": "M", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 40, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 70, "section": "M", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 40, "infrastructure": "SWITCH (26-27; 27-101)", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 71, "section": "M", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 40, "infrastructure": "STATION; MT LEBANON", "stationSide": "Left/Right", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 72, "section": "N", "blockLengthM": 200, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 73, "section": "N", "blockLengthM": 300, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 74, "section": "N", "blockLengthM": 300, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 75, "section": "N", "blockLengthM": 300, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 76, "section": "N", "blockLengthM": 200, "blockGradePercent": 0, "speedLimit": 70, "infrastructure": "SWITCH (85-86; 100-85)", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 77, "section": "O", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 25, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 78, "section": "O", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 25, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 79, "section": "O", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 25, "infrastructure": "STATION; POPLAR", "stationSide": "Left", "elevationM": 0, "cumulativeElevationM": 24.5},
+            {"blockNumber": 80, "section": "P", "blockLengthM": 75, "blockGradePercent": -0.5, "speedLimit": 25, "infrastructure": "", "stationSide": "", "elevationM": -0.375, "cumulativeElevationM": 10.8},
+            {"blockNumber": 81, "section": "P", "blockLengthM": 75, "blockGradePercent": -0.5, "speedLimit": 25, "infrastructure": "", "stationSide": "", "elevationM": -0.375, "cumulativeElevationM": 10.8},
+            {"blockNumber": 82, "section": "P", "blockLengthM": 75, "blockGradePercent": 0, "speedLimit": 25, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 83, "section": "P", "blockLengthM": 75, "blockGradePercent": 0, "speedLimit": 25, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 84, "section": "P", "blockLengthM": 75, "blockGradePercent": 0.5, "speedLimit": 25, "infrastructure": "", "stationSide": "", "elevationM": 0.375, "cumulativeElevationM": 10.8},
+            {"blockNumber": 85, "section": "P", "blockLengthM": 75, "blockGradePercent": 0.5, "speedLimit": 25, "infrastructure": "STATION; CASTLE SHANNON", "stationSide": "Left", "elevationM": 0.375, "cumulativeElevationM": 10.8},
+            {"blockNumber": 86, "section": "Q", "blockLengthM": 75, "blockGradePercent": 0, "speedLimit": 25, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 87, "section": "Q", "blockLengthM": 75, "blockGradePercent": 0, "speedLimit": 25, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 88, "section": "Q", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 25, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 89, "section": "R", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 25, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 90, "section": "R", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 25, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 91, "section": "R", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 25, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 92, "section": "R", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 25, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 93, "section": "S", "blockLengthM": 80, "blockGradePercent": 0, "speedLimit": 28, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 94, "section": "S", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 28, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 95, "section": "S", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 28, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 96, "section": "S", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 28, "infrastructure": "STATION; DORMONT", "stationSide": "Right", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 97, "section": "T", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 28, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 98, "section": "T", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 28, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 99, "section": "T", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 28, "infrastructure": "RAILWAY CROSSING", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 100, "section": "T", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 28, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 101, "section": "U", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "STATION; GLENBURY", "stationSide": "Right", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 102, "section": "U", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 103, "section": "U", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 104, "section": "U", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 105, "section": "U", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 30, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 106, "section": "V", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 28, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 107, "section": "V", "blockLengthM": 100, "blockGradePercent": 0, "speedLimit": 28, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 108, "section": "V", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 15, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 109, "section": "V", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 15, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 110, "section": "V", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 15, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 111, "section": "V", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 15, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 112, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 113, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 114, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 115, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 116, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 117, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 118, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 119, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 120, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 121, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 122, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "STATION; OVERBROOK; UNDERGROUND", "stationSide": "Right", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 123, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 124, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 125, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 126, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 127, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 128, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 129, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 130, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 131, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 132, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "Left", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 133, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 134, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 135, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 136, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 137, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 138, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 139, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 140, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "STATION; CENTRAL; UNDERGROUND", "stationSide": "Right", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 141, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 142, "section": "W", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 143, "section": "X", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 144, "section": "X", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 145, "section": "X", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
+            {"blockNumber": 146, "section": "X", "blockLengthM": 164, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
         ]
 
-    def get_value(self, block_number, key):
+    def get_value(self, blockNumber, key):
         """
         Get a value from a specific block.
         
         Args:
-            block_number (int): The block number (1-146)
+            blockNumber (int): The block number (1-146)
             key (str): The field name to retrieve. Options:
                 - 'section'
-                - 'block_length_m'
-                - 'block_grade_percent'
-                - 'speed_limit'
+                - 'blockLengthM'
+                - 'blockGradePercent'
+                - 'speedLimit'
                 - 'infrastructure'
-                - 'station_side'
-                - 'elevation_m'
-                - 'cumulative_elevation_m'
+                - 'stationSide'
+                - 'elevationM'
+                - 'cumulativeElevationM'
         
         Returns:
             The value of the requested field, or None if not found
         """
         for block in self.blocks:
-            if block['block_number'] == block_number:
+            if block['blockNumber'] == blockNumber:
                 return block.get(key)
         return None
 
-    def get_block(self, block_number):
+    def get_block(self, blockNumber):
         """Get all data for a specific block."""
         for block in self.blocks:
-            if block['block_number'] == block_number:
+            if block['blockNumber'] == blockNumber:
                 return block
         return None
 
 class BeaconData:
-    def __init__(self, beacon_number, distance_to_next=None, forward_station_name=None, backward_station_name=None):
-        self.block_number = beacon_number
-        self.distance_to_next = distance_to_next
-        self.forward_station_name = forward_station_name
-        self.backward_station_name = backward_station_name
+    def __init__(self, beaconNumber, distanceToNext=None, forwardStationName=None, backwardStationName=None):
+        self.blockNumber = beaconNumber
+        self.distanceToNext = distanceToNext
+        self.forwardStationName = forwardStationName
+        self.backwardStationName = backwardStationName
 
 
 # Beacon 1: Glenbury (Block 60) to Dormont (Block 68)
@@ -193,10 +193,10 @@ class BeaconData:
 # Midpoint distance: 400m from each station
 # Beacon placed at: Block 64 (midpoint between blocks)
 glenburyToDormont = BeaconData(
-    beacon_number=64,
-    distance_to_next=400.0,
-    forward_station_name="Dormont",
-    backward_station_name="Glenbury"
+    beaconNumber=64,
+    distanceToNext=400.0,
+    forwardStationName="Dormont",
+    backwardStationName="Glenbury"
 )
 
 # Beacon 2: Dormont (Block 68) to MT Lebanon (Block 71)
@@ -204,10 +204,10 @@ glenburyToDormont = BeaconData(
 # Midpoint distance: 150m from each station
 # Beacon placed at: Block 70 (midpoint between blocks)
 dormountToMTLebanon = BeaconData(
-    beacon_number=70,
-    distance_to_next=150.0,
-    forward_station_name="MT Lebanon",
-    backward_station_name="Dormont"
+    beaconNumber=70,
+    distanceToNext=150.0,
+    forwardStationName="MT Lebanon",
+    backwardStationName="Dormont"
 )
 
 # Beacon 3: MT Lebanon (Block 71) to Poplar (Block 79)
@@ -215,10 +215,10 @@ dormountToMTLebanon = BeaconData(
 # Midpoint distance: 750m from each station
 # Beacon placed at: Block 75 (midpoint between blocks)
 mtLebanoToPoplar = BeaconData(
-    beacon_number=75,
-    distance_to_next=750.0,
-    forward_station_name="Poplar",
-    backward_station_name="MT Lebanon"
+    beaconNumber=75,
+    distanceToNext=750.0,
+    forwardStationName="Poplar",
+    backwardStationName="MT Lebanon"
 )
 
 # Beacon 4: Poplar (Block 79) to Castle Shannon (Block 85)
@@ -226,10 +226,10 @@ mtLebanoToPoplar = BeaconData(
 # Midpoint distance: 237.5m from each station
 # Beacon placed at: Block 82 (midpoint between blocks)
 poplarToCastleShannon = BeaconData(
-    beacon_number=82,
-    distance_to_next=237.5,
-    forward_station_name="Castle Shannon",
-    backward_station_name="Poplar"
+    beaconNumber=82,
+    distanceToNext=237.5,
+    forwardStationName="Castle Shannon",
+    backwardStationName="Poplar"
 )
 
 # Beacon 5: Castle Shannon (Block 85) to MT Lebanon (Block 71)
@@ -237,10 +237,10 @@ poplarToCastleShannon = BeaconData(
 # Midpoint distance: 575m from each station
 # Beacon placed at: Block 78 (midpoint between blocks)
 castleShannonToMTLebanon = BeaconData(
-    beacon_number=78,
-    distance_to_next=575.0,
-    forward_station_name="MT Lebanon",
-    backward_station_name="Castle Shannon"
+    beaconNumber=78,
+    distanceToNext=575.0,
+    forwardStationName="MT Lebanon",
+    backwardStationName="Castle Shannon"
 )
 
 # Beacon 6: MT Lebanon (Block 71) to Dormont (Block 96)
@@ -248,10 +248,10 @@ castleShannonToMTLebanon = BeaconData(
 # Midpoint distance: 590m from each station
 # Beacon placed at: Block 83 (midpoint between blocks)
 mtLebanonToDormount2 = BeaconData(
-    beacon_number=83,
-    distance_to_next=590.0,
-    forward_station_name="Dormont",
-    backward_station_name="MT Lebanon"
+    beaconNumber=83,
+    distanceToNext=590.0,
+    forwardStationName="Dormont",
+    backwardStationName="MT Lebanon"
 )
 
 # Beacon 7: Dormont (Block 96) to Glenbury (Block 101)
@@ -259,10 +259,10 @@ mtLebanonToDormount2 = BeaconData(
 # Midpoint distance: 250m from each station
 # Beacon placed at: Block 98 (midpoint between blocks)
 dormountToGlenbury = BeaconData(
-    beacon_number=98,
-    distance_to_next=250.0,
-    forward_station_name="Glenbury",
-    backward_station_name="Dormont"
+    beaconNumber=98,
+    distanceToNext=250.0,
+    forwardStationName="Glenbury",
+    backwardStationName="Dormont"
 )
 
 # Beacon 8: Glenbury (Block 101) to Overbrook (Block 122)
@@ -270,10 +270,10 @@ dormountToGlenbury = BeaconData(
 # Midpoint distance: 650m from each station
 # Beacon placed at: Block 111 (midpoint between blocks)
 glenburyToOverbrook = BeaconData(
-    beacon_number=111,
-    distance_to_next=650.0,
-    forward_station_name="Overbrook",
-    backward_station_name="Glenbury"
+    beaconNumber=111,
+    distanceToNext=650.0,
+    forwardStationName="Overbrook",
+    backwardStationName="Glenbury"
 )
 
 # Beacon 9: Overbrook (Block 122) to Inglewood (Block 132)
@@ -281,10 +281,10 @@ glenburyToOverbrook = BeaconData(
 # Midpoint distance: 250m from each station
 # Beacon placed at: Block 127 (midpoint between blocks)
 overbrookToInglewood = BeaconData(
-    beacon_number=127,
-    distance_to_next=250.0,
-    forward_station_name="Inglewood",
-    backward_station_name="Overbrook"
+    beaconNumber=127,
+    distanceToNext=250.0,
+    forwardStationName="Inglewood",
+    backwardStationName="Overbrook"
 )
 
 # Beacon 10: Inglewood (Block 132) to Central (Block 140)
@@ -292,10 +292,10 @@ overbrookToInglewood = BeaconData(
 # Midpoint distance: 200m from each station
 # Beacon placed at: Block 136 (midpoint between blocks)
 inglewoodToCentral = BeaconData(
-    beacon_number=136,
-    distance_to_next=200.0,
-    forward_station_name="Central",
-    backward_station_name="Inglewood"
+    beaconNumber=136,
+    distanceToNext=200.0,
+    forwardStationName="Central",
+    backwardStationName="Inglewood"
 )
 
 # Beacon 11: Central (Block 140) to Whited (Block 16)
@@ -303,10 +303,10 @@ inglewoodToCentral = BeaconData(
 # Midpoint distance: 2662.5m from each station
 # Beacon placed at: Block 78 (midpoint between blocks)
 centralToWhited = BeaconData(
-    beacon_number=78,
-    distance_to_next=2662.5,
-    forward_station_name="Whited",
-    backward_station_name="Central"
+    beaconNumber=78,
+    distanceToNext=2662.5,
+    forwardStationName="Whited",
+    backwardStationName="Central"
 )
 
 # Beacon 12: Whited (Block 16) to LLC (Block 13)
@@ -314,10 +314,10 @@ centralToWhited = BeaconData(
 # Midpoint distance: 150m from each station
 # Beacon placed at: Block 14 (midpoint between blocks)
 whitedToLLC = BeaconData(
-    beacon_number=14,
-    distance_to_next=150.0,
-    forward_station_name="LLC",
-    backward_station_name="Whited"
+    beaconNumber=14,
+    distanceToNext=150.0,
+    forwardStationName="LLC",
+    backwardStationName="Whited"
 )
 
 # Beacon 13: LLC (Block 13) to Edgebrook (Block 7)
@@ -325,10 +325,10 @@ whitedToLLC = BeaconData(
 # Midpoint distance: 275m from each station
 # Beacon placed at: Block 10 (midpoint between blocks)
 llcToEdgebrook = BeaconData(
-    beacon_number=10,
-    distance_to_next=275.0,
-    forward_station_name="Edgebrook",
-    backward_station_name="LLC"
+    beaconNumber=10,
+    distanceToNext=275.0,
+    forwardStationName="Edgebrook",
+    backwardStationName="LLC"
 )
 
 # Beacon 14: Edgebrook (Block 7) to Pioneer (Block 1)
@@ -336,10 +336,10 @@ llcToEdgebrook = BeaconData(
 # Midpoint distance: 250m from each station
 # Beacon placed at: Block 4 (midpoint between blocks)
 edgebrookToPioneer = BeaconData(
-    beacon_number=4,
-    distance_to_next=250.0,
-    forward_station_name="Pioneer",
-    backward_station_name="Edgebrook"
+    beaconNumber=4,
+    distanceToNext=250.0,
+    forwardStationName="Pioneer",
+    backwardStationName="Edgebrook"
 )
 
 # Beacon 15: Pioneer (Block 1) to LLC (Block 13)
@@ -347,10 +347,10 @@ edgebrookToPioneer = BeaconData(
 # Midpoint distance: 375m from each station
 # Beacon placed at: Block 7 (midpoint between blocks)
 pioneerToLLC = BeaconData(
-    beacon_number=7,
-    distance_to_next=375.0,
-    forward_station_name="LLC",
-    backward_station_name="Pioneer"
+    beaconNumber=7,
+    distanceToNext=375.0,
+    forwardStationName="LLC",
+    backwardStationName="Pioneer"
 )
 
 # Beacon 16: LLC (Block 13) to Whited (Block 16)
@@ -358,10 +358,10 @@ pioneerToLLC = BeaconData(
 # Midpoint distance: 150m from each station
 # Beacon placed at: Block 14 (midpoint between blocks)
 llcToWhited = BeaconData(
-    beacon_number=14,
-    distance_to_next=150.0,
-    forward_station_name="Whited",
-    backward_station_name="LLC"
+    beaconNumber=14,
+    distanceToNext=150.0,
+    forwardStationName="Whited",
+    backwardStationName="LLC"
 )
 
 # Beacon 17: Whited (Block 16) to South Bank (Block 25)
@@ -369,10 +369,10 @@ llcToWhited = BeaconData(
 # Midpoint distance: 200m from each station
 # Beacon placed at: Block 20 (midpoint between blocks)
 whitedToSouthBank = BeaconData(
-    beacon_number=20,
-    distance_to_next=200.0,
-    forward_station_name="South Bank",
-    backward_station_name="Whited"
+    beaconNumber=20,
+    distanceToNext=200.0,
+    forwardStationName="South Bank",
+    backwardStationName="Whited"
 )
 
 # Beacon 18: South Bank (Block 25) to Central (Block 31)
@@ -380,10 +380,10 @@ whitedToSouthBank = BeaconData(
 # Midpoint distance: 150m from each station
 # Beacon placed at: Block 28 (midpoint between blocks)
 southBankToCentral = BeaconData(
-    beacon_number=28,
-    distance_to_next=150.0,
-    forward_station_name="Central",
-    backward_station_name="South Bank"
+    beaconNumber=28,
+    distanceToNext=150.0,
+    forwardStationName="Central",
+    backwardStationName="South Bank"
 )
 
 # Create list of all beacons
@@ -413,7 +413,7 @@ print("Green Line Beacon Midpoints\n" + "="*120)
 print(f"{'Beacon':<10} {'Block':<8} {'Distance to Station (m)':<25} {'Backward Station':<20} {'→':<3} {'Forward Station':<20}")
 print("="*120)
 for idx, beacon in enumerate(beacons, 1):
-    print(f"{idx:<10} {beacon.block_number:<8} {beacon.distance_to_next:<25.1f} {beacon.backward_station_name:<20} {'→':<3} {beacon.forward_station_name:<20}")
+    print(f"{idx:<10} {beacon.blockNumber:<8} {beacon.distanceToNext:<25.1f} {beacon.backwardStationName:<20} {'→':<3} {beacon.forwardStationName:<20}")
 
 print("="*120)
 print(f"Total Beacons: {len(beacons)}")
