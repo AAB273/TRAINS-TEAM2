@@ -465,93 +465,93 @@ class TestUI:
 
     def testingTrainLocation(self):
     #tests to make sure train location is properly calculated
-        for i in range (64, 101):
-            self.send_to_ui("TL", [str(i), "green"])
+        # for i in range (64, 101):
+        #     self.send_to_ui("TL", [str(i), "green"])
 
-        self.send_to_ui("TL", ["85", "green"])
+        # self.send_to_ui("TL", ["85", "green"])
         
-        for i in range(84, 76, -1):
-            self.send_to_ui("TL", [str(i), "green"])
+        # for i in range(84, 76, -1):
+        #     self.send_to_ui("TL", [str(i), "green"])
 
-        self.send_to_ui("TL", ["101", "green"])
+        # self.send_to_ui("TL", ["101", "green"])
 
-        for i in range (102, 151):
-            self.send_to_ui("TL", [str(i), "green"])
+        # for i in range (102, 151):
+        #     self.send_to_ui("TL", [str(i), "green"])
 
-        self.send_to_ui("TL", ["28", "green"])
+        # self.send_to_ui("TL", ["28", "green"])
 
-        for i in range (27, 0, -1):
-            self.send_to_ui("TL", [str(i), "green"])
+        # for i in range (27, 0, -1):
+        #     self.send_to_ui("TL", [str(i), "green"])
 
-        self.send_to_ui("TL", ["13", "green"])
+        # self.send_to_ui("TL", ["13", "green"])
 
-        for i in range (14, 59):
-            self.send_to_ui("TL", [str(i), "green"])
+        # for i in range (14, 59):
+        #     self.send_to_ui("TL", [str(i), "green"])
 
-        # for i in range (8, 0, -1):
-        #     self.send_to_ui("TL", [str(i), "red"])
+        for i in range (8, 0, -1):
+            self.send_to_ui("TL", [str(i), "red"])
 
-        # self.send_to_ui("TL", ["16", "red"])
+        self.send_to_ui("TL", ["16", "red"])
 
         # for i in range (17, 67):
         #     self.send_to_ui("TL", [str(i), "red"])
 
         # self.send_to_ui("TL", ["52", "red"])
 
-        # for i in range (51, 0, -1):
+        # for i in range (51, 8, -1):
         #     self.send_to_ui("TL", [str(i), "red"])
 
         # self.send_to_ui("TL", ["16", "red"])
 
-        # # for i in range (17, 28):
-        # #     self.send_to_ui("TL", [str(i), "red"])
+        for i in range (17, 28):
+            self.send_to_ui("TL", [str(i), "red"])
 
-        # # self.send_to_ui("TL", ["76", "red"])
+        self.send_to_ui("TL", ["76", "red"])
 
-        # # for i in range (75, 71, -1):
-        # #     self.send_to_ui("TL", [str(i), "red"])
+        for i in range (75, 71, -1):
+            self.send_to_ui("TL", [str(i), "red"])
 
-        # # self.send_to_ui("TL", ["33", "red"])
+        self.send_to_ui("TL", ["33", "red"])
 
-        # # for i in range (34, 39):
-        # #     self.send_to_ui("TL", [str(i), "red"])
+        for i in range (34, 39):
+            self.send_to_ui("TL", [str(i), "red"])
 
-        # # self.send_to_ui("TL", ["71", "red"])
+        self.send_to_ui("TL", ["71", "red"])
 
-        # # for i in range (70, 66, -1):
-        # #     self.send_to_ui("TL", [str(i), "red"])
+        for i in range (70, 66, -1):
+            self.send_to_ui("TL", [str(i), "red"])
 
-        # # self.send_to_ui("TL", ["44", "red"])
+        self.send_to_ui("TL", ["44", "red"])
 
-        # # for i in range (45, 53):
-        # #     self.send_to_ui("TL", [str(i), "red"])
+        for i in range (45, 53):
+            self.send_to_ui("TL", [str(i), "red"])
 
-        # # self.send_to_ui("TL", ["66", "red"])
+        self.send_to_ui("TL", ["66", "red"])
 
-        # # for i in range (65, 43, -1):
-        # #     self.send_to_ui("TL", [str(i), "red"])
+        for i in range (65, 43, -1):
+            self.send_to_ui("TL", [str(i), "red"])
 
-        # # self.send_to_ui("TL", ["67", "red"])
+        self.send_to_ui("TL", ["67", "red"])
 
-        # # for i in range (68, 72):
-        # #     self.send_to_ui("TL", [str(i), "red"])
+        for i in range (68, 72):
+            self.send_to_ui("TL", [str(i), "red"])
 
-        # # self.send_to_ui("TL", ["38", "red"])
+        self.send_to_ui("TL", ["38", "red"])
 
-        # # for i in range (37, 32, -1):
-        # #     self.send_to_ui("TL", [str(i), "red"])
+        for i in range (37, 32, -1):
+            self.send_to_ui("TL", [str(i), "red"])
 
-        # # self.send_to_ui("TL", ["72", "red"])
+        self.send_to_ui("TL", ["72", "red"])
 
-        # # for i in range (72, 77):
-        # #     self.send_to_ui("TL", [str(i), "red"])
+        for i in range (72, 77):
+            self.send_to_ui("TL", [str(i), "red"])
 
-        # # self.send_to_ui("TL", ["27", "red"])
+        self.send_to_ui("TL", ["27", "red"])
 
-        # # for i in range (26, 15, -1):
-        # #     self.send_to_ui("TL", [str(i), "red"])
+        for i in range (26, 15, -1):
+            self.send_to_ui("TL", [str(i), "red"])
 
-        # # self.send_to_ui("TL", ["1", "red"])
+        self.send_to_ui("TL", ["1", "red"])
 
-        # # for i in range (1, 10):
-        # #     self.send_to_ui("TL", [str(i), "red"])
+        for i in range (1, 10):
+            self.send_to_ui("TL", [str(i), "red"])
