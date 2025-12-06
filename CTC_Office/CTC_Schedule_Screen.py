@@ -387,8 +387,8 @@ class ScheduleScreen:
                                                 self.mainScreen.tlArea.item(item, values = ["Block " + location, "Yard", newTime.strftime("%H:%M")])
 
                                                 self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(key), f"{speed:.3f}", str(auth), self.trainRoutes[key][1]]})
-                                                self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": "63", "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
-                                                self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": "63", "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
+                                                self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
+                                                self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
                                                 break
                                 else:
                                 #otherwise go to next station
@@ -409,8 +409,8 @@ class ScheduleScreen:
                                                 self.mainScreen.tlArea.item(item, values = ["Block " + location, self.trainRoutes[key][3], newTime.strftime("%H:%M")])
 
                                                 self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(key), f"{speed:.3f}", str(auth), self.trainRoutes[key][1]]})
-                                                self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": "63", "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
-                                                self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": "63", "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
+                                                self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
+                                                self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
                                                 break
                 else:
                 #red line
@@ -561,13 +561,6 @@ class ScheduleScreen:
                         self.meArea.set(rowID, colID, value = newDestination)
                         self.mainScreen.tlArea.set(rowID, colID, value = newDestination)
                         #update main ui train location data
-                        
-                        '''
-                        Write all data to to_test_ui.txt data file so the test ui can read in data changes
-                        Follows formatting rules specified in README.txt
-                        '''
-                        outfile = open("CTC_Office/to_test_ui.txt", "w")
-                        outfile.write("TL\n")
 
                         temp = self.meArea.item(rowID, "text")
                         train = ""
@@ -575,17 +568,16 @@ class ScheduleScreen:
                             if (char.isdigit()):
                                 train += char
                         #grab train number
-                        outfile.write(train + "\n")
 
-                        distToStation = float(750)
-                        #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
+                        values = self.calculateAuthority(self.trainRoutes[int(train)], newDestination)
+                        auth = values[0] - 1
                         arrTime = self.timeToSeconds(self.meArea.item(rowID, "values")[2])
-                        speed = distToStation / arrTime
-                        outfile.write(f"{speed:.3f}\n")
+                        speed = float(values[1]) / arrTime
 
-                        outfile.write("7\n")
-                        outfile.write(self.meArea.item(self.meArea.parent(rowID), "text") + "\n")
-                        outfile.close()
+
+                        self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [train, f"{speed:.3f}", str(auth), self.trainRoutes[int(train)][1]]})
+                        self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[int(train)][1].title(), "block": self.trainRoutes[int(train)][0], "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
+                        self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[int(train)][1].title(), "block": self.trainRoutes[int(train)][0], "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
 
             elif (colID == "#3"):
             #check that user clicked in arrival time column
@@ -599,13 +591,6 @@ class ScheduleScreen:
                         self.mainScreen.tlArea.set(rowID, colID, value = newTime)
                         #update main ui train location data
 
-                        '''
-                        Write all data to to_test_ui.txt data file so the test ui can read in data changes
-                        Follows formatting rules specified in README.txt
-                        '''
-                        outfile = open("CTC_Office/to_test_ui.txt", "w")
-                        outfile.write("TL\n")
-
                         temp = self.meArea.item(rowID, "text")
                         train = ""
                         for char in temp:
@@ -613,17 +598,15 @@ class ScheduleScreen:
                                 train += char
                         #grab specific train number
 
-                        outfile.write(train + "\n")
                         
-                        distToStation = float(750)
-                        #this number is stardard for BLUE LINE ONLY (implement function or library of dists for full implementation)
+                        values = self.calculateAuthority(self.trainRoutes[int(train)], self.trainRoutes[3])
+                        auth = values[0] - 1
                         arrTime = self.timeToSeconds(newTime)
-                        speed = distToStation / arrTime
-                        outfile.write(f"{speed:.3f}\n")
+                        speed = float(values[1]) / arrTime
                         
-                        outfile.write("9\n")
-                        outfile.write(self.meArea.item(self.meArea.parent(rowID), "text") + "\n")
-                        outfile.close()
+                        self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [train, f"{speed:.3f}", str(auth), self.trainRoutes[int(train)][1]]})
+                        self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[int(train)][1].title(), "block": self.trainRoutes[int(train)][0], "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
+                        self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[int(train)][1].title(), "block": self.trainRoutes[int(train)][0], "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
 
 ###############################################################################################################################################################
 
