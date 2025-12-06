@@ -5030,193 +5030,6 @@ class TrackModelUI(tk.Tk):
                     print(f" Invalid switch_states format: {value}")
             
             # ============================================================
-            # SWITCH POSITIONS - Update switch states
-            # Format: [line_indicator, switch_state]
-            # line_indicator: 0 = Green Line, 1 = Red Line
-            # switch_state: bool - switch state for the block
-            # Values are received sorted from lowest to highest block number
-            # Example: [0, True] or [1, False]
-            # ============================================================
-            elif command == 'Switch Positions':
-                # Extract line indicator and switch state
-                line_indicator = None
-                actual_value = value
-                
-                if isinstance(value, list) and len(value) >= 2:
-                    # Format: [line_indicator, switch_state]
-                    line_indicator = value[0]
-                    actual_value = value[1]
-                    line_name = "Green Line" if line_indicator == 0 else "Red Line"
-                    print(f" Received Switch Positions for {line_name} (indicator: {line_indicator})")
-                
-                def parse_switch_direction(switch_string, switch_block_num=None):
-                    """
-                    Parse a switch direction string like "76-77" to determine switch state.
-                    Returns True for one direction, False for the other.
-                    
-                    The logic determines which way the switch should be set based on:
-                    - The from-block and to-block numbers
-                    - The switch block's typical connections
-                    - Known switch configurations from track layout
-                    """
-                    if not isinstance(switch_string, str) or '-' not in switch_string:
-                        print(f" Invalid switch format: {switch_string} (expected 'from-to' format)")
-                        return None
-                    
-                    parts = switch_string.split('-')
-                    if len(parts) != 2:
-                        print(f" Invalid switch format: {switch_string} (expected exactly two parts)")
-                        return None
-                    
-                    try:
-                        from_block = int(parts[0].strip())
-                        to_block = int(parts[1].strip())
-                    except (ValueError, TypeError):
-                        print(f" Could not parse blocks from: {switch_string}")
-                        return None
-                    
-                    # Determine switch direction based on from/to blocks
-                    # The switch state depends on the track layout and connections
-                    
-                    # Special handling for known switch configurations
-                    # These are common switch patterns in track systems:
-                    
-                    # 1. Fork switches (one track splitting into two)
-                    #    - Main line continues straight (usually higher block number) = True
-                    #    - Diverging line (branch) = False
-                    
-                    # 2. Merge switches (two tracks joining into one)  
-                    #    - From main line = True
-                    #    - From branch line = False
-                    
-                    # 3. Crossover switches (between parallel tracks)
-                    #    - Staying on same track = True
-                    #    - Crossing to other track = False
-                    
-                    # Check if this is a known switch block with specific routing
-                    if switch_block_num and switch_block_num in self.switch_blocks:
-                        # Add specific switch logic here based on your track layout
-                        # Example patterns:
-                        
-                        # Switches that connect sequential blocks vs branches
-                        if abs(to_block - from_block) == 1:
-                            # Sequential blocks - likely main line
-                            # Forward direction (increasing) = True, Backward = still sequential
-                            return to_block > from_block
-                        elif abs(to_block - from_block) > 10:
-                            # Large jump in block numbers - likely a branch/crossover
-                            return False
-                    
-                    # Default logic: 
-                    # - Forward progression (increasing block numbers) = True (main/straight)
-                    # - Backward or large jumps = False (diverging/branch)
-                    if to_block == from_block + 1:
-                        # Direct forward progression
-                        return True
-                    elif to_block == from_block - 1:
-                        # Direct backward progression  
-                        return False
-                    elif to_block > from_block:
-                        # Forward but not sequential - likely branching forward
-                        return True
-                    else:
-                        # Backward or branching backward
-                        return False
-                
-                # Use block_number parameter if available
-                target_block = block_number
-                
-                if isinstance(actual_value, dict):
-                    # Multiple switches: {block_num: "from-to", ...}
-                    for block_num, switch_string in actual_value.items():
-                        # Convert block_num from string to int if needed
-                        if isinstance(block_num, str):
-                            try:
-                                block_num = int(block_num)
-                            except (ValueError, TypeError):
-                                print(f" Could not convert block_num key '{block_num}' to int")
-                                continue
-                        
-                        if 1 <= block_num <= len(self.data_manager.blocks):
-                            block = self.data_manager.blocks[block_num - 1]
-                            # Parse the from-to string to get context
-                            parts = switch_string.split('-') if '-' in switch_string else []
-                            from_block = int(parts[0].strip()) if len(parts) == 2 else 0
-                            to_block = int(parts[1].strip()) if len(parts) == 2 else 0
-                            
-                            state = parse_switch_direction(switch_string, block_num)
-                            if state is not None:
-                                block.switch_state = state
-                                if from_block and to_block:
-                                    self.log_switch_change(block_num, from_block, to_block, state)
-                                else:
-                                    print(f" Updated switch at block {block_num}: {'Right/Forward' if state else 'Left/Backward'} (from {switch_string})")
-                    self.refresh_bidirectional_controls()  # Update bidirectional directions
-                    self.refresh_ui()
-                    
-                elif isinstance(actual_value, str) and '-' in actual_value:
-                    # Single switch update with "from-to" format
-                    if target_block:
-                        # Switch block specified via parameter
-                        if 1 <= target_block <= len(self.data_manager.blocks):
-                            block = self.data_manager.blocks[target_block - 1]
-                            # Parse the from-to string to get context
-                            parts = actual_value.split('-')
-                            from_block = int(parts[0].strip()) if len(parts) == 2 else 0
-                            to_block = int(parts[1].strip()) if len(parts) == 2 else 0
-                            
-                            state = parse_switch_direction(actual_value, target_block)
-                            if state is not None:
-                                block.switch_state = state
-                                if from_block and to_block:
-                                    self.log_switch_change(target_block, from_block, to_block, state)
-                                else:
-                                    print(f" Updated switch at block {target_block}: {'Right/Forward' if state else 'Left/Backward'} (from {actual_value})")
-                                self.refresh_bidirectional_controls()
-                                self.refresh_ui()
-                    else:
-                        # Try to determine switch block from the from-to string
-                        parts = actual_value.split('-')
-                        if len(parts) == 2:
-                            try:
-                                from_block = int(parts[0].strip())
-                                to_block = int(parts[1].strip())
-                                # The switch is typically at or near the from_block
-                                if 1 <= from_block <= len(self.data_manager.blocks):
-                                    block = self.data_manager.blocks[from_block - 1]
-                                    state = parse_switch_direction(actual_value, from_block)
-                                    if state is not None:
-                                        block.switch_state = state
-                                        self.log_switch_change(from_block, from_block, to_block, state)
-                                        self.refresh_bidirectional_controls()
-                                        self.refresh_ui()
-                            except (ValueError, TypeError):
-                                print(f" Could not parse switch position from: {actual_value}")
-                
-                # Handle boolean switch state
-                elif isinstance(actual_value, bool) and target_block:
-                    if 1 <= target_block <= len(self.data_manager.blocks):
-                        block = self.data_manager.blocks[target_block - 1]
-                        block.switch_state = actual_value
-                        route_info = self.get_switch_destination(target_block, actual_value)
-                        if isinstance(route_info, tuple) and len(route_info) == 2:
-                            from_block, to_block = route_info
-                            if from_block == "Yard":
-                                destination_text = f"Yard to {to_block}"
-                            elif to_block == "Yard":
-                                destination_text = f"{from_block} to Yard"
-                            else:
-                                destination_text = f"{from_block} to {to_block}"
-                        else:
-                            destination_text = f"To {route_info}"
-                        print(f" Updated switch at block {target_block}: {destination_text} (state: {actual_value})")
-                        self.refresh_bidirectional_controls()
-                        self.refresh_ui()
-                        
-                else:
-                    print(f" Unrecognized switch position format. Expected [line_indicator, switch_state], got: {type(value)} = {value}")
-            
-            # ============================================================
             # RAILROAD CROSSINGS - From Wayside Controller
             # Format: [line_indicator, crossing_state]
             # line_indicator: 0 = Green Line, 1 = Red Line
@@ -5366,31 +5179,44 @@ class TrackModelUI(tk.Tk):
                         print(f" Could not determine train for speed update: {speed} mph")
                 else:
                     print(f" Invalid current speed message: speed={speed}")
-            
-            
-            # ============================================================            # PASSENGERS DISEMBARKING - From Train Model (Passenger_UI)            # Command format from Passenger_UI: {'command': 'Passenger Disembarking', 'value': disembarking}            # ============================================================            elif command == 'Passenger Disembarking' or command == 'Passengers Disembarking':                disembarking = value                                # Handle block_number if provided (legacy format)                if block_number is not None:                    idx = block_number - 1                    if 0 <= idx < len(self.data_manager.passengers_disembarking):                        if isinstance(disembarking, str):                            try:                                disembarking = int(disembarking)                            except (ValueError, TypeError):                                disembarking = 0                                                self.data_manager.passengers_disembarking[idx] = disembarking                        print(f" Passengers disembarking at block {block_number}: {disembarking}")                                                if block_number in self.station_blocks:                            self.send_station_data_to_ctc(block_number)                                                if hasattr(self, 'view_mode') and self.view_mode.get() == "station":                            self.populate_station_view()                else:                    # Passenger_UI doesn't send block_number, determine from train location                    if isinstance(disembarking, str):                        try:                            disembarking = int(disembarking)                        except (ValueError, TypeError):                            disembarking = 0                                        # Try to find the train                    train_id = message.get('train_id')                    if not train_id and self.data_manager.active_trains:                        train_id = self.data_manager.active_trains[-1]  # Most recent train                        print(f" No train_id, using {train_id}")                                        # Find train's current block                    if train_id and train_id in self.data_manager.active_trains:                        idx = self.data_manager.active_trains.index(train_id)                        if idx < len(self.data_manager.train_locations):                            block_num = self.data_manager.train_locations[idx]                            block_idx = block_num - 1                                                        if 0 <= block_idx < len(self.data_manager.passengers_disembarking):                                self.data_manager.passengers_disembarking[block_idx] = disembarking                                print(f" Passengers disembarking at block {block_num} (train {train_id}): {disembarking}")                                                                if block_num in self.station_blocks:                                    self.send_station_data_to_ctc(block_num)                                                                if hasattr(self, 'view_mode') and self.view_mode.get() == "station":                                    self.populate_station_view()                    else:                        print(f" Could not determine location for {disembarking} disembarking passengers")            
+        
+
+            # ============================================================            
+            # # PASSENGERS DISEMBARKING - From Train Model (Passenger_UI)            # Command format from Passenger_UI: {'command': 'Passenger Disembarking', 'value': disembarking}            # ============================================================            elif command == 'Passenger Disembarking' or command == 'Passengers Disembarking':                disembarking = value                                # Handle block_number if provided (legacy format)                if block_number is not None:                    idx = block_number - 1                    if 0 <= idx < len(self.data_manager.passengers_disembarking):                        if isinstance(disembarking, str):                            try:                                disembarking = int(disembarking)                            except (ValueError, TypeError):                                disembarking = 0                                                self.data_manager.passengers_disembarking[idx] = disembarking                        print(f" Passengers disembarking at block {block_number}: {disembarking}")                                                if block_number in self.station_blocks:                            self.send_station_data_to_ctc(block_number)                                                if hasattr(self, 'view_mode') and self.view_mode.get() == "station":                            self.populate_station_view()                else:                    # Passenger_UI doesn't send block_number, determine from train location                    if isinstance(disembarking, str):                        try:                            disembarking = int(disembarking)                        except (ValueError, TypeError):                            disembarking = 0                                        # Try to find the train                    train_id = message.get('train_id')                    if not train_id and self.data_manager.active_trains:                        train_id = self.data_manager.active_trains[-1]  # Most recent train                        print(f" No train_id, using {train_id}")                                        # Find train's current block                    if train_id and train_id in self.data_manager.active_trains:                        idx = self.data_manager.active_trains.index(train_id)                        if idx < len(self.data_manager.train_locations):                            block_num = self.data_manager.train_locations[idx]                            block_idx = block_num - 1                                                        if 0 <= block_idx < len(self.data_manager.passengers_disembarking):                                self.data_manager.passengers_disembarking[block_idx] = disembarking                                print(f" Passengers disembarking at block {block_num} (train {train_id}): {disembarking}")                                                                if block_num in self.station_blocks:                                    self.send_station_data_to_ctc(block_num)                                                                if hasattr(self, 'view_mode') and self.view_mode.get() == "station":                                    self.populate_station_view()                    else:                        print(f" Could not determine location for {disembarking} disembarking passengers")            
             # ============================================================
             elif command == 'Passengers Disembarking':
-                if block_number is not None:
-                    idx = block_number - 1
-                    if 0 <= idx < len(self.data_manager.passengers_disembarking):
-                        # Convert value to int if it's a string
-                        if isinstance(value, str):
-                            try:
-                                value = int(value)
-                            except (ValueError, TypeError):
-                                print(f" Could not convert value '{value}' to int")
-                                value = 0
-                        
-                        self.data_manager.passengers_disembarking[idx] = value
-                        print(f" Received passengers disembarking from Train Model: Block {block_number} = {value}")
-                        
-                        # Forward to CTC immediately (sends both ticket sales and disembarking)
-                        self.send_station_data_to_ctc(block_number)
-                        
-                        # Update UI if in station view
-                        if self.view_mode.get() == "station":
-                            self.populate_station_view()
+                train_id = message.get('train_id')
+                disembarking = value
+                
+                # Convert value to int if it's a string
+                if isinstance(disembarking, str):
+                    try:
+                        disembarking = int(disembarking)
+                    except (ValueError, TypeError):
+                        print(f" Could not convert value '{disembarking}' to int")
+                        disembarking = 0
+                
+                # Find which block this train is currently on
+                if train_id and train_id in self.data_manager.active_trains:
+                    idx = self.data_manager.active_trains.index(train_id)
+                    block_number = self.data_manager.train_locations[idx] if idx < len(self.data_manager.train_locations) else None
+                    
+                    if block_number is not None:
+                        block_idx = block_number - 1
+                        if 0 <= block_idx < len(self.data_manager.passengers_disembarking):
+                            self.data_manager.passengers_disembarking[block_idx] = disembarking
+                            print(f" Train {train_id} at Block {block_number}: {disembarking} passengers disembarking")
+                            
+                            # Forward to CTC immediately (sends both ticket sales and disembarking)
+                            self.send_station_data_to_ctc(block_number)
+                            
+                            # Update UI if in station view
+                            if self.view_mode.get() == "station":
+                                self.populate_station_view()
+                    else:
+                        print(f" Could not determine block location for train {train_id}")
+                else:
+                    print(f" Train {train_id} not found in active trains")
             
             # ============================================================
             # TRAIN OCCUPANCY - From Train Model
@@ -5559,110 +5385,6 @@ class TrackModelUI(tk.Tk):
                         self.refresh_track_data_table()
                         self.refresh_track_system_table()
                         self.update_switch_display()
-            
-            # ============================================================
-            # BLOCK OCCUPANCY - From Train Model
-            # Updates which blocks are occupied by trains
-            # Can be: single value, [block_num, occupancy], or {block_num: occupancy}
-            # ============================================================
-            elif command == 'block_occupancy':
-                if isinstance(value, list) and len(value) == 2:
-                    # Format: [block_number, occupancy_value]
-                    block_num = value[0]
-                    occupancy = value[1]
-                    
-                    if isinstance(block_num, str):
-                        block_num = int(block_num)
-                    
-                    if 1 <= block_num <= len(self.data_manager.blocks):
-                        block = self.data_manager.blocks[block_num - 1]
-                        block.occupancy = occupancy
-                        
-                        # DIAGNOSTIC: Special logging for blocks 57-60 on Red Line
-                        if 57 <= block_num <= 60 and hasattr(self, 'selected_line'):
-                            current_line = self.selected_line.get()
-                            if current_line == "Red Line":
-                                print(f"🔍 [RED LINE DEBUG] Block {block_num}: occupancy={occupancy}")
-                                print(f"   - Block exists in data: {block_num <= len(self.data_manager.blocks)}")
-                                print(f"   - Has marker positions: {hasattr(self, 'block_marker_positions_red')}")
-                                if hasattr(self, 'block_marker_positions_red'):
-                                    print(f"   - Block in positions dict: {block_num in self.block_marker_positions_red}")
-                                    if block_num in self.block_marker_positions_red:
-                                        print(f"   - Position: {self.block_marker_positions_red[block_num]}")
-                                print(f"   - Has switch routing: {block_num in self.switch_routing}")
-                        
-                        # Check if train is at a switch and show routing
-                        if occupancy != 0 and hasattr(self, "switch_routing") and block_num in self.switch_routing:
-                            dir = self.switch_states.get(block_num, "normal")
-                            next = self.switch_routing[block_num][dir]
-                            print(f"    Train_{occupancy} at switch {block_num} ({dir}) → next block {next}")
-                    print(f" Updated block {block_num} occupancy: {occupancy}")
-                        
-                    # Update train location tracking if train moved
-                    if occupancy != 0:
-                        # Find train with this occupancy number
-                        train_id = f"Train_{occupancy}"
-                        if train_id in self.data_manager.active_trains:
-                            idx = self.data_manager.active_trains.index(train_id)
-                            old_location = self.data_manager.train_locations[idx] if idx < len(self.data_manager.train_locations) else 0
-                            
-                            if old_location != block_num:
-                                self.data_manager.train_locations[idx] = block_num
-                                print(f"   Train {train_id} moved from block {old_location} to block {block_num}")
-                                
-                                # Reset position tracking for new block
-                                if train_id in self.train_positions_in_block:
-                                    self.train_positions_in_block[train_id] = 0
-                    
-                    self.update_occupied_blocks_display()
-                    
-                    # Update block marker (dot/train icon)
-                    if hasattr(self, 'update_block_marker'):
-                        self.update_block_marker(block_num)
-                    
-                    # Forward occupancy update to Wayside Controller
-                    self.send_block_occupancy_update(block_num, occupancy)
-                        
-                elif isinstance(value, dict):
-                    # Format: {block_num: occupancy, ...}
-                    for block_num, occupancy in value.items():
-                        if isinstance(block_num, str):
-                            block_num = int(block_num)
-                        
-                        if 1 <= block_num <= len(self.data_manager.blocks):
-                            block = self.data_manager.blocks[block_num - 1]
-                            block.occupancy = occupancy
-                            # Check if train is at a switch and show routing
-                            if occupancy != 0 and hasattr(self, "switch_routing") and block_num in self.switch_routing:
-                                dir = self.switch_states.get(block_num, "normal")
-                                next = self.switch_routing[block_num][dir]
-                                print(f"    Train_{occupancy} at switch {block_num} ({dir}) → next block {next}")
-                            print(f" Updated block {block_num} occupancy: {occupancy}")
-                            
-                            # Update train tracking
-                            if occupancy != 0:
-                                train_id = f"Train_{occupancy}"
-                                if train_id in self.data_manager.active_trains:
-                                    idx = self.data_manager.active_trains.index(train_id)
-                                    if idx < len(self.data_manager.train_locations):
-                                        self.data_manager.train_locations[idx] = block_num
-                                        
-                                        # Reset position tracking
-                                        if train_id in self.train_positions_in_block:
-                                            self.train_positions_in_block[train_id] = 0
-                            
-                            # Forward occupancy update to Wayside Controller
-                            self.send_block_occupancy_update(block_num, occupancy)
-                            
-                            # Update block marker (dot/train icon)
-                            if hasattr(self, 'update_block_marker'):
-                                self.update_block_marker(block_num)
-                    
-                    self.update_occupied_blocks_display()
-                else:
-                    print(f" Unknown block occupancy format: {type(value)} = {value}")
-            else:
-                print(f" Unknown command: {command}")
         
         except Exception as e:
             print(f"Error processing message: {e}")
