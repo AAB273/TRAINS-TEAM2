@@ -77,6 +77,8 @@ class TrackModelUI(tk.Tk):
             # Bidirectional entries for loop switches (allows entering from either direction)
             1: {"normal": 2, "reverse": 16},      # From block 1: go to 2 (normal) or to 16 via switch 15 (reverse)
             16: {"normal": 17, "reverse": 15},    # From block 16: go to 17 (normal) or to 15 (reverse, can then go to 1)
+            53: {"normal": 54, "reverse": 52},    # From block 53: go to 54 (normal) or back to 52 via switch (reverse)
+            66: {"normal": 67, "reverse": 52},    # From block 66: go to 67 (normal) or back to 52 via switch (reverse)
         }
         
         # Default to Green Line switches (will be updated based on selected line)
