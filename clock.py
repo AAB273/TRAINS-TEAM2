@@ -21,6 +21,9 @@ class Clock:
     def getTime(self):
         return self._fastTime.strftime("%H:%M")
     
+    def getTimeObj(self):
+        return self._fastTime
+    
 
     def endTimer(self):
         self._incTimer.cancel()

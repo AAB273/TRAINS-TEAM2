@@ -2,7 +2,8 @@ import tkinter as tk
 from tkinter import ttk, simpledialog, filedialog
 from tkinter.messagebox import askyesno
 from PIL import Image, ImageTk
-from time import strftime
+from time import strftime, strptime
+from datetime import datetime, timedelta
 import CTC_Main_Screen
 import pandas as pd
 
@@ -41,6 +42,10 @@ class ScheduleScreen:
                                       96: "Castle Shannon", 105: "Dormont", 114: "Glenbury", 123: "Overbrook", 132: "Inglewood",
                                       141: "Central", 2: "Pioneer", 9: "Edgebrook", 16: "LLC Plaza", 22: "Whited", 31: "South Bank",
                                       39: "Central", 48: "Inglewood", 57: "Overbrook", 58: "end"}
+        self.greenStations = ["Pioneer", "Edgewood", "LLC Plaza", "Whited", "South Bank", "Central", "Inglewood", "Overbrook", "Glenbury", "Dormont", "Mt. Lebanon", "Poplar", "Castle Shannon"]
+        
+        self.redStationLocations = {}
+        self.redStations = []
 
         self.trainRoutes = {}
 
@@ -235,7 +240,7 @@ class ScheduleScreen:
 
 ###############################################################################################################################################################
 
-    def updateManualEdit(self, location: str, destination: str, time: str, line: str):
+    def updateManualEdit(self, location: str, destination: list, time: str, line: str):
     #update the manual edit tab
         if (time != None):
         #if we are creating a new train on the line
@@ -248,7 +253,7 @@ class ScheduleScreen:
             if (not children):
             #if there is no data yet, add first item
                 level = self.meArea.insert('', "end", text = line.title())
-                self.meArea.insert(level, "end", text = ("Train " + str(self.trainNum)), values = [("Block " + location), destination, time])
+                self.meArea.insert(level, "end", text = ("Train " + str(self.trainNum)), values = [("Block " + location), destination[0], time])
             else:
                 added = False
                 #flag variable
@@ -259,26 +264,28 @@ class ScheduleScreen:
                         dest = self.meArea.item(item, "text")
                         if (dest == "Train " + str(self.trainNum)):
                         #if the user edits an existing train, update rather than adding a new item
-                            self.meArea.item(item, values = ["Block " + location, destination, time])
+                            self.meArea.item(item, values = ["Block " + location, destination[0], time])
                             added = True
                             break
                     if (not added and self.meArea.item(child, "text") == line.title()):
                     #if train does not exist but is on an existing line, add under that specific line
-                        self.meArea.insert(child, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination, time])
+                        self.meArea.insert(child, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination[0], time])
                         added = True
                         break
                 if (not added):
                 #if item is not already in the treeview, add a new parent/child set
                     level = self.meArea.insert('', "end", text = line.title())
-                    self.meArea.insert(level, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination, time])
+                    self.meArea.insert(level, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination[0], time])
 
-            self.trainRoutes[self.trainNum] = [63, line, "forward", destination]
+            self.trainRoutes[self.trainNum] = [63, line, "forward"]
+            for station in destination:
+                self.trainRoutes[self.trainNum].append(station)
 
             self.trainNum += 1
             
-            values = self.calculateAuthority(self.trainRoutes[self.trainNum - 1], destination)
+            values = self.calculateAuthority(self.trainRoutes[self.trainNum - 1], destination[0])
             auth = values[0] - 1
-            speed = float(values[1]) / arrTime * 2.237
+            speed = float(values[1]) / arrTime
 
             self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(self.trainNum - 1), f"{speed:.3f}", str(auth), line]})
             self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": "Green", "block": "63", "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
@@ -346,11 +353,9 @@ class ScheduleScreen:
                             if (self.trainRoutes[key][3] == self.greenStationLocations[self.trainRoutes[key][0]]):
 
                                 self.trainRoutes[key].remove(self.trainRoutes[key][3])
-
+                            
                                 if (len(self.trainRoutes[key]) == 3):
                                 #if there is no more destination backlog go to yard
-                                    auth = self.calculateAuthority(self.trainRoutes[key], "end")
-
                                     children = self.meArea.get_children("")
                                     for child in children: 
                                     #iterate for each parent in the Treeview
@@ -358,13 +363,44 @@ class ScheduleScreen:
                                         #iterate for each child of every parent in the Treeview
                                             dest = self.meArea.item(item, "text")
                                             if (dest == "Train " + str(key)):
-                                                self.meArea.item(item, values = ["Block " + location, "Yard", "00:00"])
-                                                self.mainScreen.tlArea.item(item, values = ["Block " + location, "Yard", "00:00"])
+                                                newTime = clock.clock.getTimeObj() + timedelta(minutes = 10)
+                                                arrTime = self.timeToSeconds(newTime.strftime("%H:%M"))
+                                                values = self.calculateAuthority(self.trainRoutes[key], "end")
+                                                auth = values[0] - 1
+                                                speed = float(values[1]) / arrTime
+
+                                                self.meArea.item(item, values = ["Block " + location, "Yard", newTime.strftime("%H:%M")])
+                                                self.mainScreen.tlArea.item(item, values = ["Block " + location, "Yard", newTime.strftime("%H:%M")])
+
+                                                self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(key), f"{speed:.3f}", str(auth), self.trainRoutes[key][1]]})
+                                                self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": "63", "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
+                                                self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": "63", "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
                                                 break
                                 else:
                                 #otherwise go to next station
-                                    pass
+                                    children = self.meArea.get_children("")
+                                    for child in children: 
+                                    #iterate for each parent in the Treeview
+                                        for item in self.meArea.get_children(child):
+                                        #iterate for each child of every parent in the Treeview
+                                            dest = self.meArea.item(item, "text")
+                                            if (dest == "Train " + str(key)):
+                                                newTime = clock.clock.getTimeObj() + timedelta(minutes = 10)
+                                                arrTime = self.timeToSeconds(newTime.strftime("%H:%M"))
+                                                values = self.calculateAuthority(self.trainRoutes[key], self.trainRoutes[key][3])
+                                                auth = values[0] - 1
+                                                speed = float(values[1]) / arrTime
 
+                                                self.meArea.item(item, values = ["Block " + location, self.trainRoutes[key][3], newTime.strftime("%H:%M")])
+                                                self.mainScreen.tlArea.item(item, values = ["Block " + location, self.trainRoutes[key][3], newTime.strftime("%H:%M")])
+
+                                                self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(key), f"{speed:.3f}", str(auth), self.trainRoutes[key][1]]})
+                                                self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": "63", "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
+                                                self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": "63", "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
+                                                break
+                else:
+                #red line
+                    pass
                 
             if (not updated):
             #case for if this is not the next block for any train
@@ -405,53 +441,35 @@ class ScheduleScreen:
 
             found = False
             while (not found):
-                
                 #add distance
                 if (pos == 101 or pos == 150):
                     dist += 35
                 elif (pos == 119 or pos == 149):
                     dist += 40
-                elif ((pos in range(28, 63)) or pos == 117 or pos == 118 or (pos in range(120, 148))):
-                    if (pos == 31 or pos == 39 or pos == 48 or pos == 57 or pos == 123 or pos == 132 or pos == 141):
-                        dist += 25
-                    else:
-                        dist += 50
+                elif ((pos in range(27, 63)) or pos == 117 or pos == 118 or (pos in range(120, 148))):
+                    dist += 50
                 elif (pos in range(89, 101)):
-                    if (pos == 96):
-                        dist += 37.5
-                    else:
-                        dist += 75
+                    dist += 75
                 elif (pos == 104):
-                    dist += 104
-                elif (pos == 86.6):
+                    dist += 80
+                elif (pos == 87):
                     dist += 86.6
                 elif (pos == 107):
                     dist += 90
                 elif ((pos in range(1, 13)) or pos == 26 or pos == 63 or pos == 64 or (pos in range(67, 77)) or pos == 86
                        or pos == 88 or pos == 102 or pos == 103 or pos == 105 or pos == 106 or (pos in range(108, 114))
                        or pos == 115 or pos == 116):
-                    if (pos == 2 or pos == 9 or pos == 73 or pos == 88 or pos == 105):
-                        dist += 50
-                    else:
-                        dist += 100
+                    dist += 100
                 elif (pos in range(13, 21)):
-                    if (pos == 16):
-                        dist += 75
-                    else:
-                        dist += 150
+                    dist += 150
                 elif (pos == 114):
-                    dist += 81
+                    dist += 162
                 elif (pos == 148):
                     dist += 184
-                elif (pos == 25 or pos == 66):
+                elif (pos == 25 or pos == 65 or pos == 66):
                     dist += 200
-                elif (pos == 65):
-                    dist += 100
                 else:
-                    if (pos == 22 or pos == 77):
-                        dist += 150
-                    else:
-                        dist += 300
+                    dist += 300
 
                 if (dir == "forward"):
                     if (pos == 100):
@@ -485,6 +503,22 @@ class ScheduleScreen:
                 if (pos in self.greenStationLocations):
                     if (self.greenStationLocations[pos] == destination):
                         found = True
+
+                        #add half of the block length for the last block
+                        if (pos == 31 or pos == 39 or pos == 48 or pos == 57 or pos == 123 or pos == 132 or pos == 141):
+                            dist += 25
+                        elif (pos == 96):
+                            dist += 37.5
+                        elif (pos == 2 or pos == 9 or pos == 73 or pos == 88 or pos == 105):
+                            dist += 50
+                        elif (pos == 16):
+                            dist += 75
+                        elif (pos == 114):
+                            dist += 81
+                        elif (pos == 65):
+                            dist += 100
+                        elif (pos == 22 or pos == 77):
+                            dist += 150
 
 
         else:
@@ -586,15 +620,19 @@ class ScheduleScreen:
         if (autoFile):
             schedule = pd.read_csv(autoFile)
             #grab text from file
-            for i in range(0, len(schedule)):
-                dest = schedule.iloc[i, 0]
+            for i in range(0, len(schedule) - 1):
+                dest = schedule.iloc[i, 0].split("-")
                 time = schedule.iloc[i, 1]
                 line = schedule.iloc[i, 2]
+                self.sendDeployData("63", dest[0], time, line)
+                self.updateManualEdit("63", dest, time, line)
 
-                self.sendDeployData("1", dest, time, line)
-                self.updateManualEdit("1", dest, time, line)
+###############################################################################################################################################################
 
-###############################################################################################################################################################        
+    def scheduleBacklog(self, data):
+        pass
+
+###############################################################################################################################################################
 
     def timeToSeconds(self, arrTimeStr):
     #convert a given time into seconds
