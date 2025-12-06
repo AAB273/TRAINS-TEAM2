@@ -1712,6 +1712,14 @@ class TrackModelUI(tk.Tk):
             # print(f"[DEBUG] Could not force update: {e}")
             print("")
 
+    def log_to_terminal(self, message):
+        """Log a message to the UI Event Log / Terminal"""
+        for terminal in self.terminals:
+            terminal.config(state="normal")
+            terminal.insert("end", f"{message}\n")
+            terminal.see("end")
+            terminal.config(state="disabled")
+    
     def update_switch_display(self):
         """Update the display of switch states in the UI."""
         print(f"[DEBUG] update_switch_display called")
@@ -2087,6 +2095,19 @@ class TrackModelUI(tk.Tk):
            - Block 150 → 28 (loop return)
         3. Switches route based on their state
         """
+        # DEBUG: Log when train reaches critical switch blocks
+        if current_block in [1, 15, 16, 52, 53, 66]:
+            self.log_to_terminal(f"\n{'='*60}")
+            self.log_to_terminal(f"[SWITCH DEBUG] Block {current_block}: train_idx={train_idx}")
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                train_mode = self.train_directions.get(train_id, 'forward') if hasattr(self, 'train_directions') else 'N/A'
+                self.log_to_terminal(f"[SWITCH DEBUG]   Train {train_id}, mode={train_mode}")
+            current_line = getattr(self, 'selected_line', None)
+            line_name = current_line.get() if current_line else 'None'
+            self.log_to_terminal(f"[SWITCH DEBUG]   Current line={line_name}")
+            self.log_to_terminal(f"{'='*60}\n")
+        
         # Check commanded authority
         if train_idx < len(self.data_manager.commanded_authority):
             authority = self.data_manager.commanded_authority[train_idx]
@@ -2281,7 +2302,22 @@ class TrackModelUI(tk.Tk):
                 
                 # Check for entering loop mode (from block 16→15→...→1)
                 if self.train_directions.get(train_id) == 'entering_loop_15':
-                    # Completed the loop, exit back to block 16
+                    # Train completed the loop circuit, check switch to determine exit
+                    if len(self.data_manager.blocks) > 14:
+                        block_15 = self.data_manager.blocks[14]
+                        switch_state = getattr(block_15, 'switch_state', None)
+                        
+                        self.log_to_terminal(f"[BLOCK 1 LOOP EXIT] Completed loop, switch_state={switch_state}")
+                        
+                        if switch_state:  # True = 1-16 connection, exit to 16
+                            self.train_directions[train_id] = 'forward'
+                            print(f"[ROUTING] RED LINE: Completed loop circuit, block 1 → 16 (exiting loop)")
+                            return 16
+                        else:  # False = continue through loop again to 2
+                            print(f"[ROUTING] RED LINE: Continuing through loop, block 1 → 2")
+                            return 2
+                    
+                    # Default: exit to 16
                     self.train_directions[train_id] = 'forward'
                     print(f"[ROUTING] RED LINE: Completed loop circuit, block 1 → 16 (exiting loop)")
                     return 16
@@ -2316,37 +2352,16 @@ class TrackModelUI(tk.Tk):
                     print(f"[ROUTING] Exiting backward loop (switch 12) at block 1 → 13")
                     return 13
             
-            # Not in backward loop mode
-            # Check for RED LINE switch 15 routing
+            # Not in any special mode - normal forward progression
+            # Check for RED LINE - on Red Line, block 1 always continues to block 2 in normal forward mode
             current_line = getattr(self, 'selected_line', None)
             is_red_line = current_line and current_line.get() == "Red Line"
             
             if is_red_line:
-                # RED LINE: Check switch 15 to determine routing from block 1
-                # Switch 15 controls whether block 1 routes to 2 (normal) or 16 (reverse)
-                if len(self.data_manager.blocks) > 14:
-                    block_15 = self.data_manager.blocks[14]  # Switch at block 15 (index 14)
-                    if hasattr(block_15, 'switch_state'):
-                        # Check switch state to determine routing
-                        switch_state = self.switch_states.get(15, "normal")
-                        if switch_state == "reverse":
-                            # Reverse: Route from 1 to 16 (exit loop)
-                            print(f"[ROUTING] RED LINE: Block 1 → 16 (Switch 15 reverse: exit to main track)")
-                            if train_idx < len(self.data_manager.active_trains):
-                                train_id = self.data_manager.active_trains[train_idx]
-                                self.train_directions[train_id] = 'forward'
-                            return 16
-                        else:
-                            # Normal: Continue forward through loop to block 2
-                            print(f"[ROUTING] RED LINE: Block 1 → 2 (Switch 15 normal: continue through loop)")
-                            return 2
-                
-                # Default if switch not found: go to 16
-                print(f"[ROUTING] RED LINE: Block 1 → 16 (default: joining main track)")
-                if train_idx < len(self.data_manager.active_trains):
-                    train_id = self.data_manager.active_trains[train_idx]
-                    self.train_directions[train_id] = 'forward'
-                return 16
+                # Normal forward mode on Red Line: continue to block 2
+                self.log_to_terminal(f"[BLOCK 1 NORMAL] Forward mode, continuing to block 2")
+                print(f"[ROUTING] RED LINE: Block 1 → 2 (normal forward)")
+                return 2
             
             # Green Line: Check switch at block 12 for normal routing
             if len(self.data_manager.blocks) > 11:
@@ -2362,7 +2377,8 @@ class TrackModelUI(tk.Tk):
             return 2
         
         # RULE 3: Blocks 14-27 - Handle backward loop mode from 150→28
-        elif 14 <= current_block <= 27:
+        elif (14 == current_block) or (17 <= current_block <= 27):
+            # Note: Blocks 15 and 16 are excluded and handled by specific rules below
             # Check if train is in backward loop mode (from 150→28→27→...)
             if train_idx < len(self.data_manager.active_trains):
                 train_id = self.data_manager.active_trains[train_idx]
@@ -2396,8 +2412,17 @@ class TrackModelUI(tk.Tk):
         # Position 1: 57 → 58 (continue on main line)
         # Position 2: 57 → yard (train arrives at yard and is removed)
         # NOTE: This is GREEN LINE ONLY! On Red Line, block 57 is just normal track
+        # RULE 4: Block 57 - Check for backward mode first
         elif current_block == 57:
-            # Check if we're on Green Line
+            # Check if train is in Red Line backward mode FIRST
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'red_backward_66_to_16':
+                    # In backward mode: continue backward to 56
+                    print(f"[ROUTING] RED LINE backward: Block 57 → 56")
+                    return 56
+            
+            # Not in backward mode - check if we're on Green Line for yard switch
             current_line = getattr(self, 'selected_line', None)
             is_green_line = current_line and current_line.get() == "Green Line"
             
@@ -2425,12 +2450,18 @@ class TrackModelUI(tk.Tk):
             # Red Line OR Green Line default: continue to block 58
             return 58
         
-        # RULE 5: Switch housed at block 62 (From yard)
-        # Excel: SWITCH FROM YARD (Yard-63)
-        # For now, block 62 just continues to 63
-        # (Yard deployment is handled separately via UI controls)
+        # RULE 5: Block 62 - Check for backward mode
         elif current_block == 62:
-            return 63  # Always go to 63 from block 62
+            # Check if train is in Red Line backward mode
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                if self.train_directions.get(train_id) == 'red_backward_66_to_16':
+                    # In backward mode: continue backward to 61
+                    print(f"[ROUTING] RED LINE backward: Block 62 → 61")
+                    return 61
+            
+            # Normal forward mode: go to 63 (yard entry or normal)
+            return 63
         
         # ============================================================
         # RED LINE BACKWARD LOOP: Block 66 → 52 → 51 → ... → 16
@@ -2438,21 +2469,36 @@ class TrackModelUI(tk.Tk):
         # back and travels backward until reaching switch 15 at block 16
         # ============================================================
         
-        # RED LINE RULE 1: Block 66 - Loop back to block 52
+        # RED LINE RULE 1: Block 66 - Check mode before routing
         elif current_block == 66:
             # Check if we're on Red Line
             current_line = getattr(self, 'selected_line', None)
             is_red_line = current_line and current_line.get() == "Red Line"
             
             if is_red_line:
-                # Red Line: Loop back to block 52 and enter backward mode
+                # Check if train is already in backward mode
                 if train_idx < len(self.data_manager.active_trains):
                     train_id = self.data_manager.active_trains[train_idx]
-                    self.train_directions[train_id] = 'red_backward_66_to_16'
-                    print(f"[ROUTING] RED LINE: Block 66 → 52 (Starting backward loop to switch 15)")
+                    train_mode = self.train_directions.get(train_id, 'forward')
+                    
+                    # DEBUG: Show mode at block 66
+                    self.log_to_terminal(f"[BLOCK 66 DEBUG] Train mode = {train_mode}")
+                    
+                    if train_mode == 'red_backward_66_to_16':
+                        # In backward mode (came from switch 52 jump), continue backward
+                        print(f"[ROUTING] RED LINE backward: Block 66 → 65 (continuing backward)")
+                        return 65
+                    else:
+                        # In forward mode - arrived at 66 normally via 65→66
+                        # Exit the loop and go to 52, set backward mode to continue backward from 52
+                        self.train_directions[train_id] = 'red_backward_66_to_16'
+                        print(f"[ROUTING] RED LINE forward: Block 66 → 52 (exiting loop, entering backward mode)")
+                        return 52
+                
+                # Default: exit to 52
                 return 52
             else:
-                # Green Line or other: normal progression
+                # Green Line: normal progression
                 return 67
         
         # RED LINE RULE 2: Blocks 52 down to 17 - Backward traversal
@@ -2460,8 +2506,18 @@ class TrackModelUI(tk.Tk):
             # Check if train is in Red Line backward mode
             if train_idx < len(self.data_manager.active_trains):
                 train_id = self.data_manager.active_trains[train_idx]
+                train_mode = self.train_directions.get(train_id, 'forward')
+                
+                # DEBUG: Log mode at block 52
+                if current_block == 52:
+                    self.log_to_terminal(f"[BLOCK 52 BACKWARD CHECK] Train mode = {train_mode}")
+                
                 if self.train_directions.get(train_id) == 'red_backward_66_to_16':
                     # BACKWARD MODE: Check for backward-only switches
+                    
+                    # DEBUG: Confirm entering backward mode logic at block 52
+                    if current_block == 52:
+                        self.log_to_terminal(f"[BLOCK 52 BACKWARD] Entering backward mode logic, should go to block 51")
                     
                     # Switch 32 (backward-only): When at block 33 going backward
                     if current_block == 33:
@@ -2495,6 +2551,11 @@ class TrackModelUI(tk.Tk):
                     
                     # Continue backward (decrementing block numbers)
                     next_block = current_block - 1
+                    
+                    # DEBUG: Log the routing decision for block 52
+                    if current_block == 52:
+                        self.log_to_terminal(f"[BLOCK 52 BACKWARD] Routing backward: 52 → {next_block}")
+                    
                     print(f"[ROUTING] RED LINE backward: Block {current_block} → {next_block}")
                     return next_block
             
@@ -2530,14 +2591,43 @@ class TrackModelUI(tk.Tk):
             
             # Switch 52 (forward mode)
             elif is_red_line and current_block == 52:
-                # Check switch 52 state
-                if hasattr(self, 'switch_routing') and 52 in self.switch_routing:
-                    switch_state = self.switch_states.get(52, "normal")
-                    if switch_state == "normal":
-                        return 53  # Continue normally
-                    else:  # reverse
-                        # Jump to 66
-                        print(f"[ROUTING] RED LINE: Block 52 → 66 (Switch 52 jump)")
+                # DEBUG: This should NOT run if train is in backward mode
+                if train_idx < len(self.data_manager.active_trains):
+                    train_id = self.data_manager.active_trains[train_idx]
+                    train_mode = self.train_directions.get(train_id, 'forward')
+                    self.log_to_terminal(f"[BLOCK 52 FORWARD CHECK] WARNING: Forward switch check triggered! Train mode = {train_mode}")
+                
+                # Check switch 52 direction
+                if len(self.data_manager.blocks) > 51:
+                    block_52 = self.data_manager.blocks[51]  # Block 52 (index 51)
+                    
+                    # Check both switch_direction (string from Wayside) and switch_state (boolean from Test UI)
+                    switch_direction = getattr(block_52, 'switch_direction', None)
+                    switch_state = getattr(block_52, 'switch_state', None)
+                    
+                    # DEBUG: Show both values
+                    self.log_to_terminal(f"[BLOCK 52 DEBUG] switch_direction={switch_direction}, switch_state={switch_state}")
+                    
+                    # Determine if switch is in reverse position
+                    # PRIORITY: Use switch_state (boolean from Test UI) if it exists, otherwise use switch_direction
+                    is_reverse = False
+                    if switch_state is not None and isinstance(switch_state, bool):
+                        # From Test UI: True = reverse (52-66 connection), False = normal (52-53 connection)
+                        is_reverse = switch_state
+                        self.log_to_terminal(f"[BLOCK 52 DEBUG] Using switch_state (boolean) = {switch_state}, is_reverse: {is_reverse}")
+                    elif switch_direction is not None:
+                        # From Wayside: check if it's "reverse"
+                        is_reverse = (switch_direction == "reverse")
+                        self.log_to_terminal(f"[BLOCK 52 DEBUG] Using switch_direction (string) = '{switch_direction}', is_reverse: {is_reverse}")
+                    
+                    if not is_reverse:
+                        return 53  # Continue normally to 53
+                    else:
+                        # Jump to 66 - set backward mode BEFORE routing
+                        if train_idx < len(self.data_manager.active_trains):
+                            train_id = self.data_manager.active_trains[train_idx]
+                            self.train_directions[train_id] = 'red_backward_66_to_16'
+                        print(f"[ROUTING] RED LINE: Block 52 → 66 (Switch 52 jump, entering backward mode)")
                         return 66
             
             # Default: normal forward progression
@@ -2545,14 +2635,18 @@ class TrackModelUI(tk.Tk):
         
         # RED LINE RULE 3: Block 16 - Check switch 15 when in backward mode
         elif current_block == 16:
+            self.log_to_terminal(f"[BLOCK 16 ENTRY] Entered block 16 routing, train_idx={train_idx}")
+            
             # Check if train is in Red Line backward mode from 66
             if train_idx < len(self.data_manager.active_trains):
                 train_id = self.data_manager.active_trains[train_idx]
                 current_mode = self.train_directions.get(train_id, 'forward')
+                self.log_to_terminal(f"[BLOCK 16 MODE CHECK] Train {train_id} mode = {current_mode}")
                 print(f"[DEBUG] Block 16: Train {train_id} mode = {current_mode}")
                 
                 if self.train_directions.get(train_id) == 'red_backward_66_to_16':
                     # At switch 15, check which way to route
+                    self.log_to_terminal(f"[BLOCK 16 BACKWARD] In red_backward_66_to_16 mode")
                     print(f"[ROUTING] RED LINE backward: Reached block 16 (switch 15 junction)")
                     
                     # Check switch 15 state (use actual block.switch_state boolean)
@@ -2572,24 +2666,32 @@ class TrackModelUI(tk.Tk):
                     
                     # Default: continue backward to 15
                     return 15
+            else:
+                self.log_to_terminal(f"[BLOCK 16 WARNING] train_idx {train_idx} out of range, active_trains length = {len(self.data_manager.active_trains)}")
             
             # Not in red_backward_66_to_16 mode, but might still be going backward
             # Check if on Red Line and if switch 15 should control routing
             current_line = getattr(self, 'selected_line', None)
             is_red_line = current_line and current_line.get() == "Red Line"
             
+            self.log_to_terminal(f"[BLOCK 16 LINE CHECK] is_red_line = {is_red_line}")
+            
             if is_red_line:
                 # Check if train is in ANY backward mode (not just red_backward_66_to_16)
                 train_id = self.data_manager.active_trains[train_idx] if train_idx < len(self.data_manager.active_trains) else None
+                self.log_to_terminal(f"[BLOCK 16 TRAIN ID] train_id = {train_id}")
+                
                 is_any_backward = False
                 if train_id and hasattr(self, 'train_directions'):
                     train_mode = self.train_directions.get(train_id, 'forward')
                     # Check for any backward mode (explicit check for backward modes only)
                     is_any_backward = 'backward' in train_mode.lower()
+                    self.log_to_terminal(f"[BLOCK 16 MODE] train_mode = {train_mode}, is_any_backward = {is_any_backward}")
                 
                 # If in any backward mode, check switch 15 for routing
                 if is_any_backward:
-                    if len(self.data_manager.blocks) > 14:
+                    self.log_to_terminal(f"[BLOCK 16 ANY BACKWARD] Detected backward mode")
+                    if len(self.data_manager.active_trains) > 14:
                         block_15 = self.data_manager.blocks[14]  # Switch at block 15
                         if hasattr(block_15, 'switch_state'):
                             # After swap: True = "1 to 16", False = "15 to 16"
@@ -2603,23 +2705,16 @@ class TrackModelUI(tk.Tk):
                                 print(f"[ROUTING] RED LINE: Block 16 → 15 (Switch 15 set to '15 to 16', backward mode)")
                                 return 15
                 
-                # FORWARD MODE: Check switch 15 to see if train should enter loop circuit
+                # FORWARD MODE: Block 16 always routes to 17 in forward mode
+                # The switch does NOT affect forward routing
+                # It only affects backward mode routing (to exit the loop)
                 else:
-                    if len(self.data_manager.blocks) > 14:
-                        block_15 = self.data_manager.blocks[14]  # Switch at block 15
-                        if hasattr(block_15, 'switch_state'):
-                            switch_state = self.switch_states.get(15, "normal")
-                            # If switch is set to connect 1 and 16 (reverse), check if we should route to 15
-                            # This allows trains to enter the loop circuit from block 16
-                            if switch_state == "reverse":
-                                # Switch is set to connect 1-16, but from block 16 we route backward to 15
-                                # to enter the loop circuit (16→15→14→...→1→16)
-                                if train_id:
-                                    self.train_directions[train_id] = 'entering_loop_15'
-                                print(f"[ROUTING] RED LINE: Block 16 → 15 (Switch 15 reverse: entering loop circuit)")
-                                return 15
+                    self.log_to_terminal(f"[BLOCK 16 FORWARD MODE] Normal forward, routing to block 17")
+                    print(f"[ROUTING] RED LINE: Block 16 → 17 (normal forward)")
+                    return 17
             
             # Default: forward to block 17
+            self.log_to_terminal(f"[BLOCK 16 DEFAULT] Falling through to default, returning 17")
             print(f"[ROUTING] Block 16 → 17 (forward)")
             return 17
         
@@ -2640,21 +2735,11 @@ class TrackModelUI(tk.Tk):
                     print(f"[ROUTING] RED LINE backward: Block 15 → 14 (continuing backward)")
                     return 14
             
-            # Not in backward mode: check switch 15 for forward routing
-            if len(self.data_manager.blocks) > 14:
-                block_15 = self.data_manager.blocks[14]  # Switch at block 15 (index 14)
-                if hasattr(block_15, 'switch_state'):
-                    # After swap: True = "1 to 16", False = "15 to 16"
-                    if block_15.switch_state:  # True = checked = "1 to 16"
-                        # Jump to block 1 (close loop)
-                        print(f"[ROUTING] RED LINE: Block 15 → 1 (Switch 15 set to '1 to 16', close loop)")
-                        return 1
-                    else:  # False = unchecked = "15 to 16"
-                        # Normal forward to block 16
-                        print(f"[ROUTING] RED LINE: Block 15 → 16 (Switch 15 set to '15 to 16', normal forward)")
-                        return 16
-            
-            return 16  # Default forward
+            # Not in backward mode: normal forward to block 16
+            # Switch 15 does NOT affect forward routing from block 15
+            # It only affects backward mode routing at block 16
+            print(f"[ROUTING] RED LINE: Block 15 → 16 (normal forward)")
+            return 16
         
         # RED LINE RULE 5: Blocks 1-14 - Check if in backward mode, if so exit
         elif 1 <= current_block <= 14:
@@ -5372,15 +5457,32 @@ class TrackModelUI(tk.Tk):
                     
                     # Handle array of switch states
                     if isinstance(switches, list):
-                        # Define switch block mapping based on Green Line switches
-                        switch_block_mapping = {
-                            0: 13,   # Switch at block 13
-                            1: 29,   # Switch at block 29
-                            2: 57,   # Switch at block 57
-                            3: 63,   # Switch at block 63
-                            4: 77,   # Switch at block 77
-                            5: 85,   # Switch at block 85
-                        }
+                        # Determine which line we're on
+                        current_line = getattr(self, 'selected_line', None)
+                        is_red_line = current_line and current_line.get() == "Red Line"
+                        
+                        # Define switch block mapping based on current line
+                        if is_red_line:
+                            # Red Line switch mapping
+                            switch_block_mapping = {
+                                0: 9,    # Yard switch
+                                1: 15,   # Loop switch (1-15-16)
+                                2: 27,   # Branch switch
+                                3: 32,   # Branch switch
+                                4: 38,   # Branch switch
+                                5: 43,   # Branch switch
+                                6: 52,   # Loop switch (52-53-66)
+                            }
+                        else:
+                            # Green Line switch mapping
+                            switch_block_mapping = {
+                                0: 13,   # Switch at block 13 (actually housed at 12)
+                                1: 29,   # Switch at block 29 (actually housed at 28)
+                                2: 57,   # Switch at block 57 (actually housed at 58)
+                                3: 63,   # Switch at block 63 (actually housed at 62)
+                                4: 77,   # Switch at block 77 (actually housed at 76)
+                                5: 85,   # Switch at block 85
+                            }
                         
                         for idx, direction in enumerate(switches):
                             if idx in switch_block_mapping:
