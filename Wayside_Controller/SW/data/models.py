@@ -8,10 +8,16 @@ class RailwayData:
         self.current_line = "Green"  # Default line
         self.app = None
         
+        
         # Callbacks for UI updates
         self.on_line_change = []  # Called when line changes
         self.on_maintenance_mode_change = []  # Called when maintenance mode changes
         self.on_data_update = []  # Called when any data updates (PLC/UI updates)
+
+        #for plc
+        self.plc_filter_active = False
+        self.plc_filtered_blocks = []  # Store blocks filtered by PLC
+        self.plc_filter_sections = []
 
         # Initialize section mapping from TXT files
         self.block_to_section = self.load_section_mapping_from_files()
@@ -466,25 +472,55 @@ class RailwayData:
                 callback()
     
     def filter_data_by_line(self, line):
-        """Filter all data to show only the current line - FIXED VERSION"""
+        """Filter all data to show only the current line - FIXED for no duplicates"""
         self.current_line = line
         
-        # Filter block data to show only current line blocks  
-        # This creates a COPY of the original data for the current line
-        self.block_data = [row.copy() for row in self.block_data_original if row[1] == line]
+        if self.plc_filter_active and hasattr(self, 'plc_filter_sections'):
+            # Use PLC filter logic
+            self.apply_plc_filter()  # This now properly handles deduplication
+            self.block_data = self.plc_filtered_blocks
+        else:
+            # No PLC filter - show all blocks for current line
+            self.block_data = []
+            seen_blocks = set()
+            
+            for row in self.block_data_original:
+                if row[1] == line:
+                    block_num = str(row[2])
+                    block_id = f"{line}-{block_num}"
+                    
+                    if block_id not in seen_blocks:
+                        self.block_data.append(row.copy())
+                        seen_blocks.add(block_id)
         
-        # Filter track infrastructure data into separate filtered variables
-        self.filtered_light_states = {k: v for k, v in self.light_states.items() 
-                                    if v.get("line") == line}
-        self.filtered_switch_positions = {k: v for k, v in self.switch_positions.items() 
-                                        if v.get("line") == line}
-        self.filtered_railway_crossings = {k: v for k, v in self.railway_crossings.items() 
-                                        if v.get("line") == line}
+        # Filter infrastructure data
+        self.filtered_light_states = {
+            k: v for k, v in self.light_states.items() 
+            if v.get("line") == line and (
+                not self.plc_filter_active or 
+                v.get("section", "Unknown") in self.plc_filter_sections
+            )
+        }
+        
+        self.filtered_switch_positions = {
+            k: v for k, v in self.switch_positions.items() 
+            if v.get("line") == line and (
+                not self.plc_filter_active or 
+                v.get("section", "Unknown") in self.plc_filter_sections
+            )
+        }
+        
+        self.filtered_railway_crossings = {
+            k: v for k, v in self.railway_crossings.items() 
+            if v.get("line") == line and (
+                not self.plc_filter_active or 
+                v.get("section", "Unknown") in self.plc_filter_sections
+            )
+        }
         
         # Reinitialize blocks for the new line
-        self.filtered_blocks = {}
         self.initialize_track_blocks()
-        print(f"Data filtered for {line} line")
+        print(f"Data filtered for {line} line - {len(self.block_data)} blocks")
 
     def set_maintenance_mode(self, mode):
         """Set maintenance mode and notify all UI components"""
@@ -535,3 +571,79 @@ class RailwayData:
             "lights": self.filtered_light_states, 
             "blocks": self.filtered_blocks
         }
+    
+    def enable_plc_filter(self, sections):
+        """
+        Enable PLC filtering for specific sections
+        sections: list of section letters from PLC
+        """
+        self.plc_filter_active = True
+        self.plc_filter_sections = sections  # Store sections from PLC
+        
+        # Apply filter and trigger line filtering
+        self.apply_plc_filter()
+        self.filter_data_by_line(self.current_line)  # This will filter everything
+        
+    def disable_plc_filter(self):
+        """"Disable PLC filtering, show all blocks"""
+        self.plc_filter_active = False
+        
+        # Reset to show all blocks for current line
+        self.block_data = [row.copy() for row in self.block_data_original 
+                        if row[1] == self.current_line]
+        
+        # Trigger UI refresh to show all blocks
+        for callback in self.on_data_update:
+            callback()
+
+    def apply_plc_filter(self):
+        """Apply PLC filter without creating duplicate blocks"""
+        if not self.plc_filter_active or not self.plc_filter_sections:
+            return
+        
+        # Create a set to track unique blocks we've added
+        seen_blocks = set()
+        filtered_rows = []
+        
+        # Get all blocks for current line
+        for row in self.block_data_original:
+            if row[1] == self.current_line:  # Only current line
+                block_num = str(row[2])
+                
+                # Create unique identifier
+                block_id = f"{self.current_line}-{block_num}"
+                
+                # Skip if we've already seen this block
+                if block_id in seen_blocks:
+                    continue
+                
+                # Get section for this block
+                section = self.get_section_for_block(self.current_line, block_num)
+                
+                # Get current occupancy from filtered_blocks
+                block_key = f"Block {block_num}"
+                is_occupied = False
+                
+                if block_key in self.filtered_blocks:
+                    is_occupied = self.filtered_blocks[block_key].get("occupied", False)
+                else:
+                    # Fallback to original data
+                    is_occupied = (row[0] == "Yes")
+                
+                # Show if: occupied OR in PLC sections
+                should_show = is_occupied or (section in self.plc_filter_sections)
+                
+                if should_show:
+                    # Create new row with current state
+                    row_copy = row.copy()
+                    row_copy[0] = "Yes" if is_occupied else "No"
+                    filtered_rows.append(row_copy)
+                    seen_blocks.add(block_id)
+        
+        # Update the filtered data
+        self.plc_filtered_blocks = filtered_rows
+        
+        # Sync with main block_data for display
+        self.block_data = filtered_rows.copy()
+        
+        print(f"PLC filter applied: {len(filtered_rows)} blocks shown")

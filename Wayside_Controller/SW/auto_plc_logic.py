@@ -1,140 +1,151 @@
-# Store previous values to detect changes
-_previous_occupancy = {}
-_previous_ctc_auth = {}
-_previous_ctc_speed = {}
+from datetime import datetime
 
 def run_plc_cycle(data, log_callback):
     """
-    PLC program that updates commanded authority and speed directly in data model
-    Unoccupied blocks keep their CTC destination values for when trains enter them
+    SIMPLE, CORRECT PLC - back to basics
     """
-    global _previous_occupancy, _previous_ctc_auth, _previous_ctc_speed
+    # Track previous state
+    if not hasattr(run_plc_cycle, 'last_occupancy_state'):
+        run_plc_cycle.last_occupancy_state = {}
+    
+    # Get occupancy
+    current_occupancy = {}
+    occupied_blocks = []
+    
+    for block_key, block_info in data.filtered_blocks.items():
+        block_num = block_info.get("number", "0")
+        is_occupied = block_info.get("occupied", False)
+        
+        try:
+            block_num_int = int(block_num)
+            current_occupancy[block_num_int] = is_occupied
+            if is_occupied:
+                occupied_blocks.append(block_num_int)
+        except ValueError:
+            pass
+    
+    occupied_blocks.sort()
+    
+    # Check occupancy change
+    occupancy_changed = (current_occupancy != run_plc_cycle.last_occupancy_state)
+    run_plc_cycle.last_occupancy_state = current_occupancy.copy()
+    
+    # Enable filter if needed
+    plc_sections = ['K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y']
+    
+    if not data.plc_filter_active:
+        data.enable_plc_filter(plc_sections)
+        if log_callback:
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log_callback(f"{current_time} PLC: K-Y section filtering enabled")
+    
+    # Check if section N has occupied blocks
+    blocks_in_section_N = data.get_blocks_in_section(data.current_line, 'N')
+    section_N_occupied = False
+    for block_num in blocks_in_section_N:
+        block_key = f"Block {block_num}"
+        if block_key in data.filtered_blocks:
+            if data.filtered_blocks[block_key].get("occupied", False):
+                section_N_occupied = True
+                break
     
     current_line = data.current_line
+    print(f"\nPLC CYCLE for {current_line} line")
+    print(f"Occupied blocks: {occupied_blocks}")
+    print(f"Section N occupied: {section_N_occupied}")
     
-    # Check if anything changed since last cycle
-    occupancy_changed = has_occupancy_changed(data, current_line)
-    ctc_changed = has_ctc_changed(data, current_line)
-    
-    # Only run calculations if something actually changed
-    if not occupancy_changed and not ctc_changed:
-        return  # Skip this cycle, no changes detected
-    
-    # Initialize commanded dictionaries if they don't exist
-    if current_line not in data.commanded_authority:
-        data.commanded_authority[current_line] = {}
-    if current_line not in data.commanded_speed:
-        data.commanded_speed[current_line] = {}
-    
-    # Process ALL blocks
-    for block_name, block_info in data.filtered_track_data["blocks"].items():
+    # Process each block
+    for block_key, block_info in data.filtered_blocks.items():
         block_num = block_info["number"]
         
-        # Get CTC destination values for this block (default to 0 if not set)
-        ctc_dest_auth = data.commanded_authority.get(current_line, {}).get(block_num, 0)
-        ctc_speed = data.suggested_speed.get(current_line, {}).get(block_num, 30)
+        try:
+            block_num_int = int(block_num)
+        except ValueError:
+            continue
         
-        if block_info.get("occupied", False):
-            # Calculate actual authority for OCCUPIED blocks considering safety
-            actual_auth = calculate_authority(data, current_line, block_num, ctc_dest_auth)
+        # Default values
+        default_authority = 3
+        default_speed = 32
+        final_authority = default_authority
+        final_speed = default_speed
+        
+        # Check if block itself is occupied
+        is_block_occupied = block_num_int in occupied_blocks
+        
+        if is_block_occupied:
+            # Occupied block: authority 0
+            final_authority = 0
+        elif occupied_blocks:
+            # Find nearest occupied block AHEAD
+            nearest_ahead = None
+            min_distance = float('inf')
             
-            # Update commanded values for OCCUPIED blocks
-            data.commanded_authority[current_line][block_num] = actual_auth
-            data.commanded_speed[current_line][block_num] = ctc_speed
+            for occupied in occupied_blocks:
+                if occupied > block_num_int:  # Only blocks AHEAD
+                    distance = occupied - block_num_int
+                    if distance < min_distance:
+                        min_distance = distance
+                        nearest_ahead = occupied
             
-            # Also update track data for consistency
-            data.update_block_in_track_data(block_num, "authority", actual_auth)
-            data.update_block_in_track_data(block_num, "speed", ctc_speed)
+            if nearest_ahead is not None:
+                # Authority based on distance to nearest occupied block ahead
+                if min_distance == 1:
+                    final_authority = 0
+                elif min_distance == 2:
+                    final_authority = 1
+                elif min_distance == 3:
+                    final_authority = 2
+                # else: stays at 3 (default)
+        
+        # Apply Section N rules if section N has occupied block
+        if section_N_occupied and block_num in ['74', '75', '76', '98', '99', '100']:
+            # Get Section N authority for this block
+            section_N_auth = None
+            if block_num in ['74', '98']:
+                section_N_auth = 2
+            elif block_num in ['75', '99']:
+                section_N_auth = 1
+            elif block_num in ['76', '100']:
+                section_N_auth = 0
             
-        else:
-            # UNOCCUPIED blocks keep their CTC destination values
-            # This way when a train enters, it knows where to go
-            data.commanded_authority[current_line][block_num] = ctc_dest_auth
-            data.commanded_speed[current_line][block_num] = ctc_speed
-            
-            # Also update track data
-            data.update_block_in_track_data(block_num, "authority", ctc_dest_auth)
-            data.update_block_in_track_data(block_num, "speed", ctc_speed)
+            if section_N_auth is not None:
+                # Use the smaller (more restrictive) authority
+                old_auth = final_authority
+                final_authority = min(final_authority, section_N_auth)
+                print(f"  Section N: Block {block_num} auth = min({old_auth}, {section_N_auth}) = {final_authority}")
+        
+        # Update data
+        data.update_block_in_track_data(block_num, "authority", final_authority)
+        data.update_block_in_track_data(block_num, "speed", final_speed)
+        
+        # Update commanded values
+        if current_line not in data.commanded_authority:
+            data.commanded_authority[current_line] = {}
+        if current_line not in data.commanded_speed:
+            data.commanded_speed[current_line] = {}
+        
+        data.commanded_authority[current_line][block_num] = str(final_authority)
+        data.commanded_speed[current_line][block_num] = str(final_speed)
+        
+        # Debug for changed blocks
+        if final_authority != 3 or is_block_occupied:
+            print(f"  Block {block_num}: occupied={is_block_occupied}, authority={final_authority}")
     
-    # Update previous values for next cycle
-    update_previous_values(data, current_line)
+    # Apply filter
+    data.apply_plc_filter()
     
-    # Trigger UI update callbacks
+    # Trigger UI update
     for callback in data.on_data_update:
         try:
             callback()
         except Exception as e:
             print(f"PLC callback error: {e}")
-
-def has_occupancy_changed(data, line):
-    """Check if any block occupancy changed since last cycle"""
-    global _previous_occupancy
     
-    for block_name, block_info in data.filtered_track_data["blocks"].items():
-        block_num = block_info["number"]
-        key = f"{line}_{block_num}"
-        current_occupied = block_info.get("occupied", False)
-        previous_occupied = _previous_occupancy.get(key, None)
-        
-        if previous_occupied is None or current_occupied != previous_occupied:
-            return True
+    # Log occupancy changes
+    if occupancy_changed and occupied_blocks:
+        if log_callback:
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            occupied_str = ", ".join(str(b) for b in sorted(occupied_blocks))
+            log_callback(f"{current_time} PLC: Occupied blocks: {occupied_str}")
     
-    return False
-
-def has_ctc_changed(data, line):
-    """Check if any CTC values changed since last cycle"""
-    global _previous_ctc_auth, _previous_ctc_speed
-    
-    # Check commanded authority changes
-    for block_num, auth in data.commanded_authority.get(line, {}).items():
-        if _previous_ctc_auth.get(f"{line}_{block_num}") != auth:
-            return True
-    
-    # Check suggested speed changes (from CTC)
-    for block_num, speed in data.suggested_speed.get(line, {}).items():
-        if _previous_ctc_speed.get(f"{line}_{block_num}") != speed:
-            return True
-    
-    return False
-
-def update_previous_values(data, line):
-    """Store current values for next cycle comparison"""
-    global _previous_occupancy, _previous_ctc_auth, _previous_ctc_speed
-    
-    # Store occupancy
-    for block_name, block_info in data.filtered_track_data["blocks"].items():
-        block_num = block_info["number"]
-        key = f"{line}_{block_num}"
-        _previous_occupancy[key] = block_info.get("occupied", False)
-    
-    # Store commanded authority
-    for block_num, auth in data.commanded_authority.get(line, {}).items():
-        _previous_ctc_auth[f"{line}_{block_num}"] = auth
-    
-    # Store suggested speed (from CTC)
-    for block_num, speed in data.suggested_speed.get(line, {}).items():
-        _previous_ctc_speed[f"{line}_{block_num}"] = speed
-
-def calculate_authority(data, line, current_block, ctc_destination_auth):
-    """Calculate authority for OCCUPIED blocks considering safety and destination"""
-    current_block_num = int(current_block)
-    
-    # 1. Moving block safety (5 blocks ahead max)
-    safety_auth = 5
-    for blocks_ahead in range(1, 6):
-        check_block = current_block_num + blocks_ahead
-        check_block_str = str(check_block)
-        block_key = f"Block {check_block_str}"
-        
-        if (block_key in data.filtered_track_data["blocks"] and 
-            data.filtered_track_data["blocks"][block_key].get("occupied", False)):
-            safety_auth = blocks_ahead - 1
-            break
-    
-    # 2. CTC destination authority
-    destination_auth = ctc_destination_auth
-    
-    # 3. Use the more restrictive authority
-    actual_auth = min(safety_auth, destination_auth)
-    
-    return max(0, actual_auth)
+    print("PLC cycle complete\n")
