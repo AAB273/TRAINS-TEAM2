@@ -202,7 +202,7 @@ class ScheduleScreen:
 
         time = clock.clock.getTime()
         self.clockText.configure(text = time)
-        self.clockTimer = self.root.after(1000, self.updateTime)
+        self.clockTimer = self.root.after(100, self.updateTime)
 
 ###############################################################################################################################################################
     

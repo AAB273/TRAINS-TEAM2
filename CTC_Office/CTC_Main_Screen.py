@@ -316,7 +316,7 @@ class MainScreen:
         clockStyle = ttk.Style()
         clockStyle.configure("clock.TButton", font = ("Arial", 15), width = 5)
         clockFrame = ttk.Frame(topFrame)
-        clockFrame.pack(side = "right")
+        clockFrame.pack(side = "right", anchor = "ne")
         self.clockDec = ttk.Button(clockFrame, text = "<", style = "clock.TButton", command = lambda: self.controlClockSpeed("dec"))
         self.clockDec.pack(side = "left", anchor = "ne")
         self.clockText = ttk.Label(clockFrame, text = clock.clock.getTime(), font = ("Arial", 20, "bold"), background = "white")
