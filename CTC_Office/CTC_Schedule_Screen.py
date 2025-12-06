@@ -316,34 +316,34 @@ class ScheduleScreen:
                 if (line == "green"):
 
                     '''statements to move the train'''
-                    if ((self.trainRoutes[key][0] + 1) == int(location)):
+                    if ((self.trainRoutes[key][0] + 1) == int(location) and self.trainRoutes[key][2] == "forward"):
                         self.updateTrainInManualEdit(key, location)
                         updated = True
-                    elif (self.trainRoutes[key][0] == 100 and int(location) == 85):
+                    elif (self.trainRoutes[key][0] == 100 and int(location) == 85 and self.trainRoutes[key][2] == "forward"):
                     #switch from 100->85
                         self.updateTrainInManualEdit(key, location)
                         self.trainRoutes[key][2] = "backward"
                         updated = True
-                    elif (self.trainRoutes[key][0] == 76 and int(location) == 101):
+                    elif (self.trainRoutes[key][0] == 76 and int(location) == 101 and self.trainRoutes[key][2] == "backward"):
                     #switch from 76->101
                         self.updateTrainInManualEdit(key, location)
                         self.trainRoutes[key][2] = "forward"
                         updated = True
-                    elif (self.trainRoutes[key][0] == 150 and int(location) == 28):
+                    elif (self.trainRoutes[key][0] == 150 and int(location) == 28 and self.trainRoutes[key][2] == "forward"):
                     #switch from 150->28
                         self.updateTrainInManualEdit(key, location)
                         self.trainRoutes[key][2] = "backward"
                         updated = True
-                    elif (self.trainRoutes[key][0] == 1 and int(location) == 13):
+                    elif (self.trainRoutes[key][0] == 1 and int(location) == 13 and self.trainRoutes[key][2] == "backward"):
                     #switch from 1->13
                         self.updateTrainInManualEdit(key, location)
                         self.trainRoutes[key][2] = "forward"
                         updated = True
-                    elif (self.trainRoutes[key][0] in range(1, 29) and self.trainRoutes[key][0] == int(location) + 1):
+                    elif (self.trainRoutes[key][0] in range(1, 29) and self.trainRoutes[key][0] == int(location) + 1 and self.trainRoutes[key][2] == "backward"):
                     #if moving backwards
                         self.updateTrainInManualEdit(key, location)
                         updated = True
-                    elif (self.trainRoutes[key][0] in range(76, 86) and self.trainRoutes[key][0] == int(location) + 1):
+                    elif (self.trainRoutes[key][0] in range(76, 86) and self.trainRoutes[key][0] == int(location) + 1 and self.trainRoutes[key][2] == "backward"):
                     #if moving backwards
                         self.updateTrainInManualEdit(key, location)
                         updated = True
@@ -414,7 +414,61 @@ class ScheduleScreen:
                                                 break
                 else:
                 #red line
-                    pass
+                    '''statements to move the train'''
+                    if ((self.trainRoutes[key][0] + 1) == int(location)):
+                        self.updateTrainInManualEdit(key, location)
+                        updated = True
+
+                    else:
+                        if (self.trainRoutes[key][0] in self.redStationLocations):
+                            if (self.trainRoutes[key][3] == self.redStationLocations[self.trainRoutes[key][0]]):
+
+                                self.trainRoutes[key].remove(self.trainRoutes[key][3])
+                            
+                                if (len(self.trainRoutes[key]) == 3):
+                                #if there is no more destination backlog go to yard
+                                    children = self.meArea.get_children("")
+                                    for child in children: 
+                                    #iterate for each parent in the Treeview
+                                        for item in self.meArea.get_children(child):
+                                        #iterate for each child of every parent in the Treeview
+                                            dest = self.meArea.item(item, "text")
+                                            if (dest == "Train " + str(key)):
+                                                newTime = clock.clock.getTimeObj() + timedelta(minutes = 10)
+                                                arrTime = self.timeToSeconds(newTime.strftime("%H:%M"))
+                                                values = self.calculateAuthority(self.trainRoutes[key], "end")
+                                                auth = values[0] - 1
+                                                speed = float(values[1]) / arrTime
+
+                                                self.meArea.item(item, values = ["Block " + location, "Yard", newTime.strftime("%H:%M")])
+                                                self.mainScreen.tlArea.item(item, values = ["Block " + location, "Yard", newTime.strftime("%H:%M")])
+
+                                                self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(key), f"{speed:.3f}", str(auth), self.trainRoutes[key][1]]})
+                                                self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
+                                                self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
+                                                break
+                                else:
+                                #otherwise go to next station
+                                    children = self.meArea.get_children("")
+                                    for child in children: 
+                                    #iterate for each parent in the Treeview
+                                        for item in self.meArea.get_children(child):
+                                        #iterate for each child of every parent in the Treeview
+                                            dest = self.meArea.item(item, "text")
+                                            if (dest == "Train " + str(key)):
+                                                newTime = clock.clock.getTimeObj() + timedelta(minutes = 10)
+                                                arrTime = self.timeToSeconds(newTime.strftime("%H:%M"))
+                                                values = self.calculateAuthority(self.trainRoutes[key], self.trainRoutes[key][3])
+                                                auth = values[0] - 1
+                                                speed = float(values[1]) / arrTime
+
+                                                self.meArea.item(item, values = ["Block " + location, self.trainRoutes[key][3], newTime.strftime("%H:%M")])
+                                                self.mainScreen.tlArea.item(item, values = ["Block " + location, self.trainRoutes[key][3], newTime.strftime("%H:%M")])
+
+                                                self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(key), f"{speed:.3f}", str(auth), self.trainRoutes[key][1]]})
+                                                self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
+                                                self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
+                                                break
                 
             if (not updated):
             #case for if this is not the next block for any train
@@ -568,7 +622,8 @@ class ScheduleScreen:
                             if (char.isdigit()):
                                 train += char
                         #grab train number
-
+                        self.trainRoutes[int(train)][3] = newDestination
+                        #update the route to show that the next stop was changed
                         values = self.calculateAuthority(self.trainRoutes[int(train)], newDestination)
                         auth = values[0] - 1
                         arrTime = self.timeToSeconds(self.meArea.item(rowID, "values")[2])
@@ -599,7 +654,7 @@ class ScheduleScreen:
                         #grab specific train number
 
                         
-                        values = self.calculateAuthority(self.trainRoutes[int(train)], self.trainRoutes[3])
+                        values = self.calculateAuthority(self.trainRoutes[int(train)], self.trainRoutes[int(train)][3])
                         auth = values[0] - 1
                         arrTime = self.timeToSeconds(newTime)
                         speed = float(values[1]) / arrTime
