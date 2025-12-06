@@ -107,8 +107,8 @@ class LeftPanel(tk.Frame):
     # RAILWAY CROSSINGS
     # ------------------------------
     def create_crossing_section(self, parent):
-        crossing_frame = tk.LabelFrame(parent, text="Railway Crossing Detail", 
-                                      bg='#cccccc', font=('Arial', 9, 'bold'))
+        crossing_frame = tk.LabelFrame(parent, text="Railway Crossing Details", 
+                                    bg='#cccccc', font=('Arial', 9, 'bold'))
         crossing_frame.pack(fill=tk.X, pady=5, padx=5)
         
         tk.Label(crossing_frame, text="Select Crossing:", bg='#cccccc').pack(pady=2)
@@ -120,25 +120,44 @@ class LeftPanel(tk.Frame):
         self.crossing_condition = tk.Entry(crossing_frame, width=20, state='readonly')
         self.crossing_condition.pack(pady=2)
         
-        tk.Label(crossing_frame, text="Lights:", bg='#cccccc').pack()
-        self.crossing_lights = ttk.Combobox(crossing_frame, width=18, 
-                                           values=["On", "Off"])
-        self.crossing_lights.pack(pady=2)
-        
-        tk.Label(crossing_frame, text="Bar:", bg='#cccccc').pack()
-        self.crossing_bar = ttk.Combobox(crossing_frame, width=18, values=["Closed", "Open"])
-        self.crossing_bar.pack(pady=2)
+        tk.Label(crossing_frame, text="Status:", bg='#cccccc').pack()
+        self.crossing_status = tk.StringVar()
+        self.crossing_status_dropdown = ttk.Combobox(crossing_frame, 
+                                                    textvariable=self.crossing_status,
+                                                    width=18,  # REMOVE: state='readonly',
+                                                    values=["Active", "Inactive"])
+        self.crossing_status_dropdown.pack(pady=2)
 
         # Set button
         tk.Button(crossing_frame, text="Set", command=self.set_crossing, 
-                 bg='#4a7c8c', fg='white', width=10).pack(pady=5)
+                bg='#4a7c8c', fg='white', width=10).pack(pady=5)
 
         # Initialize options
         self.update_crossing_options()
 
+    def update_crossing_display(self, event=None):
+        selected = self.crossing_selector.get()
+        crossings = self.data.filtered_railway_crossings
+        if selected in crossings:
+            data = crossings[selected]
+            self.crossing_condition.config(state='normal')
+            self.crossing_condition.delete(0, tk.END)
+            self.crossing_condition.insert(0, data["condition"])
+            self.crossing_condition.config(state='readonly')
+            
+            # Determine status based on bar and lights
+            bar = data.get("bar", "Open")
+            lights = data.get("lights", "Off")
+            
+            # Set status based on current state
+            if bar == "Closed" and lights == "On":
+                self.crossing_status.set("Active")
+            else:
+                self.crossing_status.set("Inactive")
+
     def update_crossing_options(self):
         """Populate crossing dropdowns based on current line"""
-        crossings = list(self.data.filtered_railway_crossings.keys())  # Changed from filtered_track_data
+        crossings = list(self.data.filtered_railway_crossings.keys())
         self.crossing_selector['values'] = crossings
         if crossings:
             self.crossing_selector.set(crossings[0])
@@ -148,23 +167,13 @@ class LeftPanel(tk.Frame):
             self.crossing_condition.config(state='normal')
             self.crossing_condition.delete(0, tk.END)
             self.crossing_condition.config(state='readonly')
+            self.crossing_status.set(text="")
 
-    def update_crossing_display(self, event=None):
-        selected = self.crossing_selector.get()
-        crossings = self.data.filtered_railway_crossings  # Changed from filtered_track_data
-        if selected in crossings:
-            data = crossings[selected]
-            self.crossing_condition.config(state='normal')
-            self.crossing_condition.delete(0, tk.END)
-            self.crossing_condition.insert(0, data["condition"])
-            self.crossing_condition.config(state='readonly')
-            self.crossing_lights.set(data["lights"])
-            self.crossing_bar.set(data["bar"])
 
     def set_crossing(self):
-        """Set crossing lights/bar and update model"""
-
-         # Check if in maintenance mode
+        """Set crossing status - automatically syncs bar and lights"""
+        
+        # Check if in maintenance mode
         if not self.data.maintenance_mode:
             messagebox.showwarning("Maintenance Mode Required", 
                                 "Crossing controls can only be modified in Maintenance Mode.")
@@ -172,19 +181,29 @@ class LeftPanel(tk.Frame):
         
         selected = self.crossing_selector.get()
         if selected:
-            new_light = self.crossing_lights.get()
-            new_bar = self.crossing_bar.get()
-            # Update model - use separate variables
-            self.data.update_track_data("railway_crossings", selected, "lights", new_light)  # Changed category
-            self.data.update_track_data("railway_crossings", selected, "bar", new_bar)  # Changed category
-            self.data.update_track_data("railway_crossings", selected, "condition", f"Lights: {new_light}, Bar: {new_bar}")  # Changed category
-            self.update_crossing_display()
-
-            # Log the action - use the direct callback - JUST LIKE YOUR TEST PANEL
+            # Get selected status
+            new_status = self.crossing_status.get()
+            
+            # Set bar and lights based on status
+            if new_status == "Active":
+                new_bar = "Closed"
+                new_lights = "On"
+            else:  # "Inactive"
+                new_bar = "Open" 
+                new_lights = "Off"
+            
+            # Update model with synchronized values
+            self.data.update_track_data("railway_crossings", selected, "lights", new_lights)
+            self.data.update_track_data("railway_crossings", selected, "bar", new_bar)
+            self.data.update_track_data("railway_crossings", selected, "condition", 
+                                    f"Lights: {new_lights}, Bar: {new_bar}")
+            
+            # Log the action
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             if self.log_callback:
-                self.log_callback(f"{current_time} UPDATE: Crossing {selected} set - Lights: {new_light}, Bar: {new_bar} on {self.data.current_line} track")
-
+                self.log_callback(f"{current_time} UPDATE: Crossing {selected} - Status: {new_status} (Bar: {new_bar}, Lights: {new_lights}) on {self.data.current_line} track")
+        
+    
     # ------------------------------
     # SWITCHES
     # ------------------------------

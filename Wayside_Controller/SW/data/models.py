@@ -13,8 +13,8 @@ class RailwayData:
         self.on_maintenance_mode_change = []  # Called when maintenance mode changes
         self.on_data_update = []  # Called when any data updates (PLC/UI updates)
 
-        #Section mapping based on  datasheet
-        self.block_to_section = self.create_section_mapping()
+        # Initialize section mapping from TXT files
+        self.block_to_section = self.load_section_mapping_from_files()
         
         # Command and suggestion storage
         self.commanded_authority = {"Green": {}, "Red": {}}
@@ -50,46 +50,33 @@ class RailwayData:
         # System log reference for broadcasting messages
         self.system_log = None
         
-    def create_section_mapping(self):
-        """Create mapping from block numbers to section letters based on your data"""
+    def load_section_mapping_from_files(self):
+        """Load section mapping from TXT files instead of hardcoding"""
         section_mapping = {}
-        
-        # Green Line sections (from your data)
-        sections = {
-            'A': [1, 2, 3],
-            'B': [4, 5, 6], 
-            'C': [7, 8, 9, 10, 11, 12],
-            'D': [13, 14, 15, 16],
-            'E': [17, 18, 19, 20],
-            'F': [21, 22, 23, 24, 25, 26, 27, 28],
-            'G': [29, 30, 31, 32],
-            'H': [33, 34, 35],
-            'I': [36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57],
-            'J': [58, 59, 60, 61, 62],
-            'K': [63, 64, 65, 66, 67, 68],
-            'L': [69, 70, 71, 72, 73],
-            'M': [74, 75, 76],
-            'N': [77, 78, 79, 80, 81, 82, 83, 84, 85],
-            'O': [86, 87, 88],
-            'P': [89, 90, 91, 92, 93, 94, 95, 96, 97],
-            'Q': [98, 99, 100],
-            'R': [101],
-            'S': [102, 103, 104],
-            'T': [105, 106, 107, 108, 109],
-            'U': [110, 111, 112, 113, 114, 115, 116],
-            'V': [117, 118, 119, 120, 121],
-            'W': [122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141],
-            'X': [144, 145, 146],
-            'Y': [147, 148, 149],
-            'Z': [150]
+        txt_files = {
+            "Green": "Wayside_Controller/SW/data/green_line.txt", 
+            "Red": "Wayside_Controller/SW/data/red_line.txt"
         }
         
-        for section, blocks in sections.items():
-            for block in blocks:
-                section_mapping[f"Green-{block}"] = section
-                # Add Red line if you have similar data for Red line
-                # section_mapping[f"Red-{block}"] = section  
-        
+        for line_name, file_path in txt_files.items():
+                with open(file_path, 'r') as file:
+                    lines = file.readlines()
+                    # Check if file has section column (4 columns means it has section)
+                    if len(lines) > 0:
+                        headers = lines[0].strip().split(',')
+                        has_section_column = len(headers) >= 4 and headers[2].lower() == 'section'
+                        
+                        if has_section_column:
+                            # Process data lines (skip header)
+                            for row_line in lines[1:]:
+                                row = row_line.strip().split(',')
+                                if len(row) >= 4:  # Line,Block,Section,Infrastructure
+                                    block = row[1].strip()
+                                    section = row[2].strip()
+                                    if block and section:  # Make sure we have valid data
+                                        section_mapping[f"{line_name}-{block}"] = section
+                        else:
+                            print(f"Warning: {file_path} doesn't have section column.")
         return section_mapping
     
     def get_section_for_block(self, line, block_number):
@@ -104,7 +91,7 @@ class RailwayData:
                 # Extract block number from key (format: "Green-1")
                 block_num = key.split('-')[1]
                 blocks.append(block_num)
-        return blocks
+        return sorted(blocks, key=lambda x: int(x))
     
     def initialize_track_blocks(self):
         """Initialize blocks with proper structure for PLC processing"""
@@ -115,23 +102,19 @@ class RailwayData:
                 block_num = str(row[2])
                 block_key = f"Block {block_num}"
                 
+                # Get section for this block
+                section = self.get_section_for_block(self.current_line, block_num)
+                
                 # Create block structure with all necessary fields for PLC logic
                 self.filtered_blocks[block_key] = {
                     "number": block_num,
+                    "section": section,
                     "occupied": (row[0] == "Yes"),  # Convert "Yes"/"No" to boolean
                     "position": int(block_num),     # Simple position based on block number
                     "authority": 0,                 # Default authority (will be set by commands)
                     "speed": 0,                     # Default speed (will be set by commands)
-                    "next_block": self.get_next_block(block_num),  # Calculate next block
                 }
 
-    def get_next_block(self, current_block):
-        """Calculate next block number (simple sequential logic)"""
-        try:
-            current_num = int(current_block)
-            return f"Block {current_num + 1}"  # Simple increment for sequential blocks
-        except ValueError:
-            return None  # Handle non-numeric block numbers
 
     def set_system_log(self, system_log):
         """Set reference to system log for message broadcasting"""
@@ -155,12 +138,30 @@ class RailwayData:
             try:
                 with open(file_path, 'r') as file:
                     lines = file.readlines()
-                    # Skip header line (index 0) and process data lines
-                    for row_line in lines[1:]:
-                        row = row_line.strip().split(',')
-                        if len(row) >= 3:  # Ensure we have at least block and infrastructure data
-                            block = row[1].strip()
-                            infrastructure = row[2].strip()
+                    if len(lines) > 0:
+                        headers = lines[0].strip().split(',')
+                        has_section_column = len(headers) >= 4 and headers[2].lower() == 'section'
+                        
+                        # Skip header line (index 0) and process data lines
+                        for row_line in lines[1:]:
+                            row = row_line.strip().split(',')
+                            
+                            if has_section_column:
+                                # New format with sections: Line,Block,Section,Infrastructure
+                                if len(row) >= 4:
+                                    block = row[1].strip()
+                                    section = row[2].strip()
+                                    infrastructure = row[3].strip()
+                                else:
+                                    continue
+                            else:
+                                # Old format without sections: Line,Block,Infrastructure
+                                if len(row) >= 3:
+                                    block = row[1].strip()
+                                    section = self.get_section_for_block(line, block)  # Get from mapping
+                                    infrastructure = row[2].strip()
+                                else:
+                                    continue
 
                             # --- SWITCHES ---
                             if 'Switch' in infrastructure:
@@ -178,7 +179,8 @@ class RailwayData:
                                     "direction": default_direction,
                                     "options": directions,  # Store all possible directions for UI
                                     "line": line,  # Track which line this switch belongs to
-                                    "numeric_position": numeric_position  # ADD THIS LINE
+                                    "numeric_position": numeric_position,  # ADD THIS LINE
+                                    "section": section  # Store section info
                                 }
 
                             # --- RAILWAY CROSSINGS ---
@@ -188,7 +190,8 @@ class RailwayData:
                                     "condition": "Normal Operation",
                                     "lights": "Off",    # Default state
                                     "bar": "Open",    # Default state  
-                                    "line": line        # Track which line this crossing belongs to
+                                    "line": line,        # Track which line this crossing belongs to
+                                    "section": section   # Store section info
                                 }
 
                             # --- LIGHTS ---
@@ -197,7 +200,8 @@ class RailwayData:
                                 self.light_states[light_name] = {
                                     "condition": "Normal Operation",
                                     "signal": "Green",  # Default signal state
-                                    "line": line        # Track which line this light belongs to
+                                    "line": line,        # Track which line this light belongs to
+                                    "section": section   # Store section info
                                 }
 
             except FileNotFoundError:
@@ -215,17 +219,32 @@ class RailwayData:
             try:
                 with open(file_path, 'r') as file:
                     lines = file.readlines()
-                    # Skip header line and process each block
-                    for row_line in lines[1:]:
-                        row = row_line.strip().split(',')
-                        if len(row) >= 2:  # Need at least block number
-                            # Each block starts as unoccupied: 
-                            # ["No", line, block_number, "No"]
-                            all_block_data.append(["No", line, row[1], "No"])
+                    if len(lines) > 0:
+                        headers = lines[0].strip().split(',')
+                        has_section_column = len(headers) >= 4 and headers[2].lower() == 'section'
+                        
+                        # Skip header line and process each block
+                        for row_line in lines[1:]:
+                            row = row_line.strip().split(',')
+                            
+                            if has_section_column:
+                                # New format: Line,Block,Section,Infrastructure
+                                if len(row) >= 2:
+                                    # Each block starts as unoccupied: 
+                                    # ["No", line, block_number, "No"]
+                                    block_num = row[1].strip()
+                                    all_block_data.append(["No", line, block_num, "No"])
+                            else:
+                                # Old format: Line,Block,Infrastructure
+                                if len(row) >= 2:
+                                    block_num = row[1].strip()
+                                    all_block_data.append(["No", line, block_num, "No"])
             except FileNotFoundError:
                 print(f"Warning: {file_path} not found. Skipping {line} block data.")
         
         return all_block_data
+
+    # ... (rest of your methods remain the same - only need to update the methods above)
 
     def extract_switch_directions(self, infrastructure_text):
         """
@@ -259,7 +278,6 @@ class RailwayData:
             options.append("FROM YARD")
 
         return options
-
     
     def update_block_data(self, row_index, col_index, new_value):
         """Update block data and keep original data in sync - FIXED VERSION"""
@@ -310,10 +328,7 @@ class RailwayData:
             
             # Trigger callbacks to update UI components
             for callback in self.on_data_update:
-                try:
-                    callback()
-                except Exception as e:
-                    print(f"Callback error in update_block_data: {e}")
+                callback()
     
     def update_track_data(self, category, name, field, new_value):
         """Update track data and notify callbacks - used for switches, crossings, lights"""
@@ -377,10 +392,8 @@ class RailwayData:
 
                 # Notify listeners that data changed
                 for callback in self.on_data_update:
-                    try:
-                        callback()
-                    except Exception as e:
-                        print(f"Callback error: {e}")
+                    callback()
+                    
     
     def update_block_in_track_data(self, block_num, field, value):
         """Update a specific block in track_data - used by PLC"""
@@ -390,10 +403,8 @@ class RailwayData:
             
             # Notify listeners (UI components) that data changed
             for callback in self.on_data_update:
-                try:
-                    callback()
-                except Exception as e:
-                    print(f"Callback error: {e}")
+                callback()
+                
 
     def sync_block_occupancy_from_track(self):
         """Sync occupancy from track_data back to block_data - ensures consistency"""
@@ -441,10 +452,8 @@ class RailwayData:
                 
                 # Trigger UI updates
                 for callback in self.on_data_update:
-                    try:
-                        callback()
-                    except Exception as e:
-                        print(f"Callback error: {e}")
+                    callback()
+                    
 
     def set_current_line(self, line):
         """Set the current active track and filter data to show only that line"""
@@ -515,8 +524,6 @@ class RailwayData:
                             if idx < len(self.block_data_original):
                                 self.block_data_original[idx][0] = new_occupied_str
                         break
-            
-
 
     #for PLC program
     @property

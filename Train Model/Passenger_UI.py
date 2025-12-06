@@ -260,7 +260,7 @@ class TrainModelPassengerGUI:
 			elif command == 'Power Command':
 				train.setPowerCommand(value)
 			elif command == 'Train Horn':
-				playsound("Train Model/diesel-horn-02-98042.mp3")
+				playsound("Train Model\diesel-horn-02-98042.mp3")
 			elif command == 'Station Announcement Message':
 				train.setStation(value)
 			elif command == 'Commanded Authority':
@@ -427,10 +427,10 @@ class TrainModelPassengerGUI:
 			
 	def updateDisembarking(self, train):
 		# Updates passenger disembarking when train is stopped with doors open.
-		if train and train.deployed and train.passengerCount != 0:
+		if train and train.active and train.passengerCount != 0:
 			if (train.speed == 0 and train.serviceBrakeActive and 
-				(train.rightDoorOpen or train.leftDoorOpen)):
-				
+				(train.rightDoorOpen or train.leftDoorOpen) and redundantCheck):
+				redundantCheck = True
 				passengerCount = train.passengerCount
 				disembarking = random.randint(0, passengerCount)
 				
@@ -630,6 +630,7 @@ class TrainModelPassengerGUI:
 		self.trainSelector.config(bg=self.mainColor, fg='white', font=('Arial', 9), width=20)  
 		self.trainSelector.pack(side='left', padx=(0, 8))
 		self.trainSelector['menu'].config(bg=self.mainColor, fg='white')
+        
 
 		# Top Container
 		topContainer = tk.Frame(self.root, bg=self.mainColor, highlightbackground="black", highlightthickness=3)
@@ -656,7 +657,7 @@ class TrainModelPassengerGUI:
 		announcementFrame = tk.Frame(topContainer, bg=self.offColor, width=600, height=65, highlightbackground="black", highlightthickness=3)
 		announcementFrame.pack(side='left', padx=2, pady=2)
 		announcementFrame.pack_propagate(False)
-		self.uiLabels['announcement'] = tk.Label(announcementFrame, text="Arriving to Dormount in 5 seconds", bg=self.offColor, fg='white', font=('Arial', 16, 'bold'))
+		self.uiLabels['announcement'] = tk.Label(announcementFrame, text="", bg=self.offColor, fg='white', font=('Arial', 16, 'bold'))
 		self.uiLabels['announcement'].pack(padx=3, pady=3)
 
 		# Main frames
@@ -772,7 +773,7 @@ class TrainModelPassengerGUI:
 									   style="Medium.TCheckbutton")
 		brakeSwitch.pack(pady=6, padx=3, fill='x', expand=True)
 
-		# Passenger Disembarking
+		# Passenger Disembarking CHANGE THIS TO A HELP BUTTON WITH A POP-UP THAT GIVES A DESCRIPTION OF THE UI.
 		passDisembarkingFrame = tk.Frame(rightFrame, highlightbackground="black", highlightthickness=2, bg=self.offColor, height=50)
 		passDisembarkingFrame.pack(side='top', padx=1, pady=1, fill='both')
 
