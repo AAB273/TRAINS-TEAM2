@@ -324,7 +324,7 @@ class ScheduleScreen:
                         self.updateTrainInManualEdit(key, location)
                         self.trainRoutes[key][2] = "backward"
                         updated = True
-                    elif (self.trainRoutes[key][0] == 76 and int(location) == 101 and self.trainRoutes[key][2] == "backward"):
+                    elif (self.trainRoutes[key][0] == 77 and int(location) == 101 and self.trainRoutes[key][2] == "backward"):
                     #switch from 76->101
                         self.updateTrainInManualEdit(key, location)
                         self.trainRoutes[key][2] = "forward"
@@ -415,7 +415,71 @@ class ScheduleScreen:
                 else:
                 #red line
                     '''statements to move the train'''
-                    if ((self.trainRoutes[key][0] + 1) == int(location)):
+                    if ((self.trainRoutes[key][0] + 1) == int(location) and self.trainRoutes[key][2] == "forward"):
+                        self.updateTrainInManualEdit(key, location)
+                        updated = True
+
+                    elif (self.trainRoutes[key][0] == 1 and int(location) == 16 and self.trainRoutes[key][2] == "backward"):
+                        self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "forward"
+                        updated = True
+
+                    elif (self.trainRoutes[key][0] == 27 and int(location) == 76 and self.trainRoutes[key][2] == "forward"):
+                        self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "backward"
+                        updated = True
+
+                    elif (self.trainRoutes[key][0] == 72 and int(location) == 33 and self.trainRoutes[key][2] == "backward"):
+                        self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "forward"
+                        updated = True
+
+                    elif (self.trainRoutes[key][0] == 38 and int(location) == 71 and self.trainRoutes[key][2] == "forward"):
+                        self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "backward"
+                        updated = True
+                    
+                    elif (self.trainRoutes[key][0] == 67 and int(location) == 44 and self.trainRoutes[key][2] == "backward"):
+                        self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "forward"
+                        updated = True
+
+                    elif (self.trainRoutes[key][0] == 66 and int(location) == 52 and self.trainRoutes[key][2] == "forward"):
+                        self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "backward"
+                        updated = True
+
+                    elif (self.trainRoutes[key][0] == 52 and int(location) == 66 and self.trainRoutes[key][2] == "forward"):
+                        self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "backward"
+                        updated = True
+
+                    elif (self.trainRoutes[key][0] == 44 and int(location) == 67 and self.trainRoutes[key][2] == "backward"):
+                        self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "forward"
+                        updated = True
+                    
+                    elif (self.trainRoutes[key][0] == 71 and int(location) == 38 and self.trainRoutes[key][2] == "forward"):
+                        self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "backward"
+                        updated = True 
+
+                    elif (self.trainRoutes[key][0] == 33 and int(location) == 72 and self.trainRoutes[key][2] == "backward"):
+                        self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "forward"
+                        updated = True
+
+                    elif (self.trainRoutes[key][0] == 76 and int(location) == 27 and self.trainRoutes[key][2] == "forward"):
+                        self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "backward"
+                        updated = True
+
+                    elif (self.trainRoutes[key][0] == 16 and int(location) == 1 and self.trainRoutes[key][2] == "backward"):
+                        self.updateTrainInManualEdit(key, location)
+                        self.trainRoutes[key][2] = "forward"
+                        updated = True
+
+                    elif (self.trainRoutes[key][0] == (int(location) + 1) and self.trainRoutes[key][2] == "backward"):
                         self.updateTrainInManualEdit(key, location)
                         updated = True
 
@@ -590,6 +654,7 @@ class ScheduleScreen:
 
 
         else:
+        #red line
             pass
 
         return [authority, dist]
