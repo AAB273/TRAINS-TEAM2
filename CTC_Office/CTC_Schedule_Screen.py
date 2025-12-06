@@ -655,7 +655,43 @@ class ScheduleScreen:
 
         else:
         #red line
-            pass
+            pos = data[0]
+            dir = data[2]
+
+            authority = 0
+            dist = 100
+
+            found = False
+            while (not found):
+                if (dir == "forward"):
+                    if (pos == 66):
+                        authority += 1
+                        dir = "backward"
+                        pos = 52
+
+                    else:
+                        authority += 1
+                        pos += 1
+
+                else:
+                    if (pos == 1):
+                        authority += 1
+                        dir = "forward"
+                        pos = 16
+
+                    elif (pos == 16):
+                        authority += 1
+                        dir = "forward"
+                        pos = 1
+
+                    else:
+                        authority += 1
+                        pos -= 1
+
+                if (pos in self.redStationLocations):
+                    if (self.redStationLocations[pos] == destination):
+                        found = True
+
 
         return [authority, dist]
 
