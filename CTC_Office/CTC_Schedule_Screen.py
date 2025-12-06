@@ -44,8 +44,9 @@ class ScheduleScreen:
                                       39: "Central", 48: "Inglewood", 57: "Overbrook", 58: "end"}
         self.greenStations = ["Pioneer", "Edgewood", "LLC Plaza", "Whited", "South Bank", "Central", "Inglewood", "Overbrook", "Glenbury", "Dormont", "Mt. Lebanon", "Poplar", "Castle Shannon"]
         
-        self.redStationLocations = {}
-        self.redStations = []
+        self.redStationLocations = {9: "start", 7: "Shadyside", 16: "Herron Ave", 21: "Swissville", 25: "Penn Station",
+                                    35: "Steel Plaza", 45: "First Ave", 48: "Station Square", 60: "South Hills Junction", 9: "end"}
+        self.redStations = ["Shadyside", "Herron Ave", "Swissville", "Penn Station", "Steel Plaza", "First Ave", "Station Square", "South Hills Junction"]
 
         self.trainRoutes = {}
 
@@ -137,7 +138,8 @@ class ScheduleScreen:
 
         locSelect = ttk.Combobox(locFrame, textvariable = selectedLocation)
         #shows options for the user to select for destination
-        locSelect["values"] = ["Pioneer", "Edgewood", "LLC Plaza", "Whited", "South Bank", "Central", "Inglewood", "Overbrook", "Glenbury", "Dormont", "Mt. Lebanon", "Poplar", "Castle Shannon"]
+        locSelect["values"] = ["Pioneer", "Edgewood", "LLC Plaza", "Whited", "South Bank", "Central", "Inglewood", "Overbrook", "Glenbury", "Dormont", "Mt. Lebanon", "Poplar", "Castle Shannon",
+                               "Shadyside", "Herron Ave", "Swissville", "Penn Station", "Steel Plaza", "First Ave", "Station Square", "South Hills Junction"]
         #for GREEN LINE ONLY
         locSelect["state"] = "readonly"
         locSelect.pack(padx = 5, pady = 5, fill = "x")
@@ -155,7 +157,7 @@ class ScheduleScreen:
         buttonFrame = ttk.Frame(leftFrame, style = "white.TFrame")
         buttonFrame.pack(pady = 40, side = "top", expand = True)
         #sub-frame to organize buttons
-        getDeploy = ttk.Button(buttonFrame, text = "Deploy Train", style = "TButton", command = lambda: (self.sendDeployData("63", selectedLocation.get(), arrivalTime.get(), "green"), self.updateManualEdit("63", selectedLocation.get(), arrivalTime.get(), "green")))
+        getDeploy = ttk.Button(buttonFrame, text = "Deploy Train", style = "TButton", command = lambda: (self.sendDeployData("63", selectedLocation.get(), arrivalTime.get(), "green"), self.updateManualEdit("63", [selectedLocation.get()], arrivalTime.get(), "green")))
         getDeploy.pack(pady = 15, side = "top", fill = "x")
         #grab inputs from the Combobox and Entry (if user inputs values)
         autoButton = ttk.Button(buttonFrame, text = "Automatic Mode", style = "TButton", command = lambda: self.updateAutoEdit())
@@ -235,6 +237,10 @@ class ScheduleScreen:
     def sendDeployData(self, location: str, destination: str, time: str, line: str):
     #send user inputs to main screen to update train locations Treeview
 
+        if (destination in self.redStations):
+            location = "9"
+            line = "red"
+
         self.mainScreen.updateTrainLocations(location, destination, time, line, self.trainNum)
         #increase of trains on the line
 
@@ -244,6 +250,10 @@ class ScheduleScreen:
     #update the manual edit tab
         if (time != None):
         #if we are creating a new train on the line
+            if (destination[0] in self.redStations):
+                location = "9"
+                line = "red"
+
             arrTime = self.timeToSeconds(time)
             speed = 0
             auth = 0
@@ -277,7 +287,11 @@ class ScheduleScreen:
                     level = self.meArea.insert('', "end", text = line.title())
                     self.meArea.insert(level, "end", text = "Train " + str(self.trainNum), values = [("Block " + location), destination[0], time])
 
-            self.trainRoutes[self.trainNum] = [63, line, "forward"]
+            if (line == "red"):
+                self.trainRoutes[self.trainNum] = [int(location), line, "backward"]
+            else:
+                self.trainRoutes[self.trainNum] = [int(location), line, "forward"]
+
             for station in destination:
                 self.trainRoutes[self.trainNum].append(station)
 
@@ -288,9 +302,9 @@ class ScheduleScreen:
             speed = float(values[1]) / arrTime
 
             self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(self.trainNum - 1), f"{speed:.3f}", str(auth), line]})
-            self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": "Green", "block": "63", "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
-            self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": "Green", "block": "63", "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
-            #hardcoded 63 for now
+            self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": line.title(), "block": location, "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
+            self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": line.title(), "block": location, "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
+    
             return auth  #for test case 1
         
         else:
@@ -626,7 +640,7 @@ class ScheduleScreen:
                 line = schedule.iloc[i, 2]
                 launchTime = schedule.iloc[i, 3]
 
-                if (arrTime == launchTime):
+                if (launchTime == "00:00"):
                     self.sendDeployData("63", dest[0], arrTime, line)
                     self.updateManualEdit("63", dest, arrTime, line)
                 else:
