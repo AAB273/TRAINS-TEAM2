@@ -23,21 +23,21 @@ def launch_both_guis():
     
     try:
         print("🚆 Launching Passenger GUI...")
-        passenger_process = subprocess.Popen([sys.executable, PASSENGER_UI_PATH])
+        passengerProcess = subprocess.Popen([sys.executable, PASSENGER_UI_PATH])
         
         # Wait for socket server to start
         print("⏳ Waiting for Passenger GUI socket server to start...")
      
         
         print("🧪 Launching Test UI...")
-        test_process = subprocess.Popen([sys.executable, TEST_UI_PATH])
+        testProcess = subprocess.Popen([sys.executable, TEST_UI_PATH])
         
         print("✅ Both GUIs launched successfully!")
         print("💡 Close this window to terminate both applications.")
         
         # Wait for processes
-        passenger_process.wait()
-        test_process.wait()
+        passengerProcess.wait()
+        testProcess.wait()
         
     except KeyboardInterrupt:
         print("\n🛑 Shutting down both GUIs...")
