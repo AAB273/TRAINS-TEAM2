@@ -4153,7 +4153,7 @@ class TrackModelUI(tk.Tk):
                     if not has_power:
                         crossing_state = "NO POWER"
                     else:
-                        crossing_state = "Active" if getattr(b, "crossing", False) else "Inactive"
+                        crossing_state = "Active" if getattr(b, "crossing_state", False) else "Inactive"
                 else:
                     crossing_state = "--"
                 
