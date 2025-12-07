@@ -18,7 +18,7 @@ from train_data import getTrainManager
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
-import clock
+from clock import clock
 from playsound import playsound
 import random
 
@@ -198,11 +198,12 @@ class TrainModelPassengerGUI:
 			elif command == 'set_authority':
 				wasActive = train.active if train else False
 				train.setAuthority(value)
-			
+				self.server.send_to_ui("Train HW",value)
 				if not wasActive and train.active:
 					print(f"Train {train.trainId} activated - refreshing selector")
 					self.refreshTrainSelectorIfNeeded()  
-			
+			elif command == 'set_commanded_speed':
+				train.setCommandedSpeed(value)
 			elif command == 'set_station':
 				train.setStation(value)
 			elif command == 'set_time_to_station':
