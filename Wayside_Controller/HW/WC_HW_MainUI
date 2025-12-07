@@ -79,17 +79,100 @@ def update_callback(message):
 # send_to_ui function
 # target ui is test ui
 
+# def _process_message(self, data, connection=None, server_instance=None):
+#     """Process incoming messages from Test UI"""
+#     try:
+#         print(f"\n{'='*60}")
+#         print(f"MAIN UI: Received message from CTC")
+#         print(f"Data type: {type(data)}")
+#         print(f"Data: {data}")
+#         print(f"{'='*60}\n")
+#         print(f"=== MAIN UI DEBUG ===")
+#         print(f"Received data: {data}")
+#         print(f"=== END DEBUG ===")
+        
+#         # 1. Handle connection test
+#         if isinstance(data, str) and data.strip() == "CTC":
+#             print("CTC connection test received")
+#             add_to_message_log("CTC connection test received")
+#             if connection:
+#                 try:
+#                     connection.sendall(b"CTC_ACK")
+#                 except:
+#                     pass
+#             return
+        
+#         # 2. Parse message
+#         message_data = None
+#         if isinstance(data, str):
+#             try:
+#                 message_data = json.loads(data)
+#             except json.JSONDecodeError:
+#                 # Simple string commands
+#                 if data == "update_speed_auth":
+#                     message_data = {'command': 'update_speed_auth', 'value': ''}
+#                     print(f"Recieved update_speed_auth command: {message_data} ")
+#                     # If not JSON, just log it
+#                     add_to_message_log(f"String message: {data}")
+#                     return
+#                 else:
+#                     message_data = {'message': data}
+#         elif isinstance(data, dict):
+#             message_data = data
+#         else:
+#             print(f"Unknown data type: {type(data)}")
+#             return
+        
+#         # 3. Process command
+#         command = message_data.get('command', '')
+#         value = message_data.get('value', '')
+        
+#         if command == 'update_speed_auth':
+#             # Pass directly to existing handler
+#             if hasattr(test_data, 'handle_ctc_message'):
+#                 test_data.handle_ctc_message(message_data)
+#             else:
+#                 add_to_message_log(f"Received update_speed_auth: {value}")
+                
+#         elif command == 'ctc_suggestion':
+#             # Handle speed suggestion
+#             handle_ctc_suggested_speed(value)
+
+#         elif command == 'set_block_occupancy':
+#             pass  # Add handling if needed
+#         elif command == 'set_switch_position':
+#             # Just log it for now
+#             add_to_message_log(f"Switch position update: {value}")
+#             pass  # Add handling if needed
+#         else:
+#             print(f"Unknown command: {command} with value: {value}")
+            
+#     except Exception as e:
+#         print(f"Error processing message: {e}")
+        
+# Example of Process Function:
 def _process_message(self, data, connection=None, server_instance=None):
     """Process incoming messages from Test UI"""
     try:
         print(f"\n{'='*60}")
-        print(f"MAIN UI: Received message from CTC")
+        print(f"TRACK HW MAIN UI: Received message from CTC")
         print(f"Data type: {type(data)}")
         print(f"Data: {data}")
+
+        # Try to parse
+        try:
+            import json
+            message_data = json.loads(data)
+            print(f"Parsed: {message_data}")
+        
+        # Call your handler
+            if hasattr(test_data, 'handle_ctc_message'):
+                test_data.handle_ctc_message(message_data)
+        except:
+            print(f"Could not parse: {data}")
+    
+        print(f"{'='*60}")
         print(f"{'='*60}\n")
-        print(f"=== MAIN UI DEBUG ===")
-        print(f"Received data: {data}")
-        print(f"=== END DEBUG ===")
         
         # 1. Handle connection test
         if isinstance(data, str) and data.strip() == "CTC":
@@ -106,19 +189,24 @@ def _process_message(self, data, connection=None, server_instance=None):
         message_data = None
         if isinstance(data, str):
             try:
+                # Parse as JSON (your data IS valid JSON from CTC)
                 message_data = json.loads(data)
+                print(f"Parsed JSON data: {message_data}")
             except json.JSONDecodeError:
-                # Simple string commands
-                if data == "update_speed_auth":
-                    message_data = {'command': 'update_speed_auth', 'value': ''}
-                    print(f"Recieved update_speed_auth command: {message_data} ")
-                    # If not JSON, just log it
-                    add_to_message_log(f"String message: {data}")
-                    return
-                else:
+                # If not JSON, check if it's a Python dict string
+                try:
+                    import ast
+                    if data.startswith('{') and data.endswith('}'):
+                        message_data = ast.literal_eval(data)
+                        print(f"Parsed as Python dict: {message_data}")
+                    else:
+                        # Simple string commands
+                        message_data = {'message': data}
+                except:
                     message_data = {'message': data}
         elif isinstance(data, dict):
             message_data = data
+            print(f"Data is already a dictionary: {data}")
         else:
             print(f"Unknown data type: {type(data)}")
             return
@@ -127,12 +215,40 @@ def _process_message(self, data, connection=None, server_instance=None):
         command = message_data.get('command', '')
         value = message_data.get('value', '')
         
+        print(f"Processing command: {command}, value: {value}")
+        
         if command == 'update_speed_auth':
-            # Pass directly to existing handler
-            if hasattr(test_data, 'handle_ctc_message'):
+            # CALL THE EXISTING HANDLER IN UITestData
+            print(f"DEBUG: Calling test_data._handle_speed_auth_update with: {value}")
+            
+            # Check if test_data has the method
+            if hasattr(test_data, '_handle_speed_auth_update'):
+                test_data._handle_speed_auth_update(value)
+            elif hasattr(test_data, 'handle_ctc_message'):
                 test_data.handle_ctc_message(message_data)
             else:
-                add_to_message_log(f"Received update_speed_auth: {value}")
+                # Fallback: Update right panel directly
+                print(f"No handler found, updating right panel directly")
+                if isinstance(value, dict):
+                    track = value.get('track', '')
+                    speed_str = value.get('speed', '0')
+                    authority_str = value.get('authority', '0')
+                    
+                    try:
+                        speed = float(speed_str)
+                        if hasattr(right_panel, 'update_suggested_speed'):
+                            right_panel.update_suggested_speed(speed)
+                    except:
+                        pass
+                    
+                    try:
+                        authority = int(authority_str)
+                        if hasattr(right_panel, 'update_suggested_authority'):
+                            right_panel.update_suggested_authority(authority)
+                    except:
+                        pass
+                    
+                    add_to_message_log(f"CTC Update: Speed={speed_str}, Authority={authority_str}")
                 
         elif command == 'ctc_suggestion':
             # Handle speed suggestion
@@ -140,116 +256,17 @@ def _process_message(self, data, connection=None, server_instance=None):
 
         elif command == 'set_block_occupancy':
             pass  # Add handling if needed
+            
         elif command == 'set_switch_position':
-            # Just log it for now
             add_to_message_log(f"Switch position update: {value}")
-            pass  # Add handling if needed
+            
         else:
             print(f"Unknown command: {command} with value: {value}")
             
     except Exception as e:
         print(f"Error processing message: {e}")
-        
-# Example of Process Function:
-# def _process_message(self, data, connection=None, server_instance=None):
-#     """Process incoming messages from Test UI"""
-#     try:
-#         print(f"=== MAIN UI DEBUG ===")
-#         print(f"Received RAW data type: {type(data)}")
-#         print(f"Received RAW data: {repr(data)}")  # repr shows special characters
-#         print(f"Data length: {len(str(data)) if data else 0}")
-#         print(f"=== END DEBUG ===")
-#          # Parse the data if it's a string
-#         if isinstance(data, str) and data.strip() == "CTC":
-#             print("Got 'CTC' connection test - responding")
-#             add_to_message_log("CTC connection test received and acknowledged")
-#             # Send acknowledgment back if needed
-#             if connection and hasattr(connection, 'sendall'):
-#                 connection.sendall(b"CTC_ACK")
-#             return
-        
-#         # 2. Try to parse as JSON
-#         message_data = None
-#         if isinstance(data, str):
-#             try:
-#                 # Try to parse as JSON
-#                 import json
-#                 message_data = json.loads(data)
-#                 print(f"Parsed JSON data: {message_data}")
-#                 # message_data = parsed_data
-#             except json.JSONDecodeError as je:
-#                 # If it's not JSON, treat it as a plain string message
-#                 # print(f"Data is plain string, not JSON: {data}")
-#                 print(f"Not valid JSON: {je}")
-#                 print(f"Treating as plain string message:{data}")
-#                 message_data = {'message': data}
-#                 # message_data = {'message': data}
-#             # Check if it's a simple string message
-#                 if data.strip() == "CTC":
-#                     print("Got 'CTC' string - might be a connection test")
-#                     add_to_message_log("CTC connection test received")
-#                     return
-#                 else:
-#                     # Try other parsing methods
-#                     print(f"Treating as plain string message: {data}")
-#                     message_data = {'message': data}
-                    
-#         elif isinstance(data, dict):
-#             print(f"Data is already a dictionary: {data}")
-#             message_data = data
-#         else:
-#             print(f"Unknown data type: {type(data)}")
-#             return
-#         # else:
-#         #     # Data is already a dictionary
-#         #     message_data = data
-#         # extract command and value 
-#         # command = message_data.get('command')
-#         # value = message_data.get('value')
-#         # # self.handle_ctc_message(message_data)
-#         # print(f"Processing command: {command}, value: {value}")
-
-#         # Now process the message_data
-#         if message_data:
-#             command = message_data.get('command')
-#             value = message_data.get('value')
-            
-#             print(f"Processing command: {command}, value: {value}")
-
-#         # Handle different commands
-#         if command == 'ctc_suggestion':
-#             # Extract both speed and authority from the value
-#             if isinstance(value, dict):
-#                 # New format from CTC: {'speed': 45.5, 'authority': 10}
-#                 formatted_speed = value.get('speed')
-#                 auth_value = value.get('authority')
-#             elif isinstance(value, str):
-#                 # Old format or combined format: "45.5,10"
-#                 parts = value.split(',')
-#                 formatted_speed = parts[0] if len(parts) > 0 else value
-#                 auth_value = parts[1] if len(parts) > 1 else None
-#             else:
-#                 formatted_speed = value
-#                 auth_value = None
-#             # Use your existing function
-#             formatted_speed = handle_ctc_suggested_speed(value)
-#             if formatted_speed is not None:
-#                 update_suggested_speed_display(formatted_speed, auth_value)
-#                 # # ADD THIS LINE - sync back to Test UI
-#                 # self.sync_speed_to_test_ui(formatted_speed)
-#         elif command == 'update_speed_auth':
-#             test_data.handle_speed_auth_update(value)
-#             # self.handle_speed_auth_update(value)    
-#         elif command == 'set_block_occupancy':
-#             # existing handling
-#             pass
-#         elif command == 'set_switch_position':
-#             #existing handling
-#             pass
-#         else: 
-#             print(f"Unknown command: {command}")
-#     except Exception as e:
-#         print(f"Error processing message: {e}")
+        import traceback
+        traceback.print_exc()
 
 def handle_ctc_suggested_speed(speed_data):
     """
@@ -1336,9 +1353,9 @@ def update_clock_display():
     except Exception as e:
         print(f"Clock error: {e}")
         clock_label.config(text="--:--:--")
-
+# update every 100 ms
     # Update every second (1000ms)
-    root.after(1000, update_clock_display)
+    root.after(100, update_clock_display)
 
     # time = clock.clock.getTime()
     # self.clockText.configure(text = time)
