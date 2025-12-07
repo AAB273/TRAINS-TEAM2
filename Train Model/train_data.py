@@ -62,7 +62,7 @@ class Train:
 		self.cabinTemp = 72.0
 		self.grade = 0
 		self.elevation = 0
-		self.speedLimit = 50
+		self.speedLimit = 40
 		self.speedLimitMps = self.speedLimit / 3.6
 		self.commandedSpeed = 0
 		self.commandedAuthority = 0
@@ -103,7 +103,7 @@ class Train:
 		self.line = "green" 
 		self.block = 63
 		self.atStation = False
-		self.previousBlock = None
+		self.previousBlock = 63
 
 		# Station
 		self.station = "YARD"
@@ -305,7 +305,7 @@ class Train:
 		# Sets whether the train should receive physics updates.
 		self.active = active
 
-	def calculateForceSpeedAccelerationDistance(self, dt: float = 10.0):
+	def calculateForceSpeedAccelerationDistance(self, dt: float = 1.0):
 		# Calculates train physics based on current state and commands.
 		"""
 		Physics calculation point:
