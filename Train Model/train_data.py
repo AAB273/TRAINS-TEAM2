@@ -379,7 +379,7 @@ class Train:
 		if newSpeed > MAX_SPEED:
 			newSpeed = MAX_SPEED
 			aNew = 0
-			
+
 		# Calculate distance with final speed values
 		if hasattr(self, 'speedPrev'):
 			avgSpeed = (newSpeed + self.speedPrev) / 2

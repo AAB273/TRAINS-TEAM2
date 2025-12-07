@@ -935,7 +935,7 @@ class TrainModelPassengerGUI:
 		# Initialize the train selector dropdown
 		self.root.after(100, self.refreshTrainSelector)
 
-		self.root.after(100, self.continuousPhysicsUpdate)
+		self.root.after(clock.clock.getSpeed * 100, self.continuousPhysicsUpdate)
 
 		self.root.after(100, self.updateTime)
 
