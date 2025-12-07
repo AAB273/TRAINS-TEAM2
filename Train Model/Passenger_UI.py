@@ -244,7 +244,7 @@ class TrainModelPassengerGUI:
 				targetTemp = value
 				self._animateTemperatureChange(targetTemp, train)
 			elif command == 'Service Brake':
-				if self.failureBrakeVar.get and train == self.currentTrain:
+				if self.failureBrakeVar.get() and train == self.currentTrain:
 					pass
 				else:
 					train.setServiceBrake(value)
