@@ -263,7 +263,7 @@ class UITestData:
         # Callbacks
         self.on_line_change = []
         self.on_block_change = []
-
+        self.block_sections = {}
         # Current line
         self.current_line = "Green"
 
@@ -336,6 +336,9 @@ class UITestData:
     
     # Try to load from file
         filename = "green_line.txt" if self.current_line == "Green" else "red_line.txt"
+        
+        # call load data 
+        # self.load_line_data(filename)
     
     # Check if file exists
         import os
@@ -357,7 +360,7 @@ class UITestData:
         print(f"Total rows in block_data: {len(self.block_data)}")
         if self.block_data:
             print(f"Sample row: {self.block_data[0]}")
-
+        
     # SOCKET SERVER
         self.server1 = TrainSocketServer(port=12344, ui_id="Track HW")
         self.server1.set_allowed_connections(["WC_HW_TestUI", "CTC", "Track Model"])
@@ -401,50 +404,9 @@ class UITestData:
                 lines = file.readlines()
                 print(f"\nNumber of lines: {len(lines)}")
 
-        # Define the section mappings
-            green_sections = {
-            "1": "A", "2": "A", "3": "A", "4": "B", "5": "B", "6": "B",
-            "7": "C", "8": "C", "9": "C", "10": "C", "11": "C", "12": "C",
-            "13": "D", "14": "D", "15": "D", "16": "D",
-            "17": "E", "18": "E", "19": "E", "20": "E",
-            "21": "F", "22": "F", "23": "F", "24": "F", "25": "F", "26": "F", "27": "F", "28": "F",
-            "29": "G", "30": "G", "31": "G", "32": "G",
-            "33": "H", "34": "H", "35": "H",
-            "36": "I", "37": "I", "38": "I", "39": "I", "40": "I", "41": "I", "42": "I", "43": "I",
-            "44": "I", "45": "I", "46": "I", "47": "I", "48": "I", "49": "I", "50": "I", "51": "I",
-            "52": "I", "53": "I", "54": "I", "55": "I", "56": "I", "57": "I",
-            "58": "J", "59": "J", "60": "J", "61": "J", "62": "J",
-            "63": "K", "64": "K", "65": "K", "66": "K", "67": "K", "68": "K",
-            "69": "L", "70": "L", "71": "L", "72": "L", "73": "L",
-            "150": "Z"
-            }
-        
-            red_sections = {
-            "74": "M", "75": "M", "76": "M",
-            "77": "N", "78": "N", "79": "N", "80": "N", "81": "N", "82": "N", "83": "N", "84": "N", "85": "N",
-            "86": "O", "87": "O", "88": "O",
-            "89": "P", "90": "P", "91": "P", "92": "P", "93": "P", "94": "P", "95": "P", "96": "P", "97": "P",
-            "98": "Q", "99": "Q", "100": "Q",
-            "101": "R",
-            "102": "S", "103": "S", "104": "S",
-            "105": "T", "106": "T", "107": "T", "108": "T", "109": "T",
-            "110": "U", "111": "U", "112": "U", "113": "U", "114": "U", "115": "U", "116": "U",
-            "117": "V", "118": "V", "119": "V", "120": "V", "121": "V",
-            "122": "W", "123": "W", "124": "W", "125": "W", "126": "W", "127": "W", "128": "W", 
-            "129": "W", "130": "W", "131": "W", "132": "W", "133": "W", "134": "W", "135": "W",
-            "136": "W", "137": "W", "138": "W", "139": "W", "140": "W", "141": "W", "142": "W", "143": "W",
-            "144": "X", "145": "X", "146": "X",
-            "147": "Y", "148": "Y", "149": "Y",
-            # Yard to F sections for Red line
-            "1": "Yard", "2": "Yard", "3": "Yard",
-            "4": "A", "5": "A", "6": "A",
-            "7": "B", "8": "B", "9": "B",
-            "10": "C", "11": "C", "12": "C",
-            "13": "D", "14": "D", "15": "D",
-            "16": "E", "17": "E", "18": "E", "19": "E", "20": "E",
-            "21": "F", "22": "F", "23": "F"
-            }
-        
+            green_sections = self.green_sections # use class attributes
+            red_sections = self.red_sections # use class attribute
+
             # Combine sections for lookup
             all_sections = {**green_sections, **red_sections}
 
@@ -923,13 +885,13 @@ def toggle_line_map():
         map_toggle_btn.config(text="Switch to Green Line", bg="#66cc66")
         add_to_message_log("Switched to Red Line data")
         # load_line_data("Red")
-        test_data.load_initial_data() # calling the method on test_data
+        test_data.load_initial_data("red_line.txt") # calling the method on test_data
     else:
         test_data.current_line = "Green"
         map_toggle_btn.config(text="Switch to Red Line", bg="#ff6666")
         add_to_message_log("Switched to Green Line data")
         # load_line_data("Green")
-        test_data.load_initial_data() # calling the method on test_data
+        test_data.load_initial_data("green_line.txt") # calling the method on test_data
 
     # update test_data
     # test_data.current_line = current_line
@@ -948,18 +910,24 @@ def toggle_line_map():
     add_to_message_log(f"Displaying {test_data.current_line} Line data")
 
 def load_line_data(self, filename):
+    # changed this at 1:53 am 12/7
     """Load track data for the specified line"""
-    data = []
     try:
-
-        test_data.block_sections = {}
+        print(f"DEBUG: Loading file: '{filename}'")
+        print(f"DEBUG: Current directory: {os.getcwd()}")
+        print(f"DEBUG: Files in directory: {os.listdir('.')}")
+        
+        # Clear existing data
+        self.block_data = []
+        self.block_sections = {}
+        
         # Load block data
-        test_data.block_data = test_data.load_complete_track_data(filename)
-        test_data.filtered_block_data = test_data.block_data.copy()
-
+        self.block_data = self.load_complete_track_data(filename)
+        self.filtered_block_data = self.block_data.copy()
+        
         if filename == "green_line.txt":
             # Update track data for green line
-            test_data.track_data = {
+            self.track_data = {
                 "crossings": {
                     "Railway Crossing: 19": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
                 },
@@ -975,27 +943,12 @@ def load_line_data(self, filename):
                     "Light 19": {"condition": "Normal", "signal": "Red"}
                 }
             }
-            # Update block sections for Green Line A-L
-            # test_data.block_sections = {
-                # "1": "A", "2": "A", "3": "A",
-                # "4": "B", "5": "B", "6": "B",
-                # "7": "C", "8": "C", "9": "C", "10": "C", "11": "C", "12": "C",
-                # "13": "D", "14": "D", "15": "D", "16": "D",
-                # "17": "E", "18": "E", "19": "E", "20": "E",
-                # "21": "F", "22": "F", "23": "F", "24": "F", "25": "F", "26": "F", "27": "F", "28": "F",
-                # "29": "G", "30": "G", "31": "G", "32": "G",
-                # "33": "H", "34": "H", "35": "H",
-                # "36": "I", "37": "I", "38": "I", "39": "I", "40": "I", "41": "I", "42": "I", "43": "I",
-                # "44": "I", "45": "I", "46": "I", "47": "I", "48": "I", "49": "I", "50": "I", "51": "I",
-                # "52": "I", "53": "I", "54": "I", "55": "I", "56": "I", "57": "I",
-                # "58": "J", "59": "J", "60": "J", "61": "J", "62": "J",
-                # "63": "K", "64": "K", "65": "K", "66": "K", "67": "K", "68": "K",
-                # "69": "L", "70": "L", "71": "L", "72": "L", "73": "L"
-            # }
+            # Update block sections for Green Line
+            self.block_sections = self.green_sections
+            
         else:  # Red line
-            filename = "red_line.txt"
-            # Updated track data for first half of Red Line (A-G sections)
-            test_data.track_data = {
+            # Update track data for Red Line
+            self.track_data = {
                 "crossings": {
                     "Railway Crossing: 19": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
                 },
@@ -1011,43 +964,29 @@ def load_line_data(self, filename):
                     "Light 11": {"condition": "Normal", "signal": "Red"}
                 }
             }
-            # Update block sections for Red Line A-G
-            # test_data.block_sections = {
-                # # Section A
-                # "1": "A", "2": "A", "3": "A",
-                # # Section B
-                # "4": "B", "5": "B", "6": "B",
-                # # Section C
-                # "7": "C", "8": "C", "9": "C",
-                # # Section D
-                # "10": "D", "11": "D", "12": "D",
-                # # Section E
-                # "13": "E", "14": "E", "15": "E",
-                # # Section F
-                # "16": "F", "17": "F", "18": "F", "19": "F", "20": "F",
-                # # Section G
-                # "21": "G", "22": "G", "23": "G"
-            # }
-        print(f"DEBUG: Loading file: '{filename}'")
-        print(f"DEBUG: Current directory: {os.getcwd()}")
-        print(f"DEBUG: Files in directory: {os.listdir('.')}")
-
+            # Update block sections for Red Line
+            self.block_sections = self.red_sections
         
-        test_data.filtered_track_data = test_data.track_data.copy()
-        print(f"Loaded {len(test_data.block_data)} rows for {filename} Line")
+        self.filtered_track_data = self.track_data.copy()
+        print(f"Loaded {len(self.block_data)} rows for {filename} Line")
         add_to_message_log(f"Loaded {filename} Line data")
-
+        
         # Get unique sections for this line
         sections = set()
-        for row in test_data.block_data:
-            if row[1] == filename and len(row) > 3:
-                sections.add(row[3])
+        for row in self.block_data:
+            if (filename == "green_line.txt" and row[1] == "Green") or \
+               (filename == "red_line.txt" and row[1] == "Red"):
+                if len(row) > 3:
+                    sections.add(row[3])
         
         print(f"Sections in {filename} Line: {sorted(sections)}")
-        add_to_message_log(f"Loaded {filename} Line: {len(test_data.block_data)} blocks, {len(sections)} sections")
+        add_to_message_log(f"Loaded {filename} Line: {len(self.block_data)} blocks, {len(sections)} sections")
+        
     except Exception as e:
         add_to_message_log(f"ERROR loading {filename} Line data: {e}", "ERROR")
         print(f"Error loading line data: {e}")
+        import traceback
+        traceback.print_exc()
 
 map_toggle_btn = tk.Button(
     header_frame,
@@ -1070,6 +1009,9 @@ center_frame.pack(side="left", expand=True)
 # Clock - positioned between PLC buttons and LEDs
 clock_frame = tk.Frame(header_frame, bg="#0b1443")
 clock_frame.pack(side="right", padx=15)
+
+global_clock = Clock() 
+
 clock_label = tk.Label(
     header_frame, 
     text=clock.clock.getTime(), 
@@ -1104,19 +1046,23 @@ def clear_plc_fault():
 selected_plc_file = None
 plc_instance = None
 
-def update_clock_display(self):
+def update_clock_display():
     """Continuously update the clock display every second"""
-    # try:
-    #     current_time = clock_instance.getTime()
-    #     clock_label.config(text=current_time)
-    # except Exception as e:
-    #     print(f"Clock error: {e}")
-    #     clock_label.config(text="--:--")
-    time = clock.clock.getTime()
-    self.clockText.configure(text = time)
-    self.clockTimer = self.root.after(100, self.updateTime)
+    try:
+        current_time = global_clock.getTime()
+        clock_label.config(text=current_time)
+    except Exception as e:
+        print(f"Clock error: {e}")
+        clock_label.config(text="--:--")
 
-# update_clock_display()
+    # Update every second (1000ms)
+    root.after(1000, update_clock_display)
+
+    # time = clock.clock.getTime()
+    # self.clockText.configure(text = time)
+    # self.clockTimer = self.root.after(100, self.updateTime)
+# Start the clock update loop
+update_clock_display()
 
 #######################################################################################
 #######################################################################################
