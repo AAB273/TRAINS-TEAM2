@@ -301,7 +301,7 @@ class ScheduleScreen:
             auth = values[0] - 1
             speed = float(values[1]) / arrTime
 
-            self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(self.trainNum - 1), f"{speed:.3f}", str(auth), line]})
+            #self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(self.trainNum - 1), f"{speed:.3f}", str(auth), line]})
             self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": line.title(), "block": location, "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
             self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": line.title(), "block": location, "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
     
@@ -387,7 +387,7 @@ class ScheduleScreen:
                                                 self.meArea.item(item, values = ["Block " + location, "Yard", newTime.strftime("%H:%M")])
                                                 self.mainScreen.tlArea.item(item, values = ["Block " + location, "Yard", newTime.strftime("%H:%M")])
 
-                                                self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(key), f"{speed:.3f}", str(auth), self.trainRoutes[key][1]]})
+                                                #self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(key), f"{speed:.3f}", str(auth), self.trainRoutes[key][1]]})
                                                 self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
                                                 self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
                                                 break
@@ -409,7 +409,7 @@ class ScheduleScreen:
                                                 self.meArea.item(item, values = ["Block " + location, self.trainRoutes[key][3], newTime.strftime("%H:%M")])
                                                 self.mainScreen.tlArea.item(item, values = ["Block " + location, self.trainRoutes[key][3], newTime.strftime("%H:%M")])
 
-                                                self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(key), f"{speed:.3f}", str(auth), self.trainRoutes[key][1]]})
+                                                #self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(key), f"{speed:.3f}", str(auth), self.trainRoutes[key][1]]})
                                                 self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
                                                 self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
                                                 break
@@ -522,7 +522,7 @@ class ScheduleScreen:
                                                 self.meArea.item(item, values = ["Block " + location, "Yard", newTime.strftime("%H:%M")])
                                                 self.mainScreen.tlArea.item(item, values = ["Block " + location, "Yard", newTime.strftime("%H:%M")])
 
-                                                self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(key), f"{speed:.3f}", str(auth), self.trainRoutes[key][1]]})
+                                                #self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(key), f"{speed:.3f}", str(auth), self.trainRoutes[key][1]]})
                                                 self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
                                                 self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
                                                 break
@@ -544,7 +544,7 @@ class ScheduleScreen:
                                                 self.meArea.item(item, values = ["Block " + location, self.trainRoutes[key][3], newTime.strftime("%H:%M")])
                                                 self.mainScreen.tlArea.item(item, values = ["Block " + location, self.trainRoutes[key][3], newTime.strftime("%H:%M")])
 
-                                                self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(key), f"{speed:.3f}", str(auth), self.trainRoutes[key][1]]})
+                                                #self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(key), f"{speed:.3f}", str(auth), self.trainRoutes[key][1]]})
                                                 self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
                                                 self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[key][1].title(), "block": self.trainRoutes[key][0], "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
                                                 break
@@ -775,7 +775,7 @@ class ScheduleScreen:
                         speed = float(values[1]) / arrTime
 
 
-                        self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [train, f"{speed:.3f}", str(auth), self.trainRoutes[int(train)][1]]})
+                        #self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [train, f"{speed:.3f}", str(auth), self.trainRoutes[int(train)][1]]})
                         self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[int(train)][1].title(), "block": self.trainRoutes[int(train)][0], "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
                         self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[int(train)][1].title(), "block": self.trainRoutes[int(train)][0], "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
 
@@ -804,7 +804,7 @@ class ScheduleScreen:
                         arrTime = self.timeToSeconds(newTime)
                         speed = float(values[1]) / arrTime
                         
-                        self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [train, f"{speed:.3f}", str(auth), self.trainRoutes[int(train)][1]]})
+                        #self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [train, f"{speed:.3f}", str(auth), self.trainRoutes[int(train)][1]]})
                         self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[int(train)][1].title(), "block": self.trainRoutes[int(train)][0], "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
                         self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": self.trainRoutes[int(train)][1].title(), "block": self.trainRoutes[int(train)][0], "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
 
