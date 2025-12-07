@@ -18,9 +18,7 @@ from train_data import getTrainManager
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
-import clock
-import time
-import string
+from clock import clock
 from playsound import playsound
 import random
 
@@ -73,7 +71,7 @@ class TrainModelPassengerGUI:
 		self.previousFailureSignalPickupState = False
 		self.failureActivationInProgress = False
 		self.previousActiveTrains = set()
-		self.clockSpeed = clock.clock.getSpeed() * 100
+		self.clockSpeed = clock.getSpeed() * 100
 
 		self.setupGUI()
 		
@@ -917,7 +915,7 @@ class TrainModelPassengerGUI:
 
 	def updateTime(self):
 		# Continuously updates the time display every second.
-		localTime = clock.clock.getTime()
+		localTime = clock.getTime()
 		self.uiLabels['time'].config(text=f"{localTime}")
 		self.root.after(100, self.updateTime)
 

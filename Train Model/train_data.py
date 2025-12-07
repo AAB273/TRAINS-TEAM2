@@ -347,7 +347,7 @@ class Train:
 				if self.speed == 0:
 					aNew = MAX_FORCE / totalMass
 				else:
-					if self.speed > 8.9408:
+					if self.speed > 1:
 						force = self.powerCommand / self.speed
 						if negGradeTrue:
 							fNet = force + fGrade  
