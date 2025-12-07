@@ -300,6 +300,7 @@ class ScheduleScreen:
             values = self.calculateAuthority(self.trainRoutes[self.trainNum - 1], destination[0])
             auth = values[0] - 1
             speed = float(values[1]) / arrTime
+            print(speed)
 
             #self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(self.trainNum - 1), f"{speed:.3f}", str(auth), line]})
             self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": line.title(), "block": location, "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
@@ -843,7 +844,7 @@ class ScheduleScreen:
     def timeToSeconds(self, arrTimeStr):
     #convert a given time into seconds
 
-        currTimeStr = clock.clock.getTime()
+        currTimeStr = clock.clock.getTime()[:5]
 
         arrTime = 0
         found = False
