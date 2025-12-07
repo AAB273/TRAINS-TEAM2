@@ -62,7 +62,7 @@ def update_suggested_speed_display(speed, authority=None):
             right_panel.update_suggested_authority(authority)
         if authority is not None:
             # Fallback: try to find and update the label directly
-            formatted_speed = f"{speed:.3f} mph"
+            formatted_speed = f"{speed:.2f} mph"
             add_to_message_log(f"CTC Speed received (UI update pending): {formatted_speed}, Authority={authority} blocks")
         else: 
             add_to_message_log(f"CTC Speed recieved: {formatted_speed} mph")
@@ -320,7 +320,7 @@ def handle_ctc_suggested_speed(speed_data):
         # Format to 3 decimal places if conversion was successful
         if suggested_speed is not None:
             formatted_speed = round(suggested_speed, 3)
-            add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.3f} mph")
+            add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.2f} mph")
             update_suggested_speed_display(formatted_speed)
             return formatted_speed
         else:
@@ -371,7 +371,7 @@ def handle_ctc_suggested_speed(speed_data):
     #         # Format to 3 decimal places if conversion was successful
     #         if suggested_speed is not None:
     #             formatted_speed = round(suggested_speed, 3)
-    #             add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.3f} mph")
+    #             add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.2f} mph")
     #             return formatted_speed
     #         else:
     #             add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
@@ -541,6 +541,12 @@ class UITestData:
         if hasattr(self, 'root'):
             self.root.after(2000, self.verify_server_running)    
         
+        # In UITestData.__init__ after server starts:
+        print(f"\n[TRACK HW DEBUG] Server started on port 12344")
+        print(f"[TRACK HW DEBUG] Waiting for connections...")
+
+# Add to _process_message:
+        # print(f"[TRACK HW] Connection from: {12341}")
 
     def load_complete_track_data(self, filename):
         """Load all green line blocks, merging sections where available"""
@@ -909,7 +915,7 @@ class UITestData:
                     right_panel.update_suggested_authority(authority)
             
             # Log update
-                add_to_message_log(f"CTC Update: Speed={speed:.3f} mph, Authority={authority} blocks")
+                add_to_message_log(f"CTC Update: Speed={speed:.2f} mph, Authority={authority} blocks")
             
         except Exception as e:
             print(f"Error handling speed/auth update: {e}")
@@ -998,7 +1004,7 @@ class UITestData:
         #         print(f"Invalid authority value: {authority_str}")
         #         authority = 0
         
-        #     print(f"CTC Update - Block {block if block else 'unspecified'}, Speed: {formatted_speed:.3f} mph, Authority: {authority} blocks, Type: {value_type}")
+        #     print(f"CTC Update - Block {block if block else 'unspecified'}, Speed: {formatted_speed:.2f} mph, Authority: {authority} blocks, Type: {value_type}")
         
         # # Update the display based on value type
         #     if value_type == 'suggested':
@@ -1010,9 +1016,9 @@ class UITestData:
             
         #     # Log the update
         #         if block:
-        #             add_to_message_log(f"CTC Suggested Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks for Block {block}")
+        #             add_to_message_log(f"CTC Suggested Values: Speed={formatted_speed:.2f} mph, Authority={authority} blocks for Block {block}")
         #         else:
-        #             add_to_message_log(f"CTC Suggested Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks")
+        #             add_to_message_log(f"CTC Suggested Values: Speed={formatted_speed:.2f} mph, Authority={authority} blocks")
         
         #     elif value_type == 'commanded':
         #         # Update commanded values
@@ -1022,13 +1028,13 @@ class UITestData:
             
         #         if hasattr(right_panel, 'speed_entry'):
         #             right_panel.speed_entry.delete(0, tk.END)
-        #             right_panel.speed_entry.insert(0, f"{formatted_speed:.3f} mph")
+        #             right_panel.speed_entry.insert(0, f"{formatted_speed:.2f} mph")
             
         #     # Log the update
         #         if block:
-        #             add_to_message_log(f"CTC Commanded Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks for Block {block}")
+        #             add_to_message_log(f"CTC Commanded Values: Speed={formatted_speed:.2f} mph, Authority={authority} blocks for Block {block}")
         #         else:
-        #             add_to_message_log(f"CTC Commanded Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks")
+        #             add_to_message_log(f"CTC Commanded Values: Speed={formatted_speed:.2f} mph, Authority={authority} blocks")
         
         #     else:
         #     # Default to suggested if type not specified
@@ -1037,7 +1043,7 @@ class UITestData:
         #         if hasattr(right_panel, 'update_suggested_authority'):
         #             right_panel.update_suggested_authority(authority)
             
-        #         add_to_message_log(f"CTC Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks")
+        #         add_to_message_log(f"CTC Values: Speed={formatted_speed:.2f} mph, Authority={authority} blocks")
             
         # except Exception as e:
         #     print(f"Error handling speed/auth update: {e}")
@@ -1084,7 +1090,7 @@ class UITestData:
     #                     right_panel.update_suggested_authority(authority)
                 
     #                 # Also log the update
-    #                 add_to_message_log(f"CTC Suggested Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks for Block {block}")
+    #                 add_to_message_log(f"CTC Suggested Values: Speed={formatted_speed:.2f} mph, Authority={authority} blocks for Block {block}")
             
     #             elif value_type == 'commanded':
     #                 # Update commanded values
@@ -1094,9 +1100,9 @@ class UITestData:
                 
     #                 if hasattr(right_panel, 'speed_entry'):
     #                     right_panel.speed_entry.delete(0, tk.END)
-    #                     right_panel.speed_entry.insert(0, f"{formatted_speed:.3f} mph")
+    #                     right_panel.speed_entry.insert(0, f"{formatted_speed:.2f} mph")
                 
-    #                 add_to_message_log(f"CTC Commanded Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks for Block {block}")
+    #                 add_to_message_log(f"CTC Commanded Values: Speed={formatted_speed:.2f} mph, Authority={authority} blocks for Block {block}")
             
     #     except Exception as e:
     #         print(f"Error handling speed/auth update: {e}")
