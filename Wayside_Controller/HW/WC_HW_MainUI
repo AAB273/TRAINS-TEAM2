@@ -12,7 +12,7 @@ import json
 
 # from Clock import clock
 sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-import clock
+from clock import Clock
 from TrainSocketServer import TrainSocketServer
 ########################################################################################################################
 
@@ -383,42 +383,6 @@ def handle_ctc_suggested_speed(speed_data):
     
     # return None
 
-class Clock:
-    def __init__(self):
-        self._fastTime = strftime("%H:%M:%S")
-        self._incTimer = Timer(0.1, self._incTime)
-        self._incTimer.start()
-
-    def _incTime(self):
-        self._incTimer = Timer(0.1, self._incTime)
-        self._incTimer.start()
-
-        hours = int(self._fastTime[:2])
-        mins = int(self._fastTime[3:5])
-        secs = int(self._fastTime[6:])
-
-        secs += 1
-        #increment fast time by 1 second every 100 ms
-
-        if (secs == 60):
-            secs = 0
-            mins += 1
-
-            if (mins == 60):
-                mins = 0
-                hours += 1
-
-                if (hours == 24):
-                    hours = 0
-
-        self._fastTime = f"{hours:02d}:{mins:02d}:{secs:02d}"
-    
-    def getTime(self):
-        return self._fastTime[:5]
-    
-    def endTimer(self):
-        self._incTimer.cancel()
-
 ##############################################################################################################################
 ###############################################################################################################################
 #############################################################################################################################
@@ -756,7 +720,7 @@ class UITestData:
     def update_clock_display(self):
         """Update the clock display every second"""
         try:
-            current_time = self.clock.getTime()
+            current_time = global_clock.getTime()
             self.clock_label.config(text=f"Time: {current_time}")
         except Exception as e:
             print(f"Clock error: {e}")
@@ -768,8 +732,9 @@ class UITestData:
     def on_closing(self):
         print("Closing application...")
         try:
-            self.clock.endTimer()
+            global_clock.endTimer()
         except:
+            print(f"Error stopping clock: {e}")
             pass
 
         # Properly stop the socket server with comprehensive cleanup
@@ -1315,15 +1280,17 @@ center_frame.pack(side="left", expand=True)
 clock_frame = tk.Frame(header_frame, bg="#0b1443")
 clock_frame.pack(side="right", padx=15)
 
-global_clock = Clock() 
+global_clock = Clock()
 
 clock_label = tk.Label(
     header_frame, 
-    text=clock.clock.getTime(), 
+    text=global_clock.getTime(), 
     font=("Arial", 12, "bold"), 
-    bg="white") 
+    bg="white",
+    width=10) 
     # fg="white")
 clock_label.pack(side="right", anchor="ne")
+
 
 # Fault LED indicator
 fault_led = tk.Label(header_frame, text="Fault LED", bg="gray", fg="white", width=10, font=("Arial", 10, "bold"))
@@ -1361,7 +1328,7 @@ def update_clock_display():
         clock_label.config(text="--:--:--")
 # update every 100 ms
     # Update every second (1000ms)
-    root.after(100, update_clock_display)
+    root.after(1000, update_clock_display)
 
     # time = clock.clock.getTime()
     # self.clockText.configure(text = time)
