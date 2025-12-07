@@ -11,7 +11,7 @@ class TestUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Test Control Panel")
-        self.root.geometry("460x910")
+        self.root.geometry("460x680")  # Reduced height since we removed sections
         
         self.server = TrainSocketServer(port=12349, ui_id="Test_UI")
         self.server.set_allowed_connections(["Train Model", "ui_3"])
@@ -62,9 +62,10 @@ class TestUI:
         train_str = self.train_selector_var.get()
         if train_str and train_str != "No Train Selected":
             try:
-                train_id = int(train_str.replace("Train ", ""))
+                train_id = int(train_str)
                 self.selected_train_id = train_id
                 self.status_label.config(text=f"Selected: Train {train_id}")
+                self.current_selection_label.config(text=f"Currently controlling: Train {train_id}")
                 print(f"Selected Train {train_id}")
             except ValueError:
                 print(f"Invalid train selection: {train_str}")
@@ -85,19 +86,19 @@ class TestUI:
         tk.Label(selector_frame, text="Select Train:").pack(side='left', padx=(0, 5))
         
         # Create train list (1-14)
-        train_options = [i for i in range(1, 15)]
+        train_options = [str(i) for i in range(1, 15)]  # Convert to strings for combobox
         self.train_selector_var = tk.StringVar(value=train_options[0])
         self.train_selector = ttk.Combobox(selector_frame, textvariable=self.train_selector_var, 
                                           values=train_options, state="readonly", width=10)
         self.train_selector.pack(side='left')
         self.train_selector.bind('<<ComboboxSelected>>', self.on_train_selected)
+        
         # Current selection display
         current_frame = tk.Frame(selection_frame)
         current_frame.pack(fill='x', pady=2)
         self.current_selection_label = tk.Label(current_frame, text=f"Currently controlling: Train {self.train_selector_var.get()}", 
                                                 font=('Arial', 9, 'bold'))
         self.current_selection_label.pack()
-        
         
         # ===== POWER CONTROL =====
         power_frame = ttk.LabelFrame(main_container, text="Power Control", padding=6)
@@ -127,60 +128,19 @@ class TestUI:
         ttk.Button(authority_control_frame, text="Set", 
                   command=self.set_custom_authority, width=5).pack(side='left', padx=2)
         
-        # ===== DOOR CONTROL =====
-        door_frame = ttk.LabelFrame(main_container, text="Door Control", padding=6)
-        door_frame.pack(fill='x', padx=5, pady=2)
+        # ===== COMMANDED SPEED CONTROL =====
+        speed_frame = ttk.LabelFrame(main_container, text="Commanded Speed Control", padding=6)
+        speed_frame.pack(fill='x', padx=5, pady=2)
         
-        door_row_frame = tk.Frame(door_frame)
-        door_row_frame.pack(fill='x', pady=2)
+        speed_control_frame = tk.Frame(speed_frame)
+        speed_control_frame.pack(fill='x', pady=2)
         
-        # Right Door
-        right_door_frame = tk.Frame(door_row_frame)
-        right_door_frame.pack(side='left', padx=3)
-        tk.Label(right_door_frame, text="Right:").pack()
-        door_btn_frame1 = tk.Frame(right_door_frame)
-        door_btn_frame1.pack()
-        ttk.Button(door_btn_frame1, text="Open", 
-                  command=lambda: self.send_to_ui('set_right_door', 'open'), width=5).pack(side='left', padx=1)
-        ttk.Button(door_btn_frame1, text="Close", 
-                  command=lambda: self.send_to_ui('set_right_door', 'close'), width=5).pack(side='left', padx=1)
-        
-        # Left Door
-        left_door_frame = tk.Frame(door_row_frame)
-        left_door_frame.pack(side='left', padx=3)
-        tk.Label(left_door_frame, text="Left:").pack()
-        door_btn_frame2 = tk.Frame(left_door_frame)
-        door_btn_frame2.pack()
-        ttk.Button(door_btn_frame2, text="Open", 
-                  command=lambda: self.send_to_ui('set_left_door', 'open'), width=5).pack(side='left', padx=1)
-        ttk.Button(door_btn_frame2, text="Close", 
-                  command=lambda: self.send_to_ui('set_left_door', 'close'), width=5).pack(side='left', padx=1)
-        
-        # ===== STATE CONTROL =====
-        states_frame = ttk.LabelFrame(main_container, text="Train State Control", padding=6)
-        states_frame.pack(fill='x', padx=5, pady=2)
-        
-        state_buttons_frame = tk.Frame(states_frame)
-        state_buttons_frame.pack(fill='x', pady=2)
-        
-        # Leaving Station Button (Multiple commands)
-        ttk.Button(state_buttons_frame, text="Leaving Station", width=12,
-                   command=lambda: [
-                       self.send_to_ui('set_headlights', 'on'),
-                       self.send_to_ui('set_left_door', 'close'),
-                       self.send_to_ui('set_right_door', 'close')
-                   ]).pack(side='left', padx=1)
-        
-        # Individual light controls
-        ttk.Button(state_buttons_frame, text="Headlights On", width=12,
-                   command=lambda: self.send_to_ui('set_headlights', 'on')).pack(side='left', padx=1)
-        ttk.Button(state_buttons_frame, text="Headlights Off", width=12,
-                   command=lambda: self.send_to_ui('set_headlights', 'off')).pack(side='left', padx=1)
-        
-        ttk.Button(state_buttons_frame, text="Interior On", width=12,
-                   command=lambda: self.send_to_ui('set_interior_lights', 'on')).pack(side='left', padx=1)
-        ttk.Button(state_buttons_frame, text="Interior Off", width=12,
-                   command=lambda: self.send_to_ui('set_interior_lights', 'off')).pack(side='left', padx=1)
+        tk.Label(speed_control_frame, text="Speed (MPH):").pack(side='left')
+        self.commanded_speed_var = tk.StringVar(value="0")
+        speed_entry = tk.Entry(speed_control_frame, textvariable=self.commanded_speed_var, width=6)
+        speed_entry.pack(side='left', padx=2)
+        ttk.Button(speed_control_frame, text="Send", 
+                  command=self.send_commanded_speed, width=6).pack(side='left', padx=2)
         
         # ===== TEMPERATURE CONTROL =====
         temp_frame = ttk.LabelFrame(main_container, text="Temperature Control", padding=6)
@@ -305,11 +265,11 @@ class TestUI:
                                command=lambda: self.send_to_ui("horn"))
         train_horn.pack(fill='x', padx=5, pady=5)
         
-        # ===== SPEED COMMANDS =====
-        speed_frame = ttk.LabelFrame(main_container, text="Speed Commands", padding=6)
-        speed_frame.pack(fill='x', padx=5, pady=2)
+        # ===== SPEED PRESETS =====
+        speed_preset_frame = ttk.LabelFrame(main_container, text="Speed Presets", padding=6)
+        speed_preset_frame.pack(fill='x', padx=5, pady=2)
         
-        speed_buttons_frame = tk.Frame(speed_frame)
+        speed_buttons_frame = tk.Frame(speed_preset_frame)
         speed_buttons_frame.pack(fill='x', pady=2)
         
         speed_options = [10, 20, 30, 40, 50, 60]
@@ -324,20 +284,14 @@ class TestUI:
                                      relief='sunken', bd=1, anchor='w')
         self.status_label.pack(fill='x', ipady=2)
 
-    def deploy_train(self):
-        """Deploy a specific train"""
-        train_id = self.deploy_train_var.get()
-        # For deploy/undeploy commands, we need to send the train ID as the value
-        message = {'command': 'deploy_train', 'value': train_id}
-        self.server.send_to_ui("Train Model", message)
-        self.status_label.config(text=f"Deployed Train {train_id}")
-        
-    def undeploy_train(self):
-        """Undeploy a specific train"""
-        train_id = self.deploy_train_var.get()
-        message = {'command': 'undeploy_train', 'value': train_id}
-        self.server.send_to_ui("Train Model", message)
-        self.status_label.config(text=f"Undeployed Train {train_id}")
+    def send_commanded_speed(self):
+        """Send commanded speed value"""
+        try:
+            speed = float(self.commanded_speed_var.get())
+            self.send_to_ui('set_commanded_speed', speed)
+            self.status_label.config(text=f"Set commanded speed to {speed} MPH for Train {self.selected_train_id}")
+        except ValueError:
+            self.status_label.config(text="Invalid speed value")
         
     def set_custom_power(self):
         """Set custom power value"""

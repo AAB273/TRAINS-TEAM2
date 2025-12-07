@@ -346,7 +346,7 @@ class Train:
 		elif not self.serviceBrakeActive:
 			if not self.atStation and self.powerCommand > 0:
 				if self.speed == 0:
-					MAX_ACCEL
+					aNew = MAX_ACCEL
 				else:
 					if self.speed > 1:
 						force = self.powerCommand / self.speed
