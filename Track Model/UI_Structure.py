@@ -171,6 +171,12 @@ class TrackModelUI(tk.Tk):
 
         # Start monitoring station occupancy AFTER everything is ready
         self.after(1000, self.monitor_station_occupancy)
+        
+        # Track previous authority values to detect when it reaches 0
+        self._previous_train_authority = {}
+        
+        # Start monitoring train authority for passenger boarding
+        self.after(2000, self.monitor_train_authority_for_boarding)
 
         style = ttk.Style(self)
         style.configure("Large.TCheckbutton", font=("Arial", 11), padding=5)
@@ -535,25 +541,25 @@ class TrackModelUI(tk.Tk):
     # ============================================================
 
     def update_train_info(self, event):
-        idx = self.train_combo.current()
-        train_name = self.train_combo.get()
-        
-        occ = self.data_manager.train_occupancy[idx]
-        spd = self.data_manager.commanded_speed[idx]
-        auth = self.data_manager.commanded_authority[idx]
-        
-        # DEBUG: Show what we're reading
-        print(f"[DEBUG] update_train_info called for {train_name} at index {idx}:")
-        print(f"  Occupancy: {occ}")
-        print(f"  Commanded Speed: {spd}")
-        print(f"  Commanded Authority: {auth}")
-        print(f"  Array sizes: active_trains={len(self.data_manager.active_trains)}, "
-              f"commanded_speed={len(self.data_manager.commanded_speed)}, "
-              f"commanded_authority={len(self.data_manager.commanded_authority)}")
-        
-        self.train_info.config(
-            text=f"Occupancy: {occ} People\nCommanded Speed: {spd} m/s\nCommanded Authority: {auth} blocks"
-        )
+        """Display train information in the Train Details Panel."""
+        try:
+            idx = self.train_combo.current()
+            train_name = self.train_combo.get()
+            
+            # Get train data with safe defaults
+            occ = self.data_manager.train_occupancy[idx] if idx < len(self.data_manager.train_occupancy) else 0
+            spd = self.data_manager.commanded_speed[idx] if idx < len(self.data_manager.commanded_speed) else 0
+            auth = self.data_manager.commanded_authority[idx] if idx < len(self.data_manager.commanded_authority) else 0
+            
+            # Update the display
+            self.train_info.config(
+                text=f"Occupancy: {occ} People\nCommanded Speed: {spd} m/s\nCommanded Authority: {auth} blocks"
+            )
+            
+        except Exception as e:
+            print(f"Error updating train info: {e}")
+            import traceback
+            traceback.print_exc()
         
         
     # ---------------- Center Panel ----------------
@@ -1863,84 +1869,97 @@ class TrackModelUI(tk.Tk):
             direction = self.determine_bidirectional_direction(group_name)
             self.data_manager.bidirectional_directions[group_name] = direction
             
-            status_text = "← Left" if direction == 0 else "Right →"
+            # Set status text based on direction
+            if direction == 0:
+                status_text = "Left"
+            elif direction == 1:
+                status_text = "Right"
+            else:  # direction == 2
+                status_text = "--"
+            
             self.bidir_controls[group_name].set(status_text)
     
     def determine_bidirectional_direction(self, group_name):
         """
-        Automatically determine the direction for bidirectional blocks based on:
-        - Switch positions (if applicable)
-        - Traffic light states (green signals indicate allowed direction)
+        Determine the direction for bidirectional blocks based on traffic light states.
         
-        Returns: 0 for left/backwards, 1 for right/forwards
+        For Green Line:
+        - Blocks 13-28: Based on lights at blocks 12 and 29
+          - Both red: "--"
+          - Light 12 not red AND Light 29 red: "Left"
+          - Light 29 not red AND Light 12 red: "Right"
+          - Both not red: "--" (default, should not happen)
+        
+        - Blocks 77-85: Based on lights at blocks 76 and 86
+          - Both red: "--"
+          - Light 76 not red AND Light 86 red: "Left"
+          - Light 86 not red AND Light 76 red: "Right"
+          - Both not red: "--" (default, should not happen)
+        
+        Returns: 0 for Left, 1 for Right, 2 for "--"
         """
         if not hasattr(self.data_manager, 'blocks') or not self.data_manager.blocks:
-            return 0  # Default to left if no data
+            return 2  # Default to "--" if no data
         
-        # Special handling for N section (blocks 77-85)
-        if group_name == "Blocks 77-85":
-            # Check switch state at block 85
-            if len(self.data_manager.blocks) > 84:
-                block_85 = self.data_manager.blocks[84]  # Block 85 at index 84
-                if hasattr(block_85, 'switch_state'):
-                    # When switch is False (Left/Diverging for 100→85→84 route)
-                    # Set blocks to face right for backward travel
-                    if not block_85.switch_state:
-                        return 1  # Right direction for backward travel
-                    else:
-                        return 0  # Left direction for normal forward travel
+        # Get traffic light states for the control blocks
+        if group_name == "Blocks 13-28":
+            # Blocks 13-28 controlled by lights at blocks 12 and 29
+            light_12_state = 0
+            light_29_state = 0
+            
+            if len(self.data_manager.blocks) > 11:  # Block 12 at index 11
+                block_12 = self.data_manager.blocks[11]
+                if hasattr(block_12, 'traffic_light_state'):
+                    light_12_state = block_12.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 28:  # Block 29 at index 28
+                block_29 = self.data_manager.blocks[28]
+                if hasattr(block_29, 'traffic_light_state'):
+                    light_29_state = block_29.traffic_light_state
+            
+            # Apply logic
+            light_12_red = (light_12_state == 0)
+            light_29_red = (light_29_state == 0)
+            
+            if light_12_red and light_29_red:
+                return 2  # Both red -> "--"
+            elif not light_12_red and light_29_red:
+                return 0  # Light 12 not red, Light 29 red -> "Left"
+            elif not light_29_red and light_12_red:
+                return 1  # Light 29 not red, Light 12 red -> "Right"
+            else:
+                return 2  # Both not red (should not happen) -> "--"
         
-        # Parse the block range from group name (e.g., "Blocks 1-5" -> [1,2,3,4,5])
-        import re
-        match = re.match(r"Blocks?\s+(\d+)-(\d+)", group_name)
-        if not match:
-            return 0  # Default to left if can't parse
+        elif group_name == "Blocks 77-85":
+            # Blocks 77-85 controlled by lights at blocks 76 and 86
+            light_76_state = 0
+            light_86_state = 0
+            
+            if len(self.data_manager.blocks) > 75:  # Block 76 at index 75
+                block_76 = self.data_manager.blocks[75]
+                if hasattr(block_76, 'traffic_light_state'):
+                    light_76_state = block_76.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 85:  # Block 86 at index 85
+                block_86 = self.data_manager.blocks[85]
+                if hasattr(block_86, 'traffic_light_state'):
+                    light_86_state = block_86.traffic_light_state
+            
+            # Apply logic
+            light_76_red = (light_76_state == 0)
+            light_86_red = (light_86_state == 0)
+            
+            if light_76_red and light_86_red:
+                return 2  # Both red -> "--"
+            elif not light_76_red and light_86_red:
+                return 0  # Light 76 not red, Light 86 red -> "Left"
+            elif not light_86_red and light_76_red:
+                return 1  # Light 86 not red, Light 76 red -> "Right"
+            else:
+                return 2  # Both not red (should not happen) -> "--"
         
-        start_block = int(match.group(1))
-        end_block = int(match.group(2))
-        
-        # Check switches and signals in the block range
-        forward_signals = 0
-        backward_signals = 0
-        switch_votes_forward = 0
-        switch_votes_backward = 0
-        
-        for block_num in range(start_block, end_block + 1):
-            if block_num <= len(self.data_manager.blocks):
-                block = self.data_manager.blocks[block_num - 1]
-                
-                # Check traffic light state
-                # State 0 (Red) = no direction allowed
-                # State 1 (Yellow) = caution, typically forward
-                # State 2 (Green) = clear, forward direction
-                # State 3 (Super Green) = high speed forward
-                if hasattr(block, 'traffic_light_state'):
-                    state = block.traffic_light_state
-                    if state in [1, 2, 3]:  # Yellow, Green, or Super Green
-                        forward_signals += 1
-                    # Note: We could add logic for backward signals if needed
-                
-                # Check switch positions if this block has a switch
-                if hasattr(block, 'switch_state') and block.switch_state is not None:
-                    # True/1 = Right/Forward, False/0 = Left/Backward
-                    if block.switch_state:
-                        switch_votes_forward += 1
-                    else:
-                        switch_votes_backward += 1
-        
-        # Determine direction based on signals and switches
-        # Priority: Traffic signals > Switch positions
-        if forward_signals > backward_signals:
-            return 1  # Forward/Right
-        elif backward_signals > forward_signals:
-            return 0  # Backward/Left
-        elif switch_votes_forward > switch_votes_backward:
-            return 1  # Forward/Right based on switches
-        elif switch_votes_backward > switch_votes_forward:
-            return 0  # Backward/Left based on switches
-        else:
-            # If no clear direction, maintain current or default to left
-            return self.data_manager.bidirectional_directions.get(group_name, 0)
+        # For any other groups (Red Line, etc.), default to Left
+        return 0
 
     def toggle_bidirectional_direction(self, group_name):
         """Main UI toggle - now just a placeholder since Test UI controls"""
@@ -4406,19 +4425,45 @@ class TrackModelUI(tk.Tk):
     def send_passengers_boarding_to_train_model(self, block_num):
         """
         Send passengers boarding for a specific station block to Train Model.
+        Called when a train stops at a station (authority reaches 0).
         
         Args:
             block_num (int): Block number of the station
+        
+        Returns:
+            bool: True if boarding data was sent successfully, False otherwise
         """
-        idx = block_num - 1
-        if 0 <= idx < len(self.data_manager.passengers_boarding):
+        try:
+            idx = block_num - 1
+            
+            # Validate block index
+            if not (0 <= idx < len(self.data_manager.passengers_boarding)):
+                print(f"Invalid block index {idx} for passengers_boarding")
+                return False
+            
+            # Get passenger count
             passenger_count = int(self.data_manager.passengers_boarding[idx])
             
-            self.server.send_to_ui("Train Model", {
+            # Prepare message for Train Model
+            boarding_message = {
                 'command': 'Passengers Boarding',
-                'value': passenger_count
-            })
-            print(f" Sent passengers boarding to Train Model: Block {block_num} = {passenger_count}")
+                'value': passenger_count,
+                'block_number': block_num
+            }
+            
+            # Send to Train Model
+            self.server.send_to_ui("Train Model", boarding_message)
+            
+            print(f"Sent passengers boarding to Train Model:")
+            print(f"   Block {block_num}: {passenger_count} passengers")
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error sending passengers boarding: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
 
 
     def monitor_station_occupancy(self):
@@ -4464,6 +4509,57 @@ class TrackModelUI(tk.Tk):
         
         # Check again in 500ms (faster monitoring for train arrivals)
         self.after(500, self.monitor_station_occupancy)
+
+    def monitor_train_authority_for_boarding(self):
+        """
+        Monitor train authority values and trigger passenger boarding when:
+        - Authority reaches 0 (train stops)
+        - Train is at a station block
+        
+        This is called periodically (every 500ms) to check authority changes.
+        """
+        try:
+            # Check each active train
+            for idx, train_id in enumerate(self.data_manager.active_trains):
+                if idx < len(self.data_manager.commanded_authority):
+                    current_authority = self.data_manager.commanded_authority[idx]
+                    
+                    # Get previous authority (default to -1 if first check)
+                    previous_authority = self._previous_train_authority.get(train_id, -1)
+                    
+                    # Check if authority just reached 0 (train stopped)
+                    if previous_authority > 0 and current_authority == 0:
+                        # Authority reached 0 - check if train is at a station
+                        if idx < len(self.data_manager.train_locations):
+                            block_num = self.data_manager.train_locations[idx]
+                            
+                            # Check if this block has a station
+                            station_info = next(
+                                (s for s in self.data_manager.station_location if s[0] == block_num), 
+                                None
+                            )
+                            
+                            if station_info:
+                                station_name = station_info[1]
+                                print(f"\n=== TRAIN STOPPED AT STATION (Authority = 0) ===")
+                                print(f"   Train: {train_id}")
+                                print(f"   Station: {station_name} (Block {block_num})")
+                                print(f"   Authority: {previous_authority} -> {current_authority}")
+                                print(f"   Triggering passenger boarding...")
+                                
+                                # Handle passenger boarding
+                                self.handle_train_arrival_at_station(block_num)
+                    
+                    # Update previous authority
+                    self._previous_train_authority[train_id] = current_authority
+        
+        except Exception as e:
+            print(f"Error in monitor_train_authority_for_boarding: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        # Schedule next check
+        self.after(500, self.monitor_train_authority_for_boarding)
 
     def prompt_and_activate_track_circuit(self):
         """Prompt for block number and activate/clear track circuit failure."""
@@ -5333,7 +5429,7 @@ class TrackModelUI(tk.Tk):
             # ============================================================            
             # # PASSENGERS DISEMBARKING - From Train Model (Passenger_UI)            # Command format from Passenger_UI: {'command': 'Passenger Disembarking', 'value': disembarking}            # ============================================================            elif command == 'Passenger Disembarking' or command == 'Passengers Disembarking':                disembarking = value                                # Handle block_number if provided (legacy format)                if block_number is not None:                    idx = block_number - 1                    if 0 <= idx < len(self.data_manager.passengers_disembarking):                        if isinstance(disembarking, str):                            try:                                disembarking = int(disembarking)                            except (ValueError, TypeError):                                disembarking = 0                                                self.data_manager.passengers_disembarking[idx] = disembarking                        print(f" Passengers disembarking at block {block_number}: {disembarking}")                                                if block_number in self.station_blocks:                            self.send_station_data_to_ctc(block_number)                                                if hasattr(self, 'view_mode') and self.view_mode.get() == "station":                            self.populate_station_view()                else:                    # Passenger_UI doesn't send block_number, determine from train location                    if isinstance(disembarking, str):                        try:                            disembarking = int(disembarking)                        except (ValueError, TypeError):                            disembarking = 0                                        # Try to find the train                    train_id = message.get('train_id')                    if not train_id and self.data_manager.active_trains:                        train_id = self.data_manager.active_trains[-1]  # Most recent train                        print(f" No train_id, using {train_id}")                                        # Find train's current block                    if train_id and train_id in self.data_manager.active_trains:                        idx = self.data_manager.active_trains.index(train_id)                        if idx < len(self.data_manager.train_locations):                            block_num = self.data_manager.train_locations[idx]                            block_idx = block_num - 1                                                        if 0 <= block_idx < len(self.data_manager.passengers_disembarking):                                self.data_manager.passengers_disembarking[block_idx] = disembarking                                print(f" Passengers disembarking at block {block_num} (train {train_id}): {disembarking}")                                                                if block_num in self.station_blocks:                                    self.send_station_data_to_ctc(block_num)                                                                if hasattr(self, 'view_mode') and self.view_mode.get() == "station":                                    self.populate_station_view()                    else:                        print(f" Could not determine location for {disembarking} disembarking passengers")            
             # ============================================================
-            elif command == 'Passengers Disembarking':
+            elif command in ['Passengers Disembarking', 'Passenger Disembarking']:
                 train_id = message.get('train_id')
                 disembarking = value
                 
@@ -5342,44 +5438,54 @@ class TrackModelUI(tk.Tk):
                     try:
                         disembarking = int(disembarking)
                     except (ValueError, TypeError):
-                        print(f" Could not convert value '{disembarking}' to int")
+                        print(f"Could not convert disembarking value '{disembarking}' to int")
                         disembarking = 0
                 
-                # Find which block this train is currently on
-                if train_id and train_id in self.data_manager.active_trains:
-                    idx = self.data_manager.active_trains.index(train_id)
-                    block_number = self.data_manager.train_locations[idx] if idx < len(self.data_manager.train_locations) else None
-                    
-                    if block_number is not None:
-                        block_idx = block_number - 1
-                        if 0 <= block_idx < len(self.data_manager.passengers_disembarking):
-                            self.data_manager.passengers_disembarking[block_idx] = disembarking
-                            print(f" Train {train_id} at Block {block_number}: {disembarking} passengers disembarking")
-                            
-                            # Forward to CTC immediately (sends both ticket sales and disembarking)
-                            self.send_station_data_to_ctc(block_number)
-                            
-                            # Update UI if in station view
-                            if self.view_mode.get() == "station":
-                                self.populate_station_view()
+                # Determine which block the train is at
+                block_number = message.get('block_number')
+                
+                if block_number is None and train_id:
+                    # Find block from train location
+                    if train_id in self.data_manager.active_trains:
+                        idx = self.data_manager.active_trains.index(train_id)
+                        if idx < len(self.data_manager.train_locations):
+                            block_number = self.data_manager.train_locations[idx]
+                
+                if block_number is not None:
+                    block_idx = block_number - 1
+                    if 0 <= block_idx < len(self.data_manager.passengers_disembarking):
+                        self.data_manager.passengers_disembarking[block_idx] = disembarking
+                        
+                        print(f"Received passengers disembarking:")
+                        print(f"   Train: {train_id if train_id else 'Unknown'}")
+                        print(f"   Block: {block_number}")
+                        print(f"   Passengers: {disembarking}")
+                        
+                        # Forward to CTC immediately (sends both ticket sales and disembarking)
+                        self.send_station_data_to_ctc(block_number)
+                        print(f"Forwarded disembarking data to CTC")
+                        
+                        # Update UI if in station view
+                        if hasattr(self, 'view_mode') and self.view_mode.get() == "station":
+                            self.populate_station_view()
                     else:
-                        print(f" Could not determine block location for train {train_id}")
+                        print(f"Invalid block index {block_idx} for passengers_disembarking")
                 else:
-                    print(f" Train {train_id} not found in active trains")
+                    print(f"Could not determine block location for disembarking passengers")
             
             # ============================================================
             # TRAIN OCCUPANCY - From Train Model
             # ============================================================
             elif command == 'Train Occupancy' or command == 'train_occupancy':
-                # Handle train occupancy from Passenger_UI
+                # Handle train occupancy from Train Model
                 passenger_count = value
                 train_id = message.get('train_id')
                 
                 if not train_id and self.data_manager.active_trains:
                     train_id = self.data_manager.active_trains[-1]  # Most recent train
-                    print(f" No train_id in Train Occupancy, using {train_id}")
+                    print(f"No train_id in Train Occupancy, using {train_id}")
                 
-                if train_id in self.data_manager.active_trains:
+                if train_id and train_id in self.data_manager.active_trains:
                     idx = self.data_manager.active_trains.index(train_id)
                     if isinstance(passenger_count, str):
                         try:
@@ -5387,14 +5493,22 @@ class TrackModelUI(tk.Tk):
                         except (ValueError, TypeError):
                             passenger_count = 0
                     
-                    self.data_manager.train_occupancy[idx] = passenger_count
-                    print(f" Updated train occupancy for {train_id}: {passenger_count} passengers")
+                    # Ensure train_occupancy list is properly sized
+                    while len(self.data_manager.train_occupancy) <= idx:
+                        self.data_manager.train_occupancy.append(0)
                     
-                    # Update UI if needed
+                    self.data_manager.train_occupancy[idx] = passenger_count
+                    print(f"Updated train occupancy for {train_id}: {passenger_count} passengers")
+                    
+                    # Update Train Details Panel if this train is selected
+                    if hasattr(self, 'train_info') and hasattr(self, 'train_combo') and self.train_combo.get() == train_id:
+                        self.update_train_info(None)
+                    
+                    # Update test UI if needed
                     if hasattr(self, 'tester_reference') and hasattr(self.tester_reference, 'refresh_train_details'):
                         self.tester_reference.refresh_train_details()
                 else:
-                    print(f" Could not find train for occupancy update: {passenger_count} passengers")
+                    print(f"Could not find train for occupancy update: {passenger_count} passengers")
             
             # ============================================================
             # TEST COMMAND
