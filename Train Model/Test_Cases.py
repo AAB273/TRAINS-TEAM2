@@ -4,7 +4,7 @@ ULTRA-SIMPLE Commanded Speed Test
 This tests the exact logic without any complex imports
 """
 
-def test_commanded_speed_logic():
+def testCommandedSpeedLogic():
     """Test the exact commanded speed processing logic"""
     print("=== ULTRA-SIMPLE Commanded Speed Test ===")
     
@@ -14,25 +14,25 @@ def test_commanded_speed_logic():
     # Mock objects that record what happens
     class MockTrain:
         def __init__(self):
-            self.commanded_speed = 0.0
-            self.service_brake_active = True
+            self.commandedSpeed = 0.0
+            self.serviceBrakeActive = True
             
-        def set_commanded_speed(self, value):
-            old_value = self.commanded_speed
-            self.commanded_speed = float(value)
-            actions.append(f"set_commanded_speed({value}) - changed from {old_value} to {self.commanded_speed}")
+        def setCommandedSpeed(self, value):
+            old_value = self.commandedSpeed
+            self.commandedSpeed = float(value)
+            actions.append(f"set_commandedSpeed({value}) - changed from {old_value} to {self.commandedSpeed}")
             
-        def set_service_brake(self, value):
-            old_value = self.service_brake_active
-            self.service_brake_active = bool(value)
-            actions.append(f"set_service_brake({value}) - changed from {old_value} to {self.service_brake_active}")
+        def setServiceBrake(self, value):
+            old_value = self.serviceBrakeActive
+            self.serviceBrakeActive = bool(value)
+            actions.append(f"set_service_brake({value}) - changed from {old_value} to {self.serviceBrakeActive}")
     
     class MockServer:
         def __init__(self):
-            self.messages_sent = []
+            self.messagesSent = []
             
         def send_to_ui(self, target, message):
-            self.messages_sent.append((target, message))
+            self.messagesSent.append((target, message))
             actions.append(f"send_to_ui({target}, {message})")
     
     # Create test objects
@@ -40,22 +40,22 @@ def test_commanded_speed_logic():
     server = MockServer()
     
     # Test parameters
-    test_speed = 45.0
+    testSpeed = 45.0
     
     print(f"BEFORE TEST:")
-    print(f"  train.commanded_speed = {train.commanded_speed}")
-    print(f"  train.service_brake_active = {train.service_brake_active}")
+    print(f"  train.commandedSpeed = {train.commandedSpeed}")
+    print(f"  train.serviceBrakeActive = {train.serviceBrakeActive}")
     
-    print(f"\nEXECUTING COMMANDED SPEED: {test_speed}")
+    print(f"\nEXECUTING COMMANDED SPEED: {testSpeed}")
     
     # Execute the EXACT logic from your _process_message method
     # This is copied directly from your code:
     try:
         # This is what happens in your _process_message method for 'Commanded Speed'
-        train.set_commanded_speed(test_speed)
-        train.set_service_brake(False)
-        server.send_to_ui("Train SW", {'command': 'Commanded Speed', 'value': test_speed})
-        server.send_to_ui("Train HW", {'command': 'Commanded Speed', 'value': test_speed})
+        train.setCommandedSpeed(testSpeed)
+        train.setServiceBrake(False)
+        server.send_to_ui("Train SW", {'command': 'Commanded Speed', 'value': testSpeed})
+        server.send_to_ui("Train HW", {'command': 'Commanded Speed', 'value': testSpeed})
         
         print("✓ Commanded speed logic executed successfully")
         
@@ -64,8 +64,8 @@ def test_commanded_speed_logic():
         return False
     
     print(f"\nAFTER TEST:")
-    print(f"  train.commanded_speed = {train.commanded_speed}")
-    print(f"  train.service_brake_active = {train.service_brake_active}")
+    print(f"  train.commandedSpeed = {train.commandedSpeed}")
+    print(f"  train.serviceBrakeActive = {train.serviceBrakeActive}")
     
     print(f"\nACTIONS PERFORMED:")
     for i, action in enumerate(actions, 1):
@@ -75,43 +75,43 @@ def test_commanded_speed_logic():
     print(f"\nVERIFICATION:")
     
     # Check 1: Commanded speed was set correctly
-    if train.commanded_speed == test_speed:
-        print(f"  ✓ Commanded speed correctly set to {test_speed}")
+    if train.commandedSpeed == testSpeed:
+        print(f"  ✓ Commanded speed correctly set to {testSpeed}")
     else:
-        print(f"  ✗ Commanded speed incorrect: expected {test_speed}, got {train.commanded_speed}")
+        print(f"  ✗ Commanded speed incorrect: expected {testSpeed}, got {train.commandedSpeed}")
         return False
     
     # Check 2: Service brake was released
-    if train.service_brake_active == False:
+    if train.serviceBrakeActive == False:
         print(f"  ✓ Service brake correctly released")
     else:
-        print(f"  ✗ Service brake not released: still {train.service_brake_active}")
+        print(f"  ✗ Service brake not released: still {train.serviceBrakeActive}")
         return False
     
     # Check 3: Messages were sent
-    expected_messages = [
-        ("Train SW", {'command': 'Commanded Speed', 'value': test_speed}),
-        ("Train HW", {'command': 'Commanded Speed', 'value': test_speed})
+    expectedMessages = [
+        ("Train SW", {'command': 'Commanded Speed', 'value': testSpeed}),
+        ("Train HW", {'command': 'Commanded Speed', 'value': testSpeed})
     ]
     
-    if len(server.messages_sent) == len(expected_messages):
-        print(f"  ✓ Correct number of messages sent: {len(server.messages_sent)}")
+    if len(server.messagesSent) == len(expectedMessages):
+        print(f"  ✓ Correct number of messages sent: {len(server.messagesSent)}")
         
-        for i, (expected_target, expected_msg) in enumerate(expected_messages):
-            if i < len(server.messages_sent):
-                actual_target, actual_msg = server.messages_sent[i]
-                if actual_target == expected_target and actual_msg == expected_msg:
-                    print(f"  ✓ Message {i+1} correct: to {actual_target}")
+        for i, (expectedTarget, expectedMsg) in enumerate(expectedMessages):
+            if i < len(server.messagesSent):
+                actualTarget, actualMsg = server.messagesSent[i]
+                if actualTarget == expectedTarget and actualMsg == expectedMsg:
+                    print(f"  ✓ Message {i+1} correct: to {actualTarget}")
                 else:
                     print(f"  ✗ Message {i+1} incorrect")
                     return False
     else:
-        print(f"  ✗ Wrong number of messages: expected {len(expected_messages)}, got {len(server.messages_sent)}")
+        print(f"  ✗ Wrong number of messages: expected {len(expectedMessages)}, got {len(server.messagesSent)}")
         return False
     
     print(f"\n🎉 ALL TESTS PASSED! The commanded speed logic works correctly.")
     return True
 
 if __name__ == "__main__":
-    success = test_commanded_speed_logic()
+    success = testCommandedSpeedLogic()
     exit(0 if success else 1)

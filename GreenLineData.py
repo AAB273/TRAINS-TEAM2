@@ -149,7 +149,7 @@ class GreenLine:
             {"blockNumber": 146, "section": "X", "blockLengthM": 164, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
         ]
 
-    def get_value(self, blockNumber, key):
+    def getValue(self, blockNumber, key):
         """
         Get a value from a specific block.
         
@@ -173,7 +173,7 @@ class GreenLine:
                 return block.get(key)
         return None
 
-    def get_block(self, blockNumber):
+    def getBlock(self, blockNumber):
         """Get all data for a specific block."""
         for block in self.blocks:
             if block['blockNumber'] == blockNumber:
@@ -408,12 +408,3 @@ beacons = [
     southBankToCentral,
 ]
 
-# Display beacon data
-print("Green Line Beacon Midpoints\n" + "="*120)
-print(f"{'Beacon':<10} {'Block':<8} {'Distance to Station (m)':<25} {'Backward Station':<20} {'→':<3} {'Forward Station':<20}")
-print("="*120)
-for idx, beacon in enumerate(beacons, 1):
-    print(f"{idx:<10} {beacon.blockNumber:<8} {beacon.distanceToNext:<25.1f} {beacon.backwardStationName:<20} {'→':<3} {beacon.forwardStationName:<20}")
-
-print("="*120)
-print(f"Total Beacons: {len(beacons)}")

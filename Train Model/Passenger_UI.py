@@ -73,6 +73,7 @@ class TrainModelPassengerGUI:
 		self.previousFailureSignalPickupState = False
 		self.failureActivationInProgress = False
 		self.previousActiveTrains = set()
+		self.clockSpeed = clock.clock.getSpeed() * 100
 
 		self.setupGUI()
 		
@@ -243,7 +244,7 @@ class TrainModelPassengerGUI:
 				targetTemp = value
 				self._animateTemperatureChange(targetTemp, train)
 			elif command == 'Service Brake':
-				if self.failureBrakeVar.get and train == self.currentTrain:
+				if self.failureBrakeVar.get() and train == self.currentTrain:
 					pass
 				else:
 					train.setServiceBrake(value)
@@ -428,8 +429,7 @@ class TrainModelPassengerGUI:
 	def updateDisembarking(self, train):
 		# Updates passenger disembarking when train is stopped with doors open.
 		if train and train.active and train.passengerCount != 0:
-			if (train.speed == 0 and train.serviceBrakeActive and 
-				(train.rightDoorOpen or train.leftDoorOpen) and redundantCheck):
+			if (train.atStation and redundantCheck):
 				redundantCheck = True
 				passengerCount = train.passengerCount
 				disembarking = random.randint(0, passengerCount)
@@ -495,7 +495,7 @@ class TrainModelPassengerGUI:
 		self.updateFailureSignal()
 
 		# Normal operation - show actual values
-		imperialSpeedLimit = train.speedLimit * 0.621371
+		imperialSpeedLimit = train.speedLimit / 1.61
 		self.uiLabels['Speed Limit'].config(text=f"Speed Limit: {imperialSpeedLimit:.1f} MPH")
 
 		# Update Grade and Elevation
@@ -537,7 +537,7 @@ class TrainModelPassengerGUI:
 
 	def onTrainSelected(self, trainId: int):
 		# Handles train selection from dropdown and updates current train.
-		train = self.trainManager.select_train(trainId)
+		train = self.trainManager.selectTrain(trainId)
 		if train and train.active:
 			self.currentTrain = train
 			self.updateUIFromTrain(train)
@@ -935,7 +935,7 @@ class TrainModelPassengerGUI:
 		# Initialize the train selector dropdown
 		self.root.after(100, self.refreshTrainSelector)
 
-		self.root.after(100, self.continuousPhysicsUpdate)
+		self.root.after(self.clockSpeed, self.continuousPhysicsUpdate)
 
 		self.root.after(100, self.updateTime)
 

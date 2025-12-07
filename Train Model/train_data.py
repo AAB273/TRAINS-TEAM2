@@ -62,7 +62,7 @@ class Train:
 		self.cabinTemp = 72.0
 		self.grade = 0
 		self.elevation = 0
-		self.speedLimit = 50
+		self.speedLimit = 40
 		self.speedLimitMps = self.speedLimit / 3.6
 		self.commandedSpeed = 0
 		self.commandedAuthority = 0
@@ -102,7 +102,8 @@ class Train:
 		# Line assignment
 		self.line = "green" 
 		self.block = 63
-		self.previousBlock = None
+		self.atStation = False
+		self.previousBlock = 63
 
 		# Station
 		self.station = "YARD"
@@ -143,13 +144,17 @@ class Train:
 		# Updates the current block and retrieves associated speed limit and grade.
 		self.previousBlock = self.block
 		self.block = value
-		self.setSpeedLimit(self.lineData.get_value(value, 'speed_limit'))
-		self.setGrade(self.lineData.get_value(value, 'grade'))
+		self.setSpeedLimit(self.lineData.getValue(value, 'speed_limit'))
+		self.setGrade(self.lineData.getValue(value, 'grade'))
+		stationCheck = self.lineData.getValue(value,'infrastructure') 
+		if "STATION" in stationCheck:
+			self.atStation = True
 		
 	# Metric setters with validation
 	def setSpeedLimit(self, value: float):
 		# Sets the speed limit for the train in m/s.
 		self.speedLimit = float(value)
+		self.speedLimitMps = self.speedLimit / 3.6
 		self._notifyObservers()
 	
 	def setElevation(self, value: float):
@@ -313,6 +318,7 @@ class Train:
 		SERVICE_BRAKE_DECEL = -1.2  
 		EMERGENCY_BRAKE_DECEL = -2.73 
 		MAX_FORCE = 25715 
+		MAX_SPEED = 19.44445183333
 		totalMass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passengerCount + 2))
 		negGradeTrue = False
 		
@@ -337,7 +343,7 @@ class Train:
 				aNew = 0
 				
 		elif not self.serviceBrakeActive:
-			if not self.leftDoorOpen and not self.rightDoorOpen and self.powerCommand > 0:
+			if not self.atStation and self.powerCommand > 0:
 				if self.speed == 0:
 					aNew = MAX_FORCE / totalMass
 				else:
@@ -373,6 +379,10 @@ class Train:
 			if newSpeed > self.speedLimitMps:
 				newSpeed = self.speedLimitMps
 				aNew = 0
+
+		if newSpeed > MAX_SPEED:
+			newSpeed = MAX_SPEED
+			aNew = 0
 
 		# Calculate distance with final speed values
 		if hasattr(self, 'speedPrev'):
