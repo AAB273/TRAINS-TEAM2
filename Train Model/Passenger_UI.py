@@ -495,7 +495,7 @@ class TrainModelPassengerGUI:
 		self.updateFailureSignal()
 
 		# Normal operation - show actual values
-		imperialSpeedLimit = train.speedLimit * 0.621371
+		imperialSpeedLimit = train.speedLimit / 1.61
 		self.uiLabels['Speed Limit'].config(text=f"Speed Limit: {imperialSpeedLimit:.1f} MPH")
 
 		# Update Grade and Elevation
@@ -537,7 +537,7 @@ class TrainModelPassengerGUI:
 
 	def onTrainSelected(self, trainId: int):
 		# Handles train selection from dropdown and updates current train.
-		train = self.trainManager.select_train(trainId)
+		train = self.trainManager.selectTrain(trainId)
 		if train and train.active:
 			self.currentTrain = train
 			self.updateUIFromTrain(train)

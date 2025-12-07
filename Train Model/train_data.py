@@ -143,13 +143,14 @@ class Train:
 		# Updates the current block and retrieves associated speed limit and grade.
 		self.previousBlock = self.block
 		self.block = value
-		self.setSpeedLimit(self.lineData.get_value(value, 'speed_limit'))
-		self.setGrade(self.lineData.get_value(value, 'grade'))
+		self.setSpeedLimit(self.lineData.getValue(value, 'speed_limit'))
+		self.setGrade(self.lineData.getValue(value, 'grade'))
 		
 	# Metric setters with validation
 	def setSpeedLimit(self, value: float):
 		# Sets the speed limit for the train in m/s.
 		self.speedLimit = float(value)
+		self.speedLimitMps = self.speedLimit / 3.6
 		self._notifyObservers()
 	
 	def setElevation(self, value: float):
@@ -300,7 +301,7 @@ class Train:
 		# Sets whether the train should receive physics updates.
 		self.active = active
 
-	def calculateForceSpeedAccelerationDistance(self, dt: float = 1.0):
+	def calculateForceSpeedAccelerationDistance(self, dt: float = 10.0):
 		# Calculates train physics based on current state and commands.
 		"""
 		Physics calculation point:
@@ -313,6 +314,7 @@ class Train:
 		SERVICE_BRAKE_DECEL = -1.2  
 		EMERGENCY_BRAKE_DECEL = -2.73 
 		MAX_FORCE = 25715 
+		MAX_SPEED = 19.44445183333
 		totalMass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passengerCount + 2))
 		negGradeTrue = False
 		
@@ -374,6 +376,10 @@ class Train:
 				newSpeed = self.speedLimitMps
 				aNew = 0
 
+		if newSpeed > MAX_SPEED:
+			newSpeed = MAX_SPEED
+			aNew = 0
+			
 		# Calculate distance with final speed values
 		if hasattr(self, 'speedPrev'):
 			avgSpeed = (newSpeed + self.speedPrev) / 2
