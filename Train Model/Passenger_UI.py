@@ -73,6 +73,7 @@ class TrainModelPassengerGUI:
 		self.previousFailureSignalPickupState = False
 		self.failureActivationInProgress = False
 		self.previousActiveTrains = set()
+		self.clockSpeed = clock.clock.getSpeed() * 100
 
 		self.setupGUI()
 		
@@ -428,8 +429,7 @@ class TrainModelPassengerGUI:
 	def updateDisembarking(self, train):
 		# Updates passenger disembarking when train is stopped with doors open.
 		if train and train.active and train.passengerCount != 0:
-			if (train.speed == 0 and train.serviceBrakeActive and 
-				(train.rightDoorOpen or train.leftDoorOpen) and redundantCheck):
+			if (train.atStation and redundantCheck):
 				redundantCheck = True
 				passengerCount = train.passengerCount
 				disembarking = random.randint(0, passengerCount)
@@ -935,7 +935,7 @@ class TrainModelPassengerGUI:
 		# Initialize the train selector dropdown
 		self.root.after(100, self.refreshTrainSelector)
 
-		self.root.after(clock.clock.getSpeed * 100, self.continuousPhysicsUpdate)
+		self.root.after(self.clockSpeed, self.continuousPhysicsUpdate)
 
 		self.root.after(100, self.updateTime)
 

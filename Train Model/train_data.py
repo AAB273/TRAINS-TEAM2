@@ -102,6 +102,7 @@ class Train:
 		# Line assignment
 		self.line = "green" 
 		self.block = 63
+		self.atStation = False
 		self.previousBlock = None
 
 		# Station
@@ -145,6 +146,9 @@ class Train:
 		self.block = value
 		self.setSpeedLimit(self.lineData.getValue(value, 'speed_limit'))
 		self.setGrade(self.lineData.getValue(value, 'grade'))
+		stationCheck = self.lineData.getValue(value,'infrastructure') 
+		if "STATION" in stationCheck:
+			self.atStation = True
 		
 	# Metric setters with validation
 	def setSpeedLimit(self, value: float):
@@ -339,7 +343,7 @@ class Train:
 				aNew = 0
 				
 		elif not self.serviceBrakeActive:
-			if not self.leftDoorOpen and not self.rightDoorOpen and self.powerCommand > 0:
+			if not self.atStation and self.powerCommand > 0:
 				if self.speed == 0:
 					aNew = MAX_FORCE / totalMass
 				else:
