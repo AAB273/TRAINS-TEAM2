@@ -2186,13 +2186,17 @@ class TrackModelUI(tk.Tk):
         
         # RULE 1: End of line - Block 150 goes to 28
         if current_block == 150:
-            # print(f"[ROUTING] Block 150 → 28 (End of line return)")
+            # Set backward loop mode when entering from 150
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                self.train_directions[train_id] = 'backward_loop'
+            # print(f"[ROUTING] Block 150 → 28 (End of line return, entering backward loop)")
             return 28  # Go to 28 from 150
         
         # RULE 1b: Switch housed at block 28 controls routing from 28
         # Excel shows: SWITCH (28-29; 150-28)
         # Forward (from 27): 28 → 29 (if True) or 28 → 150 (if False)
-        # From 150: Block 150 → 28, then exits forward to 29 (doesn't continue backward)
+        # From 150: Block 150 → 28 → 27, then continues backward up the track
         elif current_block == 28:
             # Check if this train is in backward loop mode (coming from 150)
             if train_idx < len(self.data_manager.active_trains):
@@ -2204,13 +2208,12 @@ class TrackModelUI(tk.Tk):
                     # print(f"[ROUTING] RED LINE backward: Block 28 → 27")
                     return 27
                 
-                # Check for Green Line backward loop mode
+                # Check for Green Line backward loop mode (coming from 150)
                 if self.train_directions.get(train_id) == 'backward_loop':
-                    # Train came from 150 → 28
-                    # Clear backward loop mode and continue forward
-                    self.train_directions[train_id] = 'forward'
-                    # print(f"[ROUTING] Exiting backward loop (from 150) at block 28 → 29")
-                    return 29  # Exit to 29, don't continue backward to 27
+                    # Train came from 150 → 28, now continue backward to 27
+                    # Stay in backward_loop mode to continue backward through the track
+                    # print(f"[ROUTING] Backward loop (from 150): Block 28 → 27 (continuing backward)")
+                    return 27  # Continue backward to 27, don't exit to 29
             
             # Normal forward routing (coming from block 27)
             if len(self.data_manager.blocks) > 27:
@@ -2276,20 +2279,28 @@ class TrackModelUI(tk.Tk):
         # Only affects trains coming FROM block 8 (forward direction)
         # Trains coming FROM block 10 (backward) ignore the switch
         elif current_block == 9:
-            # Check if we're on Red Line
+            # Check if train is in any backward mode FIRST (Green Line or Red Line)
+            if train_idx < len(self.data_manager.active_trains):
+                train_id = self.data_manager.active_trains[train_idx]
+                
+                # Check for Green Line backward loop mode
+                if self.train_directions.get(train_id) == 'backward_loop':
+                    # Green Line backward loop - continue backward from 9 to 8
+                    # print(f"[ROUTING] GREEN LINE backward loop: Block 9 → 8 (continuing backward)")
+                    return 8
+                
+                # Check for Red Line backward mode
+                if self.train_directions.get(train_id) == 'red_backward_66_to_16':
+                    # Train is in backward mode (coming from block 10)
+                    # Ignore yard switch and continue backward to block 8
+                    # print(f"[ROUTING] RED LINE backward: Block 9 → 8 (ignoring yard switch)")
+                    return 8
+            
+            # Not in backward mode - check for Red Line yard switch logic
             current_line = getattr(self, 'selected_line', None)
             is_red_line = current_line and current_line.get() == "Red Line"
             
             if is_red_line:
-                # Check if train is going backward (from block 10)
-                if train_idx < len(self.data_manager.active_trains):
-                    train_id = self.data_manager.active_trains[train_idx]
-                    if self.train_directions.get(train_id) == 'red_backward_66_to_16':
-                        # Train is in backward mode (coming from block 10)
-                        # Ignore yard switch and continue backward to block 8
-                        # print(f"[ROUTING] RED LINE backward: Block 9 → 8 (ignoring yard switch)")
-                        return 8
-                
                 # Train is going forward (from block 8)
                 # Check yard switch at block 9
                 if len(self.data_manager.blocks) > 8:
@@ -2694,6 +2705,12 @@ class TrackModelUI(tk.Tk):
                 self.log_to_terminal(f"[BLOCK 16 MODE CHECK] Train {train_id} mode = {current_mode}")
                 # print(f"[DEBUG] Block 16: Train {train_id} mode = {current_mode}")
                 
+                # Check for Green Line backward loop mode FIRST
+                if self.train_directions.get(train_id) == 'backward_loop':
+                    # Green Line backward loop - continue backward from 16 to 15
+                    # print(f"[ROUTING] GREEN LINE backward loop: Block 16 → 15 (continuing backward)")
+                    return 15
+                
                 if self.train_directions.get(train_id) == 'red_backward_66_to_16':
                     # At switch 15, check which way to route
                     self.log_to_terminal(f"[BLOCK 16 BACKWARD] In red_backward_66_to_16 mode")
@@ -2770,7 +2787,7 @@ class TrackModelUI(tk.Tk):
         
         # RED LINE RULE 4: Block 15 - Handle backward mode exit
         elif current_block == 15:
-            # Check if train is in Red Line backward mode
+            # Check if train is in Red Line backward mode OR Green Line backward loop mode
             if train_idx < len(self.data_manager.active_trains):
                 train_id = self.data_manager.active_trains[train_idx]
                 
@@ -2780,9 +2797,16 @@ class TrackModelUI(tk.Tk):
                     # print(f"[ROUTING] RED LINE entering loop: Block 15 → 14")
                     return 14
                 
+                # Check for Red Line backward mode
                 if self.train_directions.get(train_id) == 'red_backward_66_to_16':
                     # Continue backward from 15 to 14
                     # print(f"[ROUTING] RED LINE backward: Block 15 → 14 (continuing backward)")
+                    return 14
+                
+                # Check for Green Line backward loop mode (from 150→28→27→...→15)
+                if self.train_directions.get(train_id) == 'backward_loop':
+                    # Continue backward from 15 to 14
+                    # print(f"[ROUTING] GREEN LINE backward loop: Block 15 → 14 (continuing backward)")
                     return 14
             
             # Not in backward mode: normal forward to block 16
@@ -5166,8 +5190,41 @@ class TrackModelUI(tk.Tk):
                         if hasattr(block_63, 'occupancy') and block_63.occupancy != 0:
                             block_63_occupied = True
                     
-                    # Only treat as yard dispatch if block 63 is not occupied AND no trains exist
-                    if not block_63_occupied and not train_id:
+                    # CHECK SWITCH STATE AT BLOCK 62 (controls entry to block 63 from yard)
+                    switch_allows_yard_entry = False
+                    if 62 <= len(self.data_manager.blocks):
+                        block_62 = self.data_manager.blocks[61]  # Block 62 (index 61)
+                        
+                        # Check if switch is in the correct position (reverse = yard to 63)
+                        if hasattr(block_62, 'switch_direction'):
+                            switch_direction = block_62.switch_direction
+                            # Reverse position allows trains from yard to enter block 63
+                            if switch_direction == "reverse":
+                                switch_allows_yard_entry = True
+                                # print(f" Switch at block 62 is in REVERSE (yard→63) - allowing train spawn")
+                            else:
+                                # print(f" Switch at block 62 is in NORMAL (main line→63) - blocking train spawn from yard")
+                                pass
+                        else:
+                            # If no switch direction set, check switch_states dictionary
+                            if hasattr(self, 'switch_states') and 62 in self.switch_states:
+                                switch_direction = self.switch_states[62]
+                                if switch_direction == "reverse":
+                                    switch_allows_yard_entry = True
+                                    # print(f" Switch at block 62 (from dict) is in REVERSE - allowing train spawn")
+                            else:
+                                # Default to allowing if switch state is unknown (backwards compatibility)
+                                switch_allows_yard_entry = True
+                                # print(f" Switch state at block 62 unknown - defaulting to allow")
+                    else:
+                        # If block 62 doesn't exist, allow spawn (backwards compatibility)
+                        switch_allows_yard_entry = True
+                    
+                    # Only treat as yard dispatch if:
+                    # 1. Block 63 is not occupied
+                    # 2. No train_id provided
+                    # 3. Switch at block 62 allows yard entry (reverse position)
+                    if not block_63_occupied and not train_id and switch_allows_yard_entry:
                         # Check if any trains already exist
                         if not self.data_manager.active_trains:
                             is_yard_dispatch = True
@@ -5179,6 +5236,17 @@ class TrackModelUI(tk.Tk):
                             # Use existing train instead of creating a duplicate
                             train_id = self.data_manager.active_trains[-1]
                             # print(f" Block 63 command received, but train already exists. Using: {train_id}")
+                    elif not switch_allows_yard_entry:
+                        # Log that spawn was blocked due to switch position
+                        try:
+                            for terminal in self.terminals:
+                                terminal.config(state="normal")
+                                terminal.insert("end", f" YARD DISPATCH BLOCKED: Switch at block 62 not in yard→63 position\n")
+                                terminal.see("end")
+                                terminal.config(state="disabled")
+                        except Exception as e:
+                            pass
+                        # print(f" Cannot spawn train at block 63: switch at block 62 not in correct position")
                 
                 if is_yard_dispatch:
                     # Create a new train for yard dispatch
@@ -5385,6 +5453,7 @@ class TrackModelUI(tk.Tk):
             # line_indicator: 0 = Green Line, 1 = Red Line
             # crossing_state: bool (True = active/down, False = inactive/up)
             # Values are received sorted from lowest to highest block number
+            # SPLIT BETWEEN Track SW and Track HW based on block ranges
             # Example: [0, True] or [1, False]
             # ============================================================
             elif command == 'rc_states':
@@ -5401,10 +5470,13 @@ class TrackModelUI(tk.Tk):
                         # Green Line example blocks with crossings (adjust as needed)
                         crossing_block_list = []  # Add your crossing block numbers here
                     
+                    # Filter crossing blocks based on which controller sent the message
+                    filtered_crossing_blocks = self.get_blocks_for_controller(source_ui_id, crossing_block_list)
+                    
                     # Process each crossing state
                     for i, state in enumerate(value):
-                        if i < len(crossing_block_list):
-                            block_num = crossing_block_list[i]
+                        if i < len(filtered_crossing_blocks):
+                            block_num = filtered_crossing_blocks[i]
                             
                             # Convert integer to boolean: 0 = False (inactive/up), 1 = True (active/down)
                             try:
@@ -5415,14 +5487,14 @@ class TrackModelUI(tk.Tk):
                                     block = self.data_manager.blocks[block_num - 1]
                                     block.crossing_state = crossing_active
                                     state_text = "ACTIVE (DOWN)" if crossing_active else "INACTIVE (UP)"
-                                    # print(f"   Updated railroad crossing at block {block_num}: {state_text}")
+                                    # print(f"   Updated railroad crossing at block {block_num}: {state_text} (from {source_ui_id})")
                             except (ValueError, TypeError) as e:
                                 print(f"   Could not parse crossing state for block {block_num}: {state}")
                     
                     # Refresh UI to show crossing updates
                     self.refresh_bidirectional_controls()
                     self.refresh_ui()
-                    # print(f"[DEBUG] Railroad crossing states updated")
+                    # print(f"[DEBUG] Railroad crossing states updated from {source_ui_id}")
                 else:
                     pass
                     # print(f" Invalid rc_states format: {value}")
@@ -5434,6 +5506,7 @@ class TrackModelUI(tk.Tk):
             # light_state: two-bit boolean array [bit0, bit1]
             # Bit encoding: [False, False] = 0, [True, False] = 1, [False, True] = 2, [True, True] = 3
             # Values are received sorted from lowest to highest block number
+            # SPLIT BETWEEN Track SW and Track HW based on block ranges
             # Example: [0, [False, True]] = Green Line, State 2
             # ============================================================
             elif command == 'light_states':
@@ -5448,12 +5521,15 @@ class TrackModelUI(tk.Tk):
                         light_blocks = sorted(self.light_states)  # Green Line: {1, 62, 76, 100, 150}
                     else:
                         # Red Line would have different light blocks - adjust as needed
-                        light_blocks = []
+                        light_blocks = sorted(self.light_states)  # Use all light blocks
+                    
+                    # Filter light blocks based on which controller sent the message
+                    filtered_light_blocks = self.get_blocks_for_controller(source_ui_id, light_blocks)
                     
                     # Process each light state
                     for i, bit_array in enumerate(value):
-                        if i < len(light_blocks):
-                            block_num = light_blocks[i]
+                        if i < len(filtered_light_blocks):
+                            block_num = filtered_light_blocks[i]
                             
                             # Convert string bits to boolean
                             if isinstance(bit_array, list) and len(bit_array) == 2:
@@ -5466,14 +5542,14 @@ class TrackModelUI(tk.Tk):
                                         block = self.data_manager.blocks[block_num - 1]
                                         state = (1 if bit0 else 0) + (2 if bit1 else 0)
                                         block.traffic_light_state = state
-                                        # print(f"   Updated signal at block {block_num}: State {state} from bits [{bit0}, {bit1}]")
+                                        # print(f"   Updated signal at block {block_num}: State {state} from bits [{bit0}, {bit1}] (from {source_ui_id})")
                                 except (ValueError, TypeError) as e:
                                     print(f"   Could not parse bit array for block {block_num}: {bit_array}")
                     
                     # Refresh UI to show light updates
                     self.refresh_bidirectional_controls()
                     self.refresh_ui()
-                    # print(f"[DEBUG] Light states updated")
+                    # print(f"[DEBUG] Light states updated from {source_ui_id}")
                 else:
                     pass
                     # print(f" Invalid light_states format: {value}")
@@ -5672,6 +5748,7 @@ class TrackModelUI(tk.Tk):
             # ============================================================
             # SWITCH STATES - From Wayside Controller
             # Updates switch positions/directions
+            # SPLIT BETWEEN Track SW and Track HW based on block ranges
             # ============================================================
             elif command == 'switch_states':
                 switches = message.get('switches', value)
@@ -5711,6 +5788,13 @@ class TrackModelUI(tk.Tk):
                         for idx, direction in enumerate(switches):
                             if idx in switch_block_mapping:
                                 block_num = switch_block_mapping[idx]
+                                
+                                # Only process switches that belong to this controller
+                                if source_ui_id == "Track SW" and not self.is_track_sw_block(block_num):
+                                    continue  # Skip - this switch belongs to Track HW
+                                elif source_ui_id == "Track HW" and self.is_track_sw_block(block_num):
+                                    continue  # Skip - this switch belongs to Track SW
+                                
                                 if 1 <= block_num <= len(self.data_manager.blocks):
                                     block = self.data_manager.blocks[block_num - 1]
                                     # Normalize direction for consistency
@@ -5724,7 +5808,7 @@ class TrackModelUI(tk.Tk):
                                     # Show routing path if configured
                                     if hasattr(self, "switch_routing") and block_num in self.switch_routing:
                                         next_block = self.switch_routing[block_num][direction]
-                                        # print(f"   Switch {block_num}: {direction} → routes to block {next_block}")
+                                        # print(f"   Switch {block_num}: {direction} → routes to block {next_block} (from {source_ui_id})")
                                     # Store switch direction in block
                                     block.switch_direction = direction
                                     
@@ -5733,7 +5817,7 @@ class TrackModelUI(tk.Tk):
                                         self.switch_states = {}
                                     self.switch_states[block_num] = direction
                                     
-                                    # print(f"   Updated switch at block {block_num}: {direction}")
+                                    # print(f"   Updated switch at block {block_num}: {direction} (from {source_ui_id})")
                                     
                                     # Mark block as having a switch
                                     self.switch_blocks.add(block_num)
@@ -5754,8 +5838,15 @@ class TrackModelUI(tk.Tk):
                     
                     if isinstance(block, str):
                         block = int(block)
-                        
-                    if 1 <= block <= len(self.data_manager.blocks):
+                    
+                    # Only process switches that belong to this controller
+                    if source_ui_id == "Track SW" and not self.is_track_sw_block(block):
+                        # print(f" Ignoring switch update for block {block} - belongs to Track HW")
+                        pass
+                    elif source_ui_id == "Track HW" and self.is_track_sw_block(block):
+                        # print(f" Ignoring switch update for block {block} - belongs to Track SW")
+                        pass
+                    elif 1 <= block <= len(self.data_manager.blocks):
                         block_obj = self.data_manager.blocks[block - 1]
                         
                         # Store switch state
@@ -5769,7 +5860,12 @@ class TrackModelUI(tk.Tk):
                         # Mark block as having a switch
                         self.switch_blocks.add(block)
                         
-                        # print(f" Updated switch at block {block}: {direction}")
+                        # print(f" Updated switch at block {block}: {direction} (from {source_ui_id})")
+                        
+                        # Update displays
+                        self.refresh_track_data_table()
+                        self.refresh_track_system_table()
+                        self.update_switch_display()
                         
                         # Update displays
                         self.refresh_track_data_table()
@@ -5781,6 +5877,45 @@ class TrackModelUI(tk.Tk):
             import traceback
             traceback.print_exc()
 
+
+    # ---------------- HELPER METHODS FOR TRACK SW/HW SPLIT ----------------
+    
+    def is_track_sw_block(self, block_num):
+        """
+        Determine if a block is controlled by Track SW based on current line.
+        
+        Green Line: Track SW controls blocks 63-149
+        Red Line: Track SW controls blocks 25-48 and 67-76
+        
+        Returns True if block is controlled by Track SW, False if Track HW
+        """
+        current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
+        
+        if "Green" in current_line:
+            # Green Line: Track SW controls 63-149
+            return 63 <= block_num <= 149
+        else:
+            # Red Line: Track SW controls 25-48 and 67-76
+            return (25 <= block_num <= 48) or (67 <= block_num <= 76)
+    
+    def get_blocks_for_controller(self, source_ui_id, block_list):
+        """
+        Filter a list of blocks based on which controller sent the message.
+        
+        Args:
+            source_ui_id: "Track SW" or "Track HW"
+            block_list: List of block numbers to filter
+            
+        Returns:
+            Filtered list of blocks that belong to the sending controller
+        """
+        if source_ui_id == "Track SW":
+            return [block for block in block_list if self.is_track_sw_block(block)]
+        elif source_ui_id == "Track HW":
+            return [block for block in block_list if not self.is_track_sw_block(block)]
+        else:
+            # If source is unknown, return all blocks (backwards compatibility)
+            return block_list
 
     # ---------------- PERIODIC OUTPUT UPDATES ----------------
 
