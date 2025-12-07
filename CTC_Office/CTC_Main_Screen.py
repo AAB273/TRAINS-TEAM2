@@ -58,6 +58,8 @@ class MainScreen:
         self.totalPassengers = 0 
         self.numberOfTrains = 1
 
+        self.clockSpeed = 1
+
         self.mmList = {12: [1, 13], 28: [29, 150], 76: [77, 101], 85: [86, 100], 0: [57, 63]}
         self.trainList = {}
 
@@ -311,8 +313,16 @@ class MainScreen:
         '''
         create a label for the time
         '''
-        self.clockText = ttk.Label(topFrame, text = clock.clock.getTime(), font = ("Arial", 20, "bold"), background = "white")
-        self.clockText.pack(side = "right", anchor = "ne")
+        clockStyle = ttk.Style()
+        clockStyle.configure("clock.TButton", font = ("Arial", 15), width = 5)
+        clockFrame = ttk.Frame(topFrame)
+        clockFrame.pack(side = "right", anchor = "ne")
+        self.clockDec = ttk.Button(clockFrame, text = "<", style = "clock.TButton", command = lambda: self.controlClockSpeed("dec"))
+        self.clockDec.pack(side = "left", anchor = "ne")
+        self.clockText = ttk.Label(clockFrame, text = clock.clock.getTime(), font = ("Arial", 20, "bold"), background = "white")
+        self.clockText.pack(side = "left", anchor = "ne")
+        self.clockInc = ttk.Button(clockFrame, text = ">", style = "clock.TButton", command = lambda: self.controlClockSpeed("inc"))
+        self.clockInc.pack(side = "left", anchor = "ne")
         #create a blank Label to hold the text
         self.updateTime()
         #initial call for the method that updates the time dynamically
@@ -500,6 +510,16 @@ class MainScreen:
         self.clockText.configure(text = time)
         self.clockTimer = self.root.after(100, self.updateTime)
 
+###############################################################################################################################################################
+    
+    def controlClockSpeed(self, change):
+        if (change == "inc" and self.clockSpeed == 1):
+            clock.clock.tenTimesSpeed()
+            self.clockSpeed = 10
+        elif (change == "dec" and self.clockSpeed == 10):
+            clock.clock.normalSpeed()
+            self.clockSpeed = 1
+    
 ###############################################################################################################################################################
     
     def updateToSchedule(self, event):

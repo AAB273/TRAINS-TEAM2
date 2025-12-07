@@ -202,7 +202,7 @@ class ScheduleScreen:
 
         time = clock.clock.getTime()
         self.clockText.configure(text = time)
-        self.clockTimer = self.root.after(1000, self.updateTime)
+        self.clockTimer = self.root.after(100, self.updateTime)
 
 ###############################################################################################################################################################
     
@@ -367,6 +367,7 @@ class ScheduleScreen:
                             if (self.trainRoutes[key][3] == self.greenStationLocations[self.trainRoutes[key][0]]):
 
                                 self.trainRoutes[key].remove(self.trainRoutes[key][3])
+                                print("\n\n\nhere\n\n\n")
                             
                                 if (len(self.trainRoutes[key]) == 3):
                                 #if there is no more destination backlog go to yard
@@ -482,6 +483,20 @@ class ScheduleScreen:
                     elif (self.trainRoutes[key][0] == (int(location) + 1) and self.trainRoutes[key][2] == "backward"):
                         self.updateTrainInManualEdit(key, location)
                         updated = True
+
+                    if (len(self.trainRoutes[key]) == 3):
+                        if (self.trainRoutes[key][0] == 9):
+                            children = self.meArea.get_children("")
+                            for child in children: 
+                            #iterate for each parent in the Treeview
+                                for item in self.meArea.get_children(child):
+                                #iterate for each child of every parent in the Treeview
+                                    dest = self.meArea.item(item, "text")
+                                    if (dest == "Train " + str(key)):
+                                        self.meArea.delete(item)
+                                        self.mainScreen.tlArea.delete(item)
+                                        train = key
+                                        break
 
                     else:
                         if (self.trainRoutes[key][0] in self.redStationLocations):
@@ -659,10 +674,31 @@ class ScheduleScreen:
             dir = data[2]
 
             authority = 0
-            dist = 100
+            dist = 0
 
             found = False
             while (not found):
+                #add distance
+                if (pos == 52):
+                    dist += 43.2
+                elif ((pos in range (1, 7)) or pos == 16 or (pos in range (24, 29)) or
+                      (pos in range (31, 40)) or (pos in range (42, 46)) or pos == 49
+                      or pos == 50 or pos == 51 or pos == 53 or pos == 54 or (pos in range (67, 77))):
+                    dist += 50
+                elif (pos == 14 or pos == 15 or pos == 29 or pos == 30 or pos == 40 or pos == 41):
+                    dist += 60
+                elif (pos == 13):
+                    dist += 70
+                elif ((pos in range (7, 13)) or pos == 46 or pos == 47 or pos == 48 
+                      or (pos in range (55, 67))):
+                    dist += 75
+                elif (pos in range(21, 24)):
+                    dist += 100
+                elif (pos == 17 or pos == 20):
+                    dist += 200
+                else:
+                    dist += 400
+
                 if (dir == "forward"):
                     if (pos == 66):
                         authority += 1
@@ -691,6 +727,14 @@ class ScheduleScreen:
                 if (pos in self.redStationLocations):
                     if (self.redStationLocations[pos] == destination):
                         found = True
+
+                        #add half of block length for last block
+                        if (pos == 16 or pos == 25 or pos == 35 or pos == 45):
+                            dist += 25
+                        elif (pos == 7 or pos == 48 or pos == 60):
+                            dist += 37.5
+                        elif (pos == 21):
+                            dist += 50
 
 
         return [authority, dist]
