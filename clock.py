@@ -8,13 +8,14 @@ class Clock:
     def __init__(self):
         self._fastTime = datetime.now()
         self._incTimer = Timer(1, self._incTime)
+        self._speed = 1
         self._incTimer.start()
 
         
     def _incTime(self, sec = 1):
     #defaulted to 1x speed
-        speed = sec
-        self._incTimer = Timer(sec, self._incTime, args = [speed])
+        self._speed = sec
+        self._incTimer = Timer(sec, self._incTime, args = [self._speed])
         self._incTimer.start()
         
         self._fastTime += timedelta(seconds = 1)
@@ -40,6 +41,9 @@ class Clock:
 
     def endTimer(self):
         self._incTimer.cancel()
+
+    def getSpeed(self):
+        return self._speed
     
 
 clock = Clock()
