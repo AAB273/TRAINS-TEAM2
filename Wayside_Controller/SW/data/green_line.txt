@@ -11,7 +11,7 @@ Green,9,C,STATION; EDGEBROOK
 Green,10,C,
 Green,11,C,
 Green,12,C,Switch (12-13; 1-13)
-Green,13,D,Light
+Green,13,D,
 Green,14,D,
 Green,15,D,
 Green,16,D,STATION
@@ -27,7 +27,7 @@ Green,25,F,
 Green,26,F,
 Green,27,F,
 Green,28,F,Switch (28-29; 150-28)
-Green,29,G,Light
+Green,29,G,
 Green,30,G,
 Green,31,G,STATION; SOUTH BANK
 Green,32,G,
@@ -59,9 +59,9 @@ Green,57,I,STATION; OVERBROOK; UNDERGROUND
 Green,58,J,Switch (57-yard; 57-58)
 Green,59,J,
 Green,60,J,
-Green,61,J,
+Green,61,J,Light
 Green,62,J,Switch FROM YARD (Yard-63; 62-63)
-Green,63,K,Light
+Green,63,K,
 Green,64,K,
 Green,65,K,STATION; GLENBURY
 Green,66,K,
@@ -73,7 +73,7 @@ Green,71,L,
 Green,72,L,
 Green,73,L,STATION; DORMONT
 Green,74,M,
-Green,75,M,
+Green,75,M,Light
 Green,76,M,Switch (76-77;77-101)
 Green,77,N,STATION; MT LEBANON
 Green,78,N,
@@ -98,7 +98,7 @@ Green,96,P,STATION; CASTLE SHANNON
 Green,97,P,
 Green,98,Q,
 Green,99,Q,
-Green,100,Q,
+Green,100,Q,Light
 Green,101,R,
 Green,102,S,
 Green,103,S,

@@ -1,3 +1,4 @@
-﻿Destination,Arrival Time,Line
-Castle Shannon,20:00,green
+﻿Destination,Arrival Time,Line,Launch Time
+Dormont-Edgebrook,20:10,green,00:00
+South Hills Junction,20:00,red,00:00
 ,,

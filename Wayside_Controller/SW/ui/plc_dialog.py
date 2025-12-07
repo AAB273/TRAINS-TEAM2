@@ -77,9 +77,9 @@ class PLCDialog:
             self.upload_confirm_button.config(state="normal")
             self.file_path = file_path
 
-            # ✅ make sure the parent panel (LeftPanel) remembers this path
+            # make sure the parent panel (LeftPanel) remembers this path
             self.parent.selected_plc_file = file_path
-            print(f"✅ PLC file selected: {file_path}")
+            print(f"PLC file selected: {file_path}")
         else:
             self.file_status.config(text="No file selected", fg="gray")
     

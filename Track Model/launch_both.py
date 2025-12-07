@@ -5,7 +5,7 @@ import os
 
 def launch_both_guis():
     # Replace these with your exact filepaths
-    WAYSIDE_UI_PATH = "CTC_Office/CTC_UI.py"
+    WAYSIDE_UI_PATH = "Wayside_Controller/SW/main.py"
     TRACK_MODEL_UI_PATH = "Track Model/UI_Structure.py"
 
     # Verify both files exist

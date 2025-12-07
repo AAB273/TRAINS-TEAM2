@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
 from ui.plc_dialog import PLCDialog  # Import from separate file
+import os
 
 class LeftPanel(tk.Frame):
     def __init__(self, parent, data):
@@ -21,7 +22,14 @@ class LeftPanel(tk.Frame):
         self.log_callback = callback
 
     def refresh_ui(self):
+        """Refresh all UI elements when data changes externally"""
         self.refresh_current_display()
+                
+        # ALSO refresh dropdowns when PLC filter changes
+        # This ensures switches/lights dropdowns show filtered items
+        self.update_crossing_options()
+        self.update_switch_options()
+        self.update_light_options()
 
     def create_widgets(self):
         # Create a frame for the main content that can scroll if needed
@@ -48,6 +56,20 @@ class LeftPanel(tk.Frame):
         
         # Initialize PLC dialog
         self.plc_dialog = PLCDialog(self)
+
+        # Initialize PLC instance
+        from ui.plc_engine import PLCProgram
+        self.plc_instance = PLCProgram(self.data, self.log_callback)
+        self.plc_running = False
+        
+        # AUTO-LOAD DEFAULT PLC FILE
+        default_path = "Wayside_Controller/SW/auto_plc_logic.py"
+        if os.path.exists(default_path):
+            self.selected_plc_file = default_path
+            self.plc_instance.plc_file = default_path
+            print(f"Auto-loaded PLC from: {default_path}")
+        else:
+            self.selected_plc_file = None
         
         # PLC Upload button
         upload_btn = tk.Button(plc_frame, text="Upload PLC Program", 
@@ -95,11 +117,19 @@ class LeftPanel(tk.Frame):
         self.plc_instance.plc_file = self.selected_plc_file
 
         if not self.plc_running:
+            # Starting PLC
             self.plc_instance.start()
             self.plc_status.config(text="Running", bg="#FFD700", fg="darkorange")
             self.plc_running = True
+
         else:
+            # Stopping PLC - disable filter
             self.plc_instance.stop()
+            
+            # Disable PLC filter in data model
+            if hasattr(self.data, 'plc_filter_active'):
+                self.data.disable_plc_filter()
+            
             self.plc_status.config(text="Stopped", bg="#FF9999", fg="darkred")
             self.plc_running = False
 
@@ -232,10 +262,21 @@ class LeftPanel(tk.Frame):
         self.update_switch_options()
 
     def update_switch_options(self):
-        """Populate switch dropdowns based on current line"""
-        switches = list(self.data.filtered_switch_positions.keys())  # Changed from filtered_track_data
+        """Populate switch dropdowns based on current line WITHOUT resetting selection"""
+        switches = list(self.data.filtered_switch_positions.keys())
+        
+        # Store current selection BEFORE updating
+        current_selection = self.switch_selector.get()
+        
+        # Update the dropdown values
         self.switch_selector['values'] = switches
-        if switches:
+        
+        # Restore previous selection if it still exists
+        if current_selection in switches:
+            self.switch_selector.set(current_selection)
+            self.update_switch_display()
+        elif switches:
+            # Only set to first if no previous selection
             self.switch_selector.set(switches[0])
             self.update_switch_display()
         else:
@@ -249,6 +290,17 @@ class LeftPanel(tk.Frame):
         switches = self.data.filtered_switch_positions
         if selected in switches:
             data = switches[selected]
+            
+            # Get current direction
+            current_raw_dir = data.get("direction", "")
+            
+            # AUTO-GENERATE condition if it's empty or old
+            if not data.get("condition") or "Auto:" not in data.get("condition", ""):
+                # Generate new condition based on current direction
+                new_condition = f"Auto: {current_raw_dir}"
+                data["condition"] = new_condition
+            
+            # Update condition display
             self.switch_condition.config(state='normal')
             self.switch_condition.delete(0, tk.END)
             self.switch_condition.insert(0, data["condition"])
@@ -270,7 +322,6 @@ class LeftPanel(tk.Frame):
             self.switch_direction['values'] = display_options
             
             # Set current selection
-            current_raw_dir = data.get("direction", raw_options[0] if raw_options else "")
             current_display_dir = self.convert_to_section_display(current_raw_dir)
             self.switch_direction.set(current_display_dir)
 

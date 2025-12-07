@@ -11,15 +11,31 @@ class Clock:
         self._incTimer.start()
 
         
-    def _incTime(self):
-        self._incTimer = Timer(1, self._incTime)
+    def _incTime(self, sec = 1):
+    #defaulted to 1x speed
+        speed = sec
+        self._incTimer = Timer(sec, self._incTime, args = [speed])
         self._incTimer.start()
         
-        self._fastTime += timedelta(seconds = 10)
+        self._fastTime += timedelta(seconds = 1)
+
+    def normalSpeed(self):
+        if (self._incTimer.is_alive()):
+            self._incTimer.cancel()
+        self._incTime()
+
+    def tenTimesSpeed(self):
+        if (self._incTimer.is_alive()):
+            self._incTimer.cancel()
+        self._incTime(0.1)
     
 
     def getTime(self):
-        return self._fastTime.strftime("%H:%M")
+        return self._fastTime.strftime("%H:%M:%S")
+    
+    
+    def getTimeObj(self):
+        return self._fastTime
     
 
     def endTimer(self):
