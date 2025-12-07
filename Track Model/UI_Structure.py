@@ -19,7 +19,6 @@ from Test_UI import TrackModelTestUI  # Test/debug UI
 from FileUploadManager import FileUploadManager
 from TrackDiagramDrawer import TrackDiagramDrawer
 from HeaterSystemManager import HeaterSystemManager
-from BeaconManager import BeaconManager
 from TrainSocketServer import TrainSocketServer
 from MurphyTrackFailures import MurphyTrackFailures
 
@@ -141,10 +140,6 @@ class TrackModelUI(tk.Tk):
         self.heater_manager = HeaterSystemManager(self.data_manager)
         self.diagram_drawer = TrackDiagramDrawer(self, self.data_manager)
 
-        # Initialize BeaconManager for station beacons (will be populated after file load)
-        self.beacon_manager = BeaconManager()
-        # print('[UI] BeaconManager initialized with station beacons')
-
 
         # --- Auto-load Green Line track data from Excel on startup ---
         if not self.file_manager.auto_load_green_line():
@@ -173,9 +168,6 @@ class TrackModelUI(tk.Tk):
 
         # NOW initialize ticket sales AFTER blocks are loaded
         self._initialize_station_ticket_sales()
-        
-        # Initialize station beacons with 128-bit arrays
-        self.initialize_station_beacons()
 
         self.update_station_boarding_data()
         
@@ -4548,17 +4540,6 @@ class TrackModelUI(tk.Tk):
         except Exception as e:
             return False
 
-    def initialize_station_beacons(self):
-        """
-        Initialize the beacon manager with station data.
-        Called after track data is loaded to populate 128-bit beacon arrays for each station.
-        """
-        if hasattr(self.data_manager, 'station_location') and self.data_manager.station_location:
-            self.beacon_manager.initialize_station_beacons(self.data_manager.station_location)
-            print(f"[Track Model] Initialized {len(self.beacon_manager.beacons)} station beacons")
-        else:
-            print("[Track Model] Warning: No station data available for beacon initialization")
-
 
     def monitor_station_occupancy(self):
         """
@@ -5037,19 +5018,26 @@ class TrackModelUI(tk.Tk):
         # print(f" Sent commanded authority to Train Model")
 
     def send_beacons_to_train_model(self):
-        """Send beacon data to Train Model."""
+        """Send beacon data to Train Model only for occupied blocks."""
         beacon_data = {}
-        for block in self.data_manager.blocks:
-            # Only send if beacon can be sent (no track circuit or power failure)
-            if self.murphy_failures.can_send_beacon(block.block_number):
-                if hasattr(block, 'beacon') and block.beacon:
-                    beacon_data[block.block_number] = block.beacon
         
-        self.server.send_to_ui("Train Model", {
-            'command': 'beacons',
-            'data': beacon_data
-        })
-        # print(f" Sent beacons to Train Model ({len(beacon_data)} blocks)")
+        for block in self.data_manager.blocks:
+            # Only send beacon if:
+            # 1. Block is occupied
+            # 2. Beacon can be sent (no track circuit or power failure)
+            # 3. Block has beacon data
+            if (block.occupancy and 
+                self.murphy_failures.can_send_beacon(block.block_number) and
+                hasattr(block, 'beacon') and block.beacon):
+                beacon_data[block.block_number] = block.beacon
+        
+        # Only send message if there are occupied blocks with beacons
+        if beacon_data:
+            self.server.send_to_ui("Train Model", {
+                'command': 'Beacon',
+                'data': beacon_data
+            })
+            # print(f"Sent beacons to Train Model ({len(beacon_data)} occupied blocks)")
 
     def send_passengers_boarding_to_train_model(self):
         """
@@ -5071,7 +5059,7 @@ class TrackModelUI(tk.Tk):
             }
         
         self.server.send_to_ui("Train Model", {
-            'command': 'passengers_boarding',
+            'command': 'Passengers Boarding',
             'data': boarding_data
         })
         print(f" Sent passengers boarding to Train Model")
@@ -5226,7 +5214,7 @@ class TrackModelUI(tk.Tk):
                             # Send occupancy update to other modules
                             try:
                                 self.server.send_to_ui("Train Model", {
-                                    "command": "block_occupancy",
+                                    "command": "Block Occupancy",
                                     "value": {63: train_num}
                                 })
                                 self.server.send_to_ui("Track SW", {
