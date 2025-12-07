@@ -84,7 +84,10 @@ class TrackModelUI(tk.Tk):
         # Default to Green Line switches (will be updated based on selected line)
         self.switch_routing = self.switch_routing_green
         self.crossing_blocks = set()
-        self.light_states = {1, 62, 76, 100, 150}
+        # Traffic light blocks:
+        # Green Line: {1, 62, 76, 100, 150}
+        # Red Line: {1, 10, 15, 28, 32, 39, 43, 53, 66, 67, 71, 72, 76}
+        self.light_states = {1, 10, 15, 28, 32, 39, 43, 53, 62, 66, 67, 71, 72, 76, 100, 150}
         self.station_blocks = set()
 
         self.block_positions_occupancy = {
