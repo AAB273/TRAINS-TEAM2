@@ -386,9 +386,9 @@ class TrackModelUI(tk.Tk):
         fail_card.pack(fill="x", pady=10)
 
         # ============================================================
-        # PLC Upload Section (moved from right side)
+        # Data Upload Section (moved from right side)
         # ============================================================
-        plc_card = self.make_card(parent, "PLC Upload")
+        plc_card = self.make_card(parent, "Data Upload")
         
         tk.Label(
             plc_card,
