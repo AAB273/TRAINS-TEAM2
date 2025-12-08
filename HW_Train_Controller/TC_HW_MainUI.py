@@ -86,6 +86,14 @@ lastSentPower = None  # Track last power sent to avoid duplicates
 preloadedTrackInformation = {
     'segments': [
         {
+            'from_station': 'YARD',
+            'to_station': 'GLENBURY',
+            'distance': 200.0 + 100.0,  # meters + half of block 65 (200m block)
+            'from_block': 63,
+            'to_block': 65,
+            'station_block_half_length': 100.0
+        },
+        {
             'from_station': 'GLENBURY',
             'to_station': 'DORMONT',
             'distance': 1000.0 + 50.0,  # meters + half of block 73 (100m block)
@@ -929,7 +937,7 @@ class TrainSpeedDisplayUI:
         
         # Start our server that listens for Train Model
         self.server = TrainSocketServer(port=train_controller_hw_config["port"], ui_id="Train HW")
-        self.server.set_allowed_connections(["Train Model"])
+        self.server.set_allowed_connections(["Train Model", "Train SW"])
         self.server.start_server(self._process_message)
         print(f"✓ Train Controller HW server started on port {train_controller_hw_config['port']}")
         
