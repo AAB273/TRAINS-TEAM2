@@ -5002,23 +5002,30 @@ class TrackModelUI(tk.Tk):
         self.data_manager.next_train_id += 1
 
         # Register new train in data manager
-        self.data_manager.active_trains.append(f"Train {train_id}")
+        train_name = f"Train_{train_id}"
+        self.data_manager.active_trains.append(train_name)
         self.data_manager.commanded_speed.append(speed)
         self.data_manager.commanded_authority.append(authority)
         self.data_manager.train_occupancy.append(0)
+        
+        # Initialize train actual speed to 0 (will be updated by Train Model)
+        self.train_actual_speeds[train_name] = 0
+        self.train_positions_in_block[train_name] = 0
+        import time
+        self.last_movement_update[train_name] = time.time()
 
         # print(f"[TRAIN CREATED] ID={train_id}, Speed={speed} m/s, Authority={authority} blocks")
 
         # Refresh dropdowns and terminals
         self.train_combo["values"] = self.data_manager.active_trains
-        self.train_combo.set(f"Train {train_id}")
+        self.train_combo.set(train_name)
         self.send_outputs()
     
     def _create_train_from_yard(self, speed, authority):
         """Create a new train specifically from the Yard/Block 63, starting at block 63."""
         # Initialize starting ID if not set yet
         if not hasattr(self.data_manager, "next_train_id"):
-            self.data_manager.next_train_id = 1
+            self.data_manager.next_train_id = 11000
 
         # Assign new train ID
         train_id = self.data_manager.next_train_id
@@ -5061,14 +5068,23 @@ class TrackModelUI(tk.Tk):
         
         # Send creation notification to other modules
         try:
+            # Send new train notification (without speed/authority)
             self.server.send_to_ui("Train Model", {
-                "command": 'Commanded Speed',
+                "command": "new_train",
+                "train_id": train_name,
+                "block_number": 63
+            })
+            
+            # Send commanded speed separately
+            self.server.send_to_ui("Train Model", {
+                "command": "Commanded Speed",
                 "value": speed,
                 "train_id": train_name
             })
-
+            
+            # Send commanded authority separately
             self.server.send_to_ui("Train Model", {
-                "command": 'Commanded Authority',
+                "command": "Commanded Authority",
                 "value": authority,
                 "train_id": train_name
             })
@@ -5312,29 +5328,27 @@ class TrackModelUI(tk.Tk):
         # print(f" Sent block occupancy to Train Model")
 
     def send_commanded_speed_to_train_model(self):
-        """Send commanded speed to Train Model."""
-        speed_data = {}
+        """Send commanded speed to Train Model - individual message per train."""
         for i, train_id in enumerate(self.data_manager.active_trains):
             if i < len(self.data_manager.commanded_speed):
-                speed_data[train_id] = self.data_manager.commanded_speed[i]
-        
-        self.server.send_to_ui("Train Model", {
-            'command': 'commanded_speed',
-            'data': speed_data
-        })
+                speed = self.data_manager.commanded_speed[i]
+                self.server.send_to_ui("Train Model", {
+                    'command': 'Commanded Speed',
+                    'value': speed,
+                    'train_id': train_id
+                })
         # print(f" Sent commanded speed to Train Model")
 
     def send_commanded_authority_to_train_model(self):
-        """Send commanded authority to Train Model."""
-        authority_data = {}
+        """Send commanded authority to Train Model - individual message per train."""
         for i, train_id in enumerate(self.data_manager.active_trains):
             if i < len(self.data_manager.commanded_authority):
-                authority_data[train_id] = self.data_manager.commanded_authority[i]
-        
-        self.server.send_to_ui("Train Model", {
-            'command': 'commanded_authority',
-            'data': authority_data
-        })
+                authority = self.data_manager.commanded_authority[i]
+                self.server.send_to_ui("Train Model", {
+                    'command': 'Commanded Authority',
+                    'value': authority,
+                    'train_id': train_id
+                })
         # print(f" Sent commanded authority to Train Model")
 
     def send_beacons_to_train_model(self):
@@ -5672,14 +5686,20 @@ class TrackModelUI(tk.Tk):
                         self.data_manager.commanded_authority[idx] = commanded_authority
                         # print(f" Updated commanded values for {train_id}: Speed={commanded_speed}, Authority={commanded_authority}")
                         
-                        # Send array format to Train Model: [block_number, commanded_speed, commanded_authority]
-                        speed_authority_array = [block_num, commanded_speed, commanded_authority]
+                        # Send commanded speed to Train Model
                         self.server.send_to_ui("Train Model", {
-                            "command": "Speed and Authority",
-                            "train_id": train_id,
-                            "value": speed_authority_array
+                            "command": "Commanded Speed",
+                            "value": commanded_speed,
+                            "train_id": train_id
                         })
-                        # print(f" Sent Speed and Authority array to Train Model: {speed_authority_array}")
+                        
+                        # Send commanded authority to Train Model
+                        self.server.send_to_ui("Train Model", {
+                            "command": "Commanded Authority",
+                            "value": commanded_authority,
+                            "train_id": train_id
+                        })
+                        # print(f" Sent Commanded Speed and Authority to Train Model for {train_id}")
                     else:
                         pass
                         # print(f" Train {train_id} not found in active trains (will still display in Train Details). Available: {self.data_manager.active_trains}")
