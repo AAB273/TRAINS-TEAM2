@@ -5876,54 +5876,54 @@ class TrackModelUI(tk.Tk):
             # Receives current/actual speed for a train to calculate movement
             # Command format from Passenger_UI: {'command': 'Current Speed', 'value': speed}
             # ============================================================
-            elif command == 'Current Speed' or command == 'current_speed' or command == 'actual_speed' or command == 'actualSpeed':
-                # Handle speed update from Train Model
-                speed = value  # Speed in m/s or mph (Passenger_UI sends in mph)
+            elif command in ['Current Speed', 'actual_speed', 'current_speed']:
+                speed = value
                 train_id = message.get('train_id')
-                
-                # If no train_id provided, determine from active trains
-                if not train_id and speed is not None:
-                    # Passenger_UI doesn't send train_id, so we need to determine which train
-                    # Assume it's for the most recently deployed train or first active train
-                    if self.data_manager.active_trains:
-                        train_id = self.data_manager.active_trains[-1]  # Most recent train
-                        # print(f" No train_id in Current Speed message, assuming it's for {train_id}")
-                
-                if speed is not None:
-                    # Convert speed to float if needed
-                    if isinstance(speed, str):
-                        try:
-                            speed = float(speed)
-                        except (ValueError, TypeError):
-                            print(f" Could not convert speed '{speed}' to float")
-                            speed = 0
-                    
-                    # Convert from mph to m/s if needed (Passenger_UI sends in mph)
-                    # 1 mph = 0.44704 m/s
-                    speed_ms = speed * 0.44704
-                    
-                    if train_id:
-                        # Store actual speed for this train
-                        self.train_actual_speeds[train_id] = speed_ms
-                        # print(f" Updated current speed for {train_id}: {speed:.1f} mph ({speed_ms:.1f} m/s)")
-                        
-                        # Initialize position tracking if new train
-                        if train_id not in self.train_positions_in_block:
-                            self.train_positions_in_block[train_id] = 0
-                            import time
-                            self.last_movement_update[train_id] = time.time()
-                            
-                            # Find which block this train is on
-                            if train_id in self.data_manager.active_trains:
-                                idx = self.data_manager.active_trains.index(train_id)
-                                if idx < len(self.data_manager.train_locations):
-                                    block_num = self.data_manager.train_locations[idx]
-                                    # print(f"   Train {train_id} is on block {block_num}")
-                    else:
-                        print(f" Could not determine train for speed update: {speed} mph")
-                else:
-                    pass
-                    # print(f" Invalid current speed message: speed={speed}")
+
+                # ---------------------------
+                # 1. Require a train_id
+                # ---------------------------
+                if not train_id:
+                    print("ERROR: Current Speed received WITHOUT train_id — cannot update movement.")
+                    return
+
+                # ---------------------------
+                # 2. Ensure the train exists
+                # ---------------------------
+                if train_id not in self.data_manager.active_trains:
+                    print(f"WARNING: Current Speed received for unregistered train {train_id}. Auto-creating train.")
+                    self.data_manager.active_trains.append(train_id)
+                    self.train_positions_in_block[train_id] = 0
+                    self.last_movement_update[train_id] = time.time()
+
+                    # Mark block 63 as occupied (spawn block)
+                    if 63 in self.data_manager.blocks:
+                        self.data_manager.blocks[63].occupancy = train_id
+                        self.update_occupied_blocks_display()
+
+                # ---------------------------
+                # 3. Convert mph → m/s
+                # ---------------------------
+                try:
+                    speed_ms = float(speed) * 0.44704
+                except:
+                    print(f"ERROR: Invalid speed value received: {speed}")
+                    return
+
+                # ---------------------------
+                # 4. Store the ACTUAL speed
+                # ---------------------------
+                self.train_actual_speeds[train_id] = speed_ms
+
+                # ---------------------------
+                # 5. Do one immediate movement update
+                #    so occupancy follows ACTUAL speed instantly
+                # ---------------------------
+                self.update_train_movements()
+                self.update_occupied_blocks_display()
+
+                print(f"[TRACK MODEL] Updated actual speed for Train {train_id}: {speed_ms:.2f} m/s")
+
         
 
             # ============================================================            
@@ -6016,43 +6016,6 @@ class TrackModelUI(tk.Tk):
             elif command == 'test_command':
                 pass
                 # print(f" Test message received: {value}")
-            
-            # ============================================================
-            # ACTUAL SPEED - From Train Model
-            # Receives actual speed for a train to calculate movement
-            # ============================================================
-            elif command == 'actual_speed' or command == 'actualSpeed':
-                train_id = message.get('train_id')
-                speed = value  # Speed in m/s
-                
-                if train_id and speed is not None:
-                    # Convert speed to float if needed
-                    if isinstance(speed, str):
-                        try:
-                            speed = float(speed)
-                        except (ValueError, TypeError):
-                            print(f" Could not convert speed '{speed}' to float")
-                            speed = 0
-                    
-                    # Store actual speed for this train
-                    self.train_actual_speeds[train_id] = speed
-                    # print(f" Updated actual speed for {train_id}: {speed:.1f} m/s")
-                    
-                    # If this is a new train, initialize its position tracking
-                    if train_id not in self.train_positions_in_block:
-                        self.train_positions_in_block[train_id] = 0
-                        import time
-                        self.last_movement_update[train_id] = time.time()
-                        
-                        # Find which block this train is on
-                        if train_id in self.data_manager.active_trains:
-                            idx = self.data_manager.active_trains.index(train_id)
-                            if idx < len(self.data_manager.train_locations):
-                                block_num = self.data_manager.train_locations[idx]
-                                # print(f"   Train {train_id} is on block {block_num}")
-                else:
-                    pass
-                    # print(f" Invalid actual speed message: train_id={train_id}, speed={speed}")
             
             # ============================================================
             # REQUEST DATA - Another UI wants our data
