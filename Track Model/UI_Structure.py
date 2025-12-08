@@ -386,9 +386,9 @@ class TrackModelUI(tk.Tk):
         fail_card.pack(fill="x", pady=10)
 
         # ============================================================
-        # PLC Upload Section (moved from right side)
+        # Data Upload Section (moved from right side)
         # ============================================================
-        plc_card = self.make_card(parent, "PLC Upload")
+        plc_card = self.make_card(parent, "Data Upload")
         
         tk.Label(
             plc_card,
@@ -1514,7 +1514,11 @@ class TrackModelUI(tk.Tk):
                 if 1 <= block_num <= len(self.data_manager.blocks):
                     block = self.data_manager.blocks[block_num - 1]
                     if not hasattr(block, 'switch_direction'):
-                        block.switch_direction = 'normal'  # Default direction
+                        # SPECIAL CASE: Block 62 must default to 'reverse' for yard spawning
+                        if block_num == 62:
+                            block.switch_direction = 'reverse'  # Yard→63 position
+                        else:
+                            block.switch_direction = 'normal'  # Default direction
                     # Also initialize in switch_states dictionary
                     self.switch_states[block_num] = getattr(block, 'switch_direction', 'normal')
             
