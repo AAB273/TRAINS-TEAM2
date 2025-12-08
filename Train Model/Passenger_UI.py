@@ -19,7 +19,7 @@ import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
 from clock import clock
-from playsound import playsound
+import pygame
 import random
 
 class TrainModelPassengerGUI:
@@ -58,6 +58,8 @@ class TrainModelPassengerGUI:
 		trainSwConfig = moduleConfig.get("Train SW", {"port": 12346})
 		trainHwConfig = moduleConfig.get("Train HW", {"port": 12347})
 		trackModelConfig = moduleConfig.get("Track Model", {"port": 12344})
+
+		pygame.mixer.init()
 
 		self.server.connect_to_ui('localhost', trainSwConfig["port"], "Train SW")
 		self.server.connect_to_ui('localhost', trainHwConfig["port"], "Train HW")
@@ -183,7 +185,7 @@ class TrainModelPassengerGUI:
 			elif command == 'set_passenger_count':
 				train.setPassengerCount(value)
 			elif command == 'horn':
-				playsound('Train Model\diesel-horn-02-98042.mp3')
+				pygame.mixer.Sound('Train Model/diesel-horn-02-98042.mp3').play()
 			elif command == 'set_speed_limit':
 				train.setSpeedLimit(value)
 			elif command == 'set_elevation':
@@ -268,7 +270,7 @@ class TrainModelPassengerGUI:
 			elif command == 'Power Command':
 				train.setPowerCommand(value)
 			elif command == 'Train Horn':
-				playsound("Train Model\diesel-horn-02-98042.mp3")
+				pygame.mixer.Sound('Train Model/diesel-horn-02-98042.mp3').play()
 			elif command == 'Station Announcement Message':
 				train.setStation(value)
 			elif command == 'Commanded Authority':
