@@ -59,6 +59,7 @@ class MainScreen:
         self.numberOfTrains = 1
 
         self.clockSpeed = 1
+        self.clock = clock
 
         self.mmList = {12: [1, 13], 28: [29, 150], 76: [77, 101], 85: [86, 100], 0: [57, 63]}
         self.trainList = {}
@@ -68,14 +69,12 @@ class MainScreen:
         module_config = load_socket_config()
         ctc_config = module_config.get("CTC", {"port": 1})
         self.server = TrainSocketServer(port = ctc_config["port"], ui_id = "CTC")
-        self.server.set_allowed_connections(["Track SW", "Track HW", "Track Model", "CTC_Test_UI"])  #add "CTC_Test_UI when using test ui"
+        self.server.set_allowed_connections(["Track SW", "Track HW", "Track Model", "Train Model"])  #add "CTC_Test_UI when using test ui"
         self.server.start_server(self._processMessage)
         self.server.connect_to_ui('localhost', 12342, "Track SW")
         self.server.connect_to_ui('localhost', 12343, "Track HW")
         self.server.connect_to_ui('localhost', 12344, "Track Model")
-
-        #for test ui
-        self.server.connect_to_ui('localhost', 12349, "CTC_Test_UI")
+        self.server.connect_to_ui('localhost', 12345, "CTC_Test_UI")
 
         self.createTopRow()
         #print the logo, reference map button, time
@@ -507,6 +506,7 @@ class MainScreen:
     #continuously recall itself every second to update the time variable 
         
         time = clock.getTime()
+        #self.send_to_ui("Train Model", self.clock)
         self.clockText.configure(text = time)
         self.clockTimer = self.root.after(100, self.updateTime)
 
