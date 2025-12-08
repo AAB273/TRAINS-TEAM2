@@ -18,7 +18,7 @@ import CTC_Schedule_Screen
 #necessary to import the clock from the parent directory#
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-import clock
+from clock import clock
 from TrainSocketServer import TrainSocketServer
 
 
@@ -319,7 +319,7 @@ class MainScreen:
         clockFrame.pack(side = "right", anchor = "ne")
         self.clockDec = ttk.Button(clockFrame, text = "<", style = "clock.TButton", command = lambda: self.controlClockSpeed("dec"))
         self.clockDec.pack(side = "left", anchor = "ne")
-        self.clockText = ttk.Label(clockFrame, text = clock.clock.getTime(), font = ("Arial", 20, "bold"), background = "white")
+        self.clockText = ttk.Label(clockFrame, text = clock.getTime(), font = ("Arial", 20, "bold"), background = "white")
         self.clockText.pack(side = "left", anchor = "ne")
         self.clockInc = ttk.Button(clockFrame, text = ">", style = "clock.TButton", command = lambda: self.controlClockSpeed("inc"))
         self.clockInc.pack(side = "left", anchor = "ne")
@@ -506,7 +506,7 @@ class MainScreen:
     def updateTime(self):
     #continuously recall itself every second to update the time variable 
         
-        time = clock.clock.getTime()
+        time = clock.getTime()
         self.clockText.configure(text = time)
         self.clockTimer = self.root.after(100, self.updateTime)
 
@@ -514,10 +514,10 @@ class MainScreen:
     
     def controlClockSpeed(self, change):
         if (change == "inc" and self.clockSpeed == 1):
-            clock.clock.tenTimesSpeed()
+            clock.tenTimesSpeed()
             self.clockSpeed = 10
         elif (change == "dec" and self.clockSpeed == 10):
-            clock.clock.normalSpeed()
+            clock.normalSpeed()
             self.clockSpeed = 1
     
 ###############################################################################################################################################################

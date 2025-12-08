@@ -12,7 +12,7 @@ import json
 
 # from Clock import clock
 sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-import clock
+from clock import Clock
 from TrainSocketServer import TrainSocketServer
 ########################################################################################################################
 
@@ -62,7 +62,7 @@ def update_suggested_speed_display(speed, authority=None):
             right_panel.update_suggested_authority(authority)
         if authority is not None:
             # Fallback: try to find and update the label directly
-            formatted_speed = f"{speed:.3f} mph"
+            formatted_speed = f"{speed:.2f} mph"
             add_to_message_log(f"CTC Speed received (UI update pending): {formatted_speed}, Authority={authority} blocks")
         else: 
             add_to_message_log(f"CTC Speed recieved: {formatted_speed} mph")
@@ -79,17 +79,100 @@ def update_callback(message):
 # send_to_ui function
 # target ui is test ui
 
+# def _process_message(self, data, connection=None, server_instance=None):
+#     """Process incoming messages from Test UI"""
+#     try:
+#         print(f"\n{'='*60}")
+#         print(f"MAIN UI: Received message from CTC")
+#         print(f"Data type: {type(data)}")
+#         print(f"Data: {data}")
+#         print(f"{'='*60}\n")
+#         print(f"=== MAIN UI DEBUG ===")
+#         print(f"Received data: {data}")
+#         print(f"=== END DEBUG ===")
+        
+#         # 1. Handle connection test
+#         if isinstance(data, str) and data.strip() == "CTC":
+#             print("CTC connection test received")
+#             add_to_message_log("CTC connection test received")
+#             if connection:
+#                 try:
+#                     connection.sendall(b"CTC_ACK")
+#                 except:
+#                     pass
+#             return
+        
+#         # 2. Parse message
+#         message_data = None
+#         if isinstance(data, str):
+#             try:
+#                 message_data = json.loads(data)
+#             except json.JSONDecodeError:
+#                 # Simple string commands
+#                 if data == "update_speed_auth":
+#                     message_data = {'command': 'update_speed_auth', 'value': ''}
+#                     print(f"Recieved update_speed_auth command: {message_data} ")
+#                     # If not JSON, just log it
+#                     add_to_message_log(f"String message: {data}")
+#                     return
+#                 else:
+#                     message_data = {'message': data}
+#         elif isinstance(data, dict):
+#             message_data = data
+#         else:
+#             print(f"Unknown data type: {type(data)}")
+#             return
+        
+#         # 3. Process command
+#         command = message_data.get('command', '')
+#         value = message_data.get('value', '')
+        
+#         if command == 'update_speed_auth':
+#             # Pass directly to existing handler
+#             if hasattr(test_data, 'handle_ctc_message'):
+#                 test_data.handle_ctc_message(message_data)
+#             else:
+#                 add_to_message_log(f"Received update_speed_auth: {value}")
+                
+#         elif command == 'ctc_suggestion':
+#             # Handle speed suggestion
+#             handle_ctc_suggested_speed(value)
+
+#         elif command == 'set_block_occupancy':
+#             pass  # Add handling if needed
+#         elif command == 'set_switch_position':
+#             # Just log it for now
+#             add_to_message_log(f"Switch position update: {value}")
+#             pass  # Add handling if needed
+#         else:
+#             print(f"Unknown command: {command} with value: {value}")
+            
+#     except Exception as e:
+#         print(f"Error processing message: {e}")
+        
+# Example of Process Function:
 def _process_message(self, data, connection=None, server_instance=None):
     """Process incoming messages from Test UI"""
     try:
         print(f"\n{'='*60}")
-        print(f"MAIN UI: Received message from CTC")
+        print(f"TRACK HW MAIN UI: Received message from CTC")
         print(f"Data type: {type(data)}")
         print(f"Data: {data}")
+
+        # Try to parse
+        try:
+            import json
+            message_data = json.loads(data)
+            print(f"Parsed: {message_data}")
+        
+        # Call your handler
+            if hasattr(test_data, 'handle_ctc_message'):
+                test_data.handle_ctc_message(message_data)
+        except:
+            print(f"Could not parse: {data}")
+    
+        print(f"{'='*60}")
         print(f"{'='*60}\n")
-        print(f"=== MAIN UI DEBUG ===")
-        print(f"Received data: {data}")
-        print(f"=== END DEBUG ===")
         
         # 1. Handle connection test
         if isinstance(data, str) and data.strip() == "CTC":
@@ -106,19 +189,24 @@ def _process_message(self, data, connection=None, server_instance=None):
         message_data = None
         if isinstance(data, str):
             try:
+                # Parse as JSON (your data IS valid JSON from CTC)
                 message_data = json.loads(data)
+                print(f"Parsed JSON data: {message_data}")
             except json.JSONDecodeError:
-                # Simple string commands
-                if data == "update_speed_auth":
-                    message_data = {'command': 'update_speed_auth', 'value': ''}
-                    print(f"Recieved update_speed_auth command: {message_data} ")
-                    # If not JSON, just log it
-                    add_to_message_log(f"String message: {data}")
-                    return
-                else:
+                # If not JSON, check if it's a Python dict string
+                try:
+                    import ast
+                    if data.startswith('{') and data.endswith('}'):
+                        message_data = ast.literal_eval(data)
+                        print(f"Parsed as Python dict: {message_data}")
+                    else:
+                        # Simple string commands
+                        message_data = {'message': data}
+                except:
                     message_data = {'message': data}
         elif isinstance(data, dict):
             message_data = data
+            print(f"Data is already a dictionary: {data}")
         else:
             print(f"Unknown data type: {type(data)}")
             return
@@ -127,12 +215,40 @@ def _process_message(self, data, connection=None, server_instance=None):
         command = message_data.get('command', '')
         value = message_data.get('value', '')
         
+        print(f"Processing command: {command}, value: {value}")
+        
         if command == 'update_speed_auth':
-            # Pass directly to existing handler
-            if hasattr(test_data, 'handle_ctc_message'):
+            # CALL THE EXISTING HANDLER IN UITestData
+            print(f"DEBUG: Calling test_data._handle_speed_auth_update with: {value}")
+            
+            # Check if test_data has the method
+            if hasattr(test_data, '_handle_speed_auth_update'):
+                test_data._handle_speed_auth_update(value)
+            elif hasattr(test_data, 'handle_ctc_message'):
                 test_data.handle_ctc_message(message_data)
             else:
-                add_to_message_log(f"Received update_speed_auth: {value}")
+                # Fallback: Update right panel directly
+                print(f"No handler found, updating right panel directly")
+                if isinstance(value, dict):
+                    track = value.get('track', '')
+                    speed_str = value.get('speed', '0')
+                    authority_str = value.get('authority', '0')
+                    
+                    try:
+                        speed = float(speed_str)
+                        if hasattr(right_panel, 'update_suggested_speed'):
+                            right_panel.update_suggested_speed(speed)
+                    except:
+                        pass
+                    
+                    try:
+                        authority = int(authority_str)
+                        if hasattr(right_panel, 'update_suggested_authority'):
+                            right_panel.update_suggested_authority(authority)
+                    except:
+                        pass
+                    
+                    add_to_message_log(f"CTC Update: Speed={speed_str}, Authority={authority_str}")
                 
         elif command == 'ctc_suggestion':
             # Handle speed suggestion
@@ -140,116 +256,17 @@ def _process_message(self, data, connection=None, server_instance=None):
 
         elif command == 'set_block_occupancy':
             pass  # Add handling if needed
+            
         elif command == 'set_switch_position':
-            # Just log it for now
             add_to_message_log(f"Switch position update: {value}")
-            pass  # Add handling if needed
+            
         else:
             print(f"Unknown command: {command} with value: {value}")
             
     except Exception as e:
         print(f"Error processing message: {e}")
-        
-# Example of Process Function:
-# def _process_message(self, data, connection=None, server_instance=None):
-#     """Process incoming messages from Test UI"""
-#     try:
-#         print(f"=== MAIN UI DEBUG ===")
-#         print(f"Received RAW data type: {type(data)}")
-#         print(f"Received RAW data: {repr(data)}")  # repr shows special characters
-#         print(f"Data length: {len(str(data)) if data else 0}")
-#         print(f"=== END DEBUG ===")
-#          # Parse the data if it's a string
-#         if isinstance(data, str) and data.strip() == "CTC":
-#             print("Got 'CTC' connection test - responding")
-#             add_to_message_log("CTC connection test received and acknowledged")
-#             # Send acknowledgment back if needed
-#             if connection and hasattr(connection, 'sendall'):
-#                 connection.sendall(b"CTC_ACK")
-#             return
-        
-#         # 2. Try to parse as JSON
-#         message_data = None
-#         if isinstance(data, str):
-#             try:
-#                 # Try to parse as JSON
-#                 import json
-#                 message_data = json.loads(data)
-#                 print(f"Parsed JSON data: {message_data}")
-#                 # message_data = parsed_data
-#             except json.JSONDecodeError as je:
-#                 # If it's not JSON, treat it as a plain string message
-#                 # print(f"Data is plain string, not JSON: {data}")
-#                 print(f"Not valid JSON: {je}")
-#                 print(f"Treating as plain string message:{data}")
-#                 message_data = {'message': data}
-#                 # message_data = {'message': data}
-#             # Check if it's a simple string message
-#                 if data.strip() == "CTC":
-#                     print("Got 'CTC' string - might be a connection test")
-#                     add_to_message_log("CTC connection test received")
-#                     return
-#                 else:
-#                     # Try other parsing methods
-#                     print(f"Treating as plain string message: {data}")
-#                     message_data = {'message': data}
-                    
-#         elif isinstance(data, dict):
-#             print(f"Data is already a dictionary: {data}")
-#             message_data = data
-#         else:
-#             print(f"Unknown data type: {type(data)}")
-#             return
-#         # else:
-#         #     # Data is already a dictionary
-#         #     message_data = data
-#         # extract command and value 
-#         # command = message_data.get('command')
-#         # value = message_data.get('value')
-#         # # self.handle_ctc_message(message_data)
-#         # print(f"Processing command: {command}, value: {value}")
-
-#         # Now process the message_data
-#         if message_data:
-#             command = message_data.get('command')
-#             value = message_data.get('value')
-            
-#             print(f"Processing command: {command}, value: {value}")
-
-#         # Handle different commands
-#         if command == 'ctc_suggestion':
-#             # Extract both speed and authority from the value
-#             if isinstance(value, dict):
-#                 # New format from CTC: {'speed': 45.5, 'authority': 10}
-#                 formatted_speed = value.get('speed')
-#                 auth_value = value.get('authority')
-#             elif isinstance(value, str):
-#                 # Old format or combined format: "45.5,10"
-#                 parts = value.split(',')
-#                 formatted_speed = parts[0] if len(parts) > 0 else value
-#                 auth_value = parts[1] if len(parts) > 1 else None
-#             else:
-#                 formatted_speed = value
-#                 auth_value = None
-#             # Use your existing function
-#             formatted_speed = handle_ctc_suggested_speed(value)
-#             if formatted_speed is not None:
-#                 update_suggested_speed_display(formatted_speed, auth_value)
-#                 # # ADD THIS LINE - sync back to Test UI
-#                 # self.sync_speed_to_test_ui(formatted_speed)
-#         elif command == 'update_speed_auth':
-#             test_data.handle_speed_auth_update(value)
-#             # self.handle_speed_auth_update(value)    
-#         elif command == 'set_block_occupancy':
-#             # existing handling
-#             pass
-#         elif command == 'set_switch_position':
-#             #existing handling
-#             pass
-#         else: 
-#             print(f"Unknown command: {command}")
-#     except Exception as e:
-#         print(f"Error processing message: {e}")
+        import traceback
+        traceback.print_exc()
 
 def handle_ctc_suggested_speed(speed_data):
     """
@@ -303,7 +320,7 @@ def handle_ctc_suggested_speed(speed_data):
         # Format to 3 decimal places if conversion was successful
         if suggested_speed is not None:
             formatted_speed = round(suggested_speed, 3)
-            add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.3f} mph")
+            add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.2f} mph")
             update_suggested_speed_display(formatted_speed)
             return formatted_speed
         else:
@@ -354,7 +371,7 @@ def handle_ctc_suggested_speed(speed_data):
     #         # Format to 3 decimal places if conversion was successful
     #         if suggested_speed is not None:
     #             formatted_speed = round(suggested_speed, 3)
-    #             add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.3f} mph")
+    #             add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.2f} mph")
     #             return formatted_speed
     #         else:
     #             add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
@@ -365,42 +382,6 @@ def handle_ctc_suggested_speed(speed_data):
     #         add_to_message_log(f"ERROR: Processing CTC speed message - {e}", "ERROR")
     
     # return None
-
-class Clock:
-    def __init__(self):
-        self._fastTime = strftime("%H:%M:%S")
-        self._incTimer = Timer(0.1, self._incTime)
-        self._incTimer.start()
-
-    def _incTime(self):
-        self._incTimer = Timer(0.1, self._incTime)
-        self._incTimer.start()
-
-        hours = int(self._fastTime[:2])
-        mins = int(self._fastTime[3:5])
-        secs = int(self._fastTime[6:])
-
-        secs += 1
-        #increment fast time by 1 second every 100 ms
-
-        if (secs == 60):
-            secs = 0
-            mins += 1
-
-            if (mins == 60):
-                mins = 0
-                hours += 1
-
-                if (hours == 24):
-                    hours = 0
-
-        self._fastTime = f"{hours:02d}:{mins:02d}:{secs:02d}"
-    
-    def getTime(self):
-        return self._fastTime[:5]
-    
-    def endTimer(self):
-        self._incTimer.cancel()
 
 ##############################################################################################################################
 ###############################################################################################################################
@@ -524,6 +505,12 @@ class UITestData:
         if hasattr(self, 'root'):
             self.root.after(2000, self.verify_server_running)    
         
+        # In UITestData.__init__ after server starts:
+        print(f"\n[TRACK HW DEBUG] Server started on port 12344")
+        print(f"[TRACK HW DEBUG] Waiting for connections...")
+
+# Add to _process_message:
+        # print(f"[TRACK HW] Connection from: {12341}")
 
     def load_complete_track_data(self, filename):
         """Load all green line blocks, merging sections where available"""
@@ -561,7 +548,7 @@ class UITestData:
 
             # print(f"SUCCESS: Read {len(lines)} lines from {filename}")
             start_line = 0
-            if len(lines) > 0 and ("Line,Block" in lines[0] or "Line, Section, Block" in lines[0]):
+            if len(lines) > 0 and ("Line,Block" in lines[0] or "Line, Block, Section" in lines[0]):
                 print(f"Skipping header: {lines[0].strip()}")
                 start_line = 1  # Skip header line
 
@@ -733,7 +720,7 @@ class UITestData:
     def update_clock_display(self):
         """Update the clock display every second"""
         try:
-            current_time = self.clock.getTime()
+            current_time = global_clock.getTime()
             self.clock_label.config(text=f"Time: {current_time}")
         except Exception as e:
             print(f"Clock error: {e}")
@@ -745,8 +732,9 @@ class UITestData:
     def on_closing(self):
         print("Closing application...")
         try:
-            self.clock.endTimer()
+            global_clock.endTimer()
         except:
+            print(f"Error stopping clock: {e}")
             pass
 
         # Properly stop the socket server with comprehensive cleanup
@@ -892,7 +880,7 @@ class UITestData:
                     right_panel.update_suggested_authority(authority)
             
             # Log update
-                add_to_message_log(f"CTC Update: Speed={speed:.3f} mph, Authority={authority} blocks")
+                add_to_message_log(f"CTC Update: Speed={speed:.2f} mph, Authority={authority} blocks")
             
         except Exception as e:
             print(f"Error handling speed/auth update: {e}")
@@ -981,7 +969,7 @@ class UITestData:
         #         print(f"Invalid authority value: {authority_str}")
         #         authority = 0
         
-        #     print(f"CTC Update - Block {block if block else 'unspecified'}, Speed: {formatted_speed:.3f} mph, Authority: {authority} blocks, Type: {value_type}")
+        #     print(f"CTC Update - Block {block if block else 'unspecified'}, Speed: {formatted_speed:.2f} mph, Authority: {authority} blocks, Type: {value_type}")
         
         # # Update the display based on value type
         #     if value_type == 'suggested':
@@ -993,9 +981,9 @@ class UITestData:
             
         #     # Log the update
         #         if block:
-        #             add_to_message_log(f"CTC Suggested Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks for Block {block}")
+        #             add_to_message_log(f"CTC Suggested Values: Speed={formatted_speed:.2f} mph, Authority={authority} blocks for Block {block}")
         #         else:
-        #             add_to_message_log(f"CTC Suggested Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks")
+        #             add_to_message_log(f"CTC Suggested Values: Speed={formatted_speed:.2f} mph, Authority={authority} blocks")
         
         #     elif value_type == 'commanded':
         #         # Update commanded values
@@ -1005,13 +993,13 @@ class UITestData:
             
         #         if hasattr(right_panel, 'speed_entry'):
         #             right_panel.speed_entry.delete(0, tk.END)
-        #             right_panel.speed_entry.insert(0, f"{formatted_speed:.3f} mph")
+        #             right_panel.speed_entry.insert(0, f"{formatted_speed:.2f} mph")
             
         #     # Log the update
         #         if block:
-        #             add_to_message_log(f"CTC Commanded Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks for Block {block}")
+        #             add_to_message_log(f"CTC Commanded Values: Speed={formatted_speed:.2f} mph, Authority={authority} blocks for Block {block}")
         #         else:
-        #             add_to_message_log(f"CTC Commanded Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks")
+        #             add_to_message_log(f"CTC Commanded Values: Speed={formatted_speed:.2f} mph, Authority={authority} blocks")
         
         #     else:
         #     # Default to suggested if type not specified
@@ -1020,7 +1008,7 @@ class UITestData:
         #         if hasattr(right_panel, 'update_suggested_authority'):
         #             right_panel.update_suggested_authority(authority)
             
-        #         add_to_message_log(f"CTC Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks")
+        #         add_to_message_log(f"CTC Values: Speed={formatted_speed:.2f} mph, Authority={authority} blocks")
             
         # except Exception as e:
         #     print(f"Error handling speed/auth update: {e}")
@@ -1067,7 +1055,7 @@ class UITestData:
     #                     right_panel.update_suggested_authority(authority)
                 
     #                 # Also log the update
-    #                 add_to_message_log(f"CTC Suggested Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks for Block {block}")
+    #                 add_to_message_log(f"CTC Suggested Values: Speed={formatted_speed:.2f} mph, Authority={authority} blocks for Block {block}")
             
     #             elif value_type == 'commanded':
     #                 # Update commanded values
@@ -1077,9 +1065,9 @@ class UITestData:
                 
     #                 if hasattr(right_panel, 'speed_entry'):
     #                     right_panel.speed_entry.delete(0, tk.END)
-    #                     right_panel.speed_entry.insert(0, f"{formatted_speed:.3f} mph")
+    #                     right_panel.speed_entry.insert(0, f"{formatted_speed:.2f} mph")
                 
-    #                 add_to_message_log(f"CTC Commanded Values: Speed={formatted_speed:.3f} mph, Authority={authority} blocks for Block {block}")
+    #                 add_to_message_log(f"CTC Commanded Values: Speed={formatted_speed:.2f} mph, Authority={authority} blocks for Block {block}")
             
     #     except Exception as e:
     #         print(f"Error handling speed/auth update: {e}")
@@ -1292,15 +1280,17 @@ center_frame.pack(side="left", expand=True)
 clock_frame = tk.Frame(header_frame, bg="#0b1443")
 clock_frame.pack(side="right", padx=15)
 
-global_clock = Clock() 
+global_clock = Clock()
 
 clock_label = tk.Label(
     header_frame, 
-    text=clock.clock.getTime(), 
+    text=global_clock.getTime(), 
     font=("Arial", 12, "bold"), 
-    bg="white") 
+    bg="white",
+    width=10) 
     # fg="white")
 clock_label.pack(side="right", anchor="ne")
+
 
 # Fault LED indicator
 fault_led = tk.Label(header_frame, text="Fault LED", bg="gray", fg="white", width=10, font=("Arial", 10, "bold"))
@@ -1336,7 +1326,7 @@ def update_clock_display():
     except Exception as e:
         print(f"Clock error: {e}")
         clock_label.config(text="--:--:--")
-
+# update every 100 ms
     # Update every second (1000ms)
     root.after(1000, update_clock_display)
 
@@ -1666,6 +1656,9 @@ class LeftPanel(tk.Frame):
         self.crossing_bar = ttk.Combobox(crossing_frame, width=18, values=["Closed", "Open"], state='readonly')
         self.crossing_bar.pack()
 
+        # sendCrossing = tk.Button(crossing_frame, text="Send", width=5, command=self.update_crossing_lights)
+        # sendCrossing.pack(side=tk.BOTTOM)
+
     def update_crossing_options(self):
         """Update combobox options based on current line"""
         crossings = list(self.data.filtered_track_data.get("crossings", {}).keys())
@@ -1694,6 +1687,9 @@ class LeftPanel(tk.Frame):
                                             # state='readonly') # this makes the dropdown BLANK - FIX THIS
         self.switch_direction.pack()
         self.switch_direction.bind('<<ComboboxSelected>>', self.update_switch_direction)
+
+        # sendSwitch = tk.Button(switch_frame, text="Send", width=5, command=self.update_switch_direction)
+        # sendSwitch.pack(side=tk.BOTTOM)
 
         # Initialize with current line data
         self.update_switch_options()
@@ -1739,6 +1735,8 @@ class LeftPanel(tk.Frame):
         self.light_signal.pack()
         self.light_signal.bind('<<ComboboxSelected>>', self.update_light_signal)
 
+        # sendLights = tk.Button(light_frame, text="Send", width=5, command=self.update_light_signal)
+        # sendLights.pack(side=tk.BOTTOM)
         # Initialize with current line data
         self.update_light_options()
    
@@ -2036,12 +2034,12 @@ class RightPanel(tk.Frame):
                                                bg='#cccccc', font=('Arial', 10, 'bold'))
         current_block_frame.pack(fill=tk.X, pady=5)
         
-        # Occupied status display
-        tk.Label(current_block_frame, text="Occupancy:", bg='#cccccc',
-                width=8).grid(row=1, column=2, padx=2, pady=2, sticky='w')
-        self.occupied_label = tk.Label(current_block_frame, text="", bg='white',
-                                      width=8, relief=tk.SUNKEN)
-        self.occupied_label.grid(row=1, column=1, padx=2, pady=2, sticky='w')
+        # # Occupied status display
+        # tk.Label(current_block_frame, text="Occupancy:", bg='#cccccc',
+        #         width=8).grid(row=1, column=2, padx=2, pady=2, sticky='w')
+        # self.occupied_label = tk.Label(current_block_frame, text="", bg='white',
+        #                               width=8, relief=tk.SUNKEN)
+        # self.occupied_label.grid(row=1, column=1, padx=2, pady=2, sticky='w')
 
         # Line
         tk.Label(current_block_frame, text="Line:", bg='#cccccc', width=10).grid(row=0, column=2, padx=2, pady=2, sticky='w')
@@ -2055,10 +2053,10 @@ class RightPanel(tk.Frame):
                                        width=8, relief=tk.SUNKEN)
         self.block_num_label.grid(row=0, column=1, padx=3, pady=2, sticky='w')
         
-        # Section
-        tk.Label(current_block_frame, text="Section:", bg='#cccccc', width=10).grid(row=1, column=0, padx=2, pady=2, sticky='w')
-        self.section_label = tk.Label(current_block_frame, text="N/A", bg='white', width=8, relief=tk.SUNKEN)
-        self.section_label.grid(row=1, column=1, padx=4, pady=2, sticky='w')
+        # # Section
+        # tk.Label(current_block_frame, text="Section:", bg='#cccccc', width=10).grid(row=1, column=0, padx=2, pady=2, sticky='w')
+        # self.section_label = tk.Label(current_block_frame, text="N/A", bg='white', width=8, relief=tk.SUNKEN)
+        # self.section_label.grid(row=1, column=1, padx=4, pady=2, sticky='w')
 
     def update_current_block_info(self):
         """Update current block display from data"""
@@ -2076,9 +2074,9 @@ class RightPanel(tk.Frame):
                     # Update labels (only 4 columns now)
                     self.block_num_label.config(text=row[2])
                     
-                    # Line with color
-                    line_color = '#66cc66' if row[1] == "Green" else '#ff6666'
-                    self.line_label.config(text=row[1], bg=line_color)
+                    # # Line with color
+                    # line_color = '#66cc66' if row[1] == "Green" else '#ff6666'
+                    # self.line_label.config(text=row[1], bg=line_color)
                 
                 # Section (now in column 3 instead of 4)
                     self.section_label.config(text=row[3] if len(row) > 3 else "")
@@ -2386,7 +2384,7 @@ class RightPanel(tk.Frame):
         headers_frame.pack(fill=tk.X)
         
         # Define column widths for 4 columns (slightly wider since we removed one column)
-        col_widths = {'occupied': 10, 'line': 8, 'block': 8, 'section': 10}
+        col_widths = {'occupied': 8, 'line': 6, 'block': 6, 'section': 10}
         
         # Occupied header
         tk.Label(headers_frame, text="Occupied", bg='#cccccc',

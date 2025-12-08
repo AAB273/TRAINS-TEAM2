@@ -18,10 +18,8 @@ from train_data import getTrainManager
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
-import clock
-import time
-import string
-from playsound import playsound
+from clock import clock
+import pygame
 import random
 
 class TrainModelPassengerGUI:
@@ -61,6 +59,8 @@ class TrainModelPassengerGUI:
 		trainHwConfig = moduleConfig.get("Train HW", {"port": 12347})
 		trackModelConfig = moduleConfig.get("Track Model", {"port": 12344})
 
+		pygame.mixer.init()
+
 		self.server.connect_to_ui('localhost', trainSwConfig["port"], "Train SW")
 		self.server.connect_to_ui('localhost', trainHwConfig["port"], "Train HW")
 		self.server.connect_to_ui('localhost', trackModelConfig["port"], "Track Model")
@@ -73,7 +73,7 @@ class TrainModelPassengerGUI:
 		self.previousFailureSignalPickupState = False
 		self.failureActivationInProgress = False
 		self.previousActiveTrains = set()
-		self.clockSpeed = clock.clock.getSpeed() * 100
+		self.clockSpeed = clock.getSpeed() * 100
 
 		self.setupGUI()
 		
@@ -123,6 +123,9 @@ class TrainModelPassengerGUI:
 			print(f"Received message from {sourceUiId}: {message}")
 
 			command = message.get('command')
+			
+			if command == "Clock":
+				self.Clock = message.get('value')
 			value = message.get('value')
 			trainId = message.get('train_id')
 			
@@ -182,7 +185,7 @@ class TrainModelPassengerGUI:
 			elif command == 'set_passenger_count':
 				train.setPassengerCount(value)
 			elif command == 'horn':
-				playsound('Train Model\diesel-horn-02-98042.mp3')
+				pygame.mixer.Sound('Train Model/diesel-horn-02-98042.mp3').play()
 			elif command == 'set_speed_limit':
 				train.setSpeedLimit(value)
 			elif command == 'set_elevation':
@@ -197,11 +200,17 @@ class TrainModelPassengerGUI:
 			elif command == 'set_authority':
 				wasActive = train.active if train else False
 				train.setAuthority(value)
-			
+				self.server.send_to_ui("Train HW",value)
 				if not wasActive and train.active:
 					print(f"Train {train.trainId} activated - refreshing selector")
 					self.refreshTrainSelectorIfNeeded()  
-			
+			elif command == 'set_commanded_speed':
+				train.setCommandedSpeed(value)
+				self.server.send_to_ui("Train HW", {
+					'command': "Commanded Speed",
+					'value': value,
+					'train_id': trainId if trainId else train.trainId
+				})
 			elif command == 'set_station':
 				train.setStation(value)
 			elif command == 'set_time_to_station':
@@ -244,7 +253,7 @@ class TrainModelPassengerGUI:
 				targetTemp = value
 				self._animateTemperatureChange(targetTemp, train)
 			elif command == 'Service Brake':
-				if self.failureBrakeVar.get and train == self.currentTrain:
+				if self.failureBrakeVar.get() and train == self.currentTrain:
 					pass
 				else:
 					train.setServiceBrake(value)
@@ -261,7 +270,7 @@ class TrainModelPassengerGUI:
 			elif command == 'Power Command':
 				train.setPowerCommand(value)
 			elif command == 'Train Horn':
-				playsound("Train Model\diesel-horn-02-98042.mp3")
+				pygame.mixer.Sound('Train Model/diesel-horn-02-98042.mp3').play()
 			elif command == 'Station Announcement Message':
 				train.setStation(value)
 			elif command == 'Commanded Authority':
@@ -657,7 +666,7 @@ class TrainModelPassengerGUI:
 		announcementFrame = tk.Frame(topContainer, bg=self.offColor, width=600, height=65, highlightbackground="black", highlightthickness=3)
 		announcementFrame.pack(side='left', padx=2, pady=2)
 		announcementFrame.pack_propagate(False)
-		self.uiLabels['announcement'] = tk.Label(announcementFrame, text="", bg=self.offColor, fg='white', font=('Arial', 16, 'bold'))
+		self.uiLabels['announcement'] = tk.Label(announcementFrame, text="Awaiting Deployment", bg=self.offColor, fg='white', font=('Arial', 16, 'bold'))
 		self.uiLabels['announcement'].pack(padx=3, pady=3)
 
 		# Main frames
@@ -679,12 +688,12 @@ class TrainModelPassengerGUI:
 
 		for adPath in adImages:
 			adImage = Image.open(adPath)
-			convertedAdImage = adImage.resize((400, 215))
+			convertedAdImage = adImage.resize((400, 260))
 			convertedAdImage = ImageTk.PhotoImage(convertedAdImage)
 			self.convertedAdImages.append(convertedAdImage)
 
 		self.currentAdImage = self.convertedAdImages[0]
-		advertisement = tk.Frame(rightFrame, height=215, highlightbackground="black", highlightthickness=2, bg=self.offColor)
+		advertisement = tk.Frame(rightFrame, height=260, highlightbackground="black", highlightthickness=2, bg=self.offColor)
 		advertisement.pack(side='top', padx=2, pady=2, fill='x')
 		advertisement.pack_propagate(False)
 		self.adLabel = tk.Label(advertisement, image=self.currentAdImage)
@@ -772,16 +781,6 @@ class TrainModelPassengerGUI:
 									   command=lambda: self.failureServiceBrakeVarChanged(),
 									   style="Medium.TCheckbutton")
 		brakeSwitch.pack(pady=6, padx=3, fill='x', expand=True)
-
-		# Passenger Disembarking CHANGE THIS TO A HELP BUTTON WITH A POP-UP THAT GIVES A DESCRIPTION OF THE UI.
-		passDisembarkingFrame = tk.Frame(rightFrame, highlightbackground="black", highlightthickness=2, bg=self.offColor, height=50)
-		passDisembarkingFrame.pack(side='top', padx=1, pady=1, fill='both')
-
-		disembarkingContent = tk.Frame(passDisembarkingFrame, bg=self.offColor)
-		disembarkingContent.pack(expand=True, fill='both', padx=3, pady=3)
-
-		self.uiLabels['disembarking'] = tk.Label(disembarkingContent, text="Passengers Disembarking: 0", bg=self.offColor, fg='white', font=('Arial', 10, 'bold'))
-		self.uiLabels['disembarking'].pack(side='left', fill='both', expand=True)
 
 		style = ttk.Style()
 		style.theme_use('clam')
@@ -917,8 +916,8 @@ class TrainModelPassengerGUI:
 
 	def updateTime(self):
 		# Continuously updates the time display every second.
-		localTime = clock.clock.getTime()
-		self.uiLabels['time'].config(text=f"{localTime}")
+		localTime = clock.getTime()
+		self.uiLabels['time'].config(text=localTime)
 		self.root.after(100, self.updateTime)
 
 	def onClosing(self):
