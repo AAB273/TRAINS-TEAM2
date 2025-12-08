@@ -5545,13 +5545,12 @@ class TrackModelUI(tk.Tk):
                     new_train_id = self._create_train_from_yard(commanded_speed, commanded_authority)
                     train_id = new_train_id
                     
-                    # Set initial actual speed for the new train (starts at commanded speed)
-                    if commanded_speed and commanded_speed > 0:
-                        self.train_actual_speeds[new_train_id] = float(commanded_speed)
-                        self.train_positions_in_block[new_train_id] = 0
-                        import time
-                        self.last_movement_update[new_train_id] = time.time()
-                        # print(f" Set initial actual speed for {new_train_id}: {commanded_speed} m/s")
+                    # Initialize train position tracking (actual speed will be received from Train Model)
+                    self.train_actual_speeds[new_train_id] = 0  # Start at 0, will be updated by Train Model
+                    self.train_positions_in_block[new_train_id] = 0
+                    import time
+                    self.last_movement_update[new_train_id] = time.time()
+                    # print(f" Initialized position tracking for {new_train_id}, waiting for actual speed from Train Model")
                     
                     # Set/ensure position at block 63 (entry from yard)
                     block_num = 63
