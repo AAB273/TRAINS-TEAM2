@@ -145,8 +145,8 @@ class Train:
 		# Updates the current block and retrieves associated speed limit and grade.
 		self.previousBlock = self.block
 		self.block = value
-		self.setSpeedLimit(self.lineData.getValue(value, 'speed_limit'))
-		self.setGrade(self.lineData.getValue(value, 'grade'))
+		self.setSpeedLimit(self.lineData.getValue(value, 'speedLimit'))
+		self.setGrade(self.lineData.getValue(value, 'blockGradePercent'))
 		stationCheck = self.lineData.getValue(value,'infrastructure') 
 		if "STATION" in stationCheck:
 			self.atStation = True
