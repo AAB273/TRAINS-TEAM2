@@ -8,7 +8,7 @@ def launch_both_guis():
     # PASSENGER_UI_PATH = "Track Model/UI_Structure.py"
     PASSENGER_UI_PATH = "CTC_Office/CTC_UI.py"
     # TEST_UI_PATH = "Wayside_Controller/SW/main.py"
-    TEST_UI_PATH = "Train Model/Passenger_UI.py"
+    TEST_UI_PATH = "Wayside_Controller/SW/main.py"
     # Verify files exist
     if not os.path.exists(PASSENGER_UI_PATH):
         print(f"❌ Passenger UI not found at: {PASSENGER_UI_PATH}")

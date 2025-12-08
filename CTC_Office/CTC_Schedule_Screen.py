@@ -375,9 +375,7 @@ class ScheduleScreen:
                         if (self.trainRoutes[key][0] in self.greenStationLocations):
                             if (self.trainRoutes[key][3] == self.greenStationLocations[self.trainRoutes[key][0]]):
 
-                                self.trainRoutes[key].remove(self.trainRoutes[key][3])
-                                print("\n\n\nhere\n\n\n")
-                            
+                                self.trainRoutes[key].remove(self.trainRoutes[key][3])    
                                 if (len(self.trainRoutes[key]) == 3):
                                 #if there is no more destination backlog go to yard
                                     children = self.meArea.get_children("")
