@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 # Configuration
-PI_HOST = '192.168.1.179'  # ← CHANGE THIS to your Pi's IP
+PI_HOST = '10.6.3.77'  # ← CHANGE THIS to your Pi's IP
 PI_GPIO_PORT = 12348
 
 class SystemLogViewer:
@@ -218,8 +218,10 @@ class SystemLogViewer:
                 receive_thread.start()
             
             except Exception as e:
-                self.root.after(0, lambda: self._updateConnectionStatus(False))
-                self.root.after(0, lambda: self._addLogEntry(f"✗ Connection failed: {e}", 'error'))
+                # Capture 'e' in lambda using default parameter to avoid scope issues
+                error_msg = str(e)
+                self.root.after(0, lambda msg=error_msg: self._updateConnectionStatus(False))
+                self.root.after(0, lambda msg=error_msg: self._addLogEntry(f"✗ Connection failed: {msg}", 'error'))
         
         thread = threading.Thread(target=connect_thread, daemon=True)
         thread.start()
@@ -244,7 +246,8 @@ class SystemLogViewer:
             except socket.timeout:
                 continue
             except Exception as e:
-                self.root.after(0, lambda: self._addLogEntry(f"Receive error: {e}", 'error'))
+                error_msg = str(e)
+                self.root.after(0, lambda msg=error_msg: self._addLogEntry(f"Receive error: {msg}", 'error'))
                 self.connected = False
                 break
     
