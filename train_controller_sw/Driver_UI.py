@@ -76,6 +76,7 @@ class Main_Window:
         self.server.start_server(self._process_message)
         self.server.connect_to_ui('localhost', 12345, "Train Model")
         self.server.connect_to_ui('localhost', 12344, "Track Model")
+        self.server.connect_to_ui('localhost', 12347, "Train HW")
         
         main_container = tk.Frame(self.root, bg="white", relief=tk.RAISED, bd=5)
         main_container.place(relx=0.02, rely=0.08, relwidth=0.96, relheight=0.9)
@@ -405,7 +406,7 @@ class Main_Window:
          # State variables
         self.current_speed = 0  # Will be in mph (converted from m/s for display)
         self.current_speed_ms = 0  # Store original m/s value for calculations
-        self.commanded_speed_ms = 20  # Store commanded speed in m/s for calculations
+        self.commanded_speed_ms = 0  # Store commanded speed in m/s for calculations
         self.set_speed = 45
         self.set_temp = 70
         self.is_auto_mode = True
@@ -413,6 +414,8 @@ class Main_Window:
         self.emergency_brake_active = False
         self.door_safety_lock = True
         self.emergency_brake_auto_triggered = False
+
+        self.has_control_authority = False  # ←  Don't send power until we have authority
         
         # PID Control Parameters
         self.kp = 10.0  # Default proportional gain (will be updated from Engineer UI)
@@ -669,23 +672,16 @@ class Main_Window:
         
         # Update door safety
         self.update_door_safety()
-
         
-        # Auto-release emergency brake once train fully stops and all failures cleared
-        if self.emergency_brake_active and self.current_speed <= 0.1:
-            no_failures = not (
-                self.engine_failure.active or
-                self.signal_failure.active or
-                self.brake_failure.active
-            )
-            if no_failures:
-                self.emergency_brake_active = False
-                self.emergency_brake_auto_triggered = False
-                self.emergency_light.deactivate()
-                self.send_emergency_brake_signal(False)
-                self.add_to_status_log("Emergency brake auto-released (train stopped)")
-                print("Emergency brake auto-released - train stopped")
-            
+        # Update E-brake release button state
+        self.update_ebrake_release_state()
+        
+        # *** CRITICAL: Only send power if we have control authority ***
+        if not self.has_control_authority:
+            # We don't have control authority yet - don't send any power
+            # This prevents fighting with HW controller
+            self.root.after(100, self.update_displays)
+            return
         
         # Calculate and send power command
         # Only send power when NOT in emergency brake and NOT in service brake
@@ -713,6 +709,7 @@ class Main_Window:
         
         # Schedule next update (100ms = 0.1s sample time)
         self.root.after(100, self.update_displays)
+
     
     def apply_brake_effect(self):
         """Apply brake effects to current speed"""
@@ -1032,7 +1029,8 @@ class Main_Window:
         try:
             self.server.send_to_ui("Train Model", {
                 'command': "Power Command",
-                'value': float(power_kw *  1000)
+                'value': float(power_kw *  1000),
+                'train_id' : 2
             })
             # Don't print every power command to avoid spam
             # print(f"Sent power: {power_kw:.2f} kW")
@@ -1050,7 +1048,8 @@ class Main_Window:
         try:
             self.server.send_to_ui("Train Model", {
                 'command': "Emergency Brake Signal",
-                'value': bool(is_active)
+                'value': bool(is_active), 
+                'train_id' : 2
             })
             print(f"Sent emergency brake signal: {is_active}")
         except Exception as e:
@@ -1066,7 +1065,8 @@ class Main_Window:
         try:
             self.server.send_to_ui("Train Model", {
                 'command': "Headlights",
-                'value': bool(is_on)
+                'value': bool(is_on), 
+                'train_id' : 2
             })
             print(f"Sent headlights: {is_on}")
         except Exception as e:
@@ -1082,7 +1082,8 @@ class Main_Window:
         try:
             self.server.send_to_ui("Train Model", {
                 'command': "Cabin Lights",
-                'value': bool(is_on)
+                'value': bool(is_on), 
+                'train_id' : 2
             })
             print(f"Sent cabin lights: {is_on}")
         except Exception as e:
@@ -1115,7 +1116,8 @@ class Main_Window:
         try:
             self.server.send_to_ui("Train Model", {
                 'command': "Right Door Signal",
-                'value': bool(is_open)
+                'value': bool(is_open), 
+                'train_id' : 2
             })
             print(f"Sent right door signal: {is_open}")
         except Exception as e:
@@ -1132,7 +1134,8 @@ class Main_Window:
         try:
             self.server.send_to_ui("Train Model", {
                 'command': "Temp",
-                'value': float(temp_fahrenheit)
+                'value': float(temp_fahrenheit), 
+                'train_id' : 2
             })
             print(f"Sent temperature setpoint: {temp_fahrenheit}°F")
         except Exception as e:
@@ -1148,7 +1151,8 @@ class Main_Window:
         try:
             self.server.send_to_ui("Train Model", {
                 'command': "Drivetrain Mode",
-                'value': bool(is_auto)
+                'value': bool(is_auto), 
+                'train_id' : 2
             })
             print(f"Sent drivetrain mode: {'auto' if is_auto else 'manual'}")
         except Exception as e:
@@ -1167,7 +1171,8 @@ class Main_Window:
         try:
             self.server.send_to_ui("Train Model", {
                 'command': "Service Brake",
-                'value': bool(is_active)
+                'value': bool(is_active), 
+                'train_id' : 2
             })
             status = "ACTIVE" if is_active else "RELEASED"
             print(f"[SENT] Service Brake: {status} (value={is_active})")
@@ -1184,7 +1189,8 @@ class Main_Window:
         try:
             self.server.send_to_ui("Train Model", {
                 'command': "Station Announcement Message",
-                'value': str(message)
+                'value': str(message), 
+                'train_id' : 2
             })
             print(f"Sent station announcement: {message}")
         except Exception as e:
@@ -1200,7 +1206,8 @@ class Main_Window:
         try:
             self.server.send_to_ui("Train Model", {
                 'command': "Train Horn",
-                'value': bool(is_active)
+                'value': bool(is_active), 
+                'train_id' : 2
             })
             print(f"Sent train horn: {is_active}")
         except Exception as e:

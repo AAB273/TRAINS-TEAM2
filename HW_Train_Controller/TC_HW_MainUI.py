@@ -32,7 +32,7 @@ from TC_HW_SystemLogUI import SystemLogViewer
 from TrainSocketServer import TrainSocketServer
 
 # CONFIGURATION - SET YOUR PI'S IP ADDRESS HERE
-PI_HOST = '10.6.3.77'  # ← CHANGE THIS to your Pi's IP address
+PI_HOST = '0.0.0.0'  # ← CHANGE THIS to your Pi's IP address
 PI_GPIO_PORT = 12348
 
 def load_socket_config():
@@ -85,6 +85,14 @@ lastSentPower = None  # Track last power sent to avoid duplicates
 # This creates a continuous loop through the entire Green Line
 preloadedTrackInformation = {
     'segments': [
+        {
+            'from_station': 'YARD',
+            'to_station': 'GLENBURY',
+            'distance': 200.0 + 100.0,  # meters + half of block 65 (200m block)
+            'from_block': 63,
+            'to_block': 65,
+            'station_block_half_length': 100.0
+        },
         {
             'from_station': 'GLENBURY',
             'to_station': 'DORMONT',
