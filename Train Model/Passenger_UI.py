@@ -252,6 +252,8 @@ class TrainModelPassengerGUI:
 			elif command == 'Temp':
 				targetTemp = value
 				self._animateTemperatureChange(targetTemp, train)
+			elif command == 'Announcement':
+				train.setStation(value)
 			elif command == 'Service Brake':
 				if self.failureBrakeVar.get() and train == self.currentTrain:
 					pass
@@ -530,7 +532,7 @@ class TrainModelPassengerGUI:
 		if self.currentTrain.emergencyBrakeActive:
 			self.uiLabels['announcement'].config(text=f"EMERGENCY")
 		else:
-			self.uiLabels['announcement'].config(text=f"Arriving to Station {train.station} in {train.timeToStation}mins")
+			self.uiLabels['announcement'].config(text=f"{train.announcement} in {train.timeToStation}mins")
 
 		# Update power command and commanded values
 		self.uiLabels['power_command'].config(text=f"{train.powerCommand:.0f} Watts")
@@ -868,7 +870,7 @@ class TrainModelPassengerGUI:
 		self.canvasFrameCircle = tk.Canvas(cabinTempFrame, width=100, height=140, bg=self.offColor, highlightbackground=self.offColor)
 		self.canvasFrameCircle.pack(side='top', expand=True)
 		self.canvasFrameCircle.create_oval(8, 8, 92, 92, fill=self.offColor, outline='black', width=2)
-		self.uiLabels['cabin_temp'] = self.canvasFrameCircle.create_text(50, 50, text="75°F", font=('Arial', 20, 'bold'), fill='white')
+		self.uiLabels['cabin_temp'] = self.canvasFrameCircle.create_text(50, 50, text="72°F", font=('Arial', 20, 'bold'), fill='white')
 
 		# Train Dimensions
 		trainDimensionsFrame = tk.Frame(trainMetricsFrame, width=120, height=220, highlightbackground="black", highlightthickness=2, bg=self.offColor)

@@ -11,7 +11,7 @@ class TestUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Test Control Panel")
-        self.root.geometry("460x680")  # Reduced height since we removed sections
+        self.root.geometry("460x620")
         
         self.server = TrainSocketServer(port=12349, ui_id="Test_UI")
         self.server.set_allowed_connections(["Train Model", "ui_3"])
@@ -217,48 +217,19 @@ class TestUI:
         ttk.Button(passenger_control_frame, text="Set", width=5,
                   command=lambda: self.send_to_ui('set_passenger_count', self.passenger_spinbox.get())).pack(side='left', padx=2)
         
-        # ===== BEACON DATA CONTROL =====
-        beacon_data_frame = ttk.LabelFrame(main_container, text="Beacon Data", padding=6)
-        beacon_data_frame.pack(fill='x', padx=5, pady=2)
+        # ===== BLOCK NUMBER CONTROL =====
+        block_frame = ttk.LabelFrame(main_container, text="Block Number", padding=6)
+        block_frame.pack(fill='x', padx=5, pady=2)
         
-        # Input fields row
-        beacon_input_frame = tk.Frame(beacon_data_frame)
-        beacon_input_frame.pack(fill='x', pady=2)
+        block_control_frame = tk.Frame(block_frame)
+        block_control_frame.pack(fill='x', pady=2)
         
-        # Grade
-        grade_frame = tk.Frame(beacon_input_frame)
-        grade_frame.pack(side='left', padx=2)
-        tk.Label(grade_frame, text="Grade %:").pack()
-        self.grade_var = tk.StringVar()
-        grade_entry = ttk.Entry(grade_frame, textvariable=self.grade_var, width=6)
-        grade_entry.pack()
-        
-        # Speed Limit
-        speed_frame = tk.Frame(beacon_input_frame)
-        speed_frame.pack(side='left', padx=2)
-        tk.Label(speed_frame, text="Speed Limit (MPH):").pack()
-        self.speed_limit_var = tk.StringVar()
-        speed_entry = ttk.Entry(speed_frame, textvariable=self.speed_limit_var, width=6)
-        speed_entry.pack()
-        
-        # Elevation
-        elevation_frame = tk.Frame(beacon_input_frame)
-        elevation_frame.pack(side='left', padx=2)
-        tk.Label(elevation_frame, text='Elevation (ft):').pack()
-        self.elevation_var = tk.StringVar()
-        elevation_entry = ttk.Entry(elevation_frame, textvariable=self.elevation_var, width=8)
-        elevation_entry.pack()
-        
-        # Individual beacon buttons in a compact row
-        beacon_buttons_frame = tk.Frame(beacon_data_frame)
-        beacon_buttons_frame.pack(fill='x', pady=2)
-        
-        ttk.Button(beacon_buttons_frame, text="Send Grade", width=12,
-                  command=lambda: self.send_to_ui('set_grade', self.grade_var.get())).pack(side='left', padx=1)
-        ttk.Button(beacon_buttons_frame, text="Send Speed Limit", width=12,
-                  command=lambda: self.send_to_ui('set_speed_limit', self.speed_limit_var.get())).pack(side='left', padx=1)
-        ttk.Button(beacon_buttons_frame, text="Send Elevation", width=12,
-                  command=lambda: self.send_to_ui('set_elevation', self.elevation_var.get())).pack(side='left', padx=1)
+        tk.Label(block_control_frame, text="Block (1-150):").pack(side='left')
+        self.block_var = tk.StringVar(value="1")
+        block_entry = tk.Entry(block_control_frame, textvariable=self.block_var, width=6)
+        block_entry.pack(side='left', padx=2)
+        ttk.Button(block_control_frame, text="Send", width=6,
+                  command=lambda: self.send_block_number()).pack(side='left', padx=2)
         
         # ===== TRAIN HORN =====
         train_horn = ttk.Button(main_container, text="Train Horn", 
@@ -288,7 +259,7 @@ class TestUI:
         """Send commanded speed value"""
         try:
             speed = float(self.commanded_speed_var.get())
-            self.send_to_ui('set_commanded_speed', speed)
+            self.send_to_ui('Commanded Speed', speed)
             self.status_label.config(text=f"Set commanded speed to {speed} MPH for Train {self.selected_train_id}")
         except ValueError:
             self.status_label.config(text="Invalid speed value")
@@ -310,6 +281,18 @@ class TestUI:
             self.status_label.config(text=f"Set authority to {authority} ft for Train {self.selected_train_id}")
         except ValueError:
             self.status_label.config(text="Invalid authority value")
+    
+    def send_block_number(self):
+        """Send block number"""
+        try:
+            block_num = int(self.block_var.get())
+            if 1 <= block_num <= 150:
+                self.send_to_ui('Block Occupancy', block_num)
+                self.status_label.config(text=f"Set block number to {block_num} for Train {self.selected_train_id}")
+            else:
+                self.status_label.config(text="Block number must be between 1 and 150")
+        except ValueError:
+            self.status_label.config(text="Invalid block number")
             
     def run(self):
         self.root.mainloop()
