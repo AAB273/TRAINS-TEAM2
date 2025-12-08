@@ -121,6 +121,9 @@ class TrainModelPassengerGUI:
 			print(f"Received message from {sourceUiId}: {message}")
 
 			command = message.get('command')
+			
+			if command == "Clock":
+				self.Clock = message.get('value')
 			value = message.get('value')
 			trainId = message.get('train_id')
 			
@@ -195,11 +198,12 @@ class TrainModelPassengerGUI:
 			elif command == 'set_authority':
 				wasActive = train.active if train else False
 				train.setAuthority(value)
-			
+				self.server.send_to_ui("Train HW",value)
 				if not wasActive and train.active:
 					print(f"Train {train.trainId} activated - refreshing selector")
 					self.refreshTrainSelectorIfNeeded()  
-			
+			elif command == 'set_commanded_speed':
+				train.setCommandedSpeed(value)
 			elif command == 'set_station':
 				train.setStation(value)
 			elif command == 'set_time_to_station':
@@ -916,7 +920,7 @@ class TrainModelPassengerGUI:
 	def updateTime(self):
 		# Continuously updates the time display every second.
 		localTime = clock.getTime()
-		self.uiLabels['time'].config(text=f"{localTime}")
+		self.uiLabels['time'].config(text=localTime)
 		self.root.after(100, self.updateTime)
 
 	def onClosing(self):

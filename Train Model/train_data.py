@@ -321,6 +321,7 @@ class Train:
 		MAX_SPEED = 19.44445183333
 		totalMass = EMPTY_TRAIN_MASS + (AVG_PASSENGER_MASS * (self.passengerCount + 2))
 		negGradeTrue = False
+		MAX_ACCEL = MAX_FORCE / totalMass
 		
 		# Grade Force 
 		if self.grade != 0:
@@ -345,7 +346,7 @@ class Train:
 		elif not self.serviceBrakeActive:
 			if not self.atStation and self.powerCommand > 0:
 				if self.speed == 0:
-					aNew = MAX_FORCE / totalMass
+					aNew = MAX_ACCEL
 				else:
 					if self.speed > 1:
 						force = self.powerCommand / self.speed
@@ -383,6 +384,9 @@ class Train:
 		if newSpeed > MAX_SPEED:
 			newSpeed = MAX_SPEED
 			aNew = 0
+
+		if aNew > MAX_ACCEL:
+			aNew = MAX_ACCEL
 
 		# Calculate distance with final speed values
 		if hasattr(self, 'speedPrev'):
