@@ -342,7 +342,8 @@ class TrainModelPassengerGUI:
 					})
 				
 				# Update passenger disembarking logic for each train
-				self.updateDisembarking(train)
+				# if train.atStation:
+				# 	self.updateDisembarking(train)
 		
 		# Update UI for the currently selected train only
 		if self.currentTrain and self.currentTrain.active:
@@ -488,7 +489,6 @@ class TrainModelPassengerGUI:
 		
 		# Update passenger count
 		self.uiLabels['passengerCount'].config(text=f"Passenger Count: {train.passengerCount}")
-		self.uiLabels['disembarking'].config(text=f"Passengers Disembarking: {train.passengersDisembarking}")
 		self.uiLabels['crewCount'].config(text=f"Crew Count: {train.crewCount}")
 
 		# SIGNAL PICKUP FAILURE CHECKING
