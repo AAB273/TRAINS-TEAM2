@@ -4995,7 +4995,7 @@ class TrackModelUI(tk.Tk):
         """Automatically create a train object when Wayside sends new speed/authority."""
         # Initialize starting ID if not set yet
         if not hasattr(self.data_manager, "next_train_id"):
-            self.data_manager.next_train_id = 11000
+            self.data_manager.next_train_id = 1
 
         # Assign new train ID
         train_id = self.data_manager.next_train_id
