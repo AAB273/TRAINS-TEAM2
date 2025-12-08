@@ -57,7 +57,7 @@ ENGINE_FAILURE_LED = 5
 SIGNAL_FAILURE_LED = 6
 
 class GPIOServer:
-    def __init__(self, host='0.0.0.0', port=12348):
+    def __init__(self, host='10.6.3.77', port=12348):
         self.host = host
         self.port = port
         self.running = True
@@ -68,7 +68,7 @@ class GPIOServer:
         self.rightDoorOpen = False
         self.headlightsOn = False
         self.interiorLightsOn = False
-        self.serviceBrakeActive = False
+        self.serviceBrakeActive = True  # Train starts with brakes engaged for safety
         self.trainHornActive = False
         self.emergencyBrakeEngaged = False
         self.drivetrainManualMode = False
@@ -311,12 +311,22 @@ class GPIOServer:
             'passenger_emergency': PASSENGER_EMERGENCY_LED,
             'brake_failure': BRAKE_FAILURE_LED,
             'engine_failure': ENGINE_FAILURE_LED,
-            'signal_failure': SIGNAL_FAILURE_LED
+            'signal_failure': SIGNAL_FAILURE_LED,
+            'left_door': LEFT_DOOR_LED,
+            'right_door': RIGHT_DOOR_LED
         }
         
         if led_name in led_map:
-            lgpio.gpio_write(self.h, led_map[led_name], 1 if state else 0)
+            pin = led_map[led_name]
+            lgpio.gpio_write(self.h, pin, 1 if state else 0)
             self.log(f"LED {led_name}: {'ON' if state else 'OFF'}", 'system')
+            
+            # Update internal door state when doors are controlled via setLED
+            if led_name == 'left_door':
+                self.leftDoorOpen = state
+            elif led_name == 'right_door':
+                self.rightDoorOpen = state
+            
             return True
         return False
     
@@ -396,6 +406,22 @@ class GPIOServer:
                     'success': success
                 }
                 client_socket.sendall((json.dumps(response) + '\n').encode('utf-8'))
+            
+            elif cmd_type == 'set_headlights':
+                # Control headlights from main UI (for underground sections)
+                state = command.get('state')
+                self.headlightsOn = bool(state)
+                lgpio.gpio_write(self.h, HEADLIGHTS_LED, 1 if state else 0)
+                self.log(f"Headlights: {'ON' if state else 'OFF'} (Auto)", 'lights')
+                self.broadcastState()
+            
+            elif cmd_type == 'set_interior_lights':
+                # Control interior lights from main UI (for underground sections)
+                state = command.get('state')
+                self.interiorLightsOn = bool(state)
+                lgpio.gpio_write(self.h, INTERIOR_LIGHTS_LED, 1 if state else 0)
+                self.log(f"Interior Lights: {'ON' if state else 'OFF'} (Auto)", 'lights')
+                self.broadcastState()
             
             elif cmd_type == 'get_state':
                 state_msg = {
