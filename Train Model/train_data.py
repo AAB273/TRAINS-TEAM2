@@ -101,12 +101,13 @@ class Train:
 		
 		# Line assignment
 		self.line = "green" 
+		self.lineData = GreenLine()
 		self.block = 63
 		self.atStation = False
 		self.previousBlock = 63
 
 		# Station
-		self.station = "Glenbury"
+		self.announcement = ""
 		self.timeToStation = 0
 		self.emergencyAnnouncement = "EMERGENCY"
 		
@@ -145,15 +146,15 @@ class Train:
 		# Updates the current block and retrieves associated speed limit and grade.
 		self.previousBlock = self.block
 		self.block = value
-		# self.setSpeedLimit(self.lineData.getValue(value, 'speedLimit'))
-		# self.setGrade(self.lineData.getValue(value, 'blockGradePercent'))
-		# stationCheck = self.lineData.getValue(value,'infrastructure') 
-		# if "STATION" in stationCheck:
-		# 	self.atStation = True
-		# distanceDict = GreenLine.getDistance()
-		# if distanceDict != None:
-		# 	self.station = distanceDict['toStation']
-		# 	self.distanceLeft = distanceDict['distance']
+		self.setSpeedLimit(self.lineData.getValue(value, 'speedLimit'))
+		self.setGrade(self.lineData.getValue(value, 'blockGradePercent'))
+		stationCheck = self.lineData.getValue(value,'infrastructure') 
+		if "STATION" in stationCheck:
+			self.atStation = True
+		distanceDict = GreenLine.getDistance()
+		if distanceDict != None:
+			self.station = distanceDict['toStation']
+			self.distanceLeft = distanceDict['distance']
 			
 		
 	# Metric setters with validation
