@@ -83,7 +83,7 @@ class TrackInformationPanel:
 		style = ttk.Style()
 		style.theme_use('default')
 		style.configure('TNotebook', background='#7cb9e8', borderwidth=0)
-		style.configure('TNotebook.Tab', padding=[30, 10], font=('Arial', 11, 'bold'))
+		style.configure('TNotebook.Tab', padding=[20, 8], font=('Arial', 10, 'bold'))
 		
 		self.notebook = ttk.Notebook(self.root)
 		self.notebook.pack(fill='both', expand=True)
@@ -105,31 +105,31 @@ class TrackInformationPanel:
 		
 		headerLabel = tk.Label(
 			headerFrame,
-			text=f"TRACK INFORMATION\n{line_name.upper()}",
-			font=('Arial', 24, 'bold'),
+			text=f"TRACK INFORMATION - {line_name.upper()}",
+			font=('Arial', 18, 'bold'),
 			bg='#1e5a8e',
 			fg='white',
-			pady=15
+			pady=10
 		)
 		headerLabel.pack()
 		
-		timeFrame = tk.Frame(headerFrame, bg='#15406b', relief='raised', bd=3)
-		timeFrame.pack(pady=(0, 10))
+		timeFrame = tk.Frame(headerFrame, bg='#15406b', relief='raised', bd=2)
+		timeFrame.pack(pady=(0, 8))
 		
 		timeLabel = tk.Label(
 			timeFrame,
 			text="",
-			font=('Arial', 16, 'bold'),
+			font=('Arial', 12, 'bold'),
 			bg='#15406b',
 			fg='white',
-			padx=20,
-			pady=8
+			padx=15,
+			pady=5
 		)
 		timeLabel.pack()
 		self.timeLabels[line_name] = timeLabel
 		
 		mainFrame = tk.Frame(frame, bg='#7cb9e8')
-		mainFrame.pack(fill='both', expand=True, padx=20, pady=20)
+		mainFrame.pack(fill='both', expand=True, padx=15, pady=10)
 		
 		# Info Section only
 		self._createInfoSection(mainFrame, line_name, line_color)
@@ -144,61 +144,61 @@ class TrackInformationPanel:
 		
 		headerLabel = tk.Label(
 			headerFrame,
-			text="TEST MODE\nALL LINES",
-			font=('Arial', 24, 'bold'),
+			text="TEST MODE - ALL LINES",
+			font=('Arial', 18, 'bold'),
 			bg='#1e5a8e',
 			fg='white',
-			pady=15
+			pady=10
 		)
 		headerLabel.pack()
 		
-		timeFrame = tk.Frame(headerFrame, bg='#15406b', relief='raised', bd=3)
-		timeFrame.pack(pady=(0, 10))
+		timeFrame = tk.Frame(headerFrame, bg='#15406b', relief='raised', bd=2)
+		timeFrame.pack(pady=(0, 8))
 		
 		timeLabel = tk.Label(
 			timeFrame,
 			text="",
-			font=('Arial', 16, 'bold'),
+			font=('Arial', 12, 'bold'),
 			bg='#15406b',
 			fg='white',
-			padx=20,
-			pady=8
+			padx=15,
+			pady=5
 		)
 		timeLabel.pack()
 		self.timeLabels['Test Mode'] = timeLabel
 		
 		mainFrame = tk.Frame(frame, bg='#7cb9e8')
-		mainFrame.pack(fill='both', expand=True, padx=20, pady=20)
+		mainFrame.pack(fill='both', expand=True, padx=15, pady=10)
 		
-		# Line Selector
-		selectorFrame = tk.Frame(mainFrame, bg='#34495e', relief='raised', bd=4)
-		selectorFrame.pack(fill='x', pady=(0, 10))
+		# Line Selector - more compact
+		selectorFrame = tk.Frame(mainFrame, bg='#34495e', relief='raised', bd=3)
+		selectorFrame.pack(fill='x', pady=(0, 8))
 		
 		selectorTitle = tk.Label(
 			selectorFrame,
 			text="SELECT LINE",
-			font=('Arial', 14, 'bold'),
+			font=('Arial', 12, 'bold'),
 			bg='#34495e',
 			fg='white',
-			pady=6
+			pady=5
 		)
 		selectorTitle.pack()
 		
 		buttonFrame = tk.Frame(selectorFrame, bg='#2c3e50')
-		buttonFrame.pack(fill='x', padx=20, pady=10)
+		buttonFrame.pack(fill='x', padx=15, pady=8)
 		
-		# Line buttons
+		# Line buttons - more compact
 		greenBtn = tk.Button(
 			buttonFrame,
 			text="Green Line",
-			font=('Arial', 12, 'bold'),
+			font=('Arial', 11, 'bold'),
 			bg='#2d7a2d',
 			fg='white',
 			activebackground='#1e5a1e',
 			relief='raised',
-			bd=3,
-			padx=20,
-			pady=10,
+			bd=2,
+			padx=15,
+			pady=8,
 			command=lambda: self._switchTestLine('Green Line')
 		)
 		greenBtn.pack(side='left', expand=True, padx=5)
@@ -206,50 +206,50 @@ class TrackInformationPanel:
 		redBtn = tk.Button(
 			buttonFrame,
 			text="Red Line",
-			font=('Arial', 12, 'bold'),
+			font=('Arial', 11, 'bold'),
 			bg='#c0392b',
 			fg='white',
 			activebackground='#922b21',
 			relief='raised',
-			bd=3,
-			padx=20,
-			pady=10,
+			bd=2,
+			padx=15,
+			pady=8,
 			command=lambda: self._switchTestLine('Red Line')
 		)
 		redBtn.pack(side='left', expand=True, padx=5)
 		
-		# Test controls frame
-		testFrame = tk.Frame(mainFrame, bg='#e8f4f8', relief='raised', bd=4)
+		# Test controls frame - more compact
+		testFrame = tk.Frame(mainFrame, bg='#e8f4f8', relief='raised', bd=3)
 		testFrame.pack(fill='both', expand=True)
 		
 		self.testTitleLabel = tk.Label(
 			testFrame,
-			text="TEST MODE\nGREEN LINE",
-			font=('Arial', 14, 'bold'),
+			text="TEST MODE - GREEN LINE",
+			font=('Arial', 12, 'bold'),
 			bg='#2d7a2d',
 			fg='white',
 			relief='raised',
-			bd=3,
-			padx=30,
-			pady=10
+			bd=2,
+			padx=20,
+			pady=8
 		)
-		self.testTitleLabel.pack(pady=10)
+		self.testTitleLabel.pack(pady=8)
 		
-		controlFrame = tk.Frame(testFrame, bg='#5dade2', relief='raised', bd=4)
-		controlFrame.pack(fill='x', padx=40, pady=10)
+		controlFrame = tk.Frame(testFrame, bg='#5dade2', relief='raised', bd=3)
+		controlFrame.pack(fill='x', padx=30, pady=8)
 		
 		controlTitle = tk.Label(
 			controlFrame,
 			text="BLOCK SELECTOR",
-			font=('Arial', 14, 'bold'),
+			font=('Arial', 12, 'bold'),
 			bg='#5dade2',
 			fg='white',
-			pady=10
+			pady=8
 		)
 		controlTitle.pack()
 		
 		sliderFrame = tk.Frame(controlFrame, bg='#aed6f1')
-		sliderFrame.pack(fill='x', padx=30, pady=15)
+		sliderFrame.pack(fill='x', padx=20, pady=10)
 		
 		# Get initial block range
 		blocks = list(self.blockData['Green Line'].keys())
@@ -262,30 +262,30 @@ class TrackInformationPanel:
 			to=max_block,
 			orient='horizontal',
 			command=self._onTestBlockChange,
-			font=('Arial', 12, 'bold'),
+			font=('Arial', 10, 'bold'),
 			bg='#3498db',
 			fg='white',
 			activebackground='#2980b9',
 			troughcolor='#1e5a8e',
 			relief='raised',
-			bd=3,
-			length=350,
-			width=30,
-			sliderlength=40
+			bd=2,
+			length=300,
+			width=25,
+			sliderlength=35
 		)
 		self.blockSlider.pack()
 		self.blockSlider.set(min_block)
 		
-		infoDisplay = tk.Frame(testFrame, bg='#d6eaf8', relief='raised', bd=4)
-		infoDisplay.pack(fill='both', expand=True, padx=40, pady=(10, 20))
+		infoDisplay = tk.Frame(testFrame, bg='#d6eaf8', relief='raised', bd=3)
+		infoDisplay.pack(fill='both', expand=True, padx=30, pady=(8, 15))
 		
 		infoTitle = tk.Label(
 			infoDisplay,
 			text="CURRENT BLOCK INFORMATION",
-			font=('Arial', 16, 'bold'),
+			font=('Arial', 13, 'bold'),
 			bg='#d6eaf8',
 			fg='#1e5a8e',
-			pady=15
+			pady=10
 		)
 		infoTitle.pack()
 		
@@ -305,7 +305,7 @@ class TrackInformationPanel:
 		}
 		
 		self.testTitleLabel.config(
-			text=f"TEST MODE\n{line_name.upper()}",
+			text=f"TEST MODE - {line_name.upper()}",
 			bg=colors[line_name]
 		)
 		
@@ -322,32 +322,32 @@ class TrackInformationPanel:
 		
 	def _createInfoSection(self, parent, line_name, line_color):
 		# Creates the track information display section.
-		# Track map section
-		mapFrame = tk.Frame(parent, bg='#34495e', relief='raised', bd=4, width=650)
-		mapFrame.pack(side='left', fill='y', padx=(0, 10))
+		# Track map section - more compact
+		mapFrame = tk.Frame(parent, bg='#34495e', relief='raised', bd=3, width=550)
+		mapFrame.pack(side='left', fill='both', padx=(0, 8))
 		mapFrame.pack_propagate(False)
 		
 		mapTitle = tk.Label(
 			mapFrame,
 			text=f"TRACK MAP",
-			font=('Arial', 14, 'bold'),
+			font=('Arial', 12, 'bold'),
 			bg='#34495e',
 			fg='white',
-			pady=8
+			pady=6
 		)
 		mapTitle.pack()
 		
 		mapContainer = tk.Frame(mapFrame, bg='#2c3e50')
-		mapContainer.pack(fill='both', expand=True, padx=10, pady=10)
+		mapContainer.pack(fill='both', expand=True, padx=8, pady=8)
 		
 		# Try to load track map image using tkinter's PhotoImage
 		try:
-			track_map_path = r"C:\Users\lucas\Desktop\TRAINS-TEAM2\HW_Train_Controller\track map.png"
+			track_map_path = r"train_controller_sw/trackmap.png"
 			photo = tk.PhotoImage(file=track_map_path)
 			
-			# Zoom to 2/3 size
-			photo = photo.zoom(2, 2)
-			photo = photo.subsample(3, 3)
+			# Zoom to smaller size to fit
+			photo = photo.zoom(1, 1)
+			photo = photo.subsample(2, 2)
 			
 			mapLabel = tk.Label(mapContainer, image=photo, bg='#2c3e50')
 			mapLabel.image = photo  # Keep a reference
@@ -357,30 +357,30 @@ class TrackInformationPanel:
 			placeholderLabel = tk.Label(
 				mapContainer,
 				text="Track Map\nNot Found",
-				font=('Arial', 11),
+				font=('Arial', 10),
 				bg='#2c3e50',
 				fg='#95a5a6',
 				justify='center',
-				pady=80
+				pady=60
 			)
 			placeholderLabel.pack(fill='both', expand=True)
 		
-		# Info section
-		infoFrame = tk.Frame(parent, bg='#34495e', relief='raised', bd=4)
-		infoFrame.pack(side='right', fill='both', expand=True, padx=(10, 0))
+		# Info section - more compact
+		infoFrame = tk.Frame(parent, bg='#34495e', relief='raised', bd=3)
+		infoFrame.pack(side='right', fill='both', expand=True, padx=(8, 0))
 		
 		infoTitle = tk.Label(
 			infoFrame,
 			text=f"CURRENT TRACK INFO\n{line_name}",
-			font=('Arial', 18, 'bold'),
+			font=('Arial', 14, 'bold'),
 			bg='#34495e',
 			fg='white',
-			pady=12
+			pady=8
 		)
 		infoTitle.pack()
 		
 		infoContainer = tk.Frame(infoFrame, bg='#2c3e50')
-		infoContainer.pack(fill='both', expand=True, padx=20, pady=20)
+		infoContainer.pack(fill='both', expand=True, padx=15, pady=10)
 		
 		# Create info labels for this line
 		if line_name not in self.infoLabels:
@@ -395,7 +395,7 @@ class TrackInformationPanel:
 	def _createTestInfoLabels(self, parent):
 		# Creates info labels for test mode display.
 		infoContainer = tk.Frame(parent, bg='#d6eaf8')
-		infoContainer.pack(fill='both', expand=True, padx=30, pady=(0, 20))
+		infoContainer.pack(fill='both', expand=True, padx=20, pady=(0, 15))
 		
 		self.testInfoLabels['block'] = self._createTestLabel(infoContainer, "BLOCK:", "1")
 		self.testInfoLabels['slope'] = self._createTestLabel(infoContainer, "SLOPE:", "0.0%")
@@ -404,16 +404,47 @@ class TrackInformationPanel:
 		self.testInfoLabels['station'] = self._createTestLabel(infoContainer, "NEAREST STATION:", "Unknown")
 		
 	def _createTestLabel(self, parent, labelText, valueText):
-		# Creates a formatted test info label.
-		frame = tk.Frame(parent, bg='#5dade2', relief='raised', bd=3)
+		# Creates a formatted test info label - more compact.
+		frame = tk.Frame(parent, bg='#5dade2', relief='raised', bd=2)
+		frame.pack(fill='x', pady=4)
+		
+		title = tk.Label(
+			frame,
+			text=labelText,
+			font=('Arial', 10, 'bold'),
+			bg='#5dade2',
+			fg='white',
+			anchor='w',
+			padx=8,
+			pady=3
+		)
+		title.pack(fill='x')
+		
+		value = tk.Label(
+			frame,
+			text=valueText,
+			font=('Arial', 14, 'bold'),
+			bg='#aed6f1',
+			fg='#1e5a8e',
+			anchor='w',
+			padx=12,
+			pady=6
+		)
+		value.pack(fill='x')
+		
+		return value
+		
+	def _createInfoLabel(self, parent, labelText, valueText):
+		# Creates a formatted info label with title and value - more compact.
+		frame = tk.Frame(parent, bg='#34495e', relief='raised', bd=2)
 		frame.pack(fill='x', pady=6)
 		
 		title = tk.Label(
 			frame,
 			text=labelText,
-			font=('Arial', 12, 'bold'),
-			bg='#5dade2',
-			fg='white',
+			font=('Arial', 11, 'bold'),
+			bg='#34495e',
+			fg='#3498db',
 			anchor='w',
 			padx=10,
 			pady=5
@@ -423,43 +454,12 @@ class TrackInformationPanel:
 		value = tk.Label(
 			frame,
 			text=valueText,
-			font=('Arial', 18, 'bold'),
-			bg='#aed6f1',
-			fg='#1e5a8e',
-			anchor='w',
-			padx=15,
-			pady=10
-		)
-		value.pack(fill='x')
-		
-		return value
-		
-	def _createInfoLabel(self, parent, labelText, valueText):
-		# Creates a formatted info label with title and value.
-		frame = tk.Frame(parent, bg='#34495e', relief='raised', bd=3)
-		frame.pack(fill='x', pady=10)
-		
-		title = tk.Label(
-			frame,
-			text=labelText,
 			font=('Arial', 16, 'bold'),
-			bg='#34495e',
-			fg='#3498db',
-			anchor='w',
-			padx=15,
-			pady=8
-		)
-		title.pack(fill='x')
-		
-		value = tk.Label(
-			frame,
-			text=valueText,
-			font=('Arial', 24, 'bold'),
 			bg='#2c3e50',
 			fg='white',
 			anchor='w',
-			padx=20,
-			pady=15
+			padx=12,
+			pady=8
 		)
 		value.pack(fill='x')
 		

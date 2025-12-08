@@ -34,7 +34,7 @@ class StationAnnouncementDisplay(tk.Frame):
         
         self.line_var = tk.StringVar(value="Red Line")
         line_combo = ttk.Combobox(line_frame, textvariable=self.line_var, 
-                                 values=["Red Line", "Blue Line", "Green Line", "Emergency Announcement"], 
+                                 values=["Red Line", "Green Line", "Emergency Announcement"], 
                                  state="readonly", width=15)
         line_combo.pack(side=tk.LEFT, padx=5)
         line_combo.bind("<<ComboboxSelected>>", self.on_line_change)
@@ -56,9 +56,8 @@ class StationAnnouncementDisplay(tk.Frame):
         self.stations = {
             "Red Line": ["Shadyside", "Herron Ave", "Swissville", "Penn Station", 
                         "Steel Plaza", "First Ave", "Station Square", "South Hills Jct"],
-            "Blue Line": ["Station A", "Station B"],
             "Green Line": ["Pioneer", "Edgebrook", "Whited", "South Bank", "Central", 
-                          "Inglewood", "Overbrook", "Glenbury", "Dormont", "Mt Lebanon"]
+                          "Inglewood", "Overbrook", "Glenbury", "Dormont", "Mt Lebanon", "LLC Plaza"]
         }
         
         self.populate_stations()

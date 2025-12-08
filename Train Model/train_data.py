@@ -145,15 +145,15 @@ class Train:
 		# Updates the current block and retrieves associated speed limit and grade.
 		self.previousBlock = self.block
 		self.block = value
-		self.setSpeedLimit(self.lineData.getValue(value, 'speed_limit'))
-		self.setGrade(self.lineData.getValue(value, 'grade'))
-		stationCheck = self.lineData.getValue(value,'infrastructure') 
-		if "STATION" in stationCheck:
-			self.atStation = True
-		distanceDict = GreenLine.getDistance()
-		if distanceDict != None:
-			self.station = distanceDict['toStation']
-			self.distanceLeft = distanceDict['distance']
+		# self.setSpeedLimit(self.lineData.getValue(value, 'speedLimit'))
+		# self.setGrade(self.lineData.getValue(value, 'blockGradePercent'))
+		# stationCheck = self.lineData.getValue(value,'infrastructure') 
+		# if "STATION" in stationCheck:
+		# 	self.atStation = True
+		# distanceDict = GreenLine.getDistance()
+		# if distanceDict != None:
+		# 	self.station = distanceDict['toStation']
+		# 	self.distanceLeft = distanceDict['distance']
 			
 		
 	# Metric setters with validation
@@ -407,18 +407,18 @@ class Train:
 		self.speedPrev = self.speed
 		self.speed = newSpeed
 		self.acceleration = aNew
-		self.distanceLeft = self.distanceLeft - distance
+		# self.distanceLeft = self.distanceLeft - distance
 		
-		if newSpeed > 0.1 and self.distanceLeft != 0: #may need to fix depending on how the train stops at a station
-			timeSeconds = self.distanceLeft / newSpeed
-			timeMinutes = max(0, int(timeSeconds / 60))
-			self.setTimeToStation(timeMinutes)
-		else:
-			if self.distanceLeft <= 0:
-				self.setTimeToStation(0)
-				self.distanceLeft = 0
-			else:
-				self.setTimeToStation("Soon")
+		# if newSpeed > 0.1 and self.distanceLeft != 0: #may need to fix depending on how the train stops at a station
+		# 	timeSeconds = self.distanceLeft / newSpeed
+		# 	timeMinutes = max(0, int(timeSeconds / 60))
+		# 	self.setTimeToStation(timeMinutes)
+		# else:
+		# 	if self.distanceLeft <= 0:
+		# 		self.setTimeToStation(0)
+		# 		self.distanceLeft = 0
+		# 	else:
+		# 		self.setTimeToStation("Soon")
 
 		self._notifyObservers()
 	

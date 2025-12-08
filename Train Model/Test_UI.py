@@ -306,7 +306,7 @@ class TestUI:
         """Set custom authority value"""
         try:
             authority = int(self.custom_authority_var.get())
-            self.send_to_ui('set_authority', authority)
+            self.send_to_ui('Commanded Authority', authority)
             self.status_label.config(text=f"Set authority to {authority} ft for Train {self.selected_train_id}")
         except ValueError:
             self.status_label.config(text="Invalid authority value")

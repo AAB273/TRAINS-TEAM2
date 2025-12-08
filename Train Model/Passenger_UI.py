@@ -124,8 +124,8 @@ class TrainModelPassengerGUI:
 
 			command = message.get('command')
 			
-			if command == "Clock":
-				self.Clock = message.get('value')
+			# if command == "Clock":
+			# 	self.Clock = message.get('value')
 			value = message.get('value')
 			trainId = message.get('train_id')
 			
@@ -274,6 +274,7 @@ class TrainModelPassengerGUI:
 			elif command == 'Station Announcement Message':
 				train.setStation(value)
 			elif command == 'Commanded Authority':
+				wasActive = train.active if train else False
 				train.setAuthority(value)
 				self.server.send_to_ui("Train SW", {
 					'command': "Commanded Authority",
@@ -285,6 +286,9 @@ class TrainModelPassengerGUI:
 					'value': value,
 					'train_id': trainId if trainId else train.trainId
 				})
+				if not wasActive and train.active:
+					print(f"Train {train.trainId} activated - refreshing selector")
+					self.refreshTrainSelectorIfNeeded() 
 			elif command == 'Commanded Speed':
 				train.setCommandedSpeed(value)
 				self.server.send_to_ui("Train SW", {
@@ -342,7 +346,8 @@ class TrainModelPassengerGUI:
 					})
 				
 				# Update passenger disembarking logic for each train
-				self.updateDisembarking(train)
+				# if train.atStation:
+				# 	self.updateDisembarking(train)
 		
 		# Update UI for the currently selected train only
 		if self.currentTrain and self.currentTrain.active:
@@ -488,7 +493,6 @@ class TrainModelPassengerGUI:
 		
 		# Update passenger count
 		self.uiLabels['passengerCount'].config(text=f"Passenger Count: {train.passengerCount}")
-		self.uiLabels['disembarking'].config(text=f"Passengers Disembarking: {train.passengersDisembarking}")
 		self.uiLabels['crewCount'].config(text=f"Crew Count: {train.crewCount}")
 
 		# SIGNAL PICKUP FAILURE CHECKING
