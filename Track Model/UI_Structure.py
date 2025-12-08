@@ -5582,7 +5582,7 @@ class TrackModelUI(tk.Tk):
                                 yard_entry_block.occupancy = 0
                                 # print(f"[DEBUG] Initialized occupancy attribute for block 63")
                             
-                            # Extract train number from train_id (e.g., "Train_11000" -> 11000)
+                            # Extract train number from train_id (e.g., "Train_1" -> 1)
                             train_num = int(new_train_id.split('_')[1]) if '_' in new_train_id else 1
                             yard_entry_block.occupancy = train_num
                             # print(f" Set initial occupancy at Block 63 for {new_train_id}")
@@ -5677,7 +5677,7 @@ class TrackModelUI(tk.Tk):
                                 train_id = f"Train_{block.occupancy}"
                             else:
                                 # Default to using block number as train identifier
-                                train_id = f"Train_1"
+                                train_id = f"1"
                                 
                     # Update commanded speed and authority for the specific train (if it exists)
                     if train_id in self.data_manager.active_trains:
