@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 # Configuration
-PI_HOST = '192.168.1.179'  # ← CHANGE THIS to your Pi's IP
+PI_HOST = '10.6.3.77'  # ← CHANGE THIS to your Pi's IP
 PI_GPIO_PORT = 12348
 
 class SystemLogViewer:
@@ -35,8 +35,7 @@ class SystemLogViewer:
         self.root.geometry("1000x700")
         self.root.configure(bg='#1a1a2e')
         
-        # GPIO Client
-        self.external_gpio_client = gpio_client  # Use shared client if provided
+        # GPIO Client - Always create our own connection to ensure we get all messages
         self.gpio_client = None
         self.connected = False
         self.last_state = {}
@@ -52,14 +51,8 @@ class SystemLogViewer:
         
         self._createWidgets()
         
-        # If no external client provided, create our own connection
-        if self.external_gpio_client is None:
-            self._connectToGPIOServer()
-        else:
-            # Use the shared client's state updates
-            self.connected = True
-            self._updateConnectionStatus(True)
-            self._addLogEntry("✓ Using shared GPIO connection", 'system')
+        # Always create our own connection to GPIO server
+        self._connectToGPIOServer()
         
         # Don't set close protocol if this is a Toplevel (main UI handles it)
         if isinstance(root, tk.Tk):
@@ -198,20 +191,15 @@ class SystemLogViewer:
         
         # Add initial welcome message
         self._addLogEntry("System Log Viewer started", 'system')
-        if self.external_gpio_client is None:
-            self._addLogEntry(f"Connecting to GPIO Server at {PI_HOST}:{PI_GPIO_PORT}", 'system')
+        self._addLogEntry(f"Connecting to GPIO Server at {PI_HOST}:{PI_GPIO_PORT}", 'system')
     
     def handleStateUpdate(self, new_state):
         """
         Public method to receive state updates from external GPIO client.
         This allows the main UI to pass state updates to the log viewer.
         """
-        if not self.last_state:
-            # First state update
-            self.last_state = new_state
-            return
-        
-        self._handleStateUpdate(new_state)
+        # Just update state without logging (to avoid duplicates)
+        self.last_state = new_state
     
     def _connectToGPIOServer(self):
         """Connect to GPIO server"""
@@ -230,8 +218,10 @@ class SystemLogViewer:
                 receive_thread.start()
             
             except Exception as e:
-                self.root.after(0, lambda: self._updateConnectionStatus(False))
-                self.root.after(0, lambda: self._addLogEntry(f"✗ Connection failed: {e}", 'error'))
+                # Capture 'e' in lambda using default parameter to avoid scope issues
+                error_msg = str(e)
+                self.root.after(0, lambda msg=error_msg: self._updateConnectionStatus(False))
+                self.root.after(0, lambda msg=error_msg: self._addLogEntry(f"✗ Connection failed: {msg}", 'error'))
         
         thread = threading.Thread(target=connect_thread, daemon=True)
         thread.start()
@@ -256,7 +246,8 @@ class SystemLogViewer:
             except socket.timeout:
                 continue
             except Exception as e:
-                self.root.after(0, lambda: self._addLogEntry(f"Receive error: {e}", 'error'))
+                error_msg = str(e)
+                self.root.after(0, lambda msg=error_msg: self._addLogEntry(f"Receive error: {msg}", 'error'))
                 self.connected = False
                 break
     
@@ -271,7 +262,7 @@ class SystemLogViewer:
                 self._handleStateUpdate(state)
             
             elif msg_type == 'log_message':
-                # NEW: Handle log messages from Pi
+                # Handle log messages from Pi
                 log_message = message.get('message', '')
                 category = message.get('category', 'system')
                 
@@ -286,66 +277,22 @@ class SystemLogViewer:
         """
         Public method to receive log messages from external GPIO client.
         This allows the main UI to pass log messages to the log viewer.
+        THREAD-SAFE: Uses root.after() to update UI from any thread.
         """
-        if category in self.log_filters and self.log_filters[category].get():
-            self._addLogEntry(message, category)
+        # Check if this category is enabled and message is not empty
+        if message and category in self.log_filters and self.log_filters[category].get():
+            # Use root.after to safely update UI from any thread
+            try:
+                self.root.after(0, lambda: self._addLogEntry(message, category))
+            except Exception as e:
+                print(f"Error adding log entry: {e}")
     
     def _handleStateUpdate(self, new_state):
-        """Handle state update and log changes"""
-        if not self.last_state:
-            # First state update
-            self.last_state = new_state
-            return
+        """Handle state update - DON'T log changes here to avoid duplicates"""
+        # Just update the last state without logging changes
+        # The GPIO server already sends log messages for all state changes
+        # So we don't need to create duplicate log entries here
         
-        # Check for changes and log them
-        changes = []
-        
-        # Doors
-        if new_state.get('leftDoorOpen') != self.last_state.get('leftDoorOpen'):
-            status = "OPEN" if new_state['leftDoorOpen'] else "CLOSED"
-            changes.append(('doors', f"Left Door: {status}"))
-        
-        if new_state.get('rightDoorOpen') != self.last_state.get('rightDoorOpen'):
-            status = "OPEN" if new_state['rightDoorOpen'] else "CLOSED"
-            changes.append(('doors', f"Right Door: {status}"))
-        
-        # Lights
-        if new_state.get('headlightsOn') != self.last_state.get('headlightsOn'):
-            status = "ON" if new_state['headlightsOn'] else "OFF"
-            changes.append(('lights', f"Headlights: {status}"))
-        
-        if new_state.get('interiorLightsOn') != self.last_state.get('interiorLightsOn'):
-            status = "ON" if new_state['interiorLightsOn'] else "OFF"
-            changes.append(('lights', f"Interior Lights: {status}"))
-        
-        # Brakes
-        if new_state.get('serviceBrakeActive') != self.last_state.get('serviceBrakeActive'):
-            status = "ENGAGED" if new_state['serviceBrakeActive'] else "RELEASED"
-            changes.append(('brakes', f"Service Brake: {status}"))
-        
-        if new_state.get('emergencyBrakeEngaged') != self.last_state.get('emergencyBrakeEngaged'):
-            status = "🚨 ENGAGED 🚨" if new_state['emergencyBrakeEngaged'] else "RELEASED"
-            changes.append(('brakes', f"Emergency Brake: {status}"))
-        
-        if new_state.get('trainHornActive') != self.last_state.get('trainHornActive'):
-            status = "SOUNDING" if new_state['trainHornActive'] else "OFF"
-            changes.append(('brakes', f"Train Horn: {status}"))
-        
-        # Drivetrain & Speed
-        if new_state.get('drivetrainManualMode') != self.last_state.get('drivetrainManualMode'):
-            mode = "MANUAL" if new_state['drivetrainManualMode'] else "AUTOMATIC"
-            changes.append(('speed', f"Drivetrain Mode: {mode}"))
-        
-        if new_state.get('manualSetpointSpeed') != self.last_state.get('manualSetpointSpeed'):
-            speed = new_state['manualSetpointSpeed']
-            changes.append(('speed', f"Manual Setpoint: {speed} MPH"))
-        
-        # Log all changes
-        for category, message in changes:
-            if self.log_filters[category].get():
-                self.root.after(0, lambda m=message, c=category: self._addLogEntry(m, c))
-        
-        # Update last state
         self.last_state = new_state
     
     def _addLogEntry(self, message, category='info'):

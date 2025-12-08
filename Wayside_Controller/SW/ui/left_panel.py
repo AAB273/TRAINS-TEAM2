@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
 from ui.plc_dialog import PLCDialog  # Import from separate file
+import os
 
 class LeftPanel(tk.Frame):
     def __init__(self, parent, data):
@@ -21,7 +22,14 @@ class LeftPanel(tk.Frame):
         self.log_callback = callback
 
     def refresh_ui(self):
+        """Refresh all UI elements when data changes externally"""
         self.refresh_current_display()
+                
+        # ALSO refresh dropdowns when PLC filter changes
+        # This ensures switches/lights dropdowns show filtered items
+        self.update_crossing_options()
+        self.update_switch_options()
+        self.update_light_options()
 
     def create_widgets(self):
         # Create a frame for the main content that can scroll if needed
@@ -48,6 +56,20 @@ class LeftPanel(tk.Frame):
         
         # Initialize PLC dialog
         self.plc_dialog = PLCDialog(self)
+
+        # Initialize PLC instance
+        from ui.plc_engine import PLCProgram
+        self.plc_instance = PLCProgram(self.data, self.log_callback)
+        self.plc_running = False
+        
+        # AUTO-LOAD DEFAULT PLC FILE
+        default_path = "Wayside_Controller/SW/auto_plc_logic.py"
+        if os.path.exists(default_path):
+            self.selected_plc_file = default_path
+            self.plc_instance.plc_file = default_path
+            print(f"Auto-loaded PLC from: {default_path}")
+        else:
+            self.selected_plc_file = None
         
         # PLC Upload button
         upload_btn = tk.Button(plc_frame, text="Upload PLC Program", 
@@ -74,6 +96,13 @@ class LeftPanel(tk.Frame):
 
     def run_plc(self):
         """Start or stop the uploaded PLC program"""
+
+        #check if in maintenance mode
+        if not self.data.maintenance_mode:
+            messagebox.showwarning("Maintenance Mode Required", 
+                                "PLC operations can only be performed in Maintenance Mode.")
+            return
+    
         from ui.plc_engine import PLCProgram
         if not hasattr(self, "plc_instance"):
             self.plc_instance = PLCProgram(self.data, self.log_callback)
@@ -88,11 +117,19 @@ class LeftPanel(tk.Frame):
         self.plc_instance.plc_file = self.selected_plc_file
 
         if not self.plc_running:
+            # Starting PLC
             self.plc_instance.start()
             self.plc_status.config(text="Running", bg="#FFD700", fg="darkorange")
             self.plc_running = True
+
         else:
+            # Stopping PLC - disable filter
             self.plc_instance.stop()
+            
+            # Disable PLC filter in data model
+            if hasattr(self.data, 'plc_filter_active'):
+                self.data.disable_plc_filter()
+            
             self.plc_status.config(text="Stopped", bg="#FF9999", fg="darkred")
             self.plc_running = False
 
@@ -100,8 +137,8 @@ class LeftPanel(tk.Frame):
     # RAILWAY CROSSINGS
     # ------------------------------
     def create_crossing_section(self, parent):
-        crossing_frame = tk.LabelFrame(parent, text="Railway Crossing Detail", 
-                                      bg='#cccccc', font=('Arial', 9, 'bold'))
+        crossing_frame = tk.LabelFrame(parent, text="Railway Crossing Details", 
+                                    bg='#cccccc', font=('Arial', 9, 'bold'))
         crossing_frame.pack(fill=tk.X, pady=5, padx=5)
         
         tk.Label(crossing_frame, text="Select Crossing:", bg='#cccccc').pack(pady=2)
@@ -113,25 +150,44 @@ class LeftPanel(tk.Frame):
         self.crossing_condition = tk.Entry(crossing_frame, width=20, state='readonly')
         self.crossing_condition.pack(pady=2)
         
-        tk.Label(crossing_frame, text="Lights:", bg='#cccccc').pack()
-        self.crossing_lights = ttk.Combobox(crossing_frame, width=18, 
-                                           values=["On", "Off"])
-        self.crossing_lights.pack(pady=2)
-        
-        tk.Label(crossing_frame, text="Bar:", bg='#cccccc').pack()
-        self.crossing_bar = ttk.Combobox(crossing_frame, width=18, values=["Closed", "Open"])
-        self.crossing_bar.pack(pady=2)
+        tk.Label(crossing_frame, text="Status:", bg='#cccccc').pack()
+        self.crossing_status = tk.StringVar()
+        self.crossing_status_dropdown = ttk.Combobox(crossing_frame, 
+                                                    textvariable=self.crossing_status,
+                                                    width=18,  # REMOVE: state='readonly',
+                                                    values=["Active", "Inactive"])
+        self.crossing_status_dropdown.pack(pady=2)
 
         # Set button
         tk.Button(crossing_frame, text="Set", command=self.set_crossing, 
-                 bg='#4a7c8c', fg='white', width=10).pack(pady=5)
+                bg='#4a7c8c', fg='white', width=10).pack(pady=5)
 
         # Initialize options
         self.update_crossing_options()
 
+    def update_crossing_display(self, event=None):
+        selected = self.crossing_selector.get()
+        crossings = self.data.filtered_railway_crossings
+        if selected in crossings:
+            data = crossings[selected]
+            self.crossing_condition.config(state='normal')
+            self.crossing_condition.delete(0, tk.END)
+            self.crossing_condition.insert(0, data["condition"])
+            self.crossing_condition.config(state='readonly')
+            
+            # Determine status based on bar and lights
+            bar = data.get("bar", "Open")
+            lights = data.get("lights", "Off")
+            
+            # Set status based on current state
+            if bar == "Closed" and lights == "On":
+                self.crossing_status.set("Active")
+            else:
+                self.crossing_status.set("Inactive")
+
     def update_crossing_options(self):
         """Populate crossing dropdowns based on current line"""
-        crossings = list(self.data.filtered_railway_crossings.keys())  # Changed from filtered_track_data
+        crossings = list(self.data.filtered_railway_crossings.keys())
         self.crossing_selector['values'] = crossings
         if crossings:
             self.crossing_selector.set(crossings[0])
@@ -141,36 +197,43 @@ class LeftPanel(tk.Frame):
             self.crossing_condition.config(state='normal')
             self.crossing_condition.delete(0, tk.END)
             self.crossing_condition.config(state='readonly')
+            self.crossing_status.set(text="")
 
-    def update_crossing_display(self, event=None):
-        selected = self.crossing_selector.get()
-        crossings = self.data.filtered_railway_crossings  # Changed from filtered_track_data
-        if selected in crossings:
-            data = crossings[selected]
-            self.crossing_condition.config(state='normal')
-            self.crossing_condition.delete(0, tk.END)
-            self.crossing_condition.insert(0, data["condition"])
-            self.crossing_condition.config(state='readonly')
-            self.crossing_lights.set(data["lights"])
-            self.crossing_bar.set(data["bar"])
 
     def set_crossing(self):
-        """Set crossing lights/bar and update model"""
+        """Set crossing status - automatically syncs bar and lights"""
+        
+        # Check if in maintenance mode
+        if not self.data.maintenance_mode:
+            messagebox.showwarning("Maintenance Mode Required", 
+                                "Crossing controls can only be modified in Maintenance Mode.")
+            return
+        
         selected = self.crossing_selector.get()
         if selected:
-            new_light = self.crossing_lights.get()
-            new_bar = self.crossing_bar.get()
-            # Update model - use separate variables
-            self.data.update_track_data("railway_crossings", selected, "lights", new_light)  # Changed category
-            self.data.update_track_data("railway_crossings", selected, "bar", new_bar)  # Changed category
-            self.data.update_track_data("railway_crossings", selected, "condition", f"Lights: {new_light}, Bar: {new_bar}")  # Changed category
-            self.update_crossing_display()
-
-            # Log the action - use the direct callback - JUST LIKE YOUR TEST PANEL
+            # Get selected status
+            new_status = self.crossing_status.get()
+            
+            # Set bar and lights based on status
+            if new_status == "Active":
+                new_bar = "Closed"
+                new_lights = "On"
+            else:  # "Inactive"
+                new_bar = "Open" 
+                new_lights = "Off"
+            
+            # Update model with synchronized values
+            self.data.update_track_data("railway_crossings", selected, "lights", new_lights)
+            self.data.update_track_data("railway_crossings", selected, "bar", new_bar)
+            self.data.update_track_data("railway_crossings", selected, "condition", 
+                                    f"Lights: {new_lights}, Bar: {new_bar}")
+            
+            # Log the action
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             if self.log_callback:
-                self.log_callback(f"{current_time} UPDATE: Crossing {selected} set - Lights: {new_light}, Bar: {new_bar} on {self.data.current_line} track")
-
+                self.log_callback(f"{current_time} UPDATE: Crossing {selected} - Status: {new_status} (Bar: {new_bar}, Lights: {new_lights}) on {self.data.current_line} track")
+        
+    
     # ------------------------------
     # SWITCHES
     # ------------------------------
@@ -199,10 +262,21 @@ class LeftPanel(tk.Frame):
         self.update_switch_options()
 
     def update_switch_options(self):
-        """Populate switch dropdowns based on current line"""
-        switches = list(self.data.filtered_switch_positions.keys())  # Changed from filtered_track_data
+        """Populate switch dropdowns based on current line WITHOUT resetting selection"""
+        switches = list(self.data.filtered_switch_positions.keys())
+        
+        # Store current selection BEFORE updating
+        current_selection = self.switch_selector.get()
+        
+        # Update the dropdown values
         self.switch_selector['values'] = switches
-        if switches:
+        
+        # Restore previous selection if it still exists
+        if current_selection in switches:
+            self.switch_selector.set(current_selection)
+            self.update_switch_display()
+        elif switches:
+            # Only set to first if no previous selection
             self.switch_selector.set(switches[0])
             self.update_switch_display()
         else:
@@ -213,34 +287,96 @@ class LeftPanel(tk.Frame):
 
     def update_switch_display(self, event=None):
         selected = self.switch_selector.get()
-        switches = self.data.filtered_switch_positions  # Changed from filtered_track_data
+        switches = self.data.filtered_switch_positions
         if selected in switches:
             data = switches[selected]
+            
+            # Get current direction
+            current_raw_dir = data.get("direction", "")
+            
+            # Update condition display
             self.switch_condition.config(state='normal')
             self.switch_condition.delete(0, tk.END)
             self.switch_condition.insert(0, data["condition"])
             self.switch_condition.config(state='readonly')
 
-            # Use only the true options from the model
-            options = data.get("options", [])
-            self.switch_direction['values'] = options
-            current_dir = data.get("direction", options[0] if options else "")
-            self.switch_direction.set(current_dir)
+            # Get raw options (block numbers)
+            raw_options = data.get("options", [])
+            
+            # Create display options with section information
+            display_options = []
+            self.current_switch_mapping = {}
+            
+            for option in raw_options:
+                display_name = self.convert_to_section_display(option)
+                display_options.append(display_name)
+                self.current_switch_mapping[display_name] = option
+            
+            # Update UI with section-based display
+            self.switch_direction['values'] = display_options
+            
+            # Set current selection
+            current_display_dir = self.convert_to_section_display(current_raw_dir)
+            self.switch_direction.set(current_display_dir)
+
+    def convert_to_section_display(self, raw_direction):
+        """Convert raw block direction to section-based display name"""
+        if '-' in raw_direction:
+            parts = raw_direction.split('-')
+            if parts[0].isdigit() and parts[1].isdigit():
+                # Both are block numbers (e.g., "12-13")
+                from_block, to_block = parts
+                from_section = self.data.get_section_for_block(self.data.current_line, int(from_block))
+                to_section = self.data.get_section_for_block(self.data.current_line, int(to_block))
+                return f"Section {from_section} → Section {to_section}"
+            elif parts[0].isdigit():
+                # From block to yard (e.g., "57-yard")
+                from_block = parts[0]
+                from_section = self.data.get_section_for_block(self.data.current_line, int(from_block))
+                return f"Section {from_section} → Yard"
+            else:
+                # From yard to block (e.g., "yard-63")
+                to_block = parts[1]
+                to_section = self.data.get_section_for_block(self.data.current_line, int(to_block))
+                return f"Yard → Section {to_section}"
+        else:
+            # Handle "TO YARD", "FROM YARD" etc.
+            return raw_direction.replace("_", " ").title()
 
     def set_switch(self):
-        """Set switch direction and update model"""
+        """Set switch direction and update model - log raw block numbers"""
+        if not self.data.maintenance_mode:
+            messagebox.showwarning("Maintenance Mode Required", 
+                                "Switch controls can only be modified in Maintenance Mode.")
+            return
+            
         selected = self.switch_selector.get()
         if selected:
-            new_direction = self.switch_direction.get()
-            self.data.update_track_data("switch_positions", selected, "direction", new_direction)  # Changed category
-            self.data.update_track_data("switch_positions", selected, "condition", f"Set to {new_direction}")  # Changed category
+            display_direction = self.switch_direction.get()
+            raw_direction = self.current_switch_mapping.get(display_direction, display_direction)
+            
+            # Update model
+            self.data.update_track_data("switch_positions", selected, "direction", raw_direction)
+            self.data.update_track_data("switch_positions", selected, "condition", f"Set to {display_direction}")
             self.update_switch_display()
 
-            # Log the action - use the direct callback - JUST LIKE YOUR TEST PANEL
+            # Get original switch name for logging
+            if hasattr(self, 'selector_mapping') and selected in self.selector_mapping:
+                original_switch = self.selector_mapping[selected]
+            else:
+                original_switch = selected
+            
+            # Send to track model
+            block = original_switch.split(" ")[1] if " " in original_switch else original_switch
+            if hasattr(self.data, 'app') and self.data.app:
+                self.data.app.send_switch_to_track_model(self.data.current_line, block, raw_direction)
+            
+            # SIMPLE TERMINAL OUTPUT - just the raw values
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             if self.log_callback:
-                self.log_callback(f"{current_time} UPDATE: Switch {selected} set to {new_direction} on {self.data.current_line} track")
-
+                self.log_callback(f"{current_time} UPDATE: Switch {original_switch} set to {raw_direction}")
+            
+            print(f"Switch {original_switch} set to {raw_direction}")
     # ------------------------------
     # LIGHTS
     # ------------------------------
@@ -295,6 +431,12 @@ class LeftPanel(tk.Frame):
 
     def set_light(self):
         """Set light signal and update model"""
+        # Check if in maintenance mode
+        if not self.data.maintenance_mode:
+            messagebox.showwarning("Maintenance Mode Required", 
+                                "Light controls can only be modified in Maintenance Mode.")
+            return
+        
         selected = self.light_selector.get()
         if selected:
             new_signal = self.light_signal.get()

@@ -1,46 +1,47 @@
-import tkinter as tk
 from threading import Timer
 from time import strftime
+from datetime import datetime, timedelta
 
 
 class Clock:
     def __init__(self):
-        self._fastTime = strftime("%H:%M:%S")
-        self._incTimer = Timer(0.1, self._incTime)
+        self._fastTime = datetime.now()
+        self._incTimer = Timer(1, self._incTime)
+        self._speed = 1
         self._incTimer.start()
-
         
-    def _incTime(self):
-        self._incTimer = Timer(0.1, self._incTime)
+    def _incTime(self, sec = 1):
+    #defaulted to 1x speed
+        self._speed = sec
+        self._incTimer = Timer(sec, self._incTime, args = [self._speed])
         self._incTimer.start()
+        
+        self._fastTime += timedelta(seconds = 1)
 
-        hours = int(self._fastTime[:2])
-        mins = int(self._fastTime[3:5])
-        secs = int(self._fastTime[6:])
+    def normalSpeed(self):
+        if (self._incTimer.is_alive()):
+            self._incTimer.cancel()
+        self._incTime()
 
-        secs += 1
-        #increment fast time by 1 second every 100 ms
-
-        if (secs == 60):
-            secs = 0
-            mins += 1
-
-            if (mins == 60):
-                mins = 0
-                hours += 1
-
-                if (hours == 24):
-                    hours = 0
-
-        self._fastTime = f"{hours:02d}:{mins:02d}:{secs:02d}"
+    def tenTimesSpeed(self):
+        if (self._incTimer.is_alive()):
+            self._incTimer.cancel()
+        self._incTime(0.1)
     
 
     def getTime(self):
-        return self._fastTime[:5]
+        return self._fastTime.strftime("%H:%M:%S")
+    
+    
+    def getTimeObj(self):
+        return self._fastTime
     
 
     def endTimer(self):
         self._incTimer.cancel()
+
+    def getSpeed(self):
+        return self._speed
     
 
 clock = Clock()

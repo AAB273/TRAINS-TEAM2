@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 """
 Launch script for Train Control System
-Starts both Train Control Hardware UI and Train Model UI simultaneously
+Starts both Train Control Hardware UI and Test Train Model simultaneously
 
-RUN THIS FROM: /home/lucas-chen-pi/Documents/TRAINS-TEAM2/
+RUN THIS FROM: C:/Users/lucas/Desktop/TRAINS-TEAM2/
 """
 
 import subprocess
 import time
 import sys
 import os
+import threading
+import signal
 
 def main():
     print("=" * 60)
     print("TRAIN CONTROL SYSTEM LAUNCHER")
+    print("=" * 60)
+    print("Starting: Train Controller HW + Test Train Model")
     print("=" * 60)
     
     processes = []
@@ -22,44 +26,88 @@ def main():
         # Start Train Control Hardware UI
         print("\n[1/2] Starting Train Control Hardware UI...")
         train_control = subprocess.Popen(
-            ['python3', 'HW_Train_Controller/TC_HW_MainUI.py'],
+            [sys.executable, 'HW_Train_Controller/TC_HW_MainUI.py'],
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+            universal_newlines=True
         )
         processes.append(('Train Control HW', train_control))
         print("     ✓ Train Control UI started (PID: {})".format(train_control.pid))
         
         # Wait for first UI to initialize
-        time.sleep(3)
+        time.sleep(5)
         
-        # Start Train Model UI
-        # UPDATE THIS PATH to match your Train Model location
-        print("\n[2/2] Starting Train Model UI...")
+        # Start Test Train Model
+        print("\n[2/2] Starting Test Train Model...")
         train_model = subprocess.Popen(
-            ['python3', 'TrainModel/TrainModel_UI.py'],  # ← UPDATE THIS PATH
+            [sys.executable, 'HW_Train_Controller/Test_Train_Model.py'],
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+            universal_newlines=True
         )
-        processes.append(('Train Model', train_model))
-        print("     ✓ Train Model UI started (PID: {})".format(train_model.pid))
+        processes.append(('Test Train Model', train_model))
+        print("     ✓ Test Train Model started (PID: {})".format(train_model.pid))
         
         # Wait for socket connections to establish
-        time.sleep(2)
+        time.sleep(5)
         
         print("\n" + "=" * 60)
         print("ALL SYSTEMS RUNNING")
         print("=" * 60)
-        print("\nPress Ctrl+C to shut down all systems\n")
+        print("Applications Started:")
+        print("  • Train Control Hardware UI")
+        print("  • Test Train Model (Simulator)")
+        print("\nExpected Connections:")
+        print("  • Train Controller HW ↔ Test Train Model (Sockets)")
+        print("  • Windows UI ↔ Raspberry Pi GPIO Server")
+        print("\nPress Ctrl+C to shut down all systems")
+        print("=" * 60)
+        
+        # Monitor process output in real-time
+        def monitor_output(process, name):
+            while True:
+                try:
+                    output = process.stdout.readline()
+                    if output:
+                        print(f"[{name}] {output.strip()}")
+                    # Also check stderr
+                    err_output = process.stderr.readline()
+                    if err_output:
+                        print(f"[{name}-ERROR] {err_output.strip()}")
+                except:
+                    break
+                time.sleep(0.1)
+        
+        # Start output monitoring for each process
+        for name, process in processes:
+            monitor_thread = threading.Thread(
+                target=monitor_output, 
+                args=(process, name),
+                daemon=True
+            )
+            monitor_thread.start()
         
         # Keep the script running and monitor processes
         while True:
-            time.sleep(1)
+            time.sleep(2)
             
-            # Check if any process has died
+            all_running = True
             for name, process in processes:
-                if process.poll() is not None:
-                    print(f"\n⚠ WARNING: {name} has stopped (exit code: {process.returncode})")
-                    raise KeyboardInterrupt
+                return_code = process.poll()
+                if return_code is not None:
+                    print(f"\n⚠ {name} has exited (code: {return_code})")
+                    all_running = False
+            
+            if not all_running:
+                print("\nOne or more applications have exited. Shutting down...")
+                break
+                
+            # Print status every 30 seconds
+            print("[Launcher] All systems running normally...")
     
     except KeyboardInterrupt:
         print("\n\n" + "=" * 60)
@@ -97,20 +145,29 @@ def main():
 
 if __name__ == "__main__":
     # Verify we're in the correct directory
-    if not os.path.exists('HW_Train_Controller/TC_HW_MainUI.py'):
-        print("❌ ERROR: HW_Train_Controller/TC_HW_MainUI.py not found!")
-        print("\n   This script must be run from: /home/lucas-chen-pi/Documents/TRAINS-TEAM2/")
-        print("   Current directory:", os.getcwd())
+    current_dir = os.getcwd()
+    print(f"Current directory: {current_dir}")
+    
+    required_files = [
+        'HW_Train_Controller/TC_HW_MainUI.py',
+        'HW_Train_Controller/Test_Train_Model.py', 
+        'TrainSocketServer.py'
+    ]
+    
+    missing_files = []
+    for file_path in required_files:
+        if not os.path.exists(file_path):
+            missing_files.append(file_path)
+    
+    if missing_files:
+        print("❌ ERROR: Missing required files!")
+        for missing in missing_files:
+            print(f"   - {missing}")
+        print(f"\n   This script must be run from: C:/Users/lucas/Desktop/TRAINS-TEAM2/")
         print("\n   To fix, run:")
-        print("   cd /home/lucas-chen-pi/Documents/TRAINS-TEAM2/")
-        print("   python3 launch_both.py")
+        print("   cd C:/Users/lucas/Desktop/TRAINS-TEAM2")
+        print("   python launch_both.py")
         sys.exit(1)
     
-    if not os.path.exists('TrainSocketServer.py'):
-        print("⚠ WARNING: TrainSocketServer.py not found in current directory!")
-        print("   Expected: /home/lucas-chen-pi/Documents/TRAINS-TEAM2/TrainSocketServer.py")
-        response = input("   Continue anyway? (y/n): ")
-        if response.lower() != 'y':
-            sys.exit(1)
-    
+    print("✓ All required files found")
     main()
