@@ -124,8 +124,8 @@ class TrainModelPassengerGUI:
 
 			command = message.get('command')
 			
-			if command == "Clock":
-				self.Clock = message.get('value')
+			# if command == "Clock":
+			# 	self.Clock = message.get('value')
 			value = message.get('value')
 			trainId = message.get('train_id')
 			
