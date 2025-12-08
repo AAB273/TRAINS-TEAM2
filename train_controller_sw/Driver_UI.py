@@ -72,7 +72,7 @@ class Main_Window:
         train_model_config = module_config.get("Train SW", {"port": 12346})
         self.server = TrainSocketServer(port=train_model_config["port"], ui_id="Train SW")
         
-        self.server.set_allowed_connections(["Train Model", "Track Model"])
+        self.server.set_allowed_connections(["Train Model", "Track Model", "Train HW"])
         self.server.start_server(self._process_message)
         self.server.connect_to_ui('localhost', 12345, "Train Model")
         self.server.connect_to_ui('localhost', 12344, "Track Model")
@@ -423,7 +423,7 @@ class Main_Window:
         self.last_power_sent = None  # Track last power to avoid duplicates
 
         #create engineer UI
-        self.engineer_ui = EngineerUI(self, callback=self.on_pid_change)
+        self.engineer_ui = EngineerUI(self, callback=self._onPIDParametersApplied)
         
         self.update_displays()
         # Test Panel
@@ -494,6 +494,17 @@ class Main_Window:
                 self.handle_failure_mode("Train Engine Failure", is_failed)
                 self.engine_failure.set_state(is_failed)
             
+            elif command == 'PID Parameters':
+                kp = message.get('kp', 10.0)
+                ki = message.get('ki', 2.0)
+                print(f"[RECEIVED] PID Parameters from TC_HW: Kp={kp:.1f}, Ki={ki:.1f}")
+                if hasattr(self, 'engineer_ui'):
+                    self.engineer_ui.receive_pid_parameters(kp, ki)
+                    print(f"[APPLIED] PID Parameters sent to Engineer UI")
+                else:
+                    print(f"[WARNING] Engineer UI not initialized yet")
+                return
+            
             # ========== ADDITIONAL COMMANDS ==========
             elif command == "Beacon Data":
                 self.add_to_status_log(f"Beacon: {value}")
@@ -521,6 +532,14 @@ class Main_Window:
         self.integral_error = 0.0  # Reset integral when parameters change
         self.add_to_status_log(f"PI params: Kp={kp:.1f}, Ki={ki:.2f}")
         print(f"PI parameters updated - Kp: {kp}, Ki: {ki}")
+
+    def _onPIDParametersApplied(self, kp, ki):
+        """Callback when PID parameters are applied in Engineer UI"""
+        # Update the local PID controller
+        self.kp = kp
+        self.ki = ki
+        self.add_to_status_log(f"✓ PID Updated: Kp={kp:.1f}, Ki={ki:.1f}")
+        print(f"[DRIVER UI] PID parameters updated: Kp={kp:.1f}, Ki={ki:.1f}")
 
     def on_pid_change(self, kp, ki):
         """Callback when PID parameters change"""

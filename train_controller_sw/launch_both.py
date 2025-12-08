@@ -5,7 +5,7 @@ import os
 
 def launch_both_guis():
     # Replace these with your exact filepaths
-    PASSENGER_UI_PATH = "Train Model/Passenger_UI.py"  # Use raw string or forward slashes
+    PASSENGER_UI_PATH = "HW_Train_Controller/TC_HW_MainUI.py"  # Use raw string or forward slashes
     TEST_UI_PATH = "train_controller_sw/Driver_UI.py"
     
     # Verify files exist

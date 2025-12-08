@@ -929,7 +929,7 @@ class TrainSpeedDisplayUI:
         
         # Start our server that listens for Train Model
         self.server = TrainSocketServer(port=train_controller_hw_config["port"], ui_id="Train HW")
-        self.server.set_allowed_connections(["Train Model"])
+        self.server.set_allowed_connections(["Train Model", "Train SW"])
         self.server.start_server(self._process_message)
         print(f"✓ Train Controller HW server started on port {train_controller_hw_config['port']}")
         
