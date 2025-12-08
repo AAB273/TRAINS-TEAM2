@@ -5064,7 +5064,7 @@ class TrackModelUI(tk.Tk):
             self.server.send_to_ui("Train Model", {
                 "command": 'Commanded Speed',
                 "value": speed,
-                "train_id": train_name,
+                "train_id": train_name
             })
 
             self.server.send_to_ui("Train Model", {
