@@ -204,6 +204,11 @@ class TrainModelPassengerGUI:
 					self.refreshTrainSelectorIfNeeded()  
 			elif command == 'set_commanded_speed':
 				train.setCommandedSpeed(value)
+				self.server.send_to_ui("Train HW", {
+					'command': "Commanded Speed",
+					'value': value,
+					'train_id': trainId if trainId else train.trainId
+				})
 			elif command == 'set_station':
 				train.setStation(value)
 			elif command == 'set_time_to_station':
@@ -659,7 +664,7 @@ class TrainModelPassengerGUI:
 		announcementFrame = tk.Frame(topContainer, bg=self.offColor, width=600, height=65, highlightbackground="black", highlightthickness=3)
 		announcementFrame.pack(side='left', padx=2, pady=2)
 		announcementFrame.pack_propagate(False)
-		self.uiLabels['announcement'] = tk.Label(announcementFrame, text="", bg=self.offColor, fg='white', font=('Arial', 16, 'bold'))
+		self.uiLabels['announcement'] = tk.Label(announcementFrame, text="Awaiting Deployment", bg=self.offColor, fg='white', font=('Arial', 16, 'bold'))
 		self.uiLabels['announcement'].pack(padx=3, pady=3)
 
 		# Main frames
@@ -681,12 +686,12 @@ class TrainModelPassengerGUI:
 
 		for adPath in adImages:
 			adImage = Image.open(adPath)
-			convertedAdImage = adImage.resize((400, 215))
+			convertedAdImage = adImage.resize((400, 260))
 			convertedAdImage = ImageTk.PhotoImage(convertedAdImage)
 			self.convertedAdImages.append(convertedAdImage)
 
 		self.currentAdImage = self.convertedAdImages[0]
-		advertisement = tk.Frame(rightFrame, height=215, highlightbackground="black", highlightthickness=2, bg=self.offColor)
+		advertisement = tk.Frame(rightFrame, height=260, highlightbackground="black", highlightthickness=2, bg=self.offColor)
 		advertisement.pack(side='top', padx=2, pady=2, fill='x')
 		advertisement.pack_propagate(False)
 		self.adLabel = tk.Label(advertisement, image=self.currentAdImage)
@@ -774,16 +779,6 @@ class TrainModelPassengerGUI:
 									   command=lambda: self.failureServiceBrakeVarChanged(),
 									   style="Medium.TCheckbutton")
 		brakeSwitch.pack(pady=6, padx=3, fill='x', expand=True)
-
-		# Passenger Disembarking CHANGE THIS TO A HELP BUTTON WITH A POP-UP THAT GIVES A DESCRIPTION OF THE UI.
-		passDisembarkingFrame = tk.Frame(rightFrame, highlightbackground="black", highlightthickness=2, bg=self.offColor, height=50)
-		passDisembarkingFrame.pack(side='top', padx=1, pady=1, fill='both')
-
-		disembarkingContent = tk.Frame(passDisembarkingFrame, bg=self.offColor)
-		disembarkingContent.pack(expand=True, fill='both', padx=3, pady=3)
-
-		self.uiLabels['disembarking'] = tk.Label(disembarkingContent, text="Passengers Disembarking: 0", bg=self.offColor, fg='white', font=('Arial', 10, 'bold'))
-		self.uiLabels['disembarking'].pack(side='left', fill='both', expand=True)
 
 		style = ttk.Style()
 		style.theme_use('clam')

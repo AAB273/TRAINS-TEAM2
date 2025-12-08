@@ -10,7 +10,6 @@ class Clock:
         self._incTimer = Timer(1, self._incTime)
         self._speed = 1
         self._incTimer.start()
-        print(f"[DEBUG] Clock.__init__() called at {datetime.now()}")
         
     def _incTime(self, sec = 1):
     #defaulted to 1x speed
