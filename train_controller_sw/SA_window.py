@@ -8,7 +8,7 @@ class StationAnnouncementWindow(tk.Toplevel):
     def __init__(self, parent, callback=None):
         super().__init__(parent)
         self.title("Station Announcement Display - Expanded View")
-        self.geometry("600x500")
+        self.geometry("600x800")
         self.callback = callback
         
         self.withdraw()
