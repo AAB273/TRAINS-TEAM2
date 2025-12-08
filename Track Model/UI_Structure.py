@@ -5062,11 +5062,15 @@ class TrackModelUI(tk.Tk):
         # Send creation notification to other modules
         try:
             self.server.send_to_ui("Train Model", {
-                "command": "new_train",
+                "command": 'Commanded Speed',
+                "value": speed,
                 "train_id": train_name,
-                "block_number": 63,
-                "commanded_speed": speed,
-                "commanded_authority": authority
+            })
+
+            self.server.send_to_ui("Train Model", {
+                "command": 'Commanded Authority',
+                "value": authority,
+                "train_id": train_name
             })
             
             self.server.send_to_ui("CTC", {
