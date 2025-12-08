@@ -548,7 +548,7 @@ class UITestData:
 
             # print(f"SUCCESS: Read {len(lines)} lines from {filename}")
             start_line = 0
-            if len(lines) > 0 and ("Line,Block" in lines[0] or "Line, Section, Block" in lines[0]):
+            if len(lines) > 0 and ("Line,Block" in lines[0] or "Line, Block, Section" in lines[0]):
                 print(f"Skipping header: {lines[0].strip()}")
                 start_line = 1  # Skip header line
 
@@ -1656,6 +1656,9 @@ class LeftPanel(tk.Frame):
         self.crossing_bar = ttk.Combobox(crossing_frame, width=18, values=["Closed", "Open"], state='readonly')
         self.crossing_bar.pack()
 
+        # sendCrossing = tk.Button(crossing_frame, text="Send", width=5, command=self.update_crossing_lights)
+        # sendCrossing.pack(side=tk.BOTTOM)
+
     def update_crossing_options(self):
         """Update combobox options based on current line"""
         crossings = list(self.data.filtered_track_data.get("crossings", {}).keys())
@@ -1684,6 +1687,9 @@ class LeftPanel(tk.Frame):
                                             # state='readonly') # this makes the dropdown BLANK - FIX THIS
         self.switch_direction.pack()
         self.switch_direction.bind('<<ComboboxSelected>>', self.update_switch_direction)
+
+        # sendSwitch = tk.Button(switch_frame, text="Send", width=5, command=self.update_switch_direction)
+        # sendSwitch.pack(side=tk.BOTTOM)
 
         # Initialize with current line data
         self.update_switch_options()
@@ -1729,6 +1735,8 @@ class LeftPanel(tk.Frame):
         self.light_signal.pack()
         self.light_signal.bind('<<ComboboxSelected>>', self.update_light_signal)
 
+        # sendLights = tk.Button(light_frame, text="Send", width=5, command=self.update_light_signal)
+        # sendLights.pack(side=tk.BOTTOM)
         # Initialize with current line data
         self.update_light_options()
    
@@ -2026,12 +2034,12 @@ class RightPanel(tk.Frame):
                                                bg='#cccccc', font=('Arial', 10, 'bold'))
         current_block_frame.pack(fill=tk.X, pady=5)
         
-        # Occupied status display
-        tk.Label(current_block_frame, text="Occupancy:", bg='#cccccc',
-                width=8).grid(row=1, column=2, padx=2, pady=2, sticky='w')
-        self.occupied_label = tk.Label(current_block_frame, text="", bg='white',
-                                      width=8, relief=tk.SUNKEN)
-        self.occupied_label.grid(row=1, column=1, padx=2, pady=2, sticky='w')
+        # # Occupied status display
+        # tk.Label(current_block_frame, text="Occupancy:", bg='#cccccc',
+        #         width=8).grid(row=1, column=2, padx=2, pady=2, sticky='w')
+        # self.occupied_label = tk.Label(current_block_frame, text="", bg='white',
+        #                               width=8, relief=tk.SUNKEN)
+        # self.occupied_label.grid(row=1, column=1, padx=2, pady=2, sticky='w')
 
         # Line
         tk.Label(current_block_frame, text="Line:", bg='#cccccc', width=10).grid(row=0, column=2, padx=2, pady=2, sticky='w')
@@ -2045,10 +2053,10 @@ class RightPanel(tk.Frame):
                                        width=8, relief=tk.SUNKEN)
         self.block_num_label.grid(row=0, column=1, padx=3, pady=2, sticky='w')
         
-        # Section
-        tk.Label(current_block_frame, text="Section:", bg='#cccccc', width=10).grid(row=1, column=0, padx=2, pady=2, sticky='w')
-        self.section_label = tk.Label(current_block_frame, text="N/A", bg='white', width=8, relief=tk.SUNKEN)
-        self.section_label.grid(row=1, column=1, padx=4, pady=2, sticky='w')
+        # # Section
+        # tk.Label(current_block_frame, text="Section:", bg='#cccccc', width=10).grid(row=1, column=0, padx=2, pady=2, sticky='w')
+        # self.section_label = tk.Label(current_block_frame, text="N/A", bg='white', width=8, relief=tk.SUNKEN)
+        # self.section_label.grid(row=1, column=1, padx=4, pady=2, sticky='w')
 
     def update_current_block_info(self):
         """Update current block display from data"""
@@ -2066,9 +2074,9 @@ class RightPanel(tk.Frame):
                     # Update labels (only 4 columns now)
                     self.block_num_label.config(text=row[2])
                     
-                    # Line with color
-                    line_color = '#66cc66' if row[1] == "Green" else '#ff6666'
-                    self.line_label.config(text=row[1], bg=line_color)
+                    # # Line with color
+                    # line_color = '#66cc66' if row[1] == "Green" else '#ff6666'
+                    # self.line_label.config(text=row[1], bg=line_color)
                 
                 # Section (now in column 3 instead of 4)
                     self.section_label.config(text=row[3] if len(row) > 3 else "")
@@ -2376,7 +2384,7 @@ class RightPanel(tk.Frame):
         headers_frame.pack(fill=tk.X)
         
         # Define column widths for 4 columns (slightly wider since we removed one column)
-        col_widths = {'occupied': 10, 'line': 8, 'block': 8, 'section': 10}
+        col_widths = {'occupied': 8, 'line': 6, 'block': 6, 'section': 10}
         
         # Occupied header
         tk.Label(headers_frame, text="Occupied", bg='#cccccc',

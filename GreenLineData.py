@@ -148,7 +148,182 @@ class GreenLine:
             {"blockNumber": 145, "section": "X", "blockLengthM": 50, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
             {"blockNumber": 146, "section": "X", "blockLengthM": 164, "blockGradePercent": 0, "speedLimit": 20, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0, "cumulativeElevationM": 10.8},
         ]
-
+        self.preloadedDistances = {
+                    'segments': [
+                        {
+                            'fromStation': 'GLENBURY',
+                            'toStation': 'DORMONT',
+                            'distance': 1000.0 + 50.0,  # meters + half of block 73 (100m block)
+                            'fromBlock': 65,
+                            'toBlock': 73,
+                            'stationBlockHalfLength': 50.0
+                        },
+                        {
+                            'fromStation': 'DORMONT',
+                            'toStation': 'MT LEBANON',
+                            'distance': 400.0 + 150.0,  # meters + half of block 77 (300m block)
+                            'fromBlock': 73,
+                            'toBlock': 77,
+                            'stationBlockHalfLength': 150.0
+                        },
+                        {
+                            'fromStation': 'MT LEBANON',
+                            'toStation': 'POPLAR',
+                            'distance': 2886.6 + 50.0,  # meters + half of block 88 (100m block)
+                            'fromBlock': 77,
+                            'toBlock': 88,
+                            'stationBlockHalfLength': 50.0
+                        },
+                        {
+                            'fromStation': 'POPLAR',
+                            'toStation': 'CASTLE SHANNON',
+                            'distance': 625.0 + 37.5,  # meters + half of block 96 (75m block)
+                            'fromBlock': 88,
+                            'toBlock': 96,
+                            'stationBlockHalfLength': 37.5
+                        },
+                        {
+                            'fromStation': 'CASTLE SHANNON',
+                            'toStation': 'DORMONT',
+                            'distance': 690.0 + 50.0,  # meters + half of block 105 (100m block)
+                            'fromBlock': 96,
+                            'toBlock': 105,
+                            'stationBlockHalfLength': 50.0
+                        },
+                        {
+                            'fromStation': 'DORMONT',
+                            'toStation': 'GLENBURY',
+                            'distance': 890.0 + 81.0,  # meters + half of block 114 (162m block)
+                            'fromBlock': 105,
+                            'toBlock': 114,
+                            'stationBlockHalfLength': 81.0
+                        },
+                        {
+                            'fromStation': 'GLENBURY',
+                            'toStation': 'OVERBROOK',
+                            'distance': 652.0 + 25.0,  # meters + half of block 123 (50m block)
+                            'fromBlock': 114,
+                            'toBlock': 123,
+                            'stationBlockHalfLength': 25.0
+                        },
+                        {
+                            'fromStation': 'OVERBROOK',
+                            'toStation': 'INGLEWOOD',
+                            'distance': 450.0 + 25.0,  # meters + half of block 132 (50m block)
+                            'fromBlock': 123,
+                            'toBlock': 132,
+                            'stationBlockHalfLength': 25.0
+                        },
+                        {
+                            'fromStation': 'INGLEWOOD',
+                            'toStation': 'CENTRAL',
+                            'distance': 450.0 + 25.0,  # meters + half of block 141 (50m block)
+                            'fromBlock': 132,
+                            'toBlock': 141,
+                            'stationBlockHalfLength': 25.0
+                        },
+                        {
+                            'fromStation': 'CENTRAL',
+                            'toStation': 'WHITED',
+                            'distance': 1609.0 + 150.0,  # meters + half of block 22 (300m block)
+                            'fromBlock': 141,
+                            'toBlock': 22,
+                            'stationBlockHalfLength': 150.0
+                        },
+                        {
+                            'fromStation': 'WHITED',
+                            'toStation': 'LLC PLAZA',
+                            'distance': 1200.0 + 75.0,  # meters + half of block 16 (150m block)
+                            'fromBlock': 22,
+                            'toBlock': 16,
+                            'stationBlockHalfLength': 75.0
+                        },
+                        {
+                            'fromStation': 'LLC PLAZA',
+                            'toStation': 'EDGEBROOK',
+                            'distance': 900.0 + 50.0,  # meters + half of block 9 (100m block)
+                            'fromBlock': 16,
+                            'toBlock': 9,
+                            'stationBlockHalfLength': 50.0
+                        },
+                        {
+                            'fromStation': 'EDGEBROOK',
+                            'toStation': 'PIONEER',
+                            'distance': 700.0 + 50.0,  # meters + half of block 2 (100m block)
+                            'fromBlock': 9,
+                            'toBlock': 2,
+                            'stationBlockHalfLength': 50.0
+                        },
+                        {
+                            'fromStation': 'PIONEER',
+                            'toStation': 'LLC PLAZA',
+                            'distance': 650.0 + 75.0,  # meters + half of block 16 (150m block)
+                            'fromBlock': 2,
+                            'toBlock': 16,
+                            'stationBlockHalfLength': 75.0
+                        },
+                        {
+                            'fromStation': 'LLC PLAZA',
+                            'toStation': 'WHITED',
+                            'distance': 1050.0 + 150.0,  # meters + half of block 22 (300m block)
+                            'fromBlock': 16,
+                            'toBlock': 22,
+                            'stationBlockHalfLength': 150.0
+                        },
+                        {
+                            'fromStation': 'WHITED',
+                            'toStation': 'SOUTH BANK',
+                            'distance': 1400.0 + 25.0,  # meters + half of block 31 (50m block)
+                            'fromBlock': 22,
+                            'toBlock': 31,
+                            'stationBlockHalfLength': 25.0
+                        },
+                        {
+                            'fromStation': 'SOUTH BANK',
+                            'toStation': 'CENTRAL',
+                            'distance': 400.0 + 25.0,  # meters + half of block 39 (50m block)
+                            'fromBlock': 31,
+                            'toBlock': 39,
+                            'stationBlockHalfLength': 25.0
+                        },
+                        {
+                            'fromStation': 'CENTRAL',
+                            'toStation': 'INGLEWOOD',
+                            'distance': 450.0 + 25.0,  # meters + half of block 48 (50m block)
+                            'fromBlock': 39,
+                            'toBlock': 48,
+                            'stationBlockHalfLength': 25.0
+                        },
+                        {
+                            'fromStation': 'INGLEWOOD',
+                            'toStation': 'OVERBROOK',
+                            'distance': 450.0 + 25.0,  # meters + half of block 57 (50m block)
+                            'fromBlock': 48,
+                            'toBlock': 57,
+                            'stationBlockHalfLength': 25.0
+                        },
+                        {
+                            'fromStation': 'OVERBROOK',
+                            'toStation': 'GLENBURY',
+                            'distance': 500.0 + 100.0,  # meters + half of block 65 (200m block)
+                            'fromBlock': 57,
+                            'toBlock': 65,
+                            'stationBlockHalfLength': 100.0
+                        }
+                    ]
+                }
+    
+    def getDistance(self, blockNumber):
+        """
+        Get a distance to next station from a specific block
+        
+        :param blockNumber: The block Number (1-146)
+        """
+        for distances in self.preloadedDistances['segments']:
+            if distances['fromBlock'] == blockNumber:
+                return distances
+        return None
+    
     def getValue(self, blockNumber, key):
         """
         Get a value from a specific block.
