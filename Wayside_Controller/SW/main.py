@@ -65,7 +65,7 @@ class RailwayControlSystem:
             print(f"Main UI received from {source_ui_id}: {message}")
             
             command = message.get('command')
-            data = message.get('value', {})
+            data = message.get('value')
             
             # Check if message is from CTC and it's a switch command
             if source_ui_id == "CTC":
@@ -73,6 +73,8 @@ class RailwayControlSystem:
                     self.handle_ctc_switch(data)
                 elif command == "MAINT":  # Maintenance request from CTC
                     self.handle_ctc_maintenance(data)
+                elif command == 'update_speed_auth':
+                    self.handle_speed_auth_update(data)
                 return  # Stop processing here
             
             if command == 'update_switch':
@@ -392,7 +394,8 @@ class RailwayControlSystem:
         speed = data.get('speed')
         authority = data.get('authority')
         value_type = data.get('value_type')  # 'commanded' or 'suggested'
-        
+        print(f"Processing {value_type} update: {track} Block {block} -> Speed:{speed}, Auth:{authority}")
+
         if track and block and value_type:
             print(f"Processing {value_type} update: {track} Block {block} -> Speed:{speed}, Auth:{authority}")
             
