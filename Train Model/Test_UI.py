@@ -288,7 +288,7 @@ class TestUI:
         """Send commanded speed value"""
         try:
             speed = float(self.commanded_speed_var.get())
-            self.send_to_ui('set_commanded_speed', speed)
+            self.send_to_ui('Commanded Speed', speed)
             self.status_label.config(text=f"Set commanded speed to {speed} MPH for Train {self.selected_train_id}")
         except ValueError:
             self.status_label.config(text="Invalid speed value")
