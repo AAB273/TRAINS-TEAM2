@@ -10,7 +10,7 @@ import pandas as pd
 #necessary to import the clock from the parent directory#
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-import clock
+from clock import clock
 from TrainSocketServer import TrainSocketServer
 
 class ScheduleScreen:
@@ -200,7 +200,7 @@ class ScheduleScreen:
     def updateTime(self):
     #continuously recall itself every second to update the time variable
 
-        time = clock.clock.getTime()
+        time = clock.getTime()
         self.clockText.configure(text = time)
         self.clockTimer = self.root.after(100, self.updateTime)
 
@@ -300,6 +300,7 @@ class ScheduleScreen:
             values = self.calculateAuthority(self.trainRoutes[self.trainNum - 1], destination[0])
             auth = values[0] - 1
             speed = float(values[1]) / arrTime
+            print(speed)
 
             #self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(self.trainNum - 1), f"{speed:.3f}", str(auth), line]})
             self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": line.title(), "block": location, "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
@@ -378,7 +379,7 @@ class ScheduleScreen:
                                         #iterate for each child of every parent in the Treeview
                                             dest = self.meArea.item(item, "text")
                                             if (dest == "Train " + str(key)):
-                                                newTime = clock.clock.getTimeObj() + timedelta(minutes = 10)
+                                                newTime = clock.getTimeObj() + timedelta(minutes = 10)
                                                 arrTime = self.timeToSeconds(newTime.strftime("%H:%M"))
                                                 values = self.calculateAuthority(self.trainRoutes[key], "end")
                                                 auth = values[0] - 1
@@ -400,7 +401,7 @@ class ScheduleScreen:
                                         #iterate for each child of every parent in the Treeview
                                             dest = self.meArea.item(item, "text")
                                             if (dest == "Train " + str(key)):
-                                                newTime = clock.clock.getTimeObj() + timedelta(minutes = 10)
+                                                newTime = clock.getTimeObj() + timedelta(minutes = 10)
                                                 arrTime = self.timeToSeconds(newTime.strftime("%H:%M"))
                                                 values = self.calculateAuthority(self.trainRoutes[key], self.trainRoutes[key][3])
                                                 auth = values[0] - 1
@@ -513,7 +514,7 @@ class ScheduleScreen:
                                         #iterate for each child of every parent in the Treeview
                                             dest = self.meArea.item(item, "text")
                                             if (dest == "Train " + str(key)):
-                                                newTime = clock.clock.getTimeObj() + timedelta(minutes = 10)
+                                                newTime = clock.getTimeObj() + timedelta(minutes = 10)
                                                 arrTime = self.timeToSeconds(newTime.strftime("%H:%M"))
                                                 values = self.calculateAuthority(self.trainRoutes[key], "end")
                                                 auth = values[0] - 1
@@ -535,7 +536,7 @@ class ScheduleScreen:
                                         #iterate for each child of every parent in the Treeview
                                             dest = self.meArea.item(item, "text")
                                             if (dest == "Train " + str(key)):
-                                                newTime = clock.clock.getTimeObj() + timedelta(minutes = 10)
+                                                newTime = clock.getTimeObj() + timedelta(minutes = 10)
                                                 arrTime = self.timeToSeconds(newTime.strftime("%H:%M"))
                                                 values = self.calculateAuthority(self.trainRoutes[key], self.trainRoutes[key][3])
                                                 auth = values[0] - 1
@@ -832,7 +833,7 @@ class ScheduleScreen:
 ###############################################################################################################################################################
 
     def scheduleBacklog(self, data):
-        if (clock.clock.getTime() == data[3]):
+        if (clock.getTime() == data[3]):
             self.sendDeployData("63", data[0][0], data[1], data[2])
             self.updateManualEdit("63", data[0], data[1], data[2])
         else:
@@ -843,7 +844,7 @@ class ScheduleScreen:
     def timeToSeconds(self, arrTimeStr):
     #convert a given time into seconds
 
-        currTimeStr = clock.clock.getTime()
+        currTimeStr = clock.getTime()[:5]
 
         arrTime = 0
         found = False

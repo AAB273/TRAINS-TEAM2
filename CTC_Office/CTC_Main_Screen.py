@@ -18,7 +18,7 @@ import CTC_Schedule_Screen
 #necessary to import the clock from the parent directory#
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-import clock
+from clock import clock
 from TrainSocketServer import TrainSocketServer
 
 
@@ -59,6 +59,7 @@ class MainScreen:
         self.numberOfTrains = 1
 
         self.clockSpeed = 1
+        self.clock = clock
 
         self.mmList = {12: [1, 13], 28: [29, 150], 76: [77, 101], 85: [86, 100], 0: [57, 63]}
         self.trainList = {}
@@ -68,14 +69,12 @@ class MainScreen:
         module_config = load_socket_config()
         ctc_config = module_config.get("CTC", {"port": 1})
         self.server = TrainSocketServer(port = ctc_config["port"], ui_id = "CTC")
-        self.server.set_allowed_connections(["Track SW", "Track HW", "Track Model", "CTC_Test_UI"])  #add "CTC_Test_UI when using test ui"
+        self.server.set_allowed_connections(["Track SW", "Track HW", "Track Model", "Train Model"])  #add "CTC_Test_UI when using test ui"
         self.server.start_server(self._processMessage)
         self.server.connect_to_ui('localhost', 12342, "Track SW")
         self.server.connect_to_ui('localhost', 12343, "Track HW")
         self.server.connect_to_ui('localhost', 12344, "Track Model")
-
-        #for test ui
-        self.server.connect_to_ui('localhost', 12349, "CTC_Test_UI")
+        self.server.connect_to_ui('localhost', 12345, "CTC_Test_UI")
 
         self.createTopRow()
         #print the logo, reference map button, time
@@ -319,7 +318,7 @@ class MainScreen:
         clockFrame.pack(side = "right", anchor = "ne")
         self.clockDec = ttk.Button(clockFrame, text = "<", style = "clock.TButton", command = lambda: self.controlClockSpeed("dec"))
         self.clockDec.pack(side = "left", anchor = "ne")
-        self.clockText = ttk.Label(clockFrame, text = clock.clock.getTime(), font = ("Arial", 20, "bold"), background = "white")
+        self.clockText = ttk.Label(clockFrame, text = clock.getTime(), font = ("Arial", 20, "bold"), background = "white")
         self.clockText.pack(side = "left", anchor = "ne")
         self.clockInc = ttk.Button(clockFrame, text = ">", style = "clock.TButton", command = lambda: self.controlClockSpeed("inc"))
         self.clockInc.pack(side = "left", anchor = "ne")
@@ -506,7 +505,8 @@ class MainScreen:
     def updateTime(self):
     #continuously recall itself every second to update the time variable 
         
-        time = clock.clock.getTime()
+        time = clock.getTime()
+        #self.send_to_ui("Train Model", self.clock)
         self.clockText.configure(text = time)
         self.clockTimer = self.root.after(100, self.updateTime)
 
@@ -514,10 +514,10 @@ class MainScreen:
     
     def controlClockSpeed(self, change):
         if (change == "inc" and self.clockSpeed == 1):
-            clock.clock.tenTimesSpeed()
+            clock.tenTimesSpeed()
             self.clockSpeed = 10
         elif (change == "dec" and self.clockSpeed == 10):
-            clock.clock.normalSpeed()
+            clock.normalSpeed()
             self.clockSpeed = 1
     
 ###############################################################################################################################################################

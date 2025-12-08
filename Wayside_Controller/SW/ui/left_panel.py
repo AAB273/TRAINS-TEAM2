@@ -294,12 +294,6 @@ class LeftPanel(tk.Frame):
             # Get current direction
             current_raw_dir = data.get("direction", "")
             
-            # AUTO-GENERATE condition if it's empty or old
-            if not data.get("condition") or "Auto:" not in data.get("condition", ""):
-                # Generate new condition based on current direction
-                new_condition = f"Auto: {current_raw_dir}"
-                data["condition"] = new_condition
-            
             # Update condition display
             self.switch_condition.config(state='normal')
             self.switch_condition.delete(0, tk.END)
