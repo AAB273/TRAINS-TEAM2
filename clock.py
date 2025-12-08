@@ -1,5 +1,4 @@
 from threading import Timer
-import time
 from time import strftime
 from datetime import datetime, timedelta
 
