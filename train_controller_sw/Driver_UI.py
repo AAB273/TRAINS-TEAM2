@@ -179,7 +179,7 @@ class Main_Window:
                 font=("Arial", 12, "bold"), bg="lightblue", wraplength=150).grid(row=0, column=0, 
                                                                                 pady=10, padx=5, sticky="ew")
 
-        self.current_temp = tk.Label(self.ac_frame, text="70°F", font=("Arial", 28, "bold"), 
+        self.current_temp = tk.Label(self.ac_frame, text="72°F", font=("Arial", 28, "bold"), 
                                     bg="grey", fg="white")
         self.current_temp.grid(row=1, column=0, pady=10)
 
@@ -407,7 +407,7 @@ class Main_Window:
         self.current_speed_ms = 0  # Store original m/s value for calculations
         self.commanded_speed_ms = 20  # Store commanded speed in m/s for calculations
         self.set_speed = 45
-        self.set_temp = 68
+        self.set_temp = 70
         self.is_auto_mode = True
         self.service_brake_active = False
         self.emergency_brake_active = False
@@ -427,7 +427,7 @@ class Main_Window:
         
         self.update_displays()
         # Test Panel
-        self.test_panel = TestPanel(self.root, self)
+        #self.test_panel = TestPanel(self.root, self)
 
         #safety critical design:
         #self.safety_monitor = SafetyMonitor(self)
