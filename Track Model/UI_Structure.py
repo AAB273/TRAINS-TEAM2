@@ -5336,7 +5336,7 @@ class TrackModelUI(tk.Tk):
                 self.server.send_to_ui("Train Model", {
                     'command': 'Commanded Speed',
                     'value': speed,
-                    'train_id': train_id
+                    'train_id': int(train_id)
                 })
         # print(f" Sent commanded speed to Train Model")
 
@@ -5348,7 +5348,7 @@ class TrackModelUI(tk.Tk):
                 self.server.send_to_ui("Train Model", {
                     'command': 'Commanded Authority',
                     'value': authority,
-                    'train_id': train_id
+                    'train_id': int(train_id)
                 })
         # print(f" Sent commanded authority to Train Model")
 

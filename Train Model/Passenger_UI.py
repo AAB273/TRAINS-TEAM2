@@ -274,6 +274,7 @@ class TrainModelPassengerGUI:
 			elif command == 'Station Announcement Message':
 				train.setStation(value)
 			elif command == 'Commanded Authority':
+				wasActive = train.active if train else False
 				train.setAuthority(value)
 				self.server.send_to_ui("Train SW", {
 					'command': "Commanded Authority",
@@ -285,6 +286,9 @@ class TrainModelPassengerGUI:
 					'value': value,
 					'train_id': trainId if trainId else train.trainId
 				})
+				if not wasActive and train.active:
+					print(f"Train {train.trainId} activated - refreshing selector")
+					self.refreshTrainSelectorIfNeeded() 
 			elif command == 'Commanded Speed':
 				train.setCommandedSpeed(value)
 				self.server.send_to_ui("Train SW", {
