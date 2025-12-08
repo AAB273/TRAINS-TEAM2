@@ -5018,7 +5018,7 @@ class TrackModelUI(tk.Tk):
         """Create a new train specifically from the Yard/Block 63, starting at block 63."""
         # Initialize starting ID if not set yet
         if not hasattr(self.data_manager, "next_train_id"):
-            self.data_manager.next_train_id = 11000
+            self.data_manager.next_train_id = 1
 
         # Assign new train ID
         train_id = self.data_manager.next_train_id
