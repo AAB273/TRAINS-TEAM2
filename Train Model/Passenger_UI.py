@@ -19,7 +19,7 @@ import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
 #from clock import clock
-#import pygame
+import pygame
 import random
 
 class TrainModelPassengerGUI:
@@ -310,13 +310,11 @@ class TrainModelPassengerGUI:
 			elif command == 'Beacon1' or command == 'Beacon2':
 				self.server.send_to_ui("Train SW", {
 					'command': command,
-					'value': value,
-					'train_id': trainId if trainId else train.trainId
+					'value': value
 				})
 				self.server.send_to_ui("Train HW", {
 					'command': command,
-					'value': value,
-					'train_id': trainId if trainId else train.trainId
+					'value': value
 				})
 			elif command == 'TIME':
 				self.uiLabels['time'].config(text=value)
