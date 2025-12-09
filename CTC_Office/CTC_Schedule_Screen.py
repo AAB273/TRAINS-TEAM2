@@ -559,7 +559,7 @@ class ScheduleScreen:
             if (not updated):
             #case for if this is not the next block for any train
                 self.mainScreen.updateMainScreen("TS", [location, line])
-                return
+                return "error"
             
             if (not (train == 0)):
                 del self.trainRoutes[train]

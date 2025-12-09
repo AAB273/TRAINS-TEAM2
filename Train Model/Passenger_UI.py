@@ -273,8 +273,6 @@ class TrainModelPassengerGUI:
 				train.setPowerCommand(value)
 			elif command == 'Train Horn':
 				pygame.mixer.Sound('Train Model/diesel-horn-02-98042.mp3').play()
-			elif command == 'Station Announcement Message':
-				train.setStation(value)
 			elif command == 'Commanded Authority':
 				wasActive = train.active if train else False
 				train.setAuthority(value)
