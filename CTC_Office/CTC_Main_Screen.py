@@ -15,35 +15,12 @@ from PIL import Image, ImageTk
 from time import strftime
 import CTC_Schedule_Screen
 
-
 #necessary to import the clock from the parent directory#
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-from clock import Clock
-from multiprocessing import Value, Lock
-import ctypes
+from clock import clock
 from TrainSocketServer import TrainSocketServer
 
-class ClockController:
-    """The ONLY module that should create and modify the clock"""
-    
-    def __init__(self):
-        self.shared_timestamp = Value(ctypes.c_double, datetime.now().timestamp())
-        self.lock = Lock()
-        self.clock = Clock(shared_time=self.shared_timestamp, lock=self.lock)
-    
-    def set_normal_speed(self):
-        self.clock.normalSpeed()
-    
-    def set_ten_times_speed(self):
-        self.clock.tenTimesSpeed()
-    
-    def stop(self):
-        self.clock.endTimer()
-    
-    def get_shared_timestamp(self):
-        """Return the shared memory objects for other processes"""
-        return self.shared_timestamp, self.lock
 
 class MainScreen:
 #"System Information" ui screen appearance and data
@@ -253,7 +230,6 @@ class MainScreen:
                 #if value is not already in the treeview, add a new parent/child set
                     level = self.lsArea.insert('', "end", text = line.title())
                     self.lsArea.insert(level, "end", text = "Block " + location + ", " + line, values = [state])
-            return state
 
         elif (code == "RC"):
             #railway crossing data case
@@ -298,8 +274,6 @@ class MainScreen:
                 #if value is not already in the treeview, add a new parent/child set
                     level = self.rcArea.insert('', "end", text = line.title())
                     self.rcArea.insert(level, "end", text = "Block " + location, values = [state])
-
-            return state
         
 ###############################################################################################################################################################
 
@@ -542,13 +516,9 @@ class MainScreen:
         if (change == "inc" and self.clockSpeed == 1):
             clock.tenTimesSpeed()
             self.clockSpeed = 10
-            self.send_to_ui("Track SW", {"command": "TIME", "value": self.clockSpeed})
-            return self.clockSpeed
         elif (change == "dec" and self.clockSpeed == 10):
             clock.normalSpeed()
             self.clockSpeed = 1
-            self.send_to_ui("Track SW", {"command": "TIME", "value": self.clockSpeed})
-            return self.clockSpeed
     
 ###############################################################################################################################################################
     
