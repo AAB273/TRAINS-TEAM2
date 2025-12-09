@@ -814,6 +814,12 @@ class TrackModelTestUI(tk.Toplevel):
                     else:
                         val = int(val)
                     setattr(block, attr, val)
+                    
+                    # Notify main UI if switch_state changed on a beacon block
+                    if attr == "switch_state" and block.block_number in [27, 38]:
+                        if hasattr(self.master, 'notify_switch_change_from_test_ui'):
+                            self.master.notify_switch_change_from_test_ui(block.block_number)
+                            print(f"🔔 Notified main UI of switch change on block {block.block_number}")
 
             # Signal
             if "signal" in entries:

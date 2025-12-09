@@ -51,6 +51,7 @@ class TrackModelUI(tk.Tk):
 
         self.switch_blocks = set()
         self.switch_states = {}  # Dictionary to track switch states {block_num: direction}
+        self.previous_beacon_states = {27: None, 38: None}  # Track previous beacon states to detect changes
         
         # Switch routing configuration for train path determination
         # GREEN LINE SWITCHES
@@ -3372,12 +3373,24 @@ class TrackModelUI(tk.Tk):
                         # Only send beacons if on Red Line
                         current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
                         if "Red" in current_line or "red" in current_line:
-                            # Get switch state for this beacon block
-                            switch_state = self.switch_states.get(block_num, 'normal')
-                            beacon_value = (switch_state == 'reverse')
-                            
                             # Determine which beacon command to send
-                            beacon_command = 'beacon1' if block_num == 27 else 'beacon2'
+                            beacon_command = 'Beacon1' if block_num == 27 else 'Beacon2'
+                            
+                            # Get the block object
+                            block_obj = self.data_manager.blocks[block_num - 1]
+                            
+                            # Check switch state with priority: switch_state > switch_direction > switch_states dict
+                            switch_state_bool = getattr(block_obj, 'switch_state', None)
+                            switch_direction = getattr(block_obj, 'switch_direction', None)
+                            
+                            beacon_value = False  # Default to normal
+                            if switch_state_bool is not None and isinstance(switch_state_bool, bool):
+                                beacon_value = switch_state_bool
+                            elif switch_direction is not None:
+                                beacon_value = (switch_direction == 'reverse')
+                            else:
+                                switch_state_str = self.switch_states.get(block_num, 'normal')
+                                beacon_value = (switch_state_str == 'reverse')
                             
                             # Send beacon data to Train Model
                             beacon_message = {
@@ -3385,7 +3398,7 @@ class TrackModelUI(tk.Tk):
                                 'value': beacon_value
                             }
                             self.server.send_to_ui("Train Model", beacon_message)
-                            # print(f" {beacon_command.upper()} ACTIVATED at Block {block_num}: {beacon_value}")
+                            print(f"🚨 {beacon_command.upper()} sent (train entered block {block_num}): {beacon_value}")
                             
                             # Send to Train SW for train controller
                             self.server.send_to_ui("Train SW", beacon_message)
@@ -5204,7 +5217,7 @@ class TrackModelUI(tk.Tk):
         self.send_block_occupancy_to_train_model()
         self.send_commanded_speed_to_train_model()
         self.send_commanded_authority_to_train_model()
-        self.send_beacons_to_train_model()
+        # NOTE: Beacons are now sent only on change (switch change or train entry), not periodically
         # NOTE: send_passengers_boarding_to_train_model is called ONLY when train authority 
         # reaches 0 at a station (via handle_train_arrival_at_station), not on every refresh
         self.send_light_states_to_train_controller()
@@ -5369,6 +5382,87 @@ class TrackModelUI(tk.Tk):
                 })
         # print(f" Sent commanded authority to Train Model")
 
+    def notify_switch_change_from_test_ui(self, block_num):
+        """
+        Called by Test UI when a switch state is manually changed.
+        Checks if beacon should be sent for blocks 27 or 38.
+        
+        Args:
+            block_num (int): Block number that was changed
+        """
+        if block_num in [27, 38]:
+            self.send_beacon_for_switch_change(block_num)
+    
+    def send_beacon_for_switch_change(self, block_num):
+        """
+        Send beacon when switch state changes for blocks 27 or 38.
+        Only sends if the switch state is different from the previous state.
+        
+        Args:
+            block_num (int): Block number (27 or 38)
+        """
+        # Only process beacon blocks on Red Line
+        if block_num not in [27, 38]:
+            return
+        
+        current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
+        if "Green" in current_line:
+            return
+        
+        # Get the block object
+        if block_num > len(self.data_manager.blocks):
+            return
+        block_obj = self.data_manager.blocks[block_num - 1]
+        
+        # Check if block is occupied (beacon only matters if train is present)
+        if not block_obj.occupancy:
+            return
+        
+        # Determine current beacon value with priority: switch_state > switch_direction > switch_states dict
+        switch_state_bool = getattr(block_obj, 'switch_state', None)
+        switch_direction = getattr(block_obj, 'switch_direction', None)
+        
+        current_beacon_value = False  # Default to normal
+        if switch_state_bool is not None and isinstance(switch_state_bool, bool):
+            current_beacon_value = switch_state_bool
+        elif switch_direction is not None:
+            current_beacon_value = (switch_direction == 'reverse')
+        else:
+            switch_state_str = self.switch_states.get(block_num, 'normal')
+            current_beacon_value = (switch_state_str == 'reverse')
+        
+        # Check if state changed
+        if not hasattr(self, 'previous_beacon_states'):
+            self.previous_beacon_states = {27: None, 38: None}
+        
+        previous_value = self.previous_beacon_states.get(block_num)
+        
+        # Send beacon if state changed or if it's the first time
+        if previous_value != current_beacon_value:
+            beacon_command = 'Beacon1' if block_num == 27 else 'Beacon2'
+            
+            # Send beacon data to Train Model
+            beacon_message = {
+                'command': beacon_command,
+                'value': current_beacon_value
+            }
+            self.server.send_to_ui("Train Model", beacon_message)
+            print(f"🔄 {beacon_command.upper()} sent (switch changed on block {block_num}): {current_beacon_value}")
+            
+            # Send to Train SW for train controller
+            self.server.send_to_ui("Train SW", beacon_message)
+            
+            # Report to CTC
+            self.server.send_to_ui("CTC", {
+                "command": "beacon_activated",
+                "block": block_num,
+                "beacon": beacon_command,
+                "beacon_value": current_beacon_value
+            })
+            
+            # Update previous state
+            self.previous_beacon_states[block_num] = current_beacon_value
+
     def send_beacons_to_train_model(self):
         """
         Send beacon data to Train Model.
@@ -5385,27 +5479,53 @@ class TrackModelUI(tk.Tk):
         if len(self.data_manager.blocks) >= 27:
             block_27 = self.data_manager.blocks[26]  # 0-indexed
             if block_27.occupancy:
-                # Get switch state: True if reverse, False if normal
-                switch_state = self.switch_states.get(27, 'normal')
-                beacon1_value = (switch_state == 'reverse')
+                # Check both switch_state (boolean from Test UI) and switch_direction (string from Wayside)
+                # Priority: switch_state > switch_direction > switch_states dictionary
+                switch_state_bool = getattr(block_27, 'switch_state', None)
+                switch_direction = getattr(block_27, 'switch_direction', None)
+                
+                # Determine if switch is in reverse
+                beacon1_value = False  # Default to normal
+                if switch_state_bool is not None and isinstance(switch_state_bool, bool):
+                    beacon1_value = switch_state_bool  # True = reverse, False = normal
+                elif switch_direction is not None:
+                    beacon1_value = (switch_direction == 'reverse')
+                else:
+                    # Fallback to switch_states dictionary
+                    switch_state_str = self.switch_states.get(27, 'normal')
+                    beacon1_value = (switch_state_str == 'reverse')
+                
                 self.server.send_to_ui("Train Model", {
                     'command': 'Beacon1',
                     'value': beacon1_value
                 })
-                # print(f"Sent beacon1 to Train Model: {beacon1_value}")
+                # print(f"Sent Beacon1 to Train Model: {beacon1_value}")
         
         # Beacon2: Block 38 - switch state  
         if len(self.data_manager.blocks) >= 38:
             block_38 = self.data_manager.blocks[37]  # 0-indexed
             if block_38.occupancy:
-                # Get switch state: True if reverse, False if normal
-                switch_state = self.switch_states.get(38, 'normal')
-                beacon2_value = (switch_state == 'reverse')
+                # Check both switch_state (boolean from Test UI) and switch_direction (string from Wayside)
+                # Priority: switch_state > switch_direction > switch_states dictionary
+                switch_state_bool = getattr(block_38, 'switch_state', None)
+                switch_direction = getattr(block_38, 'switch_direction', None)
+                
+                # Determine if switch is in reverse
+                beacon2_value = False  # Default to normal
+                if switch_state_bool is not None and isinstance(switch_state_bool, bool):
+                    beacon2_value = switch_state_bool  # True = reverse, False = normal
+                elif switch_direction is not None:
+                    beacon2_value = (switch_direction == 'reverse')
+                else:
+                    # Fallback to switch_states dictionary
+                    switch_state_str = self.switch_states.get(38, 'normal')
+                    beacon2_value = (switch_state_str == 'reverse')
+                
                 self.server.send_to_ui("Train Model", {
                     'command': 'Beacon2',
                     'value': beacon2_value
                 })
-                # print(f"Sent beacon2 to Train Model: {beacon2_value}")
+                # print(f"Sent Beacon2 to Train Model: {beacon2_value}")
 
     def send_passengers_boarding_to_train_model(self):
         """
@@ -6147,6 +6267,10 @@ class TrackModelUI(tk.Tk):
                                     if block_num in [27, 32, 38, 43]:
                                         self.log_to_terminal(f"[SWITCH UPDATE]   Stored in switch_states[{block_num}] = '{direction}'")
                                     
+                                    # Send beacon if this is a beacon block (27 or 38) and occupied
+                                    if block_num in [27, 38]:
+                                        self.send_beacon_for_switch_change(block_num)
+                                    
                                     # print(f"   Updated switch at block {block_num}: {direction} (from {source_ui_id})")
                                     
                                     # Mark block as having a switch
@@ -6195,6 +6319,10 @@ class TrackModelUI(tk.Tk):
                         # DEBUG: Confirm storage
                         if block in [27, 32, 38, 43]:
                             self.log_to_terminal(f"[SWITCH UPDATE SINGLE]   Stored in switch_states[{block}] = '{direction}'")
+                        
+                        # Send beacon if this is a beacon block (27 or 38) and occupied
+                        if block in [27, 38]:
+                            self.send_beacon_for_switch_change(block)
                         
                         # Mark block as having a switch
                         self.switch_blocks.add(block)
