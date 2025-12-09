@@ -151,7 +151,7 @@ class Train:
 		stationCheck = self.lineData.getValue(value,'infrastructure') 
 		if "STATION" in stationCheck:
 			self.atStation = True
-		distanceDict = GreenLine.getDistance()
+		distanceDict = GreenLine.getDistance(value)
 		if distanceDict != None:
 			self.station = distanceDict['toStation']
 			self.distanceLeft = distanceDict['distance']
@@ -228,7 +228,7 @@ class Train:
 			if not self.authorityReceived:
 				self.authorityReceived = True
 				self.active = True
-				print(f"Train {self.trainId} received first authority - AUTO ACTIVATING")
+				#print(f"Train {self.trainId} received first authority - AUTO ACTIVATING")
 				self.serviceBrakeActive = False
 			
 			# Notify observers
@@ -281,9 +281,9 @@ class Train:
 		except ValueError:
 			pass
 
-	def setStation(self, stationName: str):
+	def setAnnouncement(self, announcement: str):
 		# Sets the current station name.
-		self.station = str(stationName)
+		self.announcement = str(announcement)
 		self._notifyObservers()
 		
 	def setTimeToStation(self, minutes: int):
