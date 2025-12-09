@@ -155,7 +155,7 @@ class Train:
 			self.distanceLeft = distanceDict['distance']
 			print(self.distanceLeft)
 		# Line check
-		if value == 9 and not stationCheck:
+		if value == 9 and not ("STATION" in stationCheck):
 			self.setLine('red')
 			
 		
