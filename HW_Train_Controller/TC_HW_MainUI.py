@@ -58,7 +58,8 @@ drivetrainManualMode = False
 speedUpPressed = False
 speedDownPressed = False
 speedConfirmPressed = False
-commandedSpeed = 0
+commandedSpeed = 0  # Internal commanded speed (authority-adjusted)
+displayCommandedSpeed = 0  # Raw commanded speed for display (not authority-adjusted)
 commandedAuthority = 0
 currentSpeed = 0
 manualSetpointSpeed = 0
@@ -603,8 +604,8 @@ def getCurrentSpeed():
     return currentSpeed * MS_TO_MPH
 
 def getCommandedSpeed():
-    """Get commanded speed in MPH (already in MPH from Track Model)"""
-    return commandedSpeed  # Already in MPH, no conversion needed
+    """Return the display commanded speed (raw from track, not authority-adjusted)"""
+    return displayCommandedSpeed 
 
 def getCommandedAuthority():
     return commandedAuthority
@@ -624,6 +625,15 @@ def getDistanceToNextStation():
 
 def getNextStationName():
     """Get the name of the next station"""
+    # Check if we're on RED LINE at a switch point with beacon active
+    if selectedLine == 'RED':
+        # Check for alternative route at block 27 (beacon1)
+        if currentBlock == 27 and beacon1:
+            return "ALTERNATIVE ROUTE (Blocks 76-72)"
+        # Check for alternative route at block 38 (beacon2)
+        elif currentBlock == 38 and beacon2:
+            return "ALTERNATIVE ROUTE (Blocks 71-67)"
+    
     if currentSegmentIndex < len(preloadedTrackInformation['segments']):
         return preloadedTrackInformation['segments'][currentSegmentIndex]['to_station']
     # Return appropriate looping station based on selected line
@@ -817,10 +827,36 @@ def updatePositionTracking():
                         sd.gpio_client.setHeadlights(True)
                         sd.gpio_client.setInteriorLights(True)
                         print(f"💡 Headlights & cabin lights turned ON for tunnel safety")
+                        
+                        # Send to Train Model
+                        if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                            sd.server.send_to_ui("Train Model", {
+                                'command': 'Headlights',
+                                'value': True,
+                                'train_id': 1
+                            })
+                            sd.server.send_to_ui("Train Model", {
+                                'command': 'Cabin Lights',
+                                'value': True,
+                                'train_id': 1
+                            })
                     else:
                         sd.gpio_client.setHeadlights(False)
                         sd.gpio_client.setInteriorLights(False)
                         print(f"💡 Headlights & cabin lights turned OFF")
+                        
+                        # Send to Train Model
+                        if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                            sd.server.send_to_ui("Train Model", {
+                                'command': 'Headlights',
+                                'value': False,
+                                'train_id': 1
+                            })
+                            sd.server.send_to_ui("Train Model", {
+                                'command': 'Cabin Lights',
+                                'value': False,
+                                'train_id': 1
+                            })
                 else:
                     print(f"[LIGHT DEBUG] GPIO client not ready!")
         except Exception as e:
@@ -881,6 +917,19 @@ def updatePositionTracking():
                         sd.gpio_client.setLED('left_door', False)
                         sd.gpio_client.setLED('right_door', False)
                         print(f"🚪 Doors closing")
+                        
+                        # Send door commands to Train Model
+                        if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                            sd.server.send_to_ui("Train Model", {
+                                'command': 'Left Door Signal',
+                                'value': False,
+                                'train_id': 1
+                            })
+                            sd.server.send_to_ui("Train Model", {
+                                'command': 'Right Door Signal',
+                                'value': False,
+                                'train_id': 1
+                            })
                 
                 # Move to next segment
                 departure_msg = f"Departing {preloadedTrackInformation['segments'][currentSegmentIndex]['to_station']}"
@@ -922,7 +971,7 @@ def updatePositionTracking():
                             announcement_text = f"Travelling to {next_station}."
                             sd.server.send_to_ui("Train Model", {
                                 'command': 'Announcement',
-                                'text': announcement_text,
+                                'value': announcement_text,
                                 'train_id': 1
                             })
                             print(f"📢 Announcement: {announcement_text}")
@@ -936,7 +985,7 @@ def updatePositionTracking():
                         announcement_text = f"Travelling to {next_station}."
                         sd.server.send_to_ui("Train Model", {
                             'command': 'Announcement',
-                            'text': announcement_text,
+                            'value': announcement_text,
                             'train_id': 1
                         })
                         print(f"📢 Announcement: {announcement_text}")
@@ -983,7 +1032,7 @@ def updatePositionTracking():
                 announcement_text = f"Arrived at {currentStation}."
                 sd.server.send_to_ui("Train Model", {
                     'command': 'Announcement',
-                    'text': announcement_text,
+                    'value': announcement_text,
                     'train_id': 1
                 })
                 print(f"📢 Announcement: {announcement_text}")
@@ -1031,11 +1080,27 @@ def updatePositionTracking():
                     result = sd.gpio_client.setLED('left_door', True)
                     print(f"[DOOR DEBUG] Left door command sent, result: {result}")
                     print(f"🚪 Left door opening")
+                    
+                    # Send to Train Model
+                    if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                        sd.server.send_to_ui("Train Model", {
+                            'command': 'Left Door Signal',
+                            'value': True,
+                            'train_id': 1
+                        })
                 
                 if door_side == 'right' or door_side == 'both':
                     result = sd.gpio_client.setLED('right_door', True)
                     print(f"[DOOR DEBUG] Right door command sent, result: {result}")
                     print(f"🚪 Right door opening")
+                    
+                    # Send to Train Model
+                    if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                        sd.server.send_to_ui("Train Model", {
+                            'command': 'Right Door Signal',
+                            'value': True,
+                            'train_id': 1
+                        })
             else:
                 print(f"[DOOR DEBUG] GPIO client not ready!")
         
@@ -1082,48 +1147,21 @@ def calculatePowerCommand():
     if drivetrainManualMode:
         # In manual mode, use manual setpoint speed (in MPH, convert to m/s)
         commandedSpeedMPH = manualSetpointSpeed
+        
+        # MANUAL MODE SPEED LIMIT ENFORCEMENT
+        # Unless authority is 4, manual speed cannot exceed the track speed limit
+        if commandedAuthority != 4:
+            # displayCommandedSpeed is the raw track speed limit (authority-unadjusted)
+            # Limit manual setpoint to not exceed track speed limit
+            if commandedSpeedMPH > displayCommandedSpeed:
+                commandedSpeedMPH = displayCommandedSpeed
+                print(f"[MANUAL MODE] Speed limited to track limit: {displayCommandedSpeed:.1f} MPH (Authority={commandedAuthority})")
+        
         commandedSpeedMS = commandedSpeedMPH * MPH_TO_MS
     else:
         # In automatic mode, use commanded speed from track (already in MPH, convert to m/s)
         commandedSpeedMPH = commandedSpeed
         commandedSpeedMS = commandedSpeedMPH * MPH_TO_MS
-        
-        # COMMANDED AUTHORITY SPEED LIMITING
-        # Authority 0: Stop (emergency stop unless near station)
-        # Authority 1: 50% of commanded speed
-        # Authority 2: 75% of commanded speed
-        # Authority 3: 100% of commanded speed (full speed)
-        authoritySpeedLimit = commandedSpeedMPH  # Default to full speed
-        
-        if commandedAuthority == 0:
-            # Authority 0 - Stop immediately
-            if not (isAtStation or shouldStartDecelerating()):
-                # Not near a station - emergency stop
-                authoritySpeedLimit = 0.0
-                if not hasattr(calculatePowerCommand, '_auth0_printed'):
-                    calculatePowerCommand._auth0_printed = True
-                    print(f"⚠️  AUTHORITY 0: Emergency stop commanded")
-            # else: Near station, station logic will handle stopping
-        elif commandedAuthority == 1:
-            # Authority 1 - 50% speed
-            authoritySpeedLimit = commandedSpeedMPH * 0.50
-        elif commandedAuthority == 2:
-            # Authority 2 - 75% speed
-            authoritySpeedLimit = commandedSpeedMPH * 0.75
-        elif commandedAuthority == 3:
-            # Authority 3 - Full speed (100%)
-            authoritySpeedLimit = commandedSpeedMPH
-        else:
-            # Unknown authority - assume safe (full speed)
-            authoritySpeedLimit = commandedSpeedMPH
-        
-        # Apply authority limit to commanded speed
-        originalCommandedSpeedMPH = commandedSpeedMPH
-        commandedSpeedMPH = min(commandedSpeedMPH, authoritySpeedLimit)
-        commandedSpeedMS = commandedSpeedMPH * MPH_TO_MS
-        
-        # Track if authority limited the speed (for brake logic later)
-        authorityLimitActive = (commandedSpeedMPH < originalCommandedSpeedMPH)
         
         # AUTOMATIC MODE STATION LOGIC
         if autoModeEnabled and not emergencyBrakeEngaged:
@@ -1167,39 +1205,29 @@ def calculatePowerCommand():
     
     # SPEED REDUCTION DETECTION - Use service brake to slow down
     # Service brake deceleration is approximately -2.67 m/s²
-    # Applies for:
-    # 1. Commanded speed drops significantly
-    # 2. Authority limits speed (e.g., auth changes from 3→1, reducing speed to 50%)
+    # Only apply if commanded speed dropped significantly and we're going faster than commanded
     SPEED_REDUCTION_THRESHOLD = 5.0  # MPH - significant speed reduction
     SERVICE_BRAKE_DURATION = 0.5  # seconds to apply brake
     
     if not hasattr(calculatePowerCommand, '_speed_reduction_brake_time'):
         calculatePowerCommand._speed_reduction_brake_time = 0.0
         calculatePowerCommand._last_check_time = time.time()
-        calculatePowerCommand._last_effective_speed = commandedSpeedMPH
     
     current_time = time.time()
     dt_check = current_time - calculatePowerCommand._last_check_time
     calculatePowerCommand._last_check_time = current_time
     
-    # Detect effective speed reduction (not at station, not in manual mode)
-    # "Effective speed" includes both commanded speed and authority limits
+    # Detect commanded speed reduction (not at station, not in manual mode)
     if not drivetrainManualMode and not isAtStation and not emergencyBrakeEngaged:
-        # Calculate the effective speed reduction (accounts for both commanded speed and authority)
-        effectiveSpeedReduction = calculatePowerCommand._last_effective_speed - commandedSpeedMPH
+        speedReduction = previousCommandedSpeed - commandedSpeedMPH
         
-        if effectiveSpeedReduction > SPEED_REDUCTION_THRESHOLD and currentSpeedMPH > commandedSpeedMPH + 3.0:
+        if speedReduction > SPEED_REDUCTION_THRESHOLD and currentSpeedMPH > commandedSpeedMPH + 3.0:
             # Significant speed reduction detected and we're going too fast
             # Apply service brake briefly to slow down
             if calculatePowerCommand._speed_reduction_brake_time <= 0:
                 # Start brake application
                 calculatePowerCommand._speed_reduction_brake_time = SERVICE_BRAKE_DURATION
-                
-                # Determine reason for speed reduction
-                if authorityLimitActive:
-                    print(f"⚠️  Authority {commandedAuthority}: Speed limited to {commandedSpeedMPH:.1f} MPH - applying service brake to slow down")
-                else:
-                    print(f"⚠️  Speed reduced from {calculatePowerCommand._last_effective_speed:.1f} to {commandedSpeedMPH:.1f} MPH - applying service brake to slow down")
+                print(f"⚠️  Speed reduced from {previousCommandedSpeed:.1f} to {commandedSpeedMPH:.1f} MPH - applying service brake to slow down")
                 
                 # Apply service brake via GPIO
                 if 'speedDisplay' in globals():
@@ -1215,9 +1243,6 @@ def calculatePowerCommand():
                                 'value': True,
                                 'train_id': 1
                             })
-        
-        # Update last effective speed for next comparison
-        calculatePowerCommand._last_effective_speed = commandedSpeedMPH
     
     # Count down brake time and release when done
     if calculatePowerCommand._speed_reduction_brake_time > 0:
@@ -1398,8 +1423,8 @@ def selectTrainLine():
     # Green Line button
     green_button = tk.Button(
         button_frame,
-        text="GREEN LINE",
-        font=('Arial', 16, 'bold'),
+        text="GREEN LINE\nHW",
+        font=('Arial', 15, 'bold'),
         bg='#27ae60',
         fg='white',
         activebackground='#229954',
@@ -1413,8 +1438,8 @@ def selectTrainLine():
     # Red Line button
     red_button = tk.Button(
         button_frame,
-        text="RED LINE",
-        font=('Arial', 16, 'bold'),
+        text="RED LINE\nHW",
+        font=('Arial', 15, 'bold'),
         bg='#e74c3c',
         fg='white',
         activebackground='#c0392b',
@@ -1505,7 +1530,7 @@ class TrainSpeedDisplayUI:
         
         # Start our server that listens for Train Model
         self.server = TrainSocketServer(port=train_controller_hw_config["port"], ui_id="Train HW")
-        self.server.set_allowed_connections(["Train Model"])
+        self.server.set_allowed_connections(["Train Model", "Train SW"])
         self.server.start_server(self._process_message)
         print(f"✓ Train Controller HW server started on port {train_controller_hw_config['port']}")
         
@@ -1658,6 +1683,13 @@ class TrainSpeedDisplayUI:
     
     def _process_message(self, message, source_ui_id):
         """Process incoming messages from Train Model"""
+        # Declare all globals at function level
+        global commandedSpeed, displayCommandedSpeed, previousCommandedSpeed, commandedAuthority
+        global serviceBrakeActive, currentSpeed, passengerEmergencySignal
+        global brakeFailure, engineFailure, signalFailure, acPanel
+        global preloadedTrackInformation, distanceToNextStation
+        global beacon1, beacon2
+        
         try:
             command = message.get('command')
             # Silently process routine messages
@@ -1671,51 +1703,120 @@ class TrainSpeedDisplayUI:
             
             if command == 'Commanded Speed':
                 # Commanded speed comes from Track Model in MPH (already converted)
-                global commandedSpeed, previousCommandedSpeed
                 
                 # Track previous commanded speed to detect reductions
                 if 'previousCommandedSpeed' not in globals():
                     previousCommandedSpeed = 0.0
                 
                 previousCommandedSpeed = commandedSpeed
-                commandedSpeed = float(value)  # Already in MPH
+                
+                # Store the raw commanded speed for display
+                displayCommandedSpeed = float(value)
+                
+                # Apply authority-based limiting to internal commanded speed
+                if commandedAuthority == 0:
+                    commandedSpeed = 0.0  # Authority 0: stop
+                elif commandedAuthority == 1:
+                    commandedSpeed = displayCommandedSpeed * 0.5  # Authority 1: 50%
+                elif commandedAuthority == 2:
+                    commandedSpeed = displayCommandedSpeed * 0.75  # Authority 2: 75%
+                elif commandedAuthority == 3:
+                    commandedSpeed = displayCommandedSpeed  # Authority 3: 100%
+                else:
+                    commandedSpeed = displayCommandedSpeed  # Default: 100%
             
             elif command == 'Commanded Authority':
-                global commandedAuthority
+                prev_authority = commandedAuthority
                 commandedAuthority = value
+                
+                # Recalculate internal commanded speed based on new authority
+                if commandedAuthority == 0:
+                    # Authority 0: Emergency stop
+                    if not isAtStation:
+                        # NOT at station - EMERGENCY STOP via service brake
+                        print(f"⚠️  AUTHORITY 0 - IMMEDIATE STOP (not at station)")
+                        commandedSpeed = 0.0
+                        
+                        # Engage service brake immediately
+                        if self.gpio_client and self.gpio_client.connected:
+                            self.gpio_client.setServiceBrake(True)
+                            serviceBrakeActive = True
+                            
+                            # Send to Train Model
+                            if self.server and self.train_model_connected:
+                                self.server.send_to_ui("Train Model", {
+                                    'command': 'Service Brake',
+                                    'value': True,
+                                    'train_id': 1
+                                })
+                                print(f"[AUTHORITY 0] Service brake ENGAGED for emergency stop")
+                    else:
+                        # At station - ignore authority 0 (station logic already handles stopping)
+                        print(f"[AUTHORITY 0] At station - ignoring (station logic handles stop)")
+                        commandedSpeed = 0.0
+                
+                elif commandedAuthority == 1:
+                    # Authority 1: 50% of commanded speed
+                    commandedSpeed = displayCommandedSpeed * 0.5
+                    print(f"[AUTHORITY 1] Speed limited to 50% → {commandedSpeed:.1f} MPH")
+                
+                elif commandedAuthority == 2:
+                    # Authority 2: 75% of commanded speed
+                    commandedSpeed = displayCommandedSpeed * 0.75
+                    print(f"[AUTHORITY 2] Speed limited to 75% → {commandedSpeed:.1f} MPH")
+                
+                elif commandedAuthority == 3:
+                    # Authority 3: 100% of commanded speed (full speed)
+                    commandedSpeed = displayCommandedSpeed
+                    print(f"[AUTHORITY 3] Full speed allowed → {commandedSpeed:.1f} MPH")
+                
+                else:
+                    # Unknown authority - default to full speed
+                    commandedSpeed = displayCommandedSpeed
+                
+                # Release service brake if transitioning from authority 0 to non-zero
+                if prev_authority == 0 and commandedAuthority > 0 and serviceBrakeActive and not isAtStation:
+                    print(f"🟢 AUTHORITY {commandedAuthority} - Releasing emergency stop brake")
+                    
+                    if self.gpio_client and self.gpio_client.connected:
+                        self.gpio_client.setServiceBrake(False)
+                        serviceBrakeActive = False
+                        
+                        # Send to Train Model
+                        if self.server and self.train_model_connected:
+                            self.server.send_to_ui("Train Model", {
+                                'command': 'Service Brake',
+                                'value': False,
+                                'train_id': 1
+                            })
+                            print(f"[AUTHORITY {commandedAuthority}] Service brake released")
             
             elif command == 'Current Speed':
                 # Update current speed from Train Model - critical for PI controller feedback!
-                global currentSpeed
                 currentSpeed = float(value)
             
             elif command == 'Passenger Emergency Signal':
-                global passengerEmergencySignal
                 passengerEmergencySignal = value
                 if self.gpio_client and self.gpio_client.connected:
                     self.gpio_client.setLED('passenger_emergency', value)
             
             elif command == 'Brake Failure':
-                global brakeFailure
                 brakeFailure = value
                 if self.gpio_client and self.gpio_client.connected:
                     self.gpio_client.setLED('brake_failure', value)
             
             elif command == 'Train Engine Failure':
-                global engineFailure
                 engineFailure = value
                 if self.gpio_client and self.gpio_client.connected:
                     self.gpio_client.setLED('engine_failure', value)
             
             elif command == 'Signal Pickup Failure':
-                global signalFailure
                 signalFailure = value
                 if self.gpio_client and self.gpio_client.connected:
                     self.gpio_client.setLED('signal_failure', value)
             
-            elif command == 'Cabin Temperature':
+            elif command == 'Temp':
                 # Update AC panel with current temperature from Train Model
-                global acPanel
                 if acPanel is not None:
                     try:
                         acPanel.setCurrentTemperature(float(value))
@@ -1724,7 +1825,6 @@ class TrainSpeedDisplayUI:
             
             elif command == 'Beacon Data':
                 # Receive beacon data from Train Model/Passenger UI
-                global preloadedTrackInformation, distanceToNextStation
                 received_beacon = value
                 
                 if received_beacon and 'segments' in received_beacon:
@@ -1736,6 +1836,18 @@ class TrainSpeedDisplayUI:
                     for segment in preloadedTrackInformation['segments']:
                         print(f"  - {segment['from_station']} → {segment['to_station']}: {segment['distance']}m")
                     print("[BEACON DATA] Automatic mode station stopping enabled")
+            
+            elif command == 'Beacon1':
+                # RED LINE: Switch at block 27 (to blocks 76-72)
+                global beacon1
+                beacon1 = bool(value)
+                print(f"[BEACON1] Received: {beacon1} (Switch at block 27)")
+            
+            elif command == 'Beacon2':
+                # RED LINE: Switch at block 38 (to blocks 71-67)
+                global beacon2
+                beacon2 = bool(value)
+                print(f"[BEACON2] Received: {beacon2} (Switch at block 38)")
         
         except Exception as e:
             print(f"Error processing message: {e}")
@@ -2003,17 +2115,10 @@ class TrainSpeedDisplayUI:
         
         tk.Button(
             buttonFrame,
-            text="Track Info",
-            command=self._launchTrackInfoPanel,
-            **btnStyle
-        ).grid(row=0, column=2, padx=5, pady=5)
-        
-        tk.Button(
-            buttonFrame,
             text="System Log",
             command=self._launchSystemLogViewer,
             **btnStyle
-        ).grid(row=1, column=0, padx=5, pady=5)
+        ).grid(row=0, column=2, padx=5, pady=5)
     
     def _launchPowerEngineer(self):
         """Show Power Engineer Panel"""
@@ -2053,17 +2158,6 @@ class TrainSpeedDisplayUI:
             announcementPanel.root.lift()
             print("Announcement Panel already open")
     
-    def _launchTrackInfoPanel(self):
-        """Launch Track Information Panel"""
-        global trackInfoPanel
-        if trackInfoPanel is None or not tk.Toplevel.winfo_exists(trackInfoPanel.root):
-            trackInfoRoot = tk.Toplevel(self.root)
-            trackInfoPanel = TrackInformationPanel(trackInfoRoot)
-            print("✓ Launched Track Info Panel")
-        else:
-            trackInfoPanel.root.lift()
-            print("Track Info Panel already open")
-    
     def _launchSystemLogViewer(self):
         """Launch System Log Viewer"""
         global systemLogViewer
@@ -2093,7 +2187,10 @@ class TrainSpeedDisplayUI:
                 'manualSetpoint': None,
                 'nextStation': None,
                 'distToStation': None,
-                'isAtStation': None
+                'isAtStation': None,
+                'beacon1': None,
+                'beacon2': None,
+                'currentBlock': None
             }
         
         cache = self._display_cache
@@ -2144,9 +2241,24 @@ class TrainSpeedDisplayUI:
             nextStation = getNextStationName()
             distToStation = getDistanceToNextStation()
             
-            if cache['nextStation'] != nextStation:
+            # Check if beacons or current block changed - force station name update
+            if (cache['beacon1'] != beacon1 or cache['beacon2'] != beacon2 or 
+                cache['currentBlock'] != currentBlock or cache['nextStation'] != nextStation):
                 self.nextStationValue.config(text=nextStation)
                 cache['nextStation'] = nextStation
+                cache['beacon1'] = beacon1
+                cache['beacon2'] = beacon2
+                cache['currentBlock'] = currentBlock
+                
+                # Highlight alternative route in orange
+                if "ALTERNATIVE ROUTE" in nextStation:
+                    self.nextStationValue.config(fg='#ffa500')  # Orange for alternative route
+                else:
+                    # Reset to normal color (or yellow if at station)
+                    if isAtStation:
+                        self.nextStationValue.config(fg='#ffff00')
+                    else:
+                        self.nextStationValue.config(fg='white')
             
             # Only update distance if changed significantly (> 1 foot to reduce jitter)
             distToStationFeet = distToStation * 3.28084

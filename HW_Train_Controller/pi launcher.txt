@@ -1,0 +1,1 @@
+scp "C:\Users\lucas\Desktop\TRAINS GIT\TRAINS-TEAM2\HW_Train_Controller\TC_GPIO_Server.py" lucas-chen-pi@192.168.1.179:~/Documents/TRAINS-TEAM2/HW_Train_Controller/

@@ -4,7 +4,7 @@ from pathlib import Path  # ← ADD
 def load_socket_config():
     """Load socket configuration from config.json"""
     config_path = Path("config.json")
-    config = {}  # ✅ Initialize config first
+    config = {}  #  Initialize config first
     
     if config_path.exists():
         try:
@@ -42,14 +42,276 @@ from Engineer_UI import EngineerUI
 from FailureIndicator import FailureIndicator
 from ToggleButton import ToggleButton
 from ModeToggle import Mode_Toggle
+import pygame
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
 
+# GREEN LINE PRELOADED TRACK INFORMATION
+greenLineTrackInformation = {
+    'segments': [
+        # YARD to GLENBURY (initialization)
+        {
+            'from_station': 'YARD',
+            'to_station': 'GLENBURY',
+            'distance': 300.0,
+            'from_block': 63,
+            'to_block': 65,
+            'station_block_half_length': 100.0,
+            'speed_limit': 43.50
+        },
+        # Main loop segments
+        {
+            'from_station': 'GLENBURY',
+            'to_station': 'DORMONT',
+            'distance': 850.0,
+            'from_block': 65,
+            'to_block': 73,
+            'station_block_half_length': 50.0,
+            'speed_limit': 24.85
+        },
+        {
+            'from_station': 'DORMONT',
+            'to_station': 'MT LEBANON',
+            'distance': 550.0,
+            'from_block': 73,
+            'to_block': 77,
+            'station_block_half_length': 150.0,
+            'speed_limit': 43.50
+        },
+        {
+            'from_station': 'MT LEBANON',
+            'to_station': 'POPLAR',
+            'distance': 2936.6,
+            'from_block': 77,
+            'to_block': 88,
+            'station_block_half_length': 50.0,
+            'speed_limit': 15.53
+        },
+        {
+            'from_station': 'POPLAR',
+            'to_station': 'CASTLE SHANNON',
+            'distance': 662.5,
+            'from_block': 88,
+            'to_block': 96,
+            'station_block_half_length': 37.5,
+            'speed_limit': 15.53
+        },
+        {
+            'from_station': 'CASTLE SHANNON',
+            'to_station': 'DORMONT',
+            'distance': 740.0,
+            'from_block': 96,
+            'to_block': 105,
+            'station_block_half_length': 50.0,
+            'speed_limit': 24.85
+        },
+    ]
+}
+
+# RED LINE PRELOADED TRACK INFORMATION
+redLineTrackInformation = {
+    'segments': [
+        # YARD to SHADYSIDE (initialization)
+        {
+            'from_station': 'YARD',
+            'to_station': 'SHADYSIDE',
+            'distance': 75.0,
+            'from_block': 8,
+            'to_block': 7,
+            'station_block_half_length': 37.5,
+            'speed_limit': 24.85
+        },
+        {
+            'from_station': 'SHADYSIDE',
+            'to_station': 'HERRON AVE',
+            'distance': 362.5,
+            'from_block': 7,
+            'to_block': 16,
+            'station_block_half_length': 25.0,
+            'speed_limit': 24.85
+        },
+        {
+            'from_station': 'HERRON AVE',
+            'to_station': 'SWISSVILLE',
+            'distance': 1300.0,
+            'from_block': 16,
+            'to_block': 21,
+            'station_block_half_length': 50.0,
+            'speed_limit': 34.17
+        },
+        {
+            'from_station': 'SWISSVILLE',
+            'to_station': 'PENN STATION',
+            'distance': 325.0,
+            'from_block': 21,
+            'to_block': 25,
+            'station_block_half_length': 25.0,
+            'speed_limit': 43.50
+        },
+        {
+            'from_station': 'PENN STATION',
+            'to_station': 'STEEL PLAZA',
+            'distance': 520.0,
+            'from_block': 25,
+            'to_block': 35,
+            'station_block_half_length': 25.0,
+            'speed_limit': 43.50
+        },
+    ]
+}
+
+# Station door side mapping
+greenLineStationDoorSides = {
+    'PIONEER': 'left',
+    'EDGEBROOK': 'left',
+    'LLC PLAZA': 'both',
+    'WHITED': 'both',
+    'SOUTH BANK': 'left',
+    'CENTRAL': 'right',
+    'INGLEWOOD': 'right',
+    'OVERBROOK': 'right',
+    'GLENBURY': 'right',
+    'DORMONT': 'right',
+    'MT LEBANON': 'both',
+    'POPLAR': 'left',
+    'CASTLE SHANNON': 'left'
+}
+
+redLineStationDoorSides = {
+    'SHADYSIDE': 'both',
+    'HERRON AVE': 'both',
+    'SWISSVILLE': 'both',
+    'PENN STATION': 'both',
+    'STEEL PLAZA': 'both',
+    'FIRST AVE': 'both',
+    'STATION SQUARE': 'both',
+    'SOUTH HILLS JUNCTION': 'both'
+}
+
+class PositionTracker:
+    """Track train position along the route"""
+    
+    def __init__(self, track_info, station_door_sides):
+        self.track_info = track_info
+        self.station_door_sides = station_door_sides
+        self.current_segment_index = 0
+        self.distance_traveled_in_segment = 0.0
+        self.last_update_time = None
+        self.current_block = 63  # Default to Green Line yard
+        self.is_at_station = False
+        self.station_dwell_start_time = None
+        
+        # Constants
+        self.DECELERATION_DISTANCE = 200.0  # meters
+        self.STATION_STOP_THRESHOLD = 5.0   # meters
+        self.STATION_DWELL_TIME = 3.0       # seconds
+        
+    def update(self, current_speed_ms):
+        """Update position based on velocity and time"""
+        current_time = time.time()
+        
+        if self.last_update_time is None:
+            self.last_update_time = current_time
+            return
+        
+        dt = current_time - self.last_update_time
+        self.last_update_time = current_time
+        
+        # If at station, handle dwell time
+        if self.is_at_station:
+            if self.station_dwell_start_time is not None:
+                elapsed = current_time - self.station_dwell_start_time
+                if elapsed >= self.STATION_DWELL_TIME:
+                    # Move to next segment
+                    self.current_segment_index += 1
+                    if self.current_segment_index >= len(self.track_info['segments']):
+                        self.current_segment_index = 1  # Loop back to main route
+                    
+                    self.distance_traveled_in_segment = 0.0
+                    self.is_at_station = False
+                    self.station_dwell_start_time = None
+                    print(f"Departing for {self.get_next_station_name()}")
+            return
+        
+        # Calculate displacement
+        displacement = current_speed_ms * dt
+        self.distance_traveled_in_segment += displacement
+        
+        # Check if arrived at station
+        distance_remaining = self.get_distance_to_next_station()
+        if distance_remaining <= self.STATION_STOP_THRESHOLD:
+            self.is_at_station = True
+            self.station_dwell_start_time = current_time
+            self.distance_traveled_in_segment = self.track_info['segments'][self.current_segment_index]['distance']
+            print(f"Arrived at {self.get_current_station_name()}")
+        
+        # Update current block
+        self._update_current_block()
+    
+    def _update_current_block(self):
+        """Update current block based on position"""
+        if self.current_segment_index >= len(self.track_info['segments']):
+            return
+        
+        segment = self.track_info['segments'][self.current_segment_index]
+        from_block = segment['from_block']
+        to_block = segment['to_block']
+        total_distance = segment['distance']
+        
+        if total_distance > 0:
+            progress = min(1.0, self.distance_traveled_in_segment / total_distance)
+            
+            # Simple linear interpolation between blocks
+            if to_block > from_block:
+                blocks_span = to_block - from_block
+                self.current_block = from_block + int(progress * blocks_span)
+            else:
+                # Handle wrapping case
+                self.current_block = from_block
+    
+    def get_distance_to_next_station(self):
+        """Get distance remaining to next station in meters"""
+        if self.current_segment_index >= len(self.track_info['segments']):
+            return 0.0
+        
+        total_distance = self.track_info['segments'][self.current_segment_index]['distance']
+        return total_distance - self.distance_traveled_in_segment
+    
+    def get_next_station_name(self):
+        """Get name of next station"""
+        if self.current_segment_index < len(self.track_info['segments']):
+            return self.track_info['segments'][self.current_segment_index]['to_station']
+        return "YARD"
+    
+    def get_current_station_name(self):
+        """Get name of current station"""
+        if self.current_segment_index < len(self.track_info['segments']):
+            return self.track_info['segments'][self.current_segment_index]['to_station']
+        return "YARD"
+    
+    def should_decelerate_for_station(self):
+        """Check if train should start decelerating for station"""
+        distance = self.get_distance_to_next_station()
+        return distance <= self.DECELERATION_DISTANCE and not self.is_at_station
+    
+    def get_current_speed_limit(self):
+        """Get speed limit for current segment in MPH"""
+        if self.current_segment_index < len(self.track_info['segments']):
+            return self.track_info['segments'][self.current_segment_index]['speed_limit']
+        return 43.50  # Default
+    
+    def get_door_side(self):
+        """Get which doors should open at current station"""
+        station = self.get_current_station_name()
+        return self.station_door_sides.get(station, 'both')
+
+
 
 class Main_Window:
-    def __init__(self, root):
+    def __init__(self, root, selected_line):
         self.root = root
+        self.selected_line = selected_line
         self.root.title("Train Controller - Monitor Display")
         #add zoomed command to make screen fit 
         #self.root.attributes('-zoomed', True)  # On macOS/Linux
@@ -65,6 +327,17 @@ class Main_Window:
         
         #make resizable
         self.root.resizable(True, True)
+
+        # Select line at startup
+        
+        
+        # Initialize position tracker based on selected line
+        if self.selected_line == 'GREEN':
+            self.position_tracker = PositionTracker(greenLineTrackInformation, greenLineStationDoorSides)
+            self.current_block = 63
+        else:  # RED
+            self.position_tracker = PositionTracker(redLineTrackInformation, redLineStationDoorSides)
+            self.current_block = 8
 
         # Socket server setup
         #added socket server 
@@ -414,6 +687,8 @@ class Main_Window:
         self.emergency_brake_active = False
         self.door_safety_lock = True
         self.emergency_brake_auto_triggered = False
+        self.commanded_authority = 0
+
 
         self.has_control_authority = False  # ←  Don't send power until we have authority
         
@@ -512,9 +787,6 @@ class Main_Window:
             elif command == "Beacon Data":
                 self.add_to_status_log(f"Beacon: {value}")
             
-            elif command == "Preloaded Track Information":
-                self.add_to_status_log("Track info updated")
-            
             elif command == "Light States":
                 self.add_to_status_log(f"Lights: {value}")
             
@@ -546,10 +818,6 @@ class Main_Window:
 
     def on_pid_change(self, kp, ki):
         """Callback when PID parameters change"""
-        self.add_to_status_log(f"Engineer: Kp={kp:.1f}, Ki={ki:.2f}")
-
-    def on_pid_change(self, kp, ki):
-        """Callback when PID parameters change"""
         self.add_to_status_log(f"Engineer adjusted PID: Kp={kp:.1f}, Ki={ki:.1f}")
     
     def toggle_engineer_ui(self):
@@ -558,61 +826,98 @@ class Main_Window:
             self.engineer_ui.hide()
         else:
             self.engineer_ui.show()
+
+
+    def _handle_station_doors(self):
+        """Open appropriate doors based on station platform"""
+        door_side = self.position_tracker.get_door_side()
+        
+        if door_side == 'left' or door_side == 'both':
+            self.send_left_door_signal(True)
+            self.add_to_status_log("Left door opening")
+        
+        if door_side == 'right' or door_side == 'both':
+            self.send_right_door_signal(True)
+            self.add_to_status_log("Right door opening")
+    
+    def _close_all_doors(self):
+        """Close all doors when departing"""
+        self.send_left_door_signal(False)
+        self.send_right_door_signal(False)
+        self.add_to_status_log("Doors closing")
     
     def calculate_power_command(self):
-        """
-        Calculate power command using PI controller.
+        """Calculate power with authority-based speed adjustment"""
+        # NEW: Update position tracking
+        self.position_tracker.update(self.current_speed_ms)
         
-        Uses Kp and Ki from Engineer UI.
-        All internal calculations done in METRIC (m/s).
-        
-        Returns:
-            Power in kW (kilowatts)
-        """
-        # Get PI gains from Engineer UI
-        kp = self.engineer_ui.get_kp() if hasattr(self, 'engineer_ui') else self.kp
-        ki = self.engineer_ui.get_ki() if hasattr(self, 'engineer_ui') else self.ki
-        
-        # Determine commanded speed based on mode
+        # SAME: Get base commanded speed (keep your existing logic)
         if self.is_auto_mode:
-            # In automatic mode, use commanded speed from Track Model (already in m/s)
             commanded_speed_ms = self.commanded_speed_ms
         else:
-            # In manual mode, use set speed (convert from mph to m/s)
-            commanded_speed_mph = float(self.set_speed_value.cget("text"))
+            commanded_speed_mph = float(self.set_speed)
             commanded_speed_ms = commanded_speed_mph * MPH_TO_METERS_PER_SEC
         
-        # Get current actual speed (in m/s for calculation)
-        current_speed_ms = self.current_speed_ms
+        # NEW: Apply authority-based speed reduction
+        if self.commanded_authority == 0:
+            # No authority - brake to stop
+            commanded_speed_ms = 0.0
+            if not self.service_brake_active:
+                self.service_brake_active = True
+                self.send_service_brake(True)
+                self.add_to_status_log("Authority 0: Braking to stop")
+        elif self.commanded_authority == 1:
+            # 50% of commanded speed
+            commanded_speed_ms *= 0.5
+        elif self.commanded_authority == 2:
+            # 75% of commanded speed
+            commanded_speed_ms *= 0.75
+        elif self.commanded_authority == 3:
+            # 100% of commanded speed (no change)
+            pass
+        else:  # authority >= 4
+            # Maximum authority - no restriction
+            pass
         
-        # Calculate velocity error in METRIC (m/s)
+        # NEW: Apply speed limit from current segment
+        speed_limit_mph = self.position_tracker.get_current_speed_limit()
+        speed_limit_ms = speed_limit_mph * MPH_TO_METERS_PER_SEC
+        commanded_speed_ms = min(commanded_speed_ms, speed_limit_ms)
+        
+        # NEW: Handle station approach
+        if self.position_tracker.should_decelerate_for_station():
+            dist_to_station = self.position_tracker.get_distance_to_next_station()
+            DECEL_RATE = 1.0
+            if dist_to_station > 0:
+                target_speed = (2 * DECEL_RATE * dist_to_station) ** 0.5
+                commanded_speed_ms = min(commanded_speed_ms, target_speed)
+        
+        # NEW: Handle station stop and door control
+        if self.position_tracker.is_at_station:
+            commanded_speed_ms = 0.0
+            if not self.service_brake_active:
+                self.service_brake_active = True
+                self.send_service_brake(True)
+                self._handle_station_doors()
+        elif self.service_brake_active and self.commanded_authority > 0:
+            # Release brake when leaving station
+            self.service_brake_active = False
+            self.send_service_brake(False)
+            self._close_all_doors()
+        
+        # SAME: PI controller calculation (keep your existing PI logic)
+        current_speed_ms = self.current_speed_ms
         velocity_error = commanded_speed_ms - current_speed_ms
         
-        # Update integral error with anti-windup (in m/s)
         self.integral_error += velocity_error * self.sample_time
-        
-        # Anti-windup: limit integral term
-        max_integral = self.max_power_kw / (ki if ki > 0 else 1.0)
+        max_integral = self.max_power_kw / (self.ki if self.ki > 0 else 1.0)
         self.integral_error = max(-max_integral, min(max_integral, self.integral_error))
         
-        # Calculate PI control output
-        # Power = Kp * error + Ki * integral_error
-        p_term = kp * velocity_error
-        i_term = ki * self.integral_error
+        p_term = self.kp * velocity_error
+        i_term = self.ki * self.integral_error
         power_kw = p_term + i_term
         
-        # Limit power to max and ensure non-negative
         power_kw = max(0.0, min(self.max_power_kw, power_kw))
-        
-        # Log periodically (every 1 second instead of every update)
-        current_time = time.time()
-        if not hasattr(self, '_last_power_log_time') or (current_time - self._last_power_log_time) >= 1.0:
-            velocity_error_mph = velocity_error * METERS_PER_SEC_TO_MPH
-            self.add_to_status_log(
-                f"PI: Power={power_kw:.1f}kW, Error={velocity_error_mph:.1f}mph, "
-                f"P={p_term:.1f}, I={i_term:.1f}"
-            )
-            self._last_power_log_time = current_time
         
         return power_kw
 
@@ -666,48 +971,38 @@ class Main_Window:
             self.update_ebrake_release_state()
     
     def update_displays(self):
-        """Update all displays periodically"""
-        # Update brake effect on speed
-        self.apply_brake_effect()
+        """Update all displays"""
+        # SAME: Keep all your existing display updates
+        # Just add these new station info updates if you added those labels
         
-        # Update door safety
-        self.update_door_safety()
+        # NEW: Update station information displays (if you added them)
+        if hasattr(self, 'next_station_label'):
+            next_station = self.position_tracker.get_next_station_name()
+            distance = self.position_tracker.get_distance_to_next_station()
+            self.next_station_label.config(text=next_station)
+            
+        if hasattr(self, 'distance_label'):
+            distance = self.position_tracker.get_distance_to_next_station()
+            self.distance_label.config(text=f"Distance: {int(distance)} m")
         
-        # Update E-brake release button state
-        self.update_ebrake_release_state()
-        '''
-        # *** CRITICAL: Only send power if we have control authority ***
-        if not self.has_control_authority:
-            # We don't have control authority yet - don't send any power
-            # This prevents fighting with HW controller
-            self.root.after(100, self.update_displays)
-            return'''
-        
-        # Calculate and send power command
-        # Only send power when NOT in emergency brake and NOT in service brake
+        # SAME: Keep all your existing speed/brake/power logic
+        # Calculate and send power (your existing code)
         if not self.emergency_brake_active and not self.service_brake_active:
             try:
-                # Calculate power using PI controller
                 power_kw = self.calculate_power_command()
-                
-                # Convert kW to Watts for Train Model
                 power_watts = power_kw * KW_TO_WATTS
                 
-                # Only send if power changed significantly (more than 100W / 0.1kW)
-                # This reduces message flooding
                 if self.last_power_sent is None or abs(power_watts - self.last_power_sent) > 100:
                     self.send_setpoint_power(power_kw)
                     self.last_power_sent = power_watts
-            
             except Exception as e:
                 print(f"Error in power calculation: {e}")
         else:
-            # Braking active - send zero power
             if self.last_power_sent != 0:
                 self.send_setpoint_power(0.0)
                 self.last_power_sent = 0
         
-        # Schedule next update (100ms = 0.1s sample time)
+        # SAME: Keep your existing schedule
         self.root.after(100, self.update_displays)
 
     
@@ -750,7 +1045,7 @@ class Main_Window:
     
     def on_mode_change(self, mode):
         self.is_auto_mode = (mode == "auto")
-        self.send_drivetrain_mode(self.is_auto_mode)  # Send to train model
+        #self.send_drivetrain_mode(self.is_auto_mode)  # Send to train model
         self.add_to_status_log(f"Driver mode changed to: {mode}")
         print(f"Mode changed to: {mode}")
     
@@ -974,6 +1269,7 @@ class Main_Window:
     
     def set_authority(self, blocks):
         """Set authority from external input"""
+        self.commanded_authority = blocks
         self.authority_value.config(text=f"{blocks} Blocks")
     
     def set_cabin_temp(self, temp):
@@ -1213,20 +1509,45 @@ class Main_Window:
         except Exception as e:
             print(f"Error sending train horn: {e}")
 
-    def on_closing(self):
-        """Handle application closing"""
-        print("Closing application...")
-        self.server.running = False
-        if self.server.server_socket:
-            try:
-                self.server.server_socket.close()
-            except:
-                pass
-        self.root.destroy()
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = Main_Window(root)
-    root.protocol("WM_DELETE_WINDOW", app.on_closing)
+    root.withdraw()  # Hide main window until line is selected
 
+    # --- Create selection dialog ---
+    dialog = tk.Toplevel(root)
+    dialog.title("Train Line Selection")
+    dialog.geometry("400x250")
+    dialog.configure(bg='#1e3c72')
+    dialog.grab_set()   # Make modal
+    dialog.focus_set()
+
+    tk.Label(dialog, text="SELECT TRAIN LINE SW", font=("Arial", 20, "bold"),
+             bg='#1e3c72', fg='white', pady=20).pack()
+
+    selection = {"line": None}
+
+    def choose(line):
+        selection["line"] = line
+        dialog.destroy()
+
+    frame = tk.Frame(dialog, bg="#1e3c72")
+    frame.pack(expand=True)
+
+    tk.Button(frame, text="GREEN LINE", font=("Arial", 16, "bold"),
+              bg="#27ae60", fg="white", width=12, height=2,
+              command=lambda: choose("GREEN")).pack(side="left", padx=10)
+
+    tk.Button(frame, text="RED LINE", font=("Arial", 16, "bold"),
+              bg="#e74c3c", fg="white", width=12, height=2,
+              command=lambda: choose("RED")).pack(side="left", padx=10)
+
+    # Wait for dialog result
+    root.wait_window(dialog)
+
+    # --- Now show main window with selection ---
+    root.deiconify()  
+    app = Main_Window(root, selected_line=selection["line"])
+
+    root.protocol("WM_DELETE_WINDOW", app.on_closing)
     root.mainloop()

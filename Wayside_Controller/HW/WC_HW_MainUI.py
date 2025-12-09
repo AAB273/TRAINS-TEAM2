@@ -310,11 +310,11 @@ def _process_message(self, data, connection=None, server_instance=None):
         elif command == 'MAINT':
                 # Handle maintenance request from CTC
                 print("CTC Maintenance Request Received")
-                add_to_message_log("CTC: Maintenance Request Received", "WARNING")
+                add_to_message_log("CTC: Maintenance Request Received")
                 
                 # Update maintenance LED
                 maint_led.config(bg="orange", text="MAINT REQ")
-                add_to_message_log("Maintenance Request LED activated", "INFO")
+                add_to_message_log("Maintenance Request LED activated")
             
         elif command == 'set_switch_position':
             # Legacy switch command - redirect to SW command
@@ -331,7 +331,9 @@ def _process_message(self, data, connection=None, server_instance=None):
                 # Log the switch command
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 log_message = f"{timestamp} CTC REQUEST: Toggle Switch {location} on {line} track"
-                message_logger.log(log_message, "INFO")
+                message_logger.log(log_message, "WARNING")
+                # Also use the old function for compatibility
+                add_to_message_log(f"CTC Switch Command: Block {location} on {line} Line")
                 
                 # Update the left panel switch display if it matches current line
                 if line.lower() == test_data.current_line.lower():
@@ -386,12 +388,12 @@ def _process_message(self, data, connection=None, server_instance=None):
                                     left_panel.switch_direction.set(new_direction)
                                     
                                     # Log the change
-                                    message_logger.log(f"Switch {found_switch}: Direction changed to {new_direction} by CTC", "INFO")
+                                    message_logger.log(f"Switch {found_switch}: Direction changed to {new_direction} by CTC")
                             
                             add_to_message_log(f"CTC Switch Command: Updated {found_switch} for Block {location}")
                         else:
                             print(f"No matching switch found for block {location}")
-                            add_to_message_log(f"CTC Switch Command: No switch found for Block {location}", "WARNING")
+                            add_to_message_log(f"CTC Switch Command: No switch found for Block {location}")
                     else:
                         print("Left panel switch_selector not found")
                 else:
@@ -1079,7 +1081,7 @@ class UITestData:
                 line = switch_data[1]
                 
                 print(f"CTC Switch Command: Block {location} on {line} Line")
-                add_to_message_log(f"CTC Switch Command: Block {location} on {line} Line", "INFO")
+                add_to_message_log(f"CTC Switch Command: Block {location} on {line} Line")
                 
                 # Update switch display if it matches current line
                 if line.lower() == self.current_line.lower() and hasattr(left_panel, 'switch_selector'):
@@ -1091,7 +1093,7 @@ class UITestData:
                             
                             # Optionally change direction
                             # This would depend on your switch logic
-                            add_to_message_log(f"Updated switch display for {switch_name}", "INFO")
+                            add_to_message_log(f"Updated switch display for {switch_name}")
                             break
                 
         except Exception as e:
@@ -1109,12 +1111,12 @@ class UITestData:
             
             # Log the maintenance request
             log_message = f"{current_time} CTC: Maintenance Request Received"
-            add_to_message_log(log_message, "WARNING")
+            add_to_message_log(log_message)
             
             # Update UI elements
             if hasattr(maint_led, 'config'):
                 maint_led.config(bg="orange", text="MAINT REQ")
-                add_to_message_log("Maintenance Request LED activated", "INFO")
+                add_to_message_log("Maintenance Request LED activated")
 
             # Send acknowledgment back to CTC
             if hasattr(self, 'server1'):
@@ -1769,7 +1771,7 @@ class PLCManager:
            
             self.plc_instance = plc_module.PLCController(self.message_logger.log)
             self.current_file = file_path
-            self.message_logger.log(f"PLC file loaded: {file_path}", "INFO")
+            self.message_logger.log(f"PLC file loaded: {file_path}")
             return True
         except Exception as e:
             self.message_logger.log(f"PLC load error: {e}")
@@ -1777,13 +1779,13 @@ class PLCManager:
    
     def run_plc(self):
         if not self.plc_instance:
-            self.message_logger.log("No PLC file loaded", "WARNING")
+            self.message_logger.log("No PLC file loaded")
             messagebox.showwarning("No PLC File", "Please upload a PLC file first!")
             return False
        
         try:
             self.plc_instance.main()
-            self.message_logger.log(f"PLC file executed: {self.current_file.split('/')[-1]}", "INFO")
+            self.message_logger.log(f"PLC file executed: {self.current_file.split('/')[-1]}")
             return True
         except Exception as e:
             self.message_logger.log(f"PLC runtime error: {e}")
@@ -2059,47 +2061,25 @@ class LeftPanel(tk.Frame):
             command=self.send_maintenance_request
         )
         self.maint_call_btn.pack(pady=5, padx=5)
-       
-        # # Maintenance Status Label
-        # self.maint_status_label = tk.Label(
-        #     maint_frame,
-        #     text="Status: Ready",
-        #     bg='#cccccc',
-        #     font=('Arial', 8)
-        # )
-        # self.maint_status_label.pack(pady=2)
-       
-        # # Add a separator
-        # sep = tk.Frame(maint_frame, height=2, bg='#999999')
-        # sep.pack(fill=tk.X, pady=3)
-       
-        # # Status indicator
-        # self.status_indicator = tk.Label(
-        #     maint_frame,
-        #     text="●",
-        #     font=("Arial", 12),
-        #     fg="green",
-        #     bg='#cccccc'
-        # )
-        # self.status_indicator.pack(pady=2)
 
     def send_maintenance_request(self):
         """Send maintenance request to CTC and other UIs"""
         try:
             print("Sending maintenance request...")
-            # Create the pop-up message
-            popup = tk.Toplevel(self)
-            popup.title("Maintenance Request")
-            popup.geometry("400x200")
-            popup.configure(bg="#bcbcbe")
-        
-        # Center the popup
-            popup.transient(self)
-            popup.grab_set()
-        
-        # Popup message content
-            message_frame = tk.Frame(popup, bg='#1a1a4d')
+            # Create a confirmation popup first
+            confirm_popup = tk.Toplevel(self)
+            confirm_popup.title("Confirm Maintenance Request")
+            confirm_popup.geometry("400x250")
+            confirm_popup.configure(bg="#1a1a4d")
+            
+            # Center the popup
+            confirm_popup.transient(self)
+            confirm_popup.grab_set()
+            
+            # Popup message content - QUESTION
+            message_frame = tk.Frame(confirm_popup, bg='#1a1a4d')
             message_frame.pack(expand=True, fill='both', padx=20, pady=20)
+
         
         # Title
             title_label = tk.Label(
@@ -2114,7 +2094,7 @@ class LeftPanel(tk.Frame):
         # Message
             message_label = tk.Label(
                 message_frame,
-                text="Maintenance has been requested\nbased on CTC's request",
+                text="Do you want to send a maintenance request\nto the CTC and other systems?",
                 bg='#1a1a4d',
                 fg='white',
                 font=('Arial', 12),
@@ -2132,32 +2112,62 @@ class LeftPanel(tk.Frame):
                 justify='center'
             )
             info_label.pack(pady=10)
-        
-            # OK button
-            ok_button = tk.Button(
-                message_frame,
-                text="OK",
-                command=popup.destroy,
+
+            # Button frame
+            button_frame = tk.Frame(message_frame, bg='#1a1a4d')
+            button_frame.pack(pady=15)
+            
+            # YES button - sends the request
+            yes_button = tk.Button(
+                button_frame,
+                text="YES",
+                command=lambda: self.confirm_and_send_request(confirm_popup),
                 bg='#FFA500',
                 fg='white',
-                font=('Arial', 10, 'bold'),
-                width=10,
-                height=1
+                font=('Arial', 8, 'bold'),
+                width=8,
+                height=3
             )
-            ok_button.pack(pady=10)
-        
-        # Close the popup when clicking the X
-            popup.protocol("WM_DELETE_WINDOW", popup.destroy)
+            yes_button.pack(side=tk.LEFT, padx=10)
+            
+            # NO button - cancels
+            no_button = tk.Button(
+                button_frame,
+                text="NO",
+                command=confirm_popup.destroy,
+                bg='#666666',
+                fg='white',
+                font=('Arial', 8, 'bold'),
+                width=8,
+                height=3
+            )
+            no_button.pack(side=tk.LEFT, padx=10)
+            
+            # Close the popup when clicking the X
+            confirm_popup.protocol("WM_DELETE_WINDOW", confirm_popup.destroy)
+            # # Update button state
+            # self.maint_call_btn.config(
+            #     text="Request Sent",
+            #     bg="#666666",
+            #     state="disabled"
+            # )
+
+        except Exception as e:
+            print(f"Error creating confirmation popup: {e}")
+            add_to_message_log(f"ERROR: Failed to create confirmation popup: {e}")
+    def confirm_and_send_request(self, confirm_popup):
+        """Actually send the maintenance request after confirmation"""
+        try:
+            # Close the confirmation popup
+            confirm_popup.destroy()
+            
+            # Log the request
             add_to_message_log("Sending maintenance request to CTC")
             
-            # Update button state
+            # Update button state TEMPORARILY (will be reset when popup closes)
             self.maint_call_btn.config(
-                text="Request Sent",
-                bg="#666666",
                 state="disabled"
             )
-            self.maint_status_label.config(text="Status: Request Sent")
-            self.status_indicator.config(fg="orange", text="●")
             
             # Create maintenance request message
             maint_message = {
@@ -2174,34 +2184,87 @@ class LeftPanel(tk.Frame):
             # Send to CTC
             if hasattr(test_data, 'server1'):
                 test_data.server1.send_to_ui('CTC', maint_message)
-                add_to_message_log(f"Maintenance request sent to CTC for {test_data.current_line} Line", "INFO")
+                add_to_message_log(f"Maintenance request sent to CTC for {test_data.current_line} Line")
             
             # Also send to Test UI
             test_data.server1.send_to_ui('WC_HW_TestUI', maint_message)
             
             # Update maintenance LED in header
             maint_led.config(bg="orange", text="MAINT REQ")
-            
-            # Schedule button reset after 10 seconds
-            self.after(10000, self.reset_maintenance_button)
+
+            # Show success popup
+            self.show_success_popup()
+
+            # Schedule button reset after 10 seconds (if button is still disabled)
+            if hasattr(self, 'maint_call_btn') and self.maint_call_btn['state'] == 'disabled':
+                self.after(10000, lambda: self.maint_call_btn.config(state="normal") if hasattr(self, 'maint_call_btn') else None)
             
         except Exception as e:
             print(f"Error sending maintenance request: {e}")
             add_to_message_log(f"ERROR: Failed to send maintenance request: {e}")
             self.maint_call_btn.config(state="normal")
-            self.maint_status_label.config(text="Status: Failed")
-            self.status_indicator.config(fg="red", text="●")
-
-    def reset_maintenance_button(self):
-        """Reset maintenance button to normal state"""
-        self.maint_call_btn.config(
-            text="Request Maintenance",
-            bg="#FFA500",
-            state="normal"
+            # Re-enable the button on error
+            if hasattr(self, 'maint_call_btn'):
+                self.maint_call_btn.config(state="normal")
+    
+    def show_success_popup(self):
+        """Show success popup after sending request"""
+        success_popup = tk.Toplevel(self)
+        success_popup.title("Request Sent")
+        success_popup.geometry("350x180")
+        success_popup.configure(bg="#1a1a4d")
+        
+        # Center the popup
+        success_popup.transient(self)
+        
+        # Message frame
+        message_frame = tk.Frame(success_popup, bg='#1a1a4d')
+        message_frame.pack(expand=True, fill='both', padx=20, pady=20)
+        
+        # Success message
+        success_label = tk.Label(
+            message_frame,
+            text="✓ Maintenance Request Sent",
+            bg='#1a1a4d',
+            fg='white',
+            font=('Arial', 12, 'bold')
         )
-        self.maint_status_label.config(text="Status: Ready")
-        self.status_indicator.config(fg="green", text="●")
-        add_to_message_log("Maintenance request timer reset", "INFO")
+        success_label.pack(pady=10)
+        
+        # Details
+        details_label = tk.Label(
+            message_frame,
+            text=f"Sent to CTC for {test_data.current_line} Line",
+            bg='#1a1a4d',
+            fg='#cccccc',
+            font=('Arial', 10)
+        )
+        details_label.pack(pady=5)
+        
+        # OK button
+        ok_button = tk.Button(
+            message_frame,
+            text="OK",
+            command=lambda: self.close_success_popup(success_popup),
+            bg='#FFA500',
+            fg='white',
+            font=('Arial', 10, 'bold'),
+            width=10,
+            height=1
+        )
+        ok_button.pack(pady=15)
+        
+        # Close the popup when clicking the X
+        success_popup.protocol("WM_DELETE_WINDOW", lambda: self.close_success_popup(success_popup))
+    
+    def close_success_popup(self, popup):
+        """Close success popup and reset button"""
+        popup.destroy()
+        # Reset button to normal state
+        if hasattr(self, 'maint_call_btn'):
+            self.maint_call_btn.config(state="normal")
+        add_to_message_log("Success popup closed, button reset")
+
     def update_light_options(self):
         """Update combobox options based on current line"""
         lights = list(self.data.filtered_track_data.get("lights", {}).keys())
@@ -2247,7 +2310,7 @@ class LeftPanel(tk.Frame):
             old_value = self.data.track_data["crossings"][selected]["lights"]
             new_value = self.crossing_lights.get()
             self.data.track_data["crossings"][selected]["lights"] = self.crossing_lights.get()
-            message_logger.log(f"Crossing {selected}: Lights changed from {old_value} to {new_value}", "INFO")
+            message_logger.log(f"Crossing {selected}: Lights changed from {old_value} to {new_value}")
 
     def update_switch_display(self, event=None):
         selected = self.switch_selector.get()
@@ -2304,7 +2367,7 @@ class LeftPanel(tk.Frame):
             message_logger.log(log_message, "INFO")
         
         # Also log the detailed change
-        message_logger.log(f"Switch {selected}: Direction changed from {old_value} to {new_value}", "INFO")
+        message_logger.log(f"Switch {selected}: Direction changed from {old_value} to {new_value}")
         
    
     def update_light_display(self, event=None):
@@ -2341,7 +2404,7 @@ class LeftPanel(tk.Frame):
         for widget in [self.switch_selector, self.light_selector, self.crossing_selector]:
             widget.config(background='#fff0cc')
         
-        add_to_message_log("LeftPanel: Maintenance controls enabled", "INFO")
+        add_to_message_log("LeftPanel: Maintenance controls enabled")
 
 
     def update_mode_ui(self):
@@ -2371,7 +2434,7 @@ class LeftPanel(tk.Frame):
             for widget in [self.switch_selector, self.light_selector, self.crossing_selector]:
                 widget.config(background='#fff0cc')
         
-            add_to_message_log("Maintenance Mode: Switch controls enabled", "INFO")
+            add_to_message_log("Maintenance Mode: Switch controls enabled")
         else:
             # Maintenance mode OFF
             self.switch_direction.config(state='disabled')
@@ -2410,7 +2473,7 @@ class LeftPanel(tk.Frame):
     def update_switch_direction(self, event=None):
         """Only allow switch direction changes if editable"""
         if not self.data.is_changeable("switches"):
-            add_to_message_log("WARNING: Switch changes not allowed in current mode", "WARNING")
+            add_to_message_log("WARNING: Switch changes not allowed in current mode")
             return
            
         selected = self.switch_selector.get()
@@ -2423,14 +2486,14 @@ class LeftPanel(tk.Frame):
     def update_crossing_lights(self, event=None):
         """Prevent crossing light changes"""
         if self.data.maintenance_mode:
-            add_to_message_log("WARNING: Crossing light changes not permitted in maintenance mode", "WARNING")
+            add_to_message_log("WARNING: Crossing light changes not permitted in maintenance mode")
             # Revert to original value
             self.update_crossing_display()
    
     def update_light_signal(self, event=None):
         """Prevent light signal changes"""
         if self.data.maintenance_mode:
-            add_to_message_log("WARNING: Light signal changes not permitted in maintenance mode", "WARNING")
+            add_to_message_log("WARNING: Light signal changes not permitted in maintenance mode")
             # Revert to original value
             self.update_light_display()
 
