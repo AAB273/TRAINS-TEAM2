@@ -67,7 +67,7 @@ def update_suggested_speed_display(speed, authority=None):
         else: 
             add_to_message_log(f"CTC Speed recieved: {formatted_speed} mph")
     except Exception as e:
-        add_to_message_log(f"ERROR updating speed display: {e}", "ERROR")
+        add_to_message_log(f"ERROR updating speed display: {e}")
 
 
 # installing update_callback function
@@ -166,7 +166,7 @@ def _process_message(self, data, connection=None, server_instance=None):
             print(f"TRACK HW MAIN UI: Received message from CTC")
             print(f"Data type: {type(data)}")
             print(f"Data: {data}")
-        
+
         # 1. Handle connection test FIRST
             if isinstance(data, str) and data.strip() == "CTC":
                 print("CTC connection test received - sending ACK")
@@ -317,11 +317,99 @@ def _process_message(self, data, connection=None, server_instance=None):
                 add_to_message_log("Maintenance Request LED activated", "INFO")
             
         elif command == 'set_switch_position':
+            # Legacy switch command - redirect to SW command
+            print(f"Legacy set_switch_position command: {value}")
             add_to_message_log(f"Switch position update: {value}")
         elif command == "SW":
-            # Handel switch command from CTC
-            self.handle_ctc_switch(value)
-            return  # stop processing here    
+            # Handle switch command from CTC - FOR TRACK HW
+            print(f"CTC SWITCH COMMAND received: {value}")
+            
+            if isinstance(value, list) and len(value) >= 2:
+                location = str(value[0])
+                line = value[1]
+                
+                # Log the switch command
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                log_message = f"{timestamp} CTC REQUEST: Toggle Switch {location} on {line} track"
+                message_logger.log(log_message, "INFO")
+                
+                # Update the left panel switch display if it matches current line
+                if line.lower() == test_data.current_line.lower():
+                    print(f"Updating switch for current line: {line}")
+                    
+                    # Find and update the appropriate switch in left panel
+                    if hasattr(left_panel, 'switch_selector'):
+                        # Try to find a switch that includes this block
+                        found_switch = None
+                        for switch_name in test_data.track_data.get("switches", {}):
+                            # Check if location is part of the switch name
+                            if location in switch_name:
+                                found_switch = switch_name
+                                break
+                            # Check if location matches numbers in switch name
+                            import re
+                            numbers = re.findall(r'\d+', switch_name)
+                            if location in numbers:
+                                found_switch = switch_name
+                                break
+                        
+                        if found_switch:
+                            print(f"Found matching switch: {found_switch}")
+                            
+                            # Update the switch selector
+                            left_panel.switch_selector.set(found_switch)
+                            left_panel.update_switch_display()
+                            
+                            # Toggle the switch direction
+                            current_direction = test_data.track_data["switches"][found_switch]["direction"]
+                            
+                            # Determine new direction (toggle between two positions)
+                            # This depends on your switch logic - here's an example:
+                            if "Blocks" in current_direction:
+                                # Extract block numbers
+                                import re
+                                blocks = re.findall(r'\d+', current_direction)
+                                if len(blocks) >= 2:
+                                    # Toggle the direction (swap blocks or change pattern)
+                                    # Example: If current is "Blocks 12-13", change to "Blocks 12-1"
+                                    # You'll need to customize this based on your actual switch logic
+                                    if "12-13" in current_direction:
+                                        new_direction = "Blocks 12-1"
+                                    elif "28-29" in current_direction:
+                                        new_direction = "Blocks 28-150"  # Example toggle
+                                    else:
+                                        # Default toggle - swap the two numbers
+                                        new_direction = f"Blocks {blocks[1]}-{blocks[0]}"
+                                    
+                                    # Update the direction
+                                    test_data.track_data["switches"][found_switch]["direction"] = new_direction
+                                    left_panel.switch_direction.set(new_direction)
+                                    
+                                    # Log the change
+                                    message_logger.log(f"Switch {found_switch}: Direction changed to {new_direction} by CTC", "INFO")
+                            
+                            add_to_message_log(f"CTC Switch Command: Updated {found_switch} for Block {location}")
+                        else:
+                            print(f"No matching switch found for block {location}")
+                            add_to_message_log(f"CTC Switch Command: No switch found for Block {location}", "WARNING")
+                    else:
+                        print("Left panel switch_selector not found")
+                else:
+                    print(f"Ignoring switch command for different line: {line} (we're on {test_data.current_line})")
+                
+                # Send acknowledgment back to CTC
+                if hasattr(test_data, 'server1'):
+                    ack_message = {
+                        'command': 'SW_ACK',
+                        'value': {
+                            'location': location,
+                            'line': line,
+                            'status': 'processed',
+                            'timestamp': timestamp
+                        }
+                    }
+                    test_data.server1.send_to_ui('CTC', ack_message)
+                    print(f"Sent SW_ACK to CTC for switch {location}")  
             
         else:
             print(f"Unknown command: {command} with value: {value}")
@@ -393,10 +481,10 @@ def handle_ctc_suggested_speed(speed_data):
             update_suggested_speed_display(formatted_speed)
             return formatted_speed
         else:
-            add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
+            add_to_message_log("ERROR: Could not extract speed from CTC message")
         
     except Exception as e:
-        add_to_message_log(f"ERROR: Processing CTC speed message - {e}", "ERROR")
+        add_to_message_log(f"ERROR: Processing CTC speed message - {e}")
 
     return None
     # def handle_ctc_suggested_speed(speed_data):
@@ -913,7 +1001,7 @@ class UITestData:
             # Add other commands as needed
                 
         except Exception as e:
-            add_to_message_log(f"ERROR handling CTC message: {e}", "ERROR")
+            add_to_message_log(f"ERROR handling CTC message: {e}")
     
     def _handle_speed_auth_update(self, data):
         """Handle speed and authority updates from CTC"""
@@ -978,7 +1066,7 @@ class UITestData:
 
         except Exception as e:
             print(f"Error handling speed/auth update: {e}")
-            add_to_message_log(f"ERROR processing CTC update: {e}", "ERROR")
+            add_to_message_log(f"ERROR processing CTC update: {e}")
 
 
 
@@ -1008,7 +1096,7 @@ class UITestData:
                 
         except Exception as e:
             print(f"Error handling CTC switch command: {e}")
-            add_to_message_log(f"ERROR: Failed to process CTC switch command: {e}", "ERROR")
+            add_to_message_log(f"ERROR: Failed to process CTC switch command: {e}")
     
     def handle_ctc_maintenance(self, maint_data=None):
         """Handle maintenance mode request from CTC"""
@@ -1027,6 +1115,18 @@ class UITestData:
             if hasattr(maint_led, 'config'):
                 maint_led.config(bg="orange", text="MAINT REQ")
                 add_to_message_log("Maintenance Request LED activated", "INFO")
+
+            # Send acknowledgment back to CTC
+            if hasattr(self, 'server1'):
+                ack_message = {
+                    'command': 'MAINT_ACK',
+                    'value': {
+                        'status': 'accepted',
+                        'timestamp': current_time,
+                        'message': 'Maintenance mode activated'
+                    }
+                }
+            self.server1.send_to_ui('CTC', ack_message)
             
             # Optionally switch to maintenance mode in the UI
             if hasattr(view_var_maint, 'set'):
@@ -1057,7 +1157,7 @@ class UITestData:
             error_msg = f"Error processing CTC maintenance command: {e}"
             print(f"✗ {error_msg}")
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            add_to_message_log(f"{current_time} ERROR: Failed to process CTC maintenance request", "ERROR")
+            add_to_message_log(f"{current_time} ERROR: Failed to process CTC maintenance request")
 
 
         #             value_type = data.get('value_type', 'suggested').strip()
@@ -1430,7 +1530,7 @@ def load_line_data(self, filename):
         add_to_message_log(f"Loaded {filename} Line: {len(self.block_data)} blocks, {len(sections)} sections")
         
     except Exception as e:
-        add_to_message_log(f"ERROR loading {filename} Line data: {e}", "ERROR")
+        add_to_message_log(f"ERROR loading {filename} Line data: {e}")
         print(f"Error loading line data: {e}")
         import traceback
         traceback.print_exc()
@@ -1672,7 +1772,7 @@ class PLCManager:
             self.message_logger.log(f"PLC file loaded: {file_path}", "INFO")
             return True
         except Exception as e:
-            self.message_logger.log(f"PLC load error: {e}", "ERROR")
+            self.message_logger.log(f"PLC load error: {e}")
             return False
    
     def run_plc(self):
@@ -1686,7 +1786,7 @@ class PLCManager:
             self.message_logger.log(f"PLC file executed: {self.current_file.split('/')[-1]}", "INFO")
             return True
         except Exception as e:
-            self.message_logger.log(f"PLC runtime error: {e}", "ERROR")
+            self.message_logger.log(f"PLC runtime error: {e}")
             return False
    
     def get_status(self):
@@ -1762,7 +1862,7 @@ def toggle_maintenance_mode():
     # Update the maintenance LED color/text
     if test_data.maintenance_mode:
         maint_led.config(bg="orange", text="MM ON")
-        add_to_message_log("Maintenance Mode Activated", "WARNING")
+        add_to_message_log("Maintenance Mode Activated")
     else:
         maint_led.config(bg="gray", text="MM OFF")
 
@@ -1779,7 +1879,7 @@ def toggle_maintenance_mode():
             test_data.server1.send_to_ui('CTC', ack_message)
     else:
         maint_led.config(bg="gray", text="MM OFF")
-        add_to_message_log("Maintenance Mode Deactivated", "INFO")
+        add_to_message_log("Maintenance Mode Deactivated")
 
 
     # Update the right panel UI
@@ -1987,6 +2087,67 @@ class LeftPanel(tk.Frame):
         """Send maintenance request to CTC and other UIs"""
         try:
             print("Sending maintenance request...")
+            # Create the pop-up message
+            popup = tk.Toplevel(self)
+            popup.title("Maintenance Request")
+            popup.geometry("400x200")
+            popup.configure(bg="#bcbcbe")
+        
+        # Center the popup
+            popup.transient(self)
+            popup.grab_set()
+        
+        # Popup message content
+            message_frame = tk.Frame(popup, bg='#1a1a4d')
+            message_frame.pack(expand=True, fill='both', padx=20, pady=20)
+        
+        # Title
+            title_label = tk.Label(
+                message_frame,
+                text="Maintenance Request Status",
+                bg='#1a1a4d',
+                fg='white',
+                font=('Arial', 14, 'bold')
+            )
+            title_label.pack(pady=10)
+        
+        # Message
+            message_label = tk.Label(
+                message_frame,
+                text="Maintenance has been requested\nbased on CTC's request",
+                bg='#1a1a4d',
+                fg='white',
+                font=('Arial', 12),
+                justify='center'
+            )
+            message_label.pack(pady=10)
+        
+        # Additional info
+            info_label = tk.Label(
+                message_frame,
+                text=f"Line: {test_data.current_line}\nTime: {datetime.now().strftime('%H:%M:%S')}",
+                bg='#1a1a4d',
+                fg='#cccccc',
+                font=('Arial', 10),
+                justify='center'
+            )
+            info_label.pack(pady=10)
+        
+            # OK button
+            ok_button = tk.Button(
+                message_frame,
+                text="OK",
+                command=popup.destroy,
+                bg='#FFA500',
+                fg='white',
+                font=('Arial', 10, 'bold'),
+                width=10,
+                height=1
+            )
+            ok_button.pack(pady=10)
+        
+        # Close the popup when clicking the X
+            popup.protocol("WM_DELETE_WINDOW", popup.destroy)
             add_to_message_log("Sending maintenance request to CTC")
             
             # Update button state
@@ -2026,7 +2187,7 @@ class LeftPanel(tk.Frame):
             
         except Exception as e:
             print(f"Error sending maintenance request: {e}")
-            add_to_message_log(f"ERROR: Failed to send maintenance request: {e}", "ERROR")
+            add_to_message_log(f"ERROR: Failed to send maintenance request: {e}")
             self.maint_call_btn.config(state="normal")
             self.maint_status_label.config(text="Status: Failed")
             self.status_indicator.config(fg="red", text="●")
@@ -2100,12 +2261,51 @@ class LeftPanel(tk.Frame):
             self.switch_direction.set(data["direction"])
    
     def update_switch_direction(self, event=None):
+        """Update switch direction and log the change"""
         selected = self.switch_selector.get()
         if selected in self.data.track_data["switches"]:
             old_value = self.data.track_data["switches"][selected]["direction"]
             new_value = self.switch_direction.get()
             self.data.track_data["switches"][selected]["direction"] = new_value
             message_logger.log(f"Switch {selected}: Direction changed from {old_value} to {new_value}")
+
+            # Create log message in the specific format
+            # Extract block numbers from the switch name or direction
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+            # Parse the direction to get block numbers
+            switch_mapping = {
+            "Switch 12-13": ("12", "1"),      # 12 to 1
+            "Switch 28-29": ("28", "29"),     # 28 to 29
+            "Switch 57-Yard": ("57", "0"),    # 0 to 57 (Yard is represented as 0)
+            "Switch 62-Yard": ("62", "0"),    # Alternative yard switch
+            "Switch 1-13": ("1", "13"),       # Red line switch
+            "Switch 150-28": ("150", "28"),   # Another red line switch
+            "Switch 76-77": ("76", "77"),     # 76 to 77
+            "Switch 85-100": ("85", "100")    # 85 to 100
+        }
+        
+        # Get the appropriate block number based on switch name
+        ctc_block = ""
+        if selected in switch_mapping:
+            # Use the first block in the mapping for CTC log
+            ctc_block = switch_mapping[selected][0]
+        else:
+            # Try to extract block number from switch name
+            import re
+            numbers = re.findall(r'\d+', selected)
+            if numbers:
+                ctc_block = numbers[0]  # Use first number found
+        
+        # Create CTC format log message
+        if ctc_block:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log_message = f"{timestamp} CTC REQUEST: Toggle Switch {ctc_block} on {self.data.current_line} track"
+            message_logger.log(log_message, "INFO")
+        
+        # Also log the detailed change
+        message_logger.log(f"Switch {selected}: Direction changed from {old_value} to {new_value}", "INFO")
+        
    
     def update_light_display(self, event=None):
         selected = self.light_selector.get()

@@ -18,7 +18,7 @@ from train_data import getTrainManager
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
-from clock import clock
+#from clock import clock
 import pygame
 import random
 
@@ -73,7 +73,7 @@ class TrainModelPassengerGUI:
 		self.previousFailureSignalPickupState = False
 		self.failureActivationInProgress = False
 		self.previousActiveTrains = set()
-		self.clockSpeed = clock.getSpeed() * 100
+		#self.clockSpeed = clock.getSpeed() * 100
 
 		self.setupGUI()
 		
@@ -253,7 +253,7 @@ class TrainModelPassengerGUI:
 				targetTemp = value
 				self._animateTemperatureChange(targetTemp, train)
 			elif command == 'Announcement':
-				train.setStation(value)
+				train.setAnnouncement(value)
 			elif command == 'Service Brake':
 				if self.failureBrakeVar.get() and train == self.currentTrain:
 					pass
@@ -918,11 +918,11 @@ class TrainModelPassengerGUI:
 		# Schedule next ad change (6000ms = 6 seconds)
 		self.root.after(6000, self.cycleThroughAds)  
 
-	def updateTime(self):
-		# Continuously updates the time display every second.
-		localTime = clock.getTime()
-		self.uiLabels['time'].config(text=localTime)
-		self.root.after(100, self.updateTime)
+	# def updateTime(self):
+	# 	# Continuously updates the time display every second.
+	# 	localTime = clock.getTime()
+	# 	self.uiLabels['time'].config(text=localTime)
+	# 	self.root.after(100, self.updateTime)
 
 	def onClosing(self):
 		# Handles application closing and cleanup.
@@ -938,9 +938,9 @@ class TrainModelPassengerGUI:
 		# Initialize the train selector dropdown
 		self.root.after(100, self.refreshTrainSelector)
 
-		self.root.after(self.clockSpeed, self.continuousPhysicsUpdate)
+		self.root.after(100, self.continuousPhysicsUpdate)
 
-		self.root.after(100, self.updateTime)
+		#self.root.after(100, self.updateTime)
 
 		self.root.after(5000, self.cycleThroughAds)
 
