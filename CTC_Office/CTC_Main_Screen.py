@@ -519,10 +519,12 @@ class MainScreen:
         if (change == "inc" and self.clockSpeed == 1):
             clock.tenTimesSpeed()
             self.clockSpeed = 10
+            self.send_to_ui("Track SW", {"command": "TIME", "value": self.clockSpeed})
             return self.clockSpeed
         elif (change == "dec" and self.clockSpeed == 10):
             clock.normalSpeed()
             self.clockSpeed = 1
+            self.send_to_ui("Track SW", {"command": "TIME", "value": self.clockSpeed})
             return self.clockSpeed
     
 ###############################################################################################################################################################
