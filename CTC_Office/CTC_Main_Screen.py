@@ -668,6 +668,7 @@ class MainScreen:
                     #grab specific block direction
 
                     #self.send_to_ui("MM", location + ", " + direction + ", " + self.mmArea.item(self.mmArea.parent(rowID), "text").lower())
+                    self.send_to_ui("Track HW", {'command:': "SW", "value": [location, line]})
                     self.send_to_ui("Track SW", {"command": "SW", "value": [location, line]})
 
 ###############################################################################################################################################################
