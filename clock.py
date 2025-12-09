@@ -47,3 +47,26 @@ class Clock:
     
     def getSpeed(self):
         return self._speed
+    
+
+
+
+
+# Everyone Else needs this.
+# from multiprocessing import Value, Lock
+# from datetime import datetime
+# import ctypes
+# import time
+
+# def worker_process_1(shared_timestamp, lock):
+#     """A worker that only READS the clock"""
+#     while True:
+#         with lock:
+#             timestamp = shared_timestamp.value
+        
+#         dt = datetime.fromtimestamp(timestamp)
+#         print(f"Worker 1 sees: {dt.strftime('%H:%M:%S')}")
+#         time.sleep(0.5)
+
+
+# # worker2.py
