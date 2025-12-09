@@ -43,8 +43,8 @@ class TrackModelUI(tk.Tk):
         self.server.set_allowed_connections(["Track SW","Track HW", "Train Model", "CTC", "Train HW","Train SW"])
         self.server.start_server(self._process_message)
         self.server.connect_to_ui('localhost', 12341, "CTC")
-        self.server.connect_to_ui('localhost', 12346, "Train SW")
-        self.server.connect_to_ui('localhost', 12347, "Train HW")
+        #self.server.connect_to_ui('localhost', 12346, "Train SW")
+        #self.server.connect_to_ui('localhost', 12347, "Train HW")
         self.server.connect_to_ui('localhost', 12345, "Train Model")
         self.server.connect_to_ui('localhost', 12342,  'Track SW')
         self.server.connect_to_ui('localhost', 12343,'Track HW')
@@ -5881,6 +5881,10 @@ class TrackModelUI(tk.Tk):
                 train_id = message.get('train_id')
 
                 # ---------------------------
+                
+                # Convert train_id to string if it's an integer (Passenger_UI sends as int)
+                if train_id is not None and isinstance(train_id, int):
+                    train_id = str(train_id)
                 # 1. Require a train_id
                 # ---------------------------
                 if not train_id:

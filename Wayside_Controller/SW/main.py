@@ -397,7 +397,17 @@ class RailwayControlSystem:
         print(f"Processing {value_type} update: {track} Block {block} -> Speed:{speed}, Auth:{authority}")
 
         if track and block and value_type:
-            print(f"Processing {value_type} update: {track} Block {block} -> Speed:{speed}, Auth:{authority}")
+            speed_mph = None
+            if speed is not None:
+                try:
+                    # Convert m/s to mph
+                    speed_mph = str(float(speed) * 2.23694)
+                    print(f"  Converted speed: {speed} m/s → {speed_mph} mph")
+                except (ValueError, TypeError) as e:
+                    print(f"  Error converting speed {speed}: {e}")
+                    speed_mph = speed  # Keep original if conversion fails
+
+            print(f"Processing {value_type} update: {track} Block {block} -> Speed:{speed_mph}, Auth:{authority}")
             
             if value_type == 'commanded':
                 if speed is not None:
@@ -407,9 +417,19 @@ class RailwayControlSystem:
                         
             elif value_type == 'suggested':
                 if speed is not None:
-                    self.data.suggested_speed[track][block] = speed
+                    self.data.suggested_speed[track][block] = speed_mph
                 if authority is not None:
                     self.data.suggested_authority[track][block] = authority
+                if block == "63":  # ONLY for block 63!
+                    print(f"CTC sent suggested values for block 63 - forwarding to Track Model as commanded")
+                    
+                    # Use suggested values or defaults
+                    set_speed = "32"
+                    set_authority = "3"
+                    
+                    # Send to Track Model as commanded values
+                    self.send_commanded_to_track_model(track, block, set_speed, set_authority)
+                
             
             # ALWAYS UPDATE RIGHT PANEL
             if hasattr(self, 'right_panel'):
