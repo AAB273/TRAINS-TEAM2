@@ -1036,7 +1036,7 @@ class Main_Window:
         self.position_tracker.update(self.current_speed_ms, self)
         
         # Update underground display
-        self.update_underground_display()
+        #self.update_underground_display()
         
         # Get base commanded speed
         if self.is_auto_mode:
@@ -1228,8 +1228,8 @@ class Main_Window:
                 self.last_power_sent = 0
         
         # Update underground display
-        if hasattr(self, 'update_underground_display'):
-            self.update_underground_display()
+        #if hasattr(self, 'update_underground_display'):
+            #self.update_underground_display()
         
         # Update door safety based on speed
         if self.current_speed_ms > 1.0 and not self.door_safety_lock:
