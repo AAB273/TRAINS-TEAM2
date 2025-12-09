@@ -260,6 +260,37 @@ class Testing(unittest.TestCase):
         except AssertionError:
             print("Test failed:", message['command'], "not set correctly")
             raise
+
+    def test_e_brake_socket_message(self):
+        """
+        Test that when a 'Service Brake' command is received through the socket, the train correctly sets its service brake bool.
+        """
+        # Simulate the socket message
+        message = {
+            'command': 'Emergency Brake',
+            'value': True,
+            'train_id': 1
+        }
+        
+        # Simulate what the UI's _processMessage method does
+        command = message.get('command')
+        value = message.get('value')
+        train_id = message.get('train_id')
+        
+        train = self.train_manager.getTrain(train_id)
+        
+        if command == 'Emergency Brake':
+            train.setEmergencyBrake(value)
+        
+        # Verify the train has the correct commanded speed
+        print("\nTesting message",message['command'])
+        try:
+            self.assertEqual(train.emergencyBrakeActive, True)
+            print("Test passed:", message['command'], "set correctly")
+        except AssertionError:
+            print("Test failed:", message['command'], "not set correctly")
+            raise
+    
     
     def test_ui_100ms_updates(self):
         """Test exactly what happens with 100ms UI updates."""
