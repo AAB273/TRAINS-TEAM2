@@ -4,7 +4,7 @@ from pathlib import Path  # ← ADD
 def load_socket_config():
     """Load socket configuration from config.json"""
     config_path = Path("config.json")
-    config = {}  # ✅ Initialize config first
+    config = {}  #  Initialize config first
     
     if config_path.exists():
         try:
@@ -42,6 +42,7 @@ from Engineer_UI import EngineerUI
 from FailureIndicator import FailureIndicator
 from ToggleButton import ToggleButton
 from ModeToggle import Mode_Toggle
+import pygame
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
