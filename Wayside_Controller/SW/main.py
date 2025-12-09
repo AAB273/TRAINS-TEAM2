@@ -65,7 +65,7 @@ class RailwayControlSystem:
             print(f"Main UI received from {source_ui_id}: {message}")
             
             command = message.get('command')
-            data = message.get('value', {})
+            data = message.get('value')
             
             # Check if message is from CTC and it's a switch command
             if source_ui_id == "CTC":
@@ -73,6 +73,8 @@ class RailwayControlSystem:
                     self.handle_ctc_switch(data)
                 elif command == "MAINT":  # Maintenance request from CTC
                     self.handle_ctc_maintenance(data)
+                elif command == 'update_speed_auth':
+                    self.handle_speed_auth_update(data)
                 return  # Stop processing here
             
             if command == 'update_switch':
@@ -165,21 +167,37 @@ class RailwayControlSystem:
         self.send_to_track_model(track_model_message)
 
     def send_switch_to_track_model(self, track, block, position):
-        """Send all switch positions to Track Model"""
-        # Build array of all switch positions
+        """Send only switches in PLC-controlled sections to Track Model"""
+        # Build array of PLC-controlled switch positions
         switch_list = []
         
         # Add track identifier as first element (0 for Green, 1 for Red)
         track_id = 0 if track == "Green" else 1 if track == "Red" else 2
         switch_list.append(track_id)
         
-        # Get all switches for the current track
+        # Get all switches for the current track in PLC sections
         switches = []
+        
+        # Get PLC sections - similar to how your models class does it
+        plc_sections = []
+        if hasattr(self.data, 'plc_filter_active') and self.data.plc_filter_active:
+            plc_sections = getattr(self.data, 'plc_filter_sections', [])
+        
+        print(f"PLC sections for switch filtering: {plc_sections}")
+        
         for switch_name, switch_data in self.data.switch_positions.items():
             if switch_data.get("line") == track:
-                # Extract block number and convert to integer for sorting
-                block_num = int(switch_name.split(" ")[1])
-                switches.append((block_num, switch_data.get("numeric_position", 1) - 1))
+                # Get switch block number
+                switch_block_num = int(switch_name.split(" ")[1])
+                
+                # Get section for this block using the same method as your models class
+                section = self.data.get_section_for_block(track, str(switch_block_num))
+                
+                # Include if section is in PLC sections
+                if section in plc_sections:
+                    # Extract block number and convert to integer for sorting
+                    switches.append((switch_block_num, switch_data.get("numeric_position", 1) - 1))
+                    print(f"  Including switch {switch_block_num}: section={section} in PLC sections")
         
         # Sort by block number (smallest first)
         switches.sort(key=lambda x: x[0])
@@ -190,10 +208,13 @@ class RailwayControlSystem:
         
         switch_message = {
             "command": "switch_states",
-            "value": switch_list  # This will be [track_id, pos1, pos2, ...] in block order
+            "value": switch_list  # This will be [track_id, pos1, pos2, ...] for PLC switches only
         }
         
-        print(f"Sending all switches to track model: {switch_message}")
+        print(f"Sending PLC switches to track model: {switch_message}")
+        print(f"  Number of switches included: {len(switches)}")
+        print(f"  Switch blocks: {[s[0] for s in switches]}")
+        
         return self.send_to_track_model(switch_message)
 
     def send_to_track_model(self, message):
@@ -373,7 +394,8 @@ class RailwayControlSystem:
         speed = data.get('speed')
         authority = data.get('authority')
         value_type = data.get('value_type')  # 'commanded' or 'suggested'
-        
+        print(f"Processing {value_type} update: {track} Block {block} -> Speed:{speed}, Auth:{authority}")
+
         if track and block and value_type:
             print(f"Processing {value_type} update: {track} Block {block} -> Speed:{speed}, Auth:{authority}")
             
@@ -418,13 +440,31 @@ class RailwayControlSystem:
                 print(f"Block {block} not found on {track} track")
             else:
                 print(f"Occupancy update initiated")
-
-            #Send speed and authority to Track Model when block becomes occupied
-            if occupied:
+            
+            # Get PLC sections to check if block is in PLC-controlled area
+            plc_sections = []
+            if hasattr(self.data, 'plc_filter_active') and self.data.plc_filter_active:
+                plc_sections = getattr(self.data, 'plc_filter_sections', [])
+            
+            # Get section for this block
+            section = self.data.get_section_for_block(track, block)
+            
+            print(f"Block {block} on {track}: section={section}, in PLC sections={section in plc_sections}")
+            
+            # Send speed and authority to Track Model when:
+            # 1. Block becomes occupied AND
+            # 2. Block is in PLC-controlled section
+            if occupied and section in plc_sections:
                 # Get commanded values for this block
                 commanded_speed = self.data.commanded_speed[track].get(block, 0)
                 commanded_authority = self.data.commanded_authority[track].get(block, 0)
+                
+                print(f"Sending commanded values for occupied PLC block {block}: speed={commanded_speed}, authority={commanded_authority}")
                 self.send_commanded_to_track_model(track, block, commanded_speed, commanded_authority)
+            elif occupied:
+                print(f"Block {block} is occupied but not in PLC section ({section}), not sending to Track Model")
+            else:
+                print(f"Block {block} is not occupied, not sending to Track Model")
 
             # Force refresh the center panel table
             if hasattr(self, 'center_panel') and hasattr(self.center_panel, 'refresh_table'):

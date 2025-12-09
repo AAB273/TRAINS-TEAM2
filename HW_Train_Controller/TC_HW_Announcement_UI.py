@@ -24,10 +24,9 @@ class StationAnnouncementPanel:
 		self.root.geometry("500x700")
 		self.root.configure(bg='#2c3e50')
 		
-		# Station data for all three lines
+		# Station data for Green and Red lines
 		self.stations = {
-			'Blue Line': ['Station B', 'Station C'],
-			'Green Line': ['Pioneer', 'Edgebrook', 'Station', 'Whited', 'South Bank', 
+			'Green Line': ['Pioneer', 'Edgebrook', 'LLC Plaza', 'Whited', 'South Bank', 
 			               'Central (Underground)', 'Inglewood (Underground)', 
 			               'Overbrook (Underground)', 'Glenbury', 'Dormont', 
 			               'Mt Lebanon', 'Poplar', 'Castle Shannon'],
@@ -38,7 +37,7 @@ class StationAnnouncementPanel:
 		}
 		
 		self.selectedStation = tk.StringVar()
-		self.currentLine = tk.StringVar(value='Blue Line')
+		self.currentLine = tk.StringVar(value='Green Line')
 		self.timeLabels = {}
 		
 		self._createWidgets()
@@ -54,7 +53,6 @@ class StationAnnouncementPanel:
 		self.notebook = ttk.Notebook(self.root)
 		self.notebook.pack(fill='both', expand=True)
 		
-		self._createBlueLineTab()
 		self._createGreenLineTab()
 		self._createRedLineTab()
 		self._createEmergencyTab()
@@ -172,9 +170,6 @@ class StationAnnouncementPanel:
 		)
 		announceBtn.pack()
 		
-	def _createBlueLineTab(self):
-		# Creates the Blue Line station selection tab.
-		self._createLineTab('Blue Line', '#1a5490')
 		
 	def _createGreenLineTab(self):
 		# Creates the Green Line station selection tab.

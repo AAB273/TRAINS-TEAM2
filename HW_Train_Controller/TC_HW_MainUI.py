@@ -6,7 +6,7 @@ This version runs on WINDOWS and connects to the Raspberry Pi GPIO Server remote
 The Pi runs TC_GPIO_Server.py which handles all the actual GPIO hardware.
 
 Connection Architecture:
-    Windows (This File)  ↔  Raspberry Pi (TC_GPIO_Server.py)
+    Windows (This File)  ←→  Raspberry Pi (TC_GPIO_Server.py)
           ↕
     Train Model (Windows)
 """
@@ -17,26 +17,23 @@ import threading
 from pathlib import Path
 import time
 import tkinter as tk
+from tkinter import ttk
 import sys
 import os
 
-# FIX: Add parent directory to Python path to find TrainSocketServer
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.insert(0, parent_dir)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Now import your modules - these should work
 from TC_HW_AirConditioning_UI import ACSystemPanel
 from TC_HW_Announcement_UI import StationAnnouncementPanel
 from TC_HW_TrackInfo_UI import TrackInformationPanel
+from TC_HW_PowerEngineer_UI import PowerEngineerPanel
 from TC_HW_SystemLogUI import SystemLogViewer
 from TrainSocketServer import TrainSocketServer
 
 # CONFIGURATION - SET YOUR PI'S IP ADDRESS HERE
-PI_HOST = '192.168.1.179'  # ← CHANGE THIS to your Pi's IP address
+PI_HOST = '10.6.3.77'  # ← CHANGE THIS to your Pi's IP address
 PI_GPIO_PORT = 12348
-
-# ... rest of your existing code continues unchanged ...
 
 def load_socket_config():
     config_path = Path("config.json")
@@ -51,7 +48,7 @@ leftDoorOpen = False
 rightDoorOpen = False
 headlightsOn = False
 interiorLightsOn = False
-serviceBrakeActive = False
+serviceBrakeActive = True  # Train starts with brakes engaged for safety
 trainHornActive = False
 emergencyBrakeEngaged = False
 drivetrainManualMode = False
@@ -71,7 +68,251 @@ running = True
 acPanel = None
 announcementPanel = None
 trackInfoPanel = None
+powerEngineerPanel = None
 systemLogViewer = None
+speedDisplay = None  # Main UI instance for GPIO access
+
+# PI Controller state
+integralError = 0.0
+prevError = 0.0  # Previous error for trapezoidal integration
+lastUpdateTime = None
+sampleTime = 0.1  # 100ms update rate
+lastSentPower = None  # Track last power sent to avoid duplicates
+
+# PRELOADED TRACK INFORMATION
+# Complete route starting from block 63 (YARD):
+# 63→150 (forward), then 28→1 (backward through F to A), then 13→62 (forward through D back to yard)
+# This creates a continuous loop through the entire Green Line
+preloadedTrackInformation = {
+    'segments': [
+        {
+            'from_station': 'YARD',
+            'to_station': 'GLENBURY',
+            'distance': 200.0 + 100.0,  # meters + half of block 65 (200m block)
+            'from_block': 63,
+            'to_block': 65,
+            'station_block_half_length': 100.0
+        },
+        {
+            'from_station': 'GLENBURY',
+            'to_station': 'DORMONT',
+            'distance': 1000.0 + 50.0,  # meters + half of block 73 (100m block)
+            'from_block': 65,
+            'to_block': 73,
+            'station_block_half_length': 50.0
+        },
+        {
+            'from_station': 'DORMONT',
+            'to_station': 'MT LEBANON',
+            'distance': 400.0 + 150.0,  # meters + half of block 77 (300m block)
+            'from_block': 73,
+            'to_block': 77,
+            'station_block_half_length': 150.0
+        },
+        {
+            'from_station': 'MT LEBANON',
+            'to_station': 'POPLAR',
+            'distance': 2886.6 + 50.0,  # meters + half of block 88 (100m block)
+            'from_block': 77,
+            'to_block': 88,
+            'station_block_half_length': 50.0
+        },
+        {
+            'from_station': 'POPLAR',
+            'to_station': 'CASTLE SHANNON',
+            'distance': 625.0 + 37.5,  # meters + half of block 96 (75m block)
+            'from_block': 88,
+            'to_block': 96,
+            'station_block_half_length': 37.5
+        },
+        {
+            'from_station': 'CASTLE SHANNON',
+            'to_station': 'DORMONT',
+            'distance': 690.0 + 50.0,  # meters + half of block 105 (100m block)
+            'from_block': 96,
+            'to_block': 105,
+            'station_block_half_length': 50.0
+        },
+        {
+            'from_station': 'DORMONT',
+            'to_station': 'GLENBURY',
+            'distance': 890.0 + 81.0,  # meters + half of block 114 (162m block)
+            'from_block': 105,
+            'to_block': 114,
+            'station_block_half_length': 81.0
+        },
+        {
+            'from_station': 'GLENBURY',
+            'to_station': 'OVERBROOK',
+            'distance': 652.0 + 25.0,  # meters + half of block 123 (50m block)
+            'from_block': 114,
+            'to_block': 123,
+            'station_block_half_length': 25.0
+        },
+        {
+            'from_station': 'OVERBROOK',
+            'to_station': 'INGLEWOOD',
+            'distance': 450.0 + 25.0,  # meters + half of block 132 (50m block)
+            'from_block': 123,
+            'to_block': 132,
+            'station_block_half_length': 25.0
+        },
+        {
+            'from_station': 'INGLEWOOD',
+            'to_station': 'CENTRAL',
+            'distance': 450.0 + 25.0,  # meters + half of block 141 (50m block)
+            'from_block': 132,
+            'to_block': 141,
+            'station_block_half_length': 25.0
+        },
+        {
+            'from_station': 'CENTRAL',
+            'to_station': 'WHITED',
+            'distance': 1609.0 + 150.0,  # meters + half of block 22 (300m block)
+            'from_block': 141,
+            'to_block': 22,
+            'station_block_half_length': 150.0
+        },
+        {
+            'from_station': 'WHITED',
+            'to_station': 'LLC PLAZA',
+            'distance': 1200.0 + 75.0,  # meters + half of block 16 (150m block)
+            'from_block': 22,
+            'to_block': 16,
+            'station_block_half_length': 75.0
+        },
+        {
+            'from_station': 'LLC PLAZA',
+            'to_station': 'EDGEBROOK',
+            'distance': 900.0 + 50.0,  # meters + half of block 9 (100m block)
+            'from_block': 16,
+            'to_block': 9,
+            'station_block_half_length': 50.0
+        },
+        {
+            'from_station': 'EDGEBROOK',
+            'to_station': 'PIONEER',
+            'distance': 700.0 + 50.0,  # meters + half of block 2 (100m block)
+            'from_block': 9,
+            'to_block': 2,
+            'station_block_half_length': 50.0
+        },
+        {
+            'from_station': 'PIONEER',
+            'to_station': 'LLC PLAZA',
+            'distance': 650.0 + 75.0,  # meters + half of block 16 (150m block)
+            'from_block': 2,
+            'to_block': 16,
+            'station_block_half_length': 75.0
+        },
+        {
+            'from_station': 'LLC PLAZA',
+            'to_station': 'WHITED',
+            'distance': 1050.0 + 150.0,  # meters + half of block 22 (300m block)
+            'from_block': 16,
+            'to_block': 22,
+            'station_block_half_length': 150.0
+        },
+        {
+            'from_station': 'WHITED',
+            'to_station': 'SOUTH BANK',
+            'distance': 1400.0 + 25.0,  # meters + half of block 31 (50m block)
+            'from_block': 22,
+            'to_block': 31,
+            'station_block_half_length': 25.0
+        },
+        {
+            'from_station': 'SOUTH BANK',
+            'to_station': 'CENTRAL',
+            'distance': 400.0 + 25.0,  # meters + half of block 39 (50m block)
+            'from_block': 31,
+            'to_block': 39,
+            'station_block_half_length': 25.0
+        },
+        {
+            'from_station': 'CENTRAL',
+            'to_station': 'INGLEWOOD',
+            'distance': 450.0 + 25.0,  # meters + half of block 48 (50m block)
+            'from_block': 39,
+            'to_block': 48,
+            'station_block_half_length': 25.0
+        },
+        {
+            'from_station': 'INGLEWOOD',
+            'to_station': 'OVERBROOK',
+            'distance': 450.0 + 25.0,  # meters + half of block 57 (50m block)
+            'from_block': 48,
+            'to_block': 57,
+            'station_block_half_length': 25.0
+        },
+        {
+            'from_station': 'OVERBROOK',
+            'to_station': 'GLENBURY',
+            'distance': 500.0 + 100.0,  # meters + half of block 65 (200m block)
+            'from_block': 57,
+            'to_block': 65,
+            'station_block_half_length': 100.0
+        }
+    ]
+}
+
+# Automatic mode position tracking variables
+autoModeEnabled = True  # Set to True to enable automatic mode station stopping
+currentSegmentIndex = 0  # Which segment we're currently traveling through
+distanceTraveledInSegment = 0.0  # How far we've traveled in current segment (meters)
+distanceToNextStation = preloadedTrackInformation['segments'][0]['distance']  # Distance remaining to next station
+lastPositionUpdateTime = None  # For calculating displacement
+
+# Underground sections - blocks where headlights and interior lights should be ON
+UNDERGROUND_BLOCKS = {36, 37, 38, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 
+                      53, 54, 55, 56, 57, 122, 123, 124, 125, 126, 127, 128, 129, 130, 
+                      131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 142, 143}
+
+# Station door side mapping - which doors open at each station
+# Format: station_name: 'left', 'right', or 'both'
+STATION_DOOR_SIDES = {
+    'PIONEER': 'left',
+    'EDGEBROOK': 'left',
+    'LLC PLAZA': 'both',
+    'WHITED': 'both',
+    'SOUTH BANK': 'left',
+    'CENTRAL': 'right',
+    'INGLEWOOD': 'right',  # Block 48
+    'OVERBROOK': 'right',  # Block 57, 123
+    'GLENBURY': 'right',   # Block 65, 114
+    'DORMONT': 'right',    # Block 73, 105
+    'MT LEBANON': 'both',
+    'POPLAR': 'left',
+    'CASTLE SHANNON': 'left'
+}
+
+# Special case: INGLEWOOD at block 132 uses left door instead of right
+STATION_DOOR_EXCEPTIONS = {
+    132: 'left'  # INGLEWOOD at block 132 uses left door
+}
+
+print(f"[INIT] Underground lighting system loaded: {len(UNDERGROUND_BLOCKS)} underground blocks")
+print(f"[INIT] Station door system loaded: {len(STATION_DOOR_SIDES)} stations configured")
+print(f"[INIT] Complete route: 22 station stops including 2 visits to LLC PLAZA")
+
+# Current block tracking
+currentBlock = 63  # Start at yard
+lastUndergroundState = False  # Track if we were underground last update
+
+print(f"[INIT] Starting at block {currentBlock} (Underground: {currentBlock in UNDERGROUND_BLOCKS})")
+
+# Automatic mode control parameters
+DECELERATION_DISTANCE = 200.0  # Start decelerating 200m before station (meters)
+STATION_STOP_THRESHOLD = 5.0  # Consider "at station" when within 5m
+STATION_DWELL_TIME = 3.0  # Time to wait at station (seconds)
+stationDwellStartTime = None  # Track when we arrived at station
+isAtStation = False  # Flag to track if we're stopped at a station
+
+# Position tracking counter for debug output
+_position_print_counter = 0
+_diagnostic_counter = 0
+_holding_print_counter = 0
+_decel_print_counter = 0
 
 class GPIOClient:
     """Client that connects to Raspberry Pi GPIO Server"""
@@ -84,7 +325,6 @@ class GPIOClient:
         self.running = True
         self.buffer = ""
         self.state_update_callback = None
-        self.log_message_callback = None
     
     def connect(self):
         """Connect to GPIO server on Pi"""
@@ -138,14 +378,6 @@ class GPIOClient:
             if msg_type == 'state_update':
                 if self.state_update_callback:
                     self.state_update_callback(message.get('data', {}))
-            
-            elif msg_type == 'log_message':
-                # Forward log messages to callback
-                if self.log_message_callback:
-                    self.log_message_callback(
-                        message.get('message', ''),
-                        message.get('category', 'system')
-                    )
         
         except json.JSONDecodeError:
             print(f"Invalid JSON from GPIO server: {message_str}")
@@ -168,6 +400,57 @@ class GPIOClient:
             self.connected = False
             return False
     
+    def setHeadlights(self, state):
+        """Control headlights (for underground sections)"""
+        if not self.connected:
+            return False
+        
+        command = {
+            'type': 'set_headlights',
+            'state': state
+        }
+        
+        try:
+            self.socket.sendall((json.dumps(command) + '\n').encode('utf-8'))
+            return True
+        except:
+            self.connected = False
+            return False
+    
+    def setInteriorLights(self, state):
+        """Control interior lights (for underground sections)"""
+        if not self.connected:
+            return False
+        
+        command = {
+            'type': 'set_interior_lights',
+            'state': state
+        }
+        
+        try:
+            self.socket.sendall((json.dumps(command) + '\n').encode('utf-8'))
+            return True
+        except:
+            self.connected = False
+            return False
+    
+    def setServiceBrake(self, state):
+        """Control service brake (for automatic station stops)"""
+        if not self.connected:
+            return False
+        
+        command = {
+            'type': 'set_service_brake',
+            'state': state
+        }
+        
+        try:
+            self.socket.sendall((json.dumps(command) + '\n').encode('utf-8'))
+            return True
+        except:
+            self.connected = False
+            return False
+    
     def disconnect(self):
         """Disconnect from GPIO server"""
         self.running = False
@@ -178,12 +461,16 @@ class GPIOClient:
             except:
                 pass
 
-# Simulated GPIO functions (these just update local state, Pi handles real GPIO)
+# Helper functions
 def getCurrentSpeed():
-    return currentSpeed
+    """Get current speed in MPH (converted from m/s for display)"""
+    MS_TO_MPH = 2.23694  # 1 m/s = 2.23694 mph
+    return currentSpeed * MS_TO_MPH
 
 def getCommandedSpeed():
-    return commandedSpeed
+    """Get commanded speed in MPH (converted from m/s for display)"""
+    MS_TO_MPH = 2.23694  # 1 m/s = 2.23694 mph
+    return commandedSpeed * MS_TO_MPH
 
 def getCommandedAuthority():
     return commandedAuthority
@@ -197,8 +484,430 @@ def getDrivetrainMode():
 def isManualMode():
     return drivetrainManualMode
 
+def getDistanceToNextStation():
+    """Get distance to next station in meters"""
+    return distanceToNextStation
+
+def getNextStationName():
+    """Get the name of the next station"""
+    if currentSegmentIndex < len(preloadedTrackInformation['segments']):
+        return preloadedTrackInformation['segments'][currentSegmentIndex]['to_station']
+    return "CASTLE SHANNON"  # Final station
+
+def shouldStartDecelerating():
+    """Check if train should start decelerating for station approach"""
+    return distanceToNextStation <= DECELERATION_DISTANCE and not isAtStation
+
+def updatePositionTracking():
+    """
+    Update position tracking for automatic mode based on current velocity and time.
+    Uses continuous integration: displacement = velocity × time
+    Also controls headlights and interior lights based on underground sections.
+    """
+    global distanceTraveledInSegment, distanceToNextStation, lastPositionUpdateTime
+    global currentSegmentIndex, isAtStation, stationDwellStartTime, systemLogViewer
+    global _position_print_counter
+    global currentBlock, lastUndergroundState
+    global serviceBrakeActive
+    
+    if not autoModeEnabled:
+        return
+    
+    # Calculate current block based on segment and distance traveled
+    def getCurrentBlockNumber():
+        """Determine current block based on position in route"""
+        # Route order: 63→150, 28→1, 13→62
+        route_order = list(range(63, 151)) + list(range(28, 0, -1)) + list(range(13, 63))
+        
+        if currentSegmentIndex >= len(preloadedTrackInformation['segments']):
+            return 63  # Default to start
+        
+        segment = preloadedTrackInformation['segments'][currentSegmentIndex]
+        from_block = segment['from_block']
+        to_block = segment['to_block']
+        
+        # Find positions in route
+        try:
+            from_idx = route_order.index(from_block)
+            to_idx = route_order.index(to_block)
+            
+            # Calculate progress through segment (0.0 to 1.0)
+            total_distance = segment['distance']
+            progress = min(1.0, distanceTraveledInSegment / total_distance) if total_distance > 0 else 0.0
+            
+            # Determine current block index
+            if to_idx > from_idx:
+                # Forward path
+                blocks_in_segment = to_idx - from_idx
+                block_offset = int(progress * blocks_in_segment)
+                current_idx = from_idx + block_offset
+            else:
+                # Wrapping path
+                total_blocks = (len(route_order) - from_idx) + to_idx
+                block_offset = int(progress * total_blocks)
+                current_idx = (from_idx + block_offset) % len(route_order)
+            
+            return route_order[current_idx]
+        except (ValueError, IndexError):
+            return from_block  # Fallback
+    
+    # Update current block
+    if not hasattr(updatePositionTracking, 'prevBlock'):
+        updatePositionTracking.prevBlock = currentBlock
+    
+    prevBlock = updatePositionTracking.prevBlock
+    currentBlock = getCurrentBlockNumber()
+    
+    # Debug: Print block changes
+    if currentBlock != prevBlock:
+        print(f"[BLOCK CHANGE] Block {prevBlock} → {currentBlock}")
+        updatePositionTracking.prevBlock = currentBlock
+    
+    # Check underground status and control lights
+    isUnderground = currentBlock in UNDERGROUND_BLOCKS
+    
+    # Inform driver of underground status on block changes
+    if currentBlock != prevBlock and (isUnderground or prevBlock in UNDERGROUND_BLOCKS):
+        if isUnderground:
+            print(f"📍 Inside underground tunnel (Block {currentBlock})")
+        else:
+            print(f"📍 Exiting underground tunnel - returning to surface (Block {currentBlock})")
+    
+    # Only send commands when state changes
+    if isUnderground != lastUndergroundState:
+        # Access gpio_client through the global speedDisplay instance
+        print(f"[LIGHT DEBUG] Underground state changed: {lastUndergroundState} → {isUnderground}")
+        try:
+            print(f"[LIGHT DEBUG] Checking speedDisplay in globals: {'speedDisplay' in globals()}")
+            if 'speedDisplay' in globals():
+                sd = globals()['speedDisplay']
+                print(f"[LIGHT DEBUG] speedDisplay found: {sd is not None}")
+                print(f"[LIGHT DEBUG] Has gpio_client: {hasattr(sd, 'gpio_client')}")
+                if hasattr(sd, 'gpio_client'):
+                    print(f"[LIGHT DEBUG] gpio_client exists: {sd.gpio_client is not None}")
+                    print(f"[LIGHT DEBUG] gpio_client connected: {sd.gpio_client.connected if sd.gpio_client else False}")
+                
+                if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
+                    if isUnderground:
+                        sd.gpio_client.setHeadlights(True)
+                        sd.gpio_client.setInteriorLights(True)
+                        print(f"💡 Headlights & cabin lights turned ON for tunnel safety")
+                    else:
+                        sd.gpio_client.setHeadlights(False)
+                        sd.gpio_client.setInteriorLights(False)
+                        print(f"💡 Headlights & cabin lights turned OFF")
+                else:
+                    print(f"[LIGHT DEBUG] GPIO client not ready!")
+        except Exception as e:
+            print(f"⚠️  Warning: Unable to control lights - {e}")
+            import traceback
+            traceback.print_exc()
+        
+        lastUndergroundState = isUnderground
+    
+    currentTime = time.time()
+    
+    # Initialize timing on first call
+    if lastPositionUpdateTime is None:
+        lastPositionUpdateTime = currentTime
+        print(f"Position tracking initialized")
+        print(f"Starting segment: {preloadedTrackInformation['segments'][0]['from_station']} → {preloadedTrackInformation['segments'][0]['to_station']}")
+        print(f"Initial distance to station: {distanceToNextStation:.1f}m")
+        return
+    
+    # Calculate time elapsed since last update
+    dt = currentTime - lastPositionUpdateTime
+    lastPositionUpdateTime = currentTime
+    
+    # TIME ACCELERATION: 10x speed for faster simulation
+    TIME_SCALE = 10.0
+    dt = dt * TIME_SCALE
+    
+    # If we're at a station, don't update position
+    if isAtStation:
+        # Check if dwell time is complete
+        if stationDwellStartTime is not None:
+            dwellElapsed = currentTime - stationDwellStartTime
+            if dwellElapsed >= STATION_DWELL_TIME:
+                # RELEASE SERVICE BRAKE before departing
+                if 'speedDisplay' in globals():
+                    sd = globals()['speedDisplay']
+                    if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
+                        # Release service brake via GPIO server
+                        result = sd.gpio_client.setServiceBrake(False)
+                        if result:
+                            serviceBrakeActive = False
+                            print(f"🟢 Service brake RELEASED for departure")
+                            
+                            # Send service brake command to Train Model
+                            if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                                sd.server.send_to_ui("Train Model", {
+                                    'command': 'Service Brake',
+                                    'value': False,
+                                    'train_id': 1
+                                })
+                                print(f"[AUTO BRAKE] Service brake release sent to Train Model")
+                
+                # Close doors before departing
+                if 'speedDisplay' in globals():
+                    sd = globals()['speedDisplay']
+                    if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
+                        # Close both doors via GPIO server
+                        sd.gpio_client.setLED('left_door', False)
+                        sd.gpio_client.setLED('right_door', False)
+                        print(f"🚪 Doors closing")
+                
+                # Move to next segment
+                departure_msg = f"Departing {preloadedTrackInformation['segments'][currentSegmentIndex]['to_station']}"
+                print(departure_msg)
+                
+                # Send to System Log UI
+                if systemLogViewer:
+                    systemLogViewer.handleLogMessage(departure_msg, 'system')
+                
+                currentSegmentIndex += 1
+                
+                # Check if we've reached the end
+                if currentSegmentIndex >= len(preloadedTrackInformation['segments']):
+                    final_msg = "Reached final station: CASTLE SHANNON - Journey Complete"
+                    print(final_msg)
+                    
+                    # Send to System Log UI
+                    if systemLogViewer:
+                        systemLogViewer.handleLogMessage(final_msg, 'system')
+                    
+                    isAtStation = True  # Stay at station
+                    stationDwellStartTime = None  # Prevent further departure attempts
+                    return
+                
+                # Reset for next segment
+                distanceTraveledInSegment = 0.0
+                distanceToNextStation = preloadedTrackInformation['segments'][currentSegmentIndex]['distance']
+                isAtStation = False
+                stationDwellStartTime = None
+        return
+    
+    # Calculate displacement: distance = velocity × time
+    # currentSpeed is in m/s, dt is in seconds
+    displacement = currentSpeed * dt
+    
+    # Update position tracking
+    distanceTraveledInSegment += displacement
+    distanceToNextStation = preloadedTrackInformation['segments'][currentSegmentIndex]['distance'] - distanceTraveledInSegment
+    
+    # Debug output showing position updates (reduced frequency to avoid spam)
+    # Print approximately every second (every 10 updates at 100ms intervals)
+    _position_print_counter += 1
+    if _position_print_counter >= 10:
+        _position_print_counter = 0
+        # Convert meters to feet for display (1 meter = 3.28084 feet)
+        distanceTraveledFeet = distanceTraveledInSegment * 3.28084
+        distanceToNextStationFeet = distanceToNextStation * 3.28084
+        print(f"Speed: {currentSpeed:.2f} m/s, Traveled: {distanceTraveledFeet:.1f}ft, Remaining: {distanceToNextStationFeet:.1f}ft to {preloadedTrackInformation['segments'][currentSegmentIndex]['to_station']}")
+    
+    # Check if we've reached the station
+    if distanceToNextStation <= STATION_STOP_THRESHOLD:
+        isAtStation = True
+        stationDwellStartTime = currentTime
+        distanceToNextStation = 0.0
+        currentStation = preloadedTrackInformation['segments'][currentSegmentIndex]['to_station']
+        
+        arrival_msg = f"*** ARRIVED AT {currentStation} ***"
+        print(arrival_msg)
+        
+        # ENGAGE SERVICE BRAKE at station
+        if 'speedDisplay' in globals():
+            sd = globals()['speedDisplay']
+            if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
+                # Engage service brake via GPIO server
+                result = sd.gpio_client.setServiceBrake(True)
+                if result:
+                    serviceBrakeActive = True
+                    print(f"🛑 Service brake ENGAGED at {currentStation}")
+                    
+                    # Send service brake command to Train Model
+                    if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                        sd.server.send_to_ui("Train Model", {
+                            'command': 'Service Brake',
+                            'value': True,
+                            'train_id': 1
+                        })
+                        print(f"[AUTO BRAKE] Service brake command sent to Train Model")
+        
+        # Control door LEDs based on station platform side
+        print(f"[DOOR DEBUG] At station {currentStation}, checking door control")
+        print(f"[DOOR DEBUG] speedDisplay in globals: {'speedDisplay' in globals()}")
+        if 'speedDisplay' in globals():
+            sd = globals()['speedDisplay']
+            print(f"[DOOR DEBUG] speedDisplay found: {sd is not None}")
+            print(f"[DOOR DEBUG] Has gpio_client: {hasattr(sd, 'gpio_client')}")
+            if hasattr(sd, 'gpio_client'):
+                print(f"[DOOR DEBUG] gpio_client connected: {sd.gpio_client.connected if sd.gpio_client else False}")
+            
+            if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
+                # Check for block-specific exceptions first
+                door_side = STATION_DOOR_EXCEPTIONS.get(currentBlock)
+                if not door_side:
+                    # Use station default
+                    door_side = STATION_DOOR_SIDES.get(currentStation, 'both')
+                
+                print(f"[DOOR DEBUG] Door side for {currentStation} at block {currentBlock}: {door_side}")
+                
+                # Turn on appropriate door LEDs by sending commands directly to GPIO server
+                if door_side == 'left' or door_side == 'both':
+                    result = sd.gpio_client.setLED('left_door', True)
+                    print(f"[DOOR DEBUG] Left door command sent, result: {result}")
+                    print(f"🚪 Left door opening")
+                
+                if door_side == 'right' or door_side == 'both':
+                    result = sd.gpio_client.setLED('right_door', True)
+                    print(f"[DOOR DEBUG] Right door command sent, result: {result}")
+                    print(f"🚪 Right door opening")
+            else:
+                print(f"[DOOR DEBUG] GPIO client not ready!")
+        
+        # Send to System Log UI
+        if systemLogViewer:
+            systemLogViewer.handleLogMessage(arrival_msg, 'system')
+
+def calculatePowerCommand():
+    """
+    Calculate power command using PI controller.
+    Uses Kp and Ki from PowerEngineer panel.
+    
+    In AUTOMATIC mode, handles station approach and stopping:
+    - Decelerates as train approaches station
+    - Stops at station
+    - Maintains stop during dwell time
+    
+    All calculations done in METRIC (m/s), then converted to imperial for UI display.
+    
+    Returns:
+        Power in kW (kilowatts)
+    """
+    global integralError, lastUpdateTime, powerEngineerPanel, prevError
+    global _diagnostic_counter, _holding_print_counter, _decel_print_counter
+    
+    if not powerEngineerPanel:
+        return 0.0
+    
+    # Conversion constants
+    MPH_TO_MS = 0.44704  # 1 mph = 0.44704 m/s
+    MS_TO_MPH = 2.23694  # 1 m/s = 2.23694 mph
+    
+    # Update position tracking for automatic mode
+    updatePositionTracking()
+    
+    # Diagnostic output (first 5 calls only to avoid spam)
+    if _diagnostic_counter < 5:
+        _diagnostic_counter += 1
+        print(f"[DIAGNOSTIC {_diagnostic_counter}] commandedSpeed: {commandedSpeed}, currentSpeed: {currentSpeed}, drivetrainManualMode: {drivetrainManualMode}, autoModeEnabled: {autoModeEnabled}")
+    
+    # Get commanded speed (already in m/s from Track Model or convert from manual input)
+    if drivetrainManualMode:
+        # In manual mode, use manual setpoint speed (in MPH, convert to m/s)
+        commandedSpeedMPH = manualSetpointSpeed
+        commandedSpeedMS = commandedSpeedMPH * MPH_TO_MS
+    else:
+        # In automatic mode, use commanded speed from track (already in m/s)
+        commandedSpeedMS = commandedSpeed
+        
+        # AUTOMATIC MODE STATION LOGIC
+        if autoModeEnabled and not emergencyBrakeEngaged:
+            if isAtStation:
+                # Force stop at station
+                commandedSpeedMS = 0.0
+                # Print holding message occasionally (not every 100ms)
+                _holding_print_counter += 1
+                if _holding_print_counter >= 20:
+                    _holding_print_counter = 0
+                    print(f"Holding at station: {getNextStationName()}")
+            elif shouldStartDecelerating():
+                # Calculate deceleration profile for smooth stop
+                # Use simple linear deceleration based on distance remaining
+                distToStation = getDistanceToNextStation()
+                
+                # Target deceleration: v² = v₀² + 2a·d
+                # Solving for target velocity to reach 0 at station
+                # v = sqrt(2 * decel * distance)
+                DECEL_RATE = 1.0  # m/s² - comfortable deceleration
+                
+                if distToStation > 0:
+                    targetSpeed = (2 * DECEL_RATE * distToStation) ** 0.5
+                    # Limit to current commanded speed (don't accelerate)
+                    commandedSpeedMS = min(commandedSpeedMS, targetSpeed)
+                    
+                    # Print deceleration status (reduced frequency)
+                    _decel_print_counter += 1
+                    if _decel_print_counter >= 5:
+                        _decel_print_counter = 0
+                        print(f"Decelerating for {getNextStationName()}: {distToStation:.1f}m, target {targetSpeed*MS_TO_MPH:.1f} MPH")
+                else:
+                    commandedSpeedMS = 0.0
+        
+        commandedSpeedMPH = commandedSpeedMS * MS_TO_MPH  # Convert for display
+    
+    # Get current actual speed (already in m/s from Train Model)
+    currentSpeedMS = currentSpeed
+    currentSpeedMPH = currentSpeedMS * MS_TO_MPH  # Convert for display only
+    
+    # DEBUG: Print speeds every 20 calls
+    if not hasattr(calculatePowerCommand, '_speed_debug_counter'):
+        calculatePowerCommand._speed_debug_counter = 0
+    calculatePowerCommand._speed_debug_counter += 1
+    if calculatePowerCommand._speed_debug_counter % 20 == 0:
+        print(f"[SPEED DEBUG] Commanded={commandedSpeedMS:.2f}m/s ({commandedSpeedMPH:.1f}MPH), Current={currentSpeedMS:.2f}m/s ({currentSpeedMPH:.1f}MPH), Error={commandedSpeedMS - currentSpeedMS:.2f}m/s")
+    
+    # SERVICE BRAKE CONTROL:
+    # The service brake is ONLY controlled by the GPIO hardware button
+    # The PI controller controls speed through POWER COMMANDS, not brakes
+    # This prevents the automatic mode from fighting the driver's brake input
+    
+    # Calculate velocity error in METRIC (m/s)
+    velocityError = commandedSpeedMS - currentSpeedMS
+    
+    # Get PI gains from PowerEngineer panel
+    kp = powerEngineerPanel.hw_kp.get()
+    ki = powerEngineerPanel.hw_ki.get()
+    maxPower = powerEngineerPanel.maxPower.get()
+    
+    # TRAPEZOIDAL INTEGRATION (per control law document)
+    # u_k = u_{k-1} + (T/2)(e_k + e_{k-1})
+    # where u_k is the integral term
+    
+    # Calculate power WITHOUT integral term first (for anti-windup check)
+    pTerm = kp * velocityError
+    powerWithoutIntegral = pTerm
+    
+    # ANTI-WINDUP: Only update integral if P^cmd < P^max
+    if powerWithoutIntegral < maxPower:
+        # Update integral using trapezoidal rule
+        # u_k = u_{k-1} + (T/2)(e_k + e_{k-1})
+        integralError += (sampleTime / 2.0) * (velocityError + prevError)
+    # else: at power limit - don't integrate (anti-windup)
+    
+    # Store current error for next iteration
+    prevError = velocityError
+    
+    # Calculate PI control output
+    # P^cmd = Kp * e_k + Ki * u_k
+    iTerm = ki * integralError
+    power = pTerm + iTerm
+    
+    # Limit power to max and ensure non-negative
+    power = max(0.0, min(maxPower, power))
+    
+    # Update PowerEngineer panel displays (convert to MPH for display)
+    powerEngineerPanel.setCurrentSpeed(currentSpeedMPH)
+    powerEngineerPanel.setCommandedSpeed(commandedSpeedMPH)
+    powerEngineerPanel.speedError.set(velocityError * MS_TO_MPH)  # Convert error to MPH for display
+    powerEngineerPanel.integralError.set(integralError)
+    powerEngineerPanel.powerOutput.set(power)
+    
+    return power
+
 def cleanupAll():
-    global acPanel, announcementPanel, trackInfoPanel, systemLogViewer
+    global acPanel, announcementPanel, trackInfoPanel, powerEngineerPanel, systemLogViewer
     try:
         if acPanel and acPanel.root.winfo_exists():
             acPanel.root.destroy()
@@ -215,13 +924,18 @@ def cleanupAll():
     except:
         pass
     try:
+        if powerEngineerPanel and powerEngineerPanel.root.winfo_exists():
+            powerEngineerPanel.root.destroy()
+    except:
+        pass
+    try:
         if systemLogViewer and systemLogViewer.root.winfo_exists():
             systemLogViewer.root.destroy()
     except:
         pass
 
 def main():
-    global acPanel, announcementPanel, trackInfoPanel, systemLogViewer
+    global powerEngineerPanel, speedDisplay
     
     print("=" * 60)
     print("Train Control System - Windows Hardware Controller")
@@ -232,18 +946,22 @@ def main():
     root = tk.Tk()
     speedDisplay = TrainSpeedDisplayUI(root)
     
-    acRoot = tk.Toplevel(root)
-    acPanel = ACSystemPanel(acRoot)
+    # Create PowerEngineer panel with send callback (will be set up after speedDisplay is created)
+    powerEngineerRoot = tk.Toplevel(root)
     
-    announcementRoot = tk.Toplevel(root)
-    announcementPanel = StationAnnouncementPanel(announcementRoot)
+    # Define callback for sending PID to software TC
+    def send_pid_callback(kp, ki):
+        if hasattr(speedDisplay, '_sendPIDToSoftwareTC'):
+            speedDisplay._sendPIDToSoftwareTC(kp, ki)
     
-    trackInfoRoot = tk.Toplevel(root)
-    trackInfoPanel = TrackInformationPanel(trackInfoRoot)
-    
-    # Create System Log Viewer window
-    systemLogRoot = tk.Toplevel(root)
-    systemLogViewer = SystemLogViewer(systemLogRoot, gpio_client=speedDisplay.gpio_client)
+    powerEngineerPanel = PowerEngineerPanel(powerEngineerRoot, send_callback=send_pid_callback)
+    # Set PI controller gains for hardware train control
+    powerEngineerPanel.hw_kp.set(15.0)
+    powerEngineerPanel.hw_ki.set(3.0)
+    # Update UI displays to show the new values
+    powerEngineerPanel.updateDisplays()
+    # Show panel on startup instead of hiding it
+    print("✓ Power Engineer Panel initialized (Kp=15.0, Ki=3.0, MaxPower=120kW)")
     
     root.mainloop()
 
@@ -251,14 +969,13 @@ class TrainSpeedDisplayUI:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("TRAIN SPEED CONTROL DISPLAY")
-        self.root.geometry("900x700")
+        self.root.title("TRAIN HARDWARE CONTROL SYSTEM")
+        self.root.geometry("1000x750")
         self.root.configure(bg='#1e3c72')
         
         # GPIO Client Setup
         self.gpio_client = GPIOClient(PI_HOST, PI_GPIO_PORT)
         self.gpio_client.state_update_callback = self._onGPIOStateUpdate
-        self.gpio_client.log_message_callback = self._onGPIOLogMessage
         
         # Try to connect to GPIO server
         def connect_gpio():
@@ -272,22 +989,50 @@ class TrainSpeedDisplayUI:
         
         # Socket Server Setup for Train Model
         module_config = load_socket_config()
-        train_controller_hw_config = module_config.get("Train Controller HW", {"port": 12347})
-        self.server = TrainSocketServer(port=train_controller_hw_config["port"], ui_id="Train Controller HW")
-        self.server.set_allowed_connections(["Train Model"])
-        self.server.start_server(self._process_message)
+        train_controller_hw_config = module_config.get("Train HW", {"port": 12347})
         
-        # Try to connect to Train Model
-        try:
-            self.server.connect_to_ui('localhost', 12345, "Train Model")
-            print("✓ Connected to Train Model")
-            self.train_model_connected = True
-        except:
-            print("Note: Train Model not yet running")
-            self.train_model_connected = False
+        # Start our server that listens for Train Model
+        self.server = TrainSocketServer(port=train_controller_hw_config["port"], ui_id="Train HW")
+        self.server.set_allowed_connections(["Train Model, Train SW"])
+        self.server.start_server(self._process_message)
+        print(f"✓ Train Controller HW server started on port {train_controller_hw_config['port']}")
+        
+        # Connect to Train Model (it should already be running on port 12345)
+        self.train_model_connected = False
+        self.software_tc_connected = False
+        train_model_config = module_config.get("Train Model", {"port": 12345})
+        
+        def connect_train_model():
+            try:
+                time.sleep(1)  # Give it a moment
+                self.server.connect_to_ui('localhost', train_model_config["port"], "Train Model")
+                print(f"✓ Connected to Train Model")
+                self.train_model_connected = True
+                
+                # Send initial service brake state to release train
+                time.sleep(0.5)
+                print(f"\n[INIT] Sending Service Brake: {serviceBrakeActive} to Train Model")
+                self.server.send_to_ui("Train Model", {
+                    'command': 'Service Brake',
+                    'value': serviceBrakeActive,
+                    'train_id': 1
+                })
+                print(f"[INIT] Service brake command sent\n")
+                
+            except Exception as e:
+                print(f"Note: Train Model not yet running - {e}")
+                self.train_model_connected = False
+        
+        # Try to connect in background
+        train_model_thread = threading.Thread(target=connect_train_model, daemon=True)
+        train_model_thread.start()
+        
+        # Also try to connect to Software TC (Train SW) if it's running
+        self._connectToSoftwareTC()
 
         self._createWidgets()
         self._updateDisplay()
+        self._startPowerCalculationLoop()
         
         self.root.protocol("WM_DELETE_WINDOW", self._onClose)
     
@@ -297,7 +1042,16 @@ class TrainSpeedDisplayUI:
         global serviceBrakeActive, trainHornActive, emergencyBrakeEngaged
         global drivetrainManualMode, manualSetpointSpeed
         global speedUpPressed, speedDownPressed, speedConfirmPressed
-        global systemLogViewer
+        
+        # Track previous values to detect changes
+        prev_emergency = emergencyBrakeEngaged
+        prev_service = serviceBrakeActive
+        prev_manual_mode = drivetrainManualMode
+        prev_manual_speed = manualSetpointSpeed
+        prev_left_door = leftDoorOpen
+        prev_right_door = rightDoorOpen
+        prev_headlights = headlightsOn
+        prev_interior_lights = interiorLightsOn
         
         # Update local state
         leftDoorOpen = state.get('leftDoorOpen', False)
@@ -313,97 +1067,110 @@ class TrainSpeedDisplayUI:
         speedDownPressed = state.get('speedDownPressed', False)
         speedConfirmPressed = state.get('speedConfirmPressed', False)
         
-        # Forward state updates to System Log Viewer
-        if systemLogViewer:
-            try:
-                systemLogViewer.handleStateUpdate(state)
-            except:
-                pass
-        
-        # Send relevant updates to Train Model
+        # Send relevant updates to Train Model ONLY when they change
         if self.server and self.train_model_connected:
             try:
-                if drivetrainManualMode:
+                # Send manual setpoint speed when in manual mode and it changed
+                if drivetrainManualMode and (manualSetpointSpeed != prev_manual_speed or drivetrainManualMode != prev_manual_mode):
                     self.server.send_to_ui("Train Model", {
                         'command': 'Manual Setpoint Speed',
-                        'value': manualSetpointSpeed
+                        'value': manualSetpointSpeed,
+                        'train_id': 1
                     })
                 
-                if emergencyBrakeEngaged:
+                # Send emergency brake state changes
+                if emergencyBrakeEngaged != prev_emergency:
                     self.server.send_to_ui("Train Model", {
                         'command': 'Emergency Brake',
-                        'value': True
-                    })
-                elif not emergencyBrakeEngaged:
-                    self.server.send_to_ui("Train Model", {
-                        'command': 'Emergency Brake',
-                        'value': False
+                        'value': emergencyBrakeEngaged,
+                        'train_id': 1
                     })
                 
-                if serviceBrakeActive:
+                # Send service brake state changes
+                if serviceBrakeActive != prev_service:
+                    print(f"\n[GPIO BRAKE CHANGE] Service Brake: {prev_service} → {serviceBrakeActive}")
                     self.server.send_to_ui("Train Model", {
                         'command': 'Service Brake',
-                        'value': True
+                        'value': serviceBrakeActive,
+                        'train_id': 1
                     })
-                elif not serviceBrakeActive:
+                    print(f"[GPIO BRAKE SENT] Command sent to Train Model\n")
+                
+                # Send left door state changes
+                if leftDoorOpen != prev_left_door:
                     self.server.send_to_ui("Train Model", {
-                        'command': 'Service Brake',
-                        'value': False
+                        'command': 'Left Door Signal',
+                        'value': leftDoorOpen,
+                        'train_id': 1
                     })
-            except:
-                pass
-    
-    def _onGPIOLogMessage(self, message, category):
-        """Handle log message from GPIO server"""
-        global systemLogViewer
-        
-        # DEBUG: Print to confirm we're receiving messages
-        print(f"GPIO LOG: [{category}] {message}")
-        
-        # Forward ALL log messages to System Log Viewer
-        if systemLogViewer and hasattr(systemLogViewer, 'handleLogMessage'):
-            try:
-                systemLogViewer.handleLogMessage(message, category)
+                
+                # Send right door state changes
+                if rightDoorOpen != prev_right_door:
+                    self.server.send_to_ui("Train Model", {
+                        'command': 'Right Door Signal',
+                        'value': rightDoorOpen,
+                        'train_id': 1
+                    })
+                
+                # Send headlights state changes
+                if headlightsOn != prev_headlights:
+                    self.server.send_to_ui("Train Model", {
+                        'command': 'Headlights',
+                        'value': headlightsOn,
+                        'train_id': 1
+                    })
+                
+                # Send interior lights state changes
+                if interiorLightsOn != prev_interior_lights:
+                    self.server.send_to_ui("Train Model", {
+                        'command': 'Cabin Lights',
+                        'value': interiorLightsOn,
+                        'train_id': 1
+                    })
             except Exception as e:
-                print(f"Error forwarding to log viewer: {e}")
+                print(f"Error sending to Train Model: {e}")
+                self.train_model_connected = False
     
     def _updateConnectionStatus(self, connected):
         """Update GPIO connection status"""
         if connected:
             self.connectionLabel.config(
-                text=f"✓ GPIO Connected ({PI_HOST})",
+                text=f"● Connected to GPIO Server ({PI_HOST}:{PI_GPIO_PORT})",
                 bg='#27ae60'
             )
         else:
             self.connectionLabel.config(
-                text=f"✗ GPIO Failed ({PI_HOST})",
+                text="● Disconnected from GPIO Server",
                 bg='#e74c3c'
             )
     
     def _process_message(self, message, source_ui_id):
         """Process incoming messages from Train Model"""
         try:
-            print(f"Received from {source_ui_id}: {message}")
+            command = message.get('command')
+            # Silently process routine messages
             
             if source_ui_id != "Train Model":
                 return
             
             self.train_model_connected = True
             
-            command = message.get('command')
             value = message.get('value')
             
             if command == 'Commanded Speed':
+                # Commanded speed comes from Track Model
+                # Assuming Track Model sends in m/s (metric), store as-is
                 global commandedSpeed
-                commandedSpeed = value
+                commandedSpeed = float(value)
             
             elif command == 'Commanded Authority':
                 global commandedAuthority
                 commandedAuthority = value
             
-            elif command == 'Actual Velocity':
+            elif command == 'Current Speed':
+                # Update current speed from Train Model - critical for PI controller feedback!
                 global currentSpeed
-                currentSpeed = value
+                currentSpeed = float(value)
             
             elif command == 'Passenger Emergency Signal':
                 global passengerEmergencySignal
@@ -428,21 +1195,46 @@ class TrainSpeedDisplayUI:
                 signalFailure = value
                 if self.gpio_client and self.gpio_client.connected:
                     self.gpio_client.setLED('signal_failure', value)
+            
+            elif command == 'Cabin Temperature':
+                # Update AC panel with current temperature from Train Model
+                global acPanel
+                if acPanel is not None:
+                    try:
+                        acPanel.setCurrentTemperature(float(value))
+                    except:
+                        pass  # AC panel may not be open yet
+            
+            elif command == 'Beacon Data':
+                # Receive beacon data from Train Model/Passenger UI
+                global preloadedTrackInformation, distanceToNextStation
+                received_beacon = value
+                
+                if received_beacon and 'segments' in received_beacon:
+                    preloadedTrackInformation = received_beacon
+                    # Reset distance to first segment
+                    distanceToNextStation = preloadedTrackInformation['segments'][0]['distance']
+                    
+                    print("[BEACON DATA] Received station information:")
+                    for segment in preloadedTrackInformation['segments']:
+                        print(f"  - {segment['from_station']} → {segment['to_station']}: {segment['distance']}m")
+                    print("[BEACON DATA] Automatic mode station stopping enabled")
         
         except Exception as e:
             print(f"Error processing message: {e}")
     
     def _createWidgets(self):
+        # Header
         headerFrame = tk.Frame(self.root, bg='#0f1e3d')
         headerFrame.pack(fill='x')
         
         headerLabel = tk.Label(
             headerFrame,
-            text="TRAIN SPEED CONTROL",
-            font=('Arial', 28, 'bold'),
+            text="TRAIN HARDWARE CONTROL SYSTEM",
+            font=('Arial', 24, 'bold'),
             bg='#0f1e3d',
             fg='white',
-            pady=15
+            pady=12
         )
         headerLabel.pack()
         
@@ -457,168 +1249,511 @@ class TrainSpeedDisplayUI:
         )
         self.connectionLabel.pack(fill='x')
         
+        # Main content frame
         mainFrame = tk.Frame(self.root, bg='#1e3c72')
-        mainFrame.pack(fill='both', expand=True, padx=30, pady=20)
+        mainFrame.pack(fill='both', expand=True, padx=20, pady=15)
         
-        speedFrame = tk.Frame(mainFrame, bg='#2c5aa0', relief='raised', bd=5)
-        speedFrame.pack(fill='both', expand=True, pady=(0, 15))
+        # Top row: Speed displays
+        speedFrame = tk.Frame(mainFrame, bg='#1e3c72')
+        speedFrame.pack(fill='x', pady=(0, 10))
         
-        speedTitle = tk.Label(
-            speedFrame,
-            text="SPEEDOMETER",
-            font=('Arial', 20, 'bold'),
-            bg='#2c5aa0',
-            fg='white',
-            pady=10
-        )
-        speedTitle.pack()
+        # Current Speed
+        currentSpeedBox = tk.Frame(speedFrame, bg='#2c5aa0', relief='raised', bd=4)
+        currentSpeedBox.pack(side='left', fill='both', expand=True, padx=(0, 3))
         
-        self.speedLabel = tk.Label(
-            speedFrame,
-            text="0",
-            font=('Arial', 80, 'bold'),
-            bg='#1a1a2e',
-            fg='#00ff00',
-            width=5,
-            relief='sunken',
-            bd=5
-        )
-        self.speedLabel.pack(padx=30, pady=20)
-        
-        speedUnit = tk.Label(
-            speedFrame,
-            text="MPH",
-            font=('Arial', 18, 'bold'),
+        tk.Label(
+            currentSpeedBox,
+            text="CURRENT SPEED",
+            font=('Arial', 14, 'bold'),
             bg='#2c5aa0',
             fg='white',
             pady=5
-        )
-        speedUnit.pack()
+        ).pack()
         
-        infoFrame = tk.Frame(mainFrame, bg='#1e3c72')
-        infoFrame.pack(fill='both', expand=True)
-        
-        leftFrame = tk.Frame(infoFrame, bg='#1e3c72')
-        leftFrame.pack(side='left', fill='both', expand=True, padx=(0, 7))
-        
-        self._createInfoBox(
-            leftFrame,
-            "COMMANDED SPEED",
-            "cmdSpeedValue",
-            "#3498db",
-            "0 MPH"
-        )
-        
-        self._createInfoBox(
-            leftFrame,
-            "COMMANDED AUTHORITY",
-            "cmdAuthorityValue",
-            "#9b59b6",
-            "0 BLOCKS"
-        )
-        
-        rightFrame = tk.Frame(infoFrame, bg='#1e3c72')
-        rightFrame.pack(side='right', fill='both', expand=True, padx=(7, 0))
-        
-        self._createInfoBox(
-            rightFrame,
-            "MANUAL SETPOINT",
-            "manualSetpointValue",
-            "#e67e22",
-            "-- MPH"
-        )
-        
-        self._createInfoBox(
-            rightFrame,
-            "DRIVETRAIN MODE",
-            "modeValue",
-            "#27ae60",
-            "AUTOMATIC"
-        )
-        
-        instructionsFrame = tk.Frame(mainFrame, bg='#34495e', relief='raised', bd=3)
-        instructionsFrame.pack(fill='x', pady=(15, 0))
-        
-        instructions = tk.Label(
-            instructionsFrame,
-            text="Physical buttons on Raspberry Pi control the system\n" +
-                 "Speed controls only active in MANUAL mode",
-            font=('Arial', 11),
-            bg='#34495e',
-            fg='white',
-            pady=12
-        )
-        instructions.pack()
-    
-    def _createInfoBox(self, parent, title: str, valueAttr: str, color: str, defaultText: str):
-        frame = tk.Frame(parent, bg=color, relief='raised', bd=4)
-        frame.pack(fill='both', expand=True, pady=7)
-        
-        titleLabel = tk.Label(
-            frame,
-            text=title,
-            font=('Arial', 14, 'bold'),
-            bg=color,
-            fg='white',
-            pady=8
-        )
-        titleLabel.pack()
-        
-        valueLabel = tk.Label(
-            frame,
-            text=defaultText,
-            font=('Arial', 24, 'bold'),
+        self.currentSpeedValue = tk.Label(
+            currentSpeedBox,
+            text="0.0 MPH",
+            font=('Arial', 36, 'bold'),
             bg='#1a1a2e',
-            fg='white',
-            pady=15,
+            fg='#00ff00',
+            pady=10,
             relief='sunken',
             bd=3
         )
-        valueLabel.pack(padx=15, pady=(0, 15))
+        self.currentSpeedValue.pack(padx=10, pady=(0, 10))
         
-        setattr(self, valueAttr, valueLabel)
+        # Commanded Speed
+        commandedSpeedBox = tk.Frame(speedFrame, bg='#3498db', relief='raised', bd=4)
+        commandedSpeedBox.pack(side='left', fill='both', expand=True, padx=(3, 3))
+        
+        tk.Label(
+            commandedSpeedBox,
+            text="COMMANDED SPEED",
+            font=('Arial', 14, 'bold'),
+            bg='#3498db',
+            fg='white',
+            pady=5
+        ).pack()
+        
+        self.commandedSpeedValue = tk.Label(
+            commandedSpeedBox,
+            text="0.0 MPH",
+            font=('Arial', 36, 'bold'),
+            bg='#1a1a2e',
+            fg='white',
+            pady=10,
+            relief='sunken',
+            bd=3
+        )
+        self.commandedSpeedValue.pack(padx=10, pady=(0, 10))
+        
+        # Commanded Authority
+        commandedAuthorityBox = tk.Frame(speedFrame, bg='#9b59b6', relief='raised', bd=4)
+        commandedAuthorityBox.pack(side='right', fill='both', expand=True, padx=(3, 0))
+        
+        tk.Label(
+            commandedAuthorityBox,
+            text="COMMANDED AUTHORITY",
+            font=('Arial', 14, 'bold'),
+            bg='#9b59b6',
+            fg='white',
+            pady=5
+        ).pack()
+        
+        self.commandedAuthorityValue = tk.Label(
+            commandedAuthorityBox,
+            text="0 blocks",
+            font=('Arial', 30, 'bold'),
+            bg='#1a1a2e',
+            fg='#ffff00',
+            pady=10,
+            relief='sunken',
+            bd=3
+        )
+        self.commandedAuthorityValue.pack(padx=10, pady=(0, 10))
+        
+        # Middle row: Mode and Manual Setpoint
+        modeFrame = tk.Frame(mainFrame, bg='#1e3c72')
+        modeFrame.pack(fill='x', pady=10)
+        
+        # Drivetrain Mode
+        modeBox = tk.Frame(modeFrame, bg='#27ae60', relief='raised', bd=4)
+        modeBox.pack(side='left', fill='both', expand=True, padx=(0, 5))
+        
+        tk.Label(
+            modeBox,
+            text="DRIVETRAIN MODE",
+            font=('Arial', 14, 'bold'),
+            bg='#27ae60',
+            fg='white',
+            pady=5
+        ).pack()
+        
+        self.modeValue = tk.Label(
+            modeBox,
+            text="AUTOMATIC",
+            font=('Arial', 24, 'bold'),
+            bg='#1a1a2e',
+            fg='white',
+            pady=12,
+            relief='sunken',
+            bd=3
+        )
+        self.modeValue.pack(padx=10, pady=(0, 10))
+        
+        # Manual Setpoint
+        manualBox = tk.Frame(modeFrame, bg='#e67e22', relief='raised', bd=4)
+        manualBox.pack(side='right', fill='both', expand=True, padx=(5, 0))
+        
+        tk.Label(
+            manualBox,
+            text="MANUAL SETPOINT",
+            font=('Arial', 14, 'bold'),
+            bg='#e67e22',
+            fg='white',
+            pady=5
+        ).pack()
+        
+        self.manualSetpointValue = tk.Label(
+            manualBox,
+            text="-- MPH",
+            font=('Arial', 24, 'bold'),
+            bg='#1a1a2e',
+            fg='#666666',
+            pady=12,
+            relief='sunken',
+            bd=3
+        )
+        self.manualSetpointValue.pack(padx=10, pady=(0, 10))
+        
+        # Auto Mode Info Row
+        autoFrame = tk.Frame(mainFrame, bg='#1e3c72')
+        autoFrame.pack(fill='x', pady=10)
+        
+        # Next Station
+        stationBox = tk.Frame(autoFrame, bg='#16a085', relief='raised', bd=4)
+        stationBox.pack(side='left', fill='both', expand=True, padx=(0, 5))
+        
+        tk.Label(
+            stationBox,
+            text="NEXT STATION",
+            font=('Arial', 14, 'bold'),
+            bg='#16a085',
+            fg='white',
+            pady=5
+        ).pack()
+        
+        self.nextStationValue = tk.Label(
+            stationBox,
+            text="DORMONT",
+            font=('Arial', 20, 'bold'),
+            bg='#1a1a2e',
+            fg='white',
+            pady=12,
+            relief='sunken',
+            bd=3
+        )
+        self.nextStationValue.pack(padx=10, pady=(0, 10))
+        
+        # Distance to Station
+        distanceBox = tk.Frame(autoFrame, bg='#d35400', relief='raised', bd=4)
+        distanceBox.pack(side='right', fill='both', expand=True, padx=(5, 0))
+        
+        tk.Label(
+            distanceBox,
+            text="DISTANCE TO STATION",
+            font=('Arial', 14, 'bold'),
+            bg='#d35400',
+            fg='white',
+            pady=5
+        ).pack()
+        
+        self.distanceToStationValue = tk.Label(
+            distanceBox,
+            text="0 m",
+            font=('Arial', 20, 'bold'),
+            bg='#1a1a2e',
+            fg='#00ff00',
+            pady=12,
+            relief='sunken',
+            bd=3
+        )
+        self.distanceToStationValue.pack(padx=10, pady=(0, 10))
+        
+        # Control Panels Launch Section
+        panelFrame = tk.Frame(mainFrame, bg='#34495e', relief='raised', bd=4)
+        panelFrame.pack(fill='x', pady=(10, 0))
+        
+        tk.Label(
+            panelFrame,
+            text="CONTROL PANELS",
+            font=('Arial', 16, 'bold'),
+            bg='#34495e',
+            fg='white',
+            pady=8
+        ).pack()
+        
+        buttonFrame = tk.Frame(panelFrame, bg='#34495e')
+        buttonFrame.pack(pady=(0, 10))
+        
+        # Launch buttons
+        btnStyle = {
+            'font': ('Arial', 11, 'bold'),
+            'width': 18,
+            'height': 2,
+            'bg': '#3498db',
+            'fg': 'white',
+            'activebackground': '#2980b9',
+            'activeforeground': 'white',
+            'cursor': 'hand2'
+        }
+        
+        # Power Engineer button removed - panel auto-launches on startup
+        
+        tk.Button(
+            buttonFrame,
+            text="A/C System",
+            command=self._launchACPanel,
+            **btnStyle
+        ).grid(row=0, column=0, padx=5, pady=5)
+        
+        tk.Button(
+            buttonFrame,
+            text="Announcements",
+            command=self._launchAnnouncementPanel,
+            **btnStyle
+        ).grid(row=0, column=1, padx=5, pady=5)
+        
+        tk.Button(
+            buttonFrame,
+            text="Track Info",
+            command=self._launchTrackInfoPanel,
+            **btnStyle
+        ).grid(row=0, column=2, padx=5, pady=5)
+        
+        tk.Button(
+            buttonFrame,
+            text="System Log",
+            command=self._launchSystemLogViewer,
+            **btnStyle
+        ).grid(row=1, column=0, padx=5, pady=5)
+    
+    def _launchPowerEngineer(self):
+        """Show Power Engineer Panel"""
+        global powerEngineerPanel
+        if powerEngineerPanel and powerEngineerPanel.root.winfo_exists():
+            powerEngineerPanel.root.deiconify()
+            powerEngineerPanel.root.lift()
+            print("✓ Power Engineer Panel shown")
+        else:
+            print("Power Engineer Panel not available")
+    
+    def _launchACPanel(self):
+        """Launch A/C System Panel"""
+        global acPanel
+        if acPanel is None or not tk.Toplevel.winfo_exists(acPanel.root):
+            acRoot = tk.Toplevel(self.root)
+            
+            def send_ac_message(message):
+                if self.server and self.train_model_connected:
+                    self.server.send_to_ui("Train Model", message)
+                    print(f"AC Panel → Train Model: {message}")
+            
+            acPanel = ACSystemPanel(acRoot, send_message_callback=send_ac_message)
+            print("✓ Launched A/C System Panel")
+        else:
+            acPanel.root.lift()
+            print("A/C System Panel already open")
+    
+    def _launchAnnouncementPanel(self):
+        """Launch Station Announcement Panel"""
+        global announcementPanel
+        if announcementPanel is None or not tk.Toplevel.winfo_exists(announcementPanel.root):
+            announcementRoot = tk.Toplevel(self.root)
+            announcementPanel = StationAnnouncementPanel(announcementRoot)
+            print("✓ Launched Announcement Panel")
+        else:
+            announcementPanel.root.lift()
+            print("Announcement Panel already open")
+    
+    def _launchTrackInfoPanel(self):
+        """Launch Track Information Panel"""
+        global trackInfoPanel
+        if trackInfoPanel is None or not tk.Toplevel.winfo_exists(trackInfoPanel.root):
+            trackInfoRoot = tk.Toplevel(self.root)
+            trackInfoPanel = TrackInformationPanel(trackInfoRoot)
+            print("✓ Launched Track Info Panel")
+        else:
+            trackInfoPanel.root.lift()
+            print("Track Info Panel already open")
+    
+    def _launchSystemLogViewer(self):
+        """Launch System Log Viewer"""
+        global systemLogViewer
+        if systemLogViewer is None or not tk.Toplevel.winfo_exists(systemLogViewer.root):
+            try:
+                systemLogRoot = tk.Toplevel(self.root)
+                systemLogViewer = SystemLogViewer(systemLogRoot, self.gpio_client)
+                print("✓ Launched System Log Viewer")
+            except Exception as e:
+                print(f"Warning: SystemLogViewer initialization issue: {e}")
+                print("System will continue without log viewer window")
+                systemLogViewer = None
+        else:
+            systemLogViewer.root.lift()
+            print("System Log Viewer already open")
     
     def _updateDisplay(self):
-        currentSpeedValue = getCurrentSpeed()
-        commandedSpeedValue = getCommandedSpeed()
-        commandedAuthorityValue = getCommandedAuthority()
-        manualSetpoint = getManualSetpointSpeed()
-        mode = getDrivetrainMode()
+        """Update all display elements (optimized to only update on changes)"""
+        # Initialize cache on first run
+        if not hasattr(self, '_display_cache'):
+            self._display_cache = {
+                'currentSpeed': None,
+                'commandedSpeed': None,
+                'authority': None,
+                'mode': None,
+                'isManual': None,
+                'manualSetpoint': None,
+                'nextStation': None,
+                'distToStation': None,
+                'isAtStation': None
+            }
+        
+        cache = self._display_cache
+        
+        # Get current values
+        currentSpeedMPH = getCurrentSpeed()
+        commandedSpeedMPH = getCommandedSpeed()
+        authority = getCommandedAuthority()
         isManual = isManualMode()
+        mode = getDrivetrainMode()
         
-        self.speedLabel.config(text=f"{int(currentSpeedValue)}")
+        # Only update speed displays if changed (with small threshold to avoid floating point jitter)
+        if cache['currentSpeed'] is None or abs(currentSpeedMPH - cache['currentSpeed']) > 0.05:
+            self.currentSpeedValue.config(text=f"{currentSpeedMPH:.1f} MPH")
+            cache['currentSpeed'] = currentSpeedMPH
         
+        if cache['commandedSpeed'] is None or abs(commandedSpeedMPH - cache['commandedSpeed']) > 0.05:
+            self.commandedSpeedValue.config(text=f"{commandedSpeedMPH:.1f} MPH")
+            cache['commandedSpeed'] = commandedSpeedMPH
+        
+        if cache['authority'] != authority:
+            self.commandedAuthorityValue.config(text=f"{int(authority)} blocks")
+            cache['authority'] = authority
+        
+        # Update mode display only if changed
+        if cache['isManual'] != isManual or cache['mode'] != mode:
+            self.modeValue.config(text=mode)
+            if isManual:
+                self.modeValue.config(bg='#e74c3c', fg='yellow')
+            else:
+                self.modeValue.config(bg='#1a1a2e', fg='white')
+            cache['mode'] = mode
+            cache['isManual'] = isManual
+        
+        # Update manual setpoint display
         if isManual:
-            self.speedLabel.config(fg='#ffa500')
+            manualSpeed = getManualSetpointSpeed()
+            if cache['manualSetpoint'] != manualSpeed:
+                self.manualSetpointValue.config(text=f"{manualSpeed} MPH", fg='#ffff00')
+                cache['manualSetpoint'] = manualSpeed
         else:
-            self.speedLabel.config(fg='#00ff00')
+            if cache['manualSetpoint'] is not None:
+                self.manualSetpointValue.config(text="-- MPH", fg='#666666')
+                cache['manualSetpoint'] = None
         
-        self.cmdSpeedValue.config(text=f"{int(commandedSpeedValue)} MPH")
-        
-        self.cmdAuthorityValue.config(text=f"{commandedAuthorityValue} BLOCKS")
-        
-        if isManual:
-            self.manualSetpointValue.config(
-                text=f"{int(manualSetpoint)} MPH",
-                fg='#ffa500'
-            )
+        # Update station information (show in both manual and automatic modes)
+        if autoModeEnabled:
+            nextStation = getNextStationName()
+            distToStation = getDistanceToNextStation()
+            
+            if cache['nextStation'] != nextStation:
+                self.nextStationValue.config(text=nextStation)
+                cache['nextStation'] = nextStation
+            
+            # Only update distance if changed significantly (> 1 foot to reduce jitter)
+            distToStationFeet = distToStation * 3.28084
+            if cache['distToStation'] is None or abs(distToStationFeet - cache['distToStation']) > 1.0:
+                decelDistanceFeet = DECELERATION_DISTANCE * 3.28084
+                
+                if distToStationFeet < 3.28084:
+                    self.distanceToStationValue.config(text=f"{distToStationFeet:.1f} ft", fg='#ff0000')
+                elif distToStationFeet < decelDistanceFeet:
+                    self.distanceToStationValue.config(text=f"{int(distToStationFeet)} ft", fg='#ffa500')
+                else:
+                    self.distanceToStationValue.config(text=f"{int(distToStationFeet)} ft", fg='#00ff00')
+                cache['distToStation'] = distToStationFeet
+            
+            # Highlight next station display if at station
+            if cache['isAtStation'] != isAtStation:
+                if isAtStation:
+                    self.nextStationValue.config(fg='#ffff00')
+                else:
+                    self.nextStationValue.config(fg='white')
+                cache['isAtStation'] = isAtStation
         else:
-            self.manualSetpointValue.config(
-                text="-- MPH",
-                fg='#666666'
-            )
+            # Auto mode not enabled, show disabled
+            if cache['nextStation'] != 'DISABLED':
+                self.nextStationValue.config(text="AUTO MODE DISABLED")
+                self.distanceToStationValue.config(text="-- m", fg='#666666')
+                cache['nextStation'] = 'DISABLED'
+                cache['distToStation'] = None
         
-        self.modeValue.config(text=mode)
-        if isManual:
-            self.modeValue.config(bg='#e74c3c', fg='yellow')
-        else:
-            self.modeValue.config(bg='#1a1a2e', fg='white')
+        # Check connection status (only occasionally)
+        if not hasattr(self, '_conn_check_counter'):
+            self._conn_check_counter = 0
+        self._conn_check_counter += 1
+        if self._conn_check_counter >= 10:  # Check every 10 cycles
+            if self.gpio_client and not self.gpio_client.connected:
+                self._updateConnectionStatus(False)
+            self._conn_check_counter = 0
         
-        # Check connection status
-        if self.gpio_client and not self.gpio_client.connected:
-            self._updateConnectionStatus(False)
+        # Schedule next update - REDUCED from 100ms to 200ms for performance
+        self.root.after(200, self._updateDisplay)
+    
+    def _startPowerCalculationLoop(self):
+        """Start the continuous power calculation and transmission loop"""
+        self._calculateAndSendPower()
+    
+    def _calculateAndSendPower(self):
+        """Calculate power using PI controller and send to Train Model"""
+        global powerEngineerPanel, lastSentPower
         
-        self.root.after(100, self._updateDisplay)
+        if self.server and self.train_model_connected and powerEngineerPanel:
+            try:
+                # Calculate power command using PI controller
+                powerKW = calculatePowerCommand()
+                
+                # Convert kW to Watts for Train Model
+                powerWatts = powerKW * 1000.0
+                
+                # Time-based throttling: only send every 3 seconds
+                current_time = time.time()
+                if not hasattr(self, '_last_power_send_time'):
+                    self._last_power_send_time = 0
+                
+                # Send if: (1) 3 seconds elapsed OR (2) power changed significantly AND at least 0.5s passed
+                time_since_last_send = current_time - self._last_power_send_time
+                power_changed = lastSentPower is None or abs(powerWatts - lastSentPower) > 100
+                
+                # SAFETY: Do not send power if service brake is active
+                if serviceBrakeActive:
+                    # Service brake engaged - force power to zero
+                    if lastSentPower != 0:
+                        self.server.send_to_ui("Train Model", {
+                            'command': 'Power Command',
+                            'value': 0,
+                            'train_id': 1
+                        })
+                        lastSentPower = 0
+                        self._last_power_send_time = current_time
+                        print("⚠️  Service brake active - power command set to ZERO")
+                elif time_since_last_send >= 3.0 or (power_changed and time_since_last_send >= 0.5):
+                    self.server.send_to_ui("Train Model", {
+                        'command': 'Power Command',
+                        'value': powerWatts,
+                        'train_id': 1
+                    })
+                    lastSentPower = powerWatts
+                    self._last_power_send_time = current_time
+                
+            except Exception as e:
+                print(f"Error calculating/sending power: {e}")
+        
+        # Schedule next calculation (100ms interval)
+        self.root.after(100, self._calculateAndSendPower)
+    
+    def _connectToSoftwareTC(self):
+        """Connect to software train controller using TrainSocketServer"""
+        def connect_thread():
+            try:
+                time.sleep(2)  # Give software TC time to start
+                self.server.connect_to_ui('localhost', 12346, "Train SW")
+                self.software_tc_connected = True
+                print("✓ Connected to Software TC (Train SW) on port 12346")
+            except Exception as e:
+                print(f"✗ Could not connect to Software TC: {e}")
+                self.software_tc_connected = False
+        
+        # Run in thread to avoid blocking
+        threading.Thread(target=connect_thread, daemon=True).start()
+    
+    def _sendPIDToSoftwareTC(self, kp, ki):
+        """Send Kp and Ki values to software train controller"""
+        if not self.software_tc_connected:
+            return  # Silently skip if not connected
+        
+        try:
+            message = {
+                'command': 'PID Parameters',
+                'kp': float(kp),
+                'ki': float(ki)
+            }
+            self.server.send_to_ui("Train SW", message)
+            print(f"✓ Sent PID to Software TC: Kp={kp:.1f}, Ki={ki:.1f}")
+        except Exception as e:
+            print(f"✗ Error sending PID to Software TC: {e}")
+            self.software_tc_connected = False
     
     def _onClose(self):
         print("\nClosing application...")
@@ -630,4 +1765,10 @@ class TrainSpeedDisplayUI:
         self.root.destroy()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n[KEYBOARD INTERRUPT] Shutting down...")
+        cleanupAll()
+        import sys
+        sys.exit(0)

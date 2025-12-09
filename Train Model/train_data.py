@@ -101,12 +101,13 @@ class Train:
 		
 		# Line assignment
 		self.line = "green" 
+		self.lineData = GreenLine()
 		self.block = 63
 		self.atStation = False
 		self.previousBlock = 63
 
 		# Station
-		self.station = "YARD"
+		self.announcement = ""
 		self.timeToStation = 0
 		self.emergencyAnnouncement = "EMERGENCY"
 		
@@ -134,6 +135,7 @@ class Train:
 		self.line = value
 		if value == 'green':
 			self.lineData = GreenLine()
+			self.station = 'Glenbury'
 		elif value == 'red':
 			self.lineData = RedLine()
 		else:
@@ -144,11 +146,16 @@ class Train:
 		# Updates the current block and retrieves associated speed limit and grade.
 		self.previousBlock = self.block
 		self.block = value
-		self.setSpeedLimit(self.lineData.getValue(value, 'speed_limit'))
-		self.setGrade(self.lineData.getValue(value, 'grade'))
+		self.setSpeedLimit(self.lineData.getValue(value, 'speedLimit'))
+		self.setGrade(self.lineData.getValue(value, 'blockGradePercent'))
 		stationCheck = self.lineData.getValue(value,'infrastructure') 
 		if "STATION" in stationCheck:
 			self.atStation = True
+		distanceDict = GreenLine.getDistance()
+		if distanceDict != None:
+			self.station = distanceDict['toStation']
+			self.distanceLeft = distanceDict['distance']
+			
 		
 	# Metric setters with validation
 	def setSpeedLimit(self, value: float):
@@ -403,13 +410,14 @@ class Train:
 		self.acceleration = aNew
 		# self.distanceLeft = self.distanceLeft - distance
 		
-		# if newSpeed > 0.1:
+		# if newSpeed > 0.1 and self.distanceLeft != 0: #may need to fix depending on how the train stops at a station
 		# 	timeSeconds = self.distanceLeft / newSpeed
 		# 	timeMinutes = max(0, int(timeSeconds / 60))
 		# 	self.setTimeToStation(timeMinutes)
 		# else:
 		# 	if self.distanceLeft <= 0:
 		# 		self.setTimeToStation(0)
+		# 		self.distanceLeft = 0
 		# 	else:
 		# 		self.setTimeToStation("Soon")
 

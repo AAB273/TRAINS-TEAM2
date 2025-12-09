@@ -11,7 +11,7 @@ class TestUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Test Control Panel")
-        self.root.geometry("460x620")
+        self.root.geometry("460x800")
         
         self.server = TrainSocketServer(port=12349, ui_id="Test_UI")
         self.server.set_allowed_connections(["Train Model", "ui_3"])
@@ -142,46 +142,19 @@ class TestUI:
         ttk.Button(speed_control_frame, text="Send", 
                   command=self.send_commanded_speed, width=6).pack(side='left', padx=2)
         
-        # ===== TEMPERATURE CONTROL =====
-        temp_frame = ttk.LabelFrame(main_container, text="Temperature Control", padding=6)
-        temp_frame.pack(fill='x', padx=5, pady=2)
+        # ===== BLOCK OCCUPANCY =====
+        block_frame = ttk.LabelFrame(main_container, text="Block Occupancy", padding=6)
+        block_frame.pack(fill='x', padx=5, pady=2)
         
-        temp_control_frame = tk.Frame(temp_frame)
-        temp_control_frame.pack(fill='x', pady=2)
+        block_control_frame = tk.Frame(block_frame)
+        block_control_frame.pack(fill='x', pady=2)
         
-        tk.Label(temp_control_frame, text="Temp (64-75):").pack(side='left')
-        self.temp_spinbox = ttk.Spinbox(temp_control_frame, from_=64, to=75, width=4)
-        self.temp_spinbox.pack(side='left', padx=2)
-        ttk.Button(temp_control_frame, text="Set", 
-                  command=lambda: self.send_to_ui('set_temperature', self.temp_spinbox.get()), width=5).pack(side='left', padx=2)
-
-        # ===== STATION ANNOUNCEMENT =====
-        announcement_frame = ttk.LabelFrame(main_container, text="Station Announcement", padding=6)
-        announcement_frame.pack(fill='x', padx=5, pady=2)
-
-        announcement_control_frame = tk.Frame(announcement_frame)
-        announcement_control_frame.pack(fill='x', pady=2)
-
-        station_options = ["A","B","C","D","E","F","G","H","I","J"]
-        self.station_var = tk.StringVar()
-        time_options = ["1","2","3","4","5","6","7","8","9","10"]
-        self.time_var = tk.StringVar()
-
-        tk.Label(announcement_control_frame, text="Station:").pack(side='left')
-        station_dropdown = ttk.Combobox(announcement_control_frame, textvariable=self.station_var, 
-                                       values=station_options, width=3, state="readonly")
-        station_dropdown.pack(side='left', padx=2)
-        
-        tk.Label(announcement_control_frame, text="Time:").pack(side='left')
-        time_dropdown = ttk.Combobox(announcement_control_frame, textvariable=self.time_var, 
-                                    values=time_options, width=3, state="readonly")
-        time_dropdown.pack(side='left', padx=2)
-
-        ttk.Button(announcement_control_frame, text="Send", width=6,
-                  command=lambda: [
-                      self.send_to_ui('set_station', self.station_var.get()),
-                      self.send_to_ui('set_time_to_station', self.time_var.get())
-                  ]).pack(side='left', padx=2)
+        tk.Label(block_control_frame, text="Block Number:").pack(side='left')
+        self.block_var = tk.StringVar(value="63")
+        block_entry = tk.Entry(block_control_frame, textvariable=self.block_var, width=6)
+        block_entry.pack(side='left', padx=2)
+        ttk.Button(block_control_frame, text="Set", 
+                  command=self.set_block, width=5).pack(side='left', padx=2)
         
         # ===== SERVICE BRAKE CONTROL =====
         service_brake_frame = ttk.LabelFrame(main_container, text="Service Brake", padding=6)
@@ -191,45 +164,58 @@ class TestUI:
         brake_control_frame.pack(fill='x', pady=2)
 
         ttk.Button(brake_control_frame, text="Activate", width=8,
-                  command=lambda: self.send_to_ui('set_service_brake', 'on')).pack(side='left', padx=2)
+                  command=lambda: self.send_to_ui('set_service_brake', True)).pack(side='left', padx=2)
         ttk.Button(brake_control_frame, text="Deactivate", width=8,
-                  command=lambda: self.send_to_ui('set_service_brake', 'off')).pack(side='left', padx=2)
+                  command=lambda: self.send_to_ui('set_service_brake', False)).pack(side='left', padx=2)
         
         # ===== EMERGENCY BRAKE =====
         emergency_frame = tk.Frame(main_container)
         emergency_frame.pack(fill='x', padx=5, pady=2)
         
         ttk.Button(emergency_frame, text="EMERGENCY BRAKE (Activate)", width=22,
-                  command=lambda: self.send_to_ui('emergency_brake', 'on')).pack(pady=2)
+                  command=lambda: self.send_to_ui('set_emergency_brake', True)).pack(pady=2)
         ttk.Button(emergency_frame, text="Emergency Brake (Deactivate)", width=22,
-                  command=lambda: self.send_to_ui('emergency_brake', 'off')).pack(pady=2)
+                  command=lambda: self.send_to_ui('set_emergency_brake', False)).pack(pady=2)
         
-        # ===== PASSENGER COUNT CONTROL =====
-        passenger_frame = ttk.LabelFrame(main_container, text="Passenger Count", padding=6)  
-        passenger_frame.pack(fill='x', padx=5, pady=2)
+        # ===== DOORS CONTROL =====
+        doors_frame = ttk.LabelFrame(main_container, text="Doors", padding=6)
+        doors_frame.pack(fill='x', padx=5, pady=2)
         
-        passenger_control_frame = tk.Frame(passenger_frame)
-        passenger_control_frame.pack(fill='x', pady=2)
+        left_door_frame = tk.Frame(doors_frame)
+        left_door_frame.pack(fill='x', pady=2)
+        tk.Label(left_door_frame, text="Left Door:").pack(side='left', padx=(0, 5))
+        ttk.Button(left_door_frame, text="Open", width=6,
+                  command=lambda: self.send_to_ui('set_left_door', True)).pack(side='left', padx=2)
+        ttk.Button(left_door_frame, text="Close", width=6,
+                  command=lambda: self.send_to_ui('set_left_door', False)).pack(side='left', padx=2)
         
-        tk.Label(passenger_control_frame, text="Count (0-222):").pack(side='left')
-        self.passenger_spinbox = ttk.Spinbox(passenger_control_frame, from_=0, to=222, width=4)
-        self.passenger_spinbox.pack(side='left', padx=2)
-        ttk.Button(passenger_control_frame, text="Set", width=5,
-                  command=lambda: self.send_to_ui('set_passenger_count', self.passenger_spinbox.get())).pack(side='left', padx=2)
+        right_door_frame = tk.Frame(doors_frame)
+        right_door_frame.pack(fill='x', pady=2)
+        tk.Label(right_door_frame, text="Right Door:").pack(side='left', padx=(0, 5))
+        ttk.Button(right_door_frame, text="Open", width=6,
+                  command=lambda: self.send_to_ui('set_right_door', True)).pack(side='left', padx=2)
+        ttk.Button(right_door_frame, text="Close", width=6,
+                  command=lambda: self.send_to_ui('set_right_door', False)).pack(side='left', padx=2)
         
-        # ===== BLOCK NUMBER CONTROL =====
-        block_frame = ttk.LabelFrame(main_container, text="Block Number", padding=6)
-        block_frame.pack(fill='x', padx=5, pady=2)
+        # ===== LIGHTS CONTROL =====
+        lights_frame = ttk.LabelFrame(main_container, text="Lights", padding=6)
+        lights_frame.pack(fill='x', padx=5, pady=2)
         
-        block_control_frame = tk.Frame(block_frame)
-        block_control_frame.pack(fill='x', pady=2)
+        headlights_frame = tk.Frame(lights_frame)
+        headlights_frame.pack(fill='x', pady=2)
+        tk.Label(headlights_frame, text="Headlights:").pack(side='left', padx=(0, 5))
+        ttk.Button(headlights_frame, text="On", width=6,
+                  command=lambda: self.send_to_ui('set_headlights', True)).pack(side='left', padx=2)
+        ttk.Button(headlights_frame, text="Off", width=6,
+                  command=lambda: self.send_to_ui('set_headlights', False)).pack(side='left', padx=2)
         
-        tk.Label(block_control_frame, text="Block (1-150):").pack(side='left')
-        self.block_var = tk.StringVar(value="1")
-        block_entry = tk.Entry(block_control_frame, textvariable=self.block_var, width=6)
-        block_entry.pack(side='left', padx=2)
-        ttk.Button(block_control_frame, text="Send", width=6,
-                  command=lambda: self.send_block_number()).pack(side='left', padx=2)
+        interior_frame = tk.Frame(lights_frame)
+        interior_frame.pack(fill='x', pady=2)
+        tk.Label(interior_frame, text="Interior Lights:").pack(side='left', padx=(0, 5))
+        ttk.Button(interior_frame, text="On", width=6,
+                  command=lambda: self.send_to_ui('set_interior_lights', True)).pack(side='left', padx=2)
+        ttk.Button(interior_frame, text="Off", width=6,
+                  command=lambda: self.send_to_ui('set_interior_lights', False)).pack(side='left', padx=2)
         
         # ===== TRAIN HORN =====
         train_horn = ttk.Button(main_container, text="Train Horn", 
@@ -259,7 +245,7 @@ class TestUI:
         """Send commanded speed value"""
         try:
             speed = float(self.commanded_speed_var.get())
-            self.send_to_ui('Commanded Speed', speed)
+            self.send_to_ui('set_commanded_speed', speed)
             self.status_label.config(text=f"Set commanded speed to {speed} MPH for Train {self.selected_train_id}")
         except ValueError:
             self.status_label.config(text="Invalid speed value")
@@ -277,22 +263,19 @@ class TestUI:
         """Set custom authority value"""
         try:
             authority = int(self.custom_authority_var.get())
-            self.send_to_ui('Commanded Authority', authority)
+            self.send_to_ui('set_authority', authority)
             self.status_label.config(text=f"Set authority to {authority} ft for Train {self.selected_train_id}")
         except ValueError:
             self.status_label.config(text="Invalid authority value")
     
-    def send_block_number(self):
-        """Send block number"""
+    def set_block(self):
+        """Set block occupancy"""
         try:
-            block_num = int(self.block_var.get())
-            if 1 <= block_num <= 150:
-                self.send_to_ui('Block Occupancy', block_num)
-                self.status_label.config(text=f"Set block number to {block_num} for Train {self.selected_train_id}")
-            else:
-                self.status_label.config(text="Block number must be between 1 and 150")
+            block = int(self.block_var.get())
+            self.send_to_ui('set_block', block)
+            self.status_label.config(text=f"Set block to {block} for Train {self.selected_train_id}")
         except ValueError:
-            self.status_label.config(text="Invalid block number")
+            self.status_label.config(text="Invalid block value")
             
     def run(self):
         self.root.mainloop()

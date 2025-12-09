@@ -349,6 +349,14 @@ class ScheduleScreen:
                         self.updateTrainInManualEdit(key, location)
                         updated = True
 
+                    #sends authority of 3 to the wayside controller when a train is 3 blocks away from a station
+                    if (updated):
+                        for locKey in self.greenStationLocations:
+                            if (self.trainRoutes[key][3] == self.greenStationLocations[locKey]):
+                                if ((self.trainRoutes[key][0] + 4 == locKey and self.trainRoutes[key][2] == "forward") or (self.trainRoutes[key][0] - 4 == locKey and self.trainRoutes[key][2] == "backward")):
+                                    self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": line.title(), "block": location, "speed": f"{speed:.2f}", "authority": "3", "value_type": "suggested"}})                            
+
+
                     if (len(self.trainRoutes[key]) == 3):
                         if (self.trainRoutes[key][0] == 58):
                             children = self.meArea.get_children("")
@@ -367,9 +375,7 @@ class ScheduleScreen:
                         if (self.trainRoutes[key][0] in self.greenStationLocations):
                             if (self.trainRoutes[key][3] == self.greenStationLocations[self.trainRoutes[key][0]]):
 
-                                self.trainRoutes[key].remove(self.trainRoutes[key][3])
-                                print("\n\n\nhere\n\n\n")
-                            
+                                self.trainRoutes[key].remove(self.trainRoutes[key][3])    
                                 if (len(self.trainRoutes[key]) == 3):
                                 #if there is no more destination backlog go to yard
                                     children = self.meArea.get_children("")
