@@ -306,8 +306,7 @@ class TrainModelPassengerGUI:
 			elif command == 'Passengers Boarding':
 				self.updateBoarding(value, train)
 			elif command == 'Beacon':
-				if train.line == 'Green':
-					print(f"Beacon data for train {train.trainId}")
+				print("add functionality for lucas and ryna")
 			
 			# Update UI if this is the currently selected train
 			if train == self.currentTrain:
