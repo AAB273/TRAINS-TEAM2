@@ -161,6 +161,24 @@ def _process_message(self, data, connection=None, server_instance=None):
 
         # Try to parse
         try:
+
+            print(f"\n{'='*60}")
+            print(f"TRACK HW MAIN UI: Received message from CTC")
+            print(f"Data type: {type(data)}")
+            print(f"Data: {data}")
+        
+        # 1. Handle connection test FIRST
+            if isinstance(data, str) and data.strip() == "CTC":
+                print("CTC connection test received - sending ACK")
+                add_to_message_log("CTC connection test received")
+                if connection:
+                    try:
+                        connection.sendall(b"CTC_ACK")
+                        print("Sent CTC_ACK response")
+                    except Exception as e:
+                        print(f"Error sending ACK: {e}")
+                return  # IMPORTANT: Stop processing here for connection tests
+
             import json
             message_data = json.loads(data)
             print(f"Parsed: {message_data}")
@@ -192,6 +210,9 @@ def _process_message(self, data, connection=None, server_instance=None):
                 # Parse as JSON (your data IS valid JSON from CTC)
                 message_data = json.loads(data)
                 print(f"Parsed JSON data: {message_data}")
+                print(f"Raw data: {data}")
+                print(f"Parsed message_data: {message_data}")
+                print(f"Type of message_data: {type(message_data)}")
             except json.JSONDecodeError:
                 # If not JSON, check if it's a Python dict string
                 try:
@@ -210,15 +231,43 @@ def _process_message(self, data, connection=None, server_instance=None):
         else:
             print(f"Unknown data type: {type(data)}")
             return
-        
+      
         # 3. Process command
         command = message_data.get('command', '')
         value = message_data.get('value', '')
         
         print(f"Processing command: {command}, value: {value}")
+
+        #########################################################################################
+                # After parsing speed and authority values:
+        print(f"Processing suggested update: {track} Block {block} -> Speed:{speed}, Auth:{authority}")
+
+        # CALL YOUR EXISTING FUNCTIONS
+        if hasattr(right_panel, 'update_suggested_speed'):
+            right_panel.update_suggested_speed(speed)
+            print(f"✅ Called update_suggested_speed({speed})")
+
+        if hasattr(right_panel, 'update_suggested_authority'):
+            right_panel.update_suggested_authority(authority)
+            print(f"✅ Called update_suggested_authority({authority})")
+
+        # Also select the block
+        if hasattr(right_panel, 'block_combo') and block:
+            right_panel.block_combo.set(str(block))
+            print(f"✅ Selected block {block} in dropdown")
+
+        add_to_message_log(f"CTC Suggested: Block {block} - Speed: {speed:.3f} mph, Authority: {authority} blocks")
+        
+        ############################################################################
         
         if command == 'update_speed_auth':
             # CALL THE EXISTING HANDLER IN UITestData
+            # Extract block from the value dictionary
+            block = value.get('block', '')
+            track = value.get('track', '')
+            speed_str = value.get('speed', '0')
+            authority_str = value.get('authority', '0')
+            value_type = value.get('value_type', 'suggested')
             print(f"DEBUG: Calling test_data._handle_speed_auth_update with: {value}")
             
             # Check if test_data has the method
@@ -235,10 +284,11 @@ def _process_message(self, data, connection=None, server_instance=None):
                     authority_str = value.get('authority', '0')
                     
                     try:
-                        speed = float(speed_str)
+                        speed = round(float(speed_str),2)
                         if hasattr(right_panel, 'update_suggested_speed'):
                             right_panel.update_suggested_speed(speed)
                     except:
+                        speed = 0.0
                         pass
                     
                     try:
@@ -246,6 +296,7 @@ def _process_message(self, data, connection=None, server_instance=None):
                         if hasattr(right_panel, 'update_suggested_authority'):
                             right_panel.update_suggested_authority(authority)
                     except:
+                        authority = 0
                         pass
                     
                     add_to_message_log(f"CTC Update: Speed={speed_str}, Authority={authority_str}")
@@ -267,6 +318,12 @@ def _process_message(self, data, connection=None, server_instance=None):
         print(f"Error processing message: {e}")
         import traceback
         traceback.print_exc()
+    # Store as simple attributes
+    right_panel.update_suggested_speed = speed
+    right_panel.update_suggested_authority = authority
+
+    # Update display
+    right_panel.update_suggested_display()
 
 def handle_ctc_suggested_speed(speed_data):
     """
@@ -734,7 +791,7 @@ class UITestData:
         try:
             global_clock.endTimer()
         except:
-            print(f"Error stopping clock: {e}")
+            # print(f"Error stopping clock: {e}")
             pass
 
         # Properly stop the socket server with comprehensive cleanup
@@ -745,7 +802,7 @@ class UITestData:
                     disconnect_msg = {
                         'command': 'server_shutdown',
                         'message': 'Main UI is closing',
-                        'timestamp': time.time()
+                        'timestamp': self.clock.getTime()
                     }
                     for ui_id, connection in list(self.server1.connections.items()):
                         try:
@@ -879,9 +936,34 @@ class UITestData:
                 if hasattr(right_panel, 'update_suggested_authority'):
                     right_panel.update_suggested_authority(authority)
             
-            # Log update
-                add_to_message_log(f"CTC Update: Speed={speed:.2f} mph, Authority={authority} blocks")
+            # Log update (below currently)
+                # add_to_message_log(f"CTC Update: Speed={speed:.2f} mph, Authority={authority} blocks")
+
+            ####################################################################################################################
+            # 12/8 -- UPDATING WITH CTC SUGGESTED SPEED AND AUTHORITY 
+                #  After parsing the message and getting the values:
+            if track.lower() == test_data.current_line.lower():
+                # Convert values
+                speed = round(float(speed_str), 3)
+                authority = int(authority_str)
             
+            print(f"Updating display for block {block}: Speed={speed}, Auth={authority}")
+            
+            # DIRECT UPDATE - This is the key fix:
+            if hasattr(right_panel, 'suggested_speed_label'):
+                right_panel.suggested_speed_label.config(text=f"{speed:.3f} mph")
+                print(f"Updated speed label to: {speed:.3f} mph")
+            
+            if hasattr(right_panel, 'suggested_auth_label'):
+                right_panel.suggested_auth_label.config(text=f"{authority} blocks")
+                print(f"Updated authority label to: {authority} blocks")
+            
+            # Also update the block selector to show block 63
+            if hasattr(right_panel, 'block_combo') and block:
+                right_panel.block_combo.set(block)
+            
+            add_to_message_log(f"CTC: Block {block} - Speed: {speed:.3f} mph, Authority: {authority} blocks")
+          ####################################################################################################################
         except Exception as e:
             print(f"Error handling speed/auth update: {e}")
             add_to_message_log(f"ERROR processing CTC update: {e}", "ERROR")
@@ -1204,10 +1286,12 @@ def load_line_data(self, filename):
                 "switches": {
                     "Switch 12-13": {"condition": "Normal", "direction": "Blocks 12-13"},
                     "Switch 28-29": {"condition": "Normal", "direction": "Blocks 28-29"},
-                    "Switch 57-Yard": {"condition": "Normal", "direction": "Blocks 57-Yard"}
+                    "Switch 57-Yard": {"condition": "Normal", "direction": "Blocks 57-Yard"},
+                    "Switch 62-Yard": {"condition": "Normal", "direction": "Blocks Yard-63"}
                 },
                 "lights": {
-                    "Light 12": {"condition": "Normal", "signal": "Green"},
+                    "Light 1": {"condition": "Normal", "signal": "Green"},
+                    "Light 13": {"condition": "Normal", "signal": "Green"},
                     "Light 28": {"condition": "Normal", "signal": "Yellow"},
                     "Light 57": {"condition": "Normal", "signal": "Red"},
                     "Light 19": {"condition": "Normal", "signal": "Red"}
@@ -1754,6 +1838,18 @@ class LeftPanel(tk.Frame):
         self.update_crossing_options()
         self.update_switch_options()
         self.update_light_options()
+        # Force update display for first item in each category
+        if self.crossing_selector['values']:
+            self.crossing_selector.set(self.crossing_selector['values'][0])
+            self.update_crossing_display()
+    
+        if self.switch_selector['values']:
+            self.switch_selector.set(self.switch_selector['values'][0])
+            self.update_switch_display()
+    
+        if self.light_selector['values']:
+            self.light_selector.set(self.light_selector['values'][0])
+            self.update_light_display()
    
     def update_crossing_display(self, event=None):
         selected = self.crossing_selector.get()
@@ -2041,10 +2137,10 @@ class RightPanel(tk.Frame):
         #                               width=8, relief=tk.SUNKEN)
         # self.occupied_label.grid(row=1, column=1, padx=2, pady=2, sticky='w')
 
-        # Line
-        tk.Label(current_block_frame, text="Line:", bg='#cccccc', width=10).grid(row=0, column=2, padx=2, pady=2, sticky='w')
-        self.line_label = tk.Label(current_block_frame, text="N/A", bg='white', width=8, relief=tk.SUNKEN)  # THIS WAS MISSING
-        self.line_label.grid(row=0, column=3, padx=2, pady=2, sticky='w')
+        # # Line
+        # tk.Label(current_block_frame, text="Line:", bg='#cccccc', width=10).grid(row=0, column=2, padx=2, pady=2, sticky='w')
+        # self.line_label = tk.Label(current_block_frame, text="N/A", bg='white', width=8, relief=tk.SUNKEN)  # THIS WAS MISSING
+        # self.line_label.grid(row=0, column=3, padx=2, pady=2, sticky='w')
 
         # Block number display
         tk.Label(current_block_frame, text="Block #:", bg='#cccccc', 
@@ -2053,10 +2149,10 @@ class RightPanel(tk.Frame):
                                        width=8, relief=tk.SUNKEN)
         self.block_num_label.grid(row=0, column=1, padx=3, pady=2, sticky='w')
         
-        # # Section
-        # tk.Label(current_block_frame, text="Section:", bg='#cccccc', width=10).grid(row=1, column=0, padx=2, pady=2, sticky='w')
-        # self.section_label = tk.Label(current_block_frame, text="N/A", bg='white', width=8, relief=tk.SUNKEN)
-        # self.section_label.grid(row=1, column=1, padx=4, pady=2, sticky='w')
+        # Section
+        tk.Label(current_block_frame, text="Section:", bg='#cccccc', width=10).grid(row=1, column=0, padx=2, pady=2, sticky='w')
+        self.section_label = tk.Label(current_block_frame, text="N/A", bg='white', width=8, relief=tk.SUNKEN)
+        self.section_label.grid(row=1, column=1, padx=4, pady=2, sticky='w')
 
     def update_current_block_info(self):
         """Update current block display from data"""
@@ -2094,14 +2190,14 @@ class RightPanel(tk.Frame):
                 self.block_num_label.config(text="N/A")
                 self.line_label.config(text="N/A", bg='white')
                 self.section_label.config(text="N/A")
-                self.occupied_label.config(text="N/A", bg='white')
+                self.occupied_label(text="N/A", bg='white')
         else:
                 print("DEBUG: No block selected")
                 # Set default values
                 self.block_num_label.config(text="N/A")
                 self.line_label.config(text="N/A", bg='white')
                 self.section_label.config(text="N/A")
-                self.occupied_label.config(text="N/A", bg='white')
+                self.occupied_label(text="N/A", bg='white')
 
     def create_suggested_section(self):
         """Display suggested authority and speed"""
@@ -2113,6 +2209,7 @@ class RightPanel(tk.Frame):
         auth_frame = tk.Frame(suggested_frame, bg='#cccccc')
         auth_frame.pack(fill=tk.X, padx=5, pady=2)
         tk.Label(auth_frame, text="Authority:", bg='#cccccc').pack(side=tk.LEFT)
+
         self.suggested_auth_label = tk.Label(auth_frame, text="0 blocks", bg='white',
                                            relief=tk.SUNKEN, width=12, anchor='w')
         self.suggested_auth_label.pack(side=tk.LEFT, padx=2)
@@ -2121,6 +2218,7 @@ class RightPanel(tk.Frame):
         speed_frame = tk.Frame(suggested_frame, bg='#cccccc')
         speed_frame.pack(fill=tk.X, padx=5, pady=2)
         tk.Label(speed_frame, text="Speed:", bg='#cccccc').pack(side=tk.LEFT)
+
         self.suggested_speed_label = tk.Label(speed_frame, text="0 mph", bg='white',
                                             relief=tk.SUNKEN, width=12, anchor='w')
         self.suggested_speed_label.pack(side=tk.LEFT, padx=2)
@@ -2254,23 +2352,38 @@ class RightPanel(tk.Frame):
 
     def update_suggested_speed(self, speed_value):
         """Update suggested speed from external source"""
-        selected_block = self.block_combo.get()
-        current_line = self.data.current_line
-        
-        if selected_block and current_line and speed_value is not None:
-            self.suggested_speed[current_line][selected_block] = speed_value
+        # selected_block = self.block_combo.get()
+        # current_line = self.data.current_line
+            # Get the block from the CTC message (not from combo box)
+        # We need to pass the block number as a parameter
+        print(f"DEBUG: update_suggested_speed called with {speed_value}")
+    
+    # Store the value for future use
+    # For now, just update the display directly
+        if speed_value is not None:
             self.suggested_speed_label.config(text=f"{speed_value:.3f} mph")
-            add_to_message_log(f"Suggested Speed updated to: {speed_value:.3f} mph")
+            add_to_message_log(f"Suggested Speed updated: {speed_value:.3f} mph")
+        # if selected_block and current_line and speed_value is not None:
+        #     self.suggested_speed[current_line][selected_block] = speed_value
+        #     self.suggested_speed_label.config(text=f"{speed_value:.3f} mph")
+        #     add_to_message_log(f"Suggested Speed updated to: {speed_value:.3f} mph")
 
     def update_suggested_authority(self, authority_value):
         """Update suggested authority from external source"""
-        selected_block = self.block_combo.get()
-        current_line = self.data.current_line
-        
-        if selected_block and current_line and authority_value is not None:
-            self.suggested_authority[current_line][selected_block] = authority_value
+        print(f"DEBUG: update_suggested_authority called with {authority_value}")
+    
+        # For now, just update the display directly
+        if authority_value is not None:
             self.suggested_auth_label.config(text=f"{authority_value} blocks")
-            add_to_message_log(f"Suggested Authority updated to: {authority_value} blocks")
+            add_to_message_log(f"Suggested Authority updated: {authority_value} blocks")
+        # """Update suggested authority from external source"""
+        # selected_block = self.block_combo.get()
+        # current_line = self.data.current_line
+        
+        # if selected_block and current_line and authority_value is not None:
+        #     self.suggested_authority[current_line][selected_block] = authority_value
+        #     self.suggested_auth_label.config(text=f"{authority_value} blocks")
+        #     add_to_message_log(f"Suggested Authority updated to: {authority_value} blocks")
 
     def create_block_table_section(self):
         """Create block status table section with horizontal scroll"""
