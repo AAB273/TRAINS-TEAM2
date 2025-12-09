@@ -32,7 +32,7 @@ from TC_HW_SystemLogUI import SystemLogViewer
 from TrainSocketServer import TrainSocketServer
 
 # CONFIGURATION - SET YOUR PI'S IP ADDRESS HERE
-PI_HOST = '10.6.3.77'  # ← CHANGE THIS to your Pi's IP address
+PI_HOST = '172.20.10.8'  # ← CHANGE THIS to your Pi's IP address
 PI_GPIO_PORT = 12348
 
 def load_socket_config():
@@ -44,6 +44,9 @@ def load_socket_config():
     return {}
 
 # Global state variables (mirrored from Pi)
+selectedLine = None  # Will be set by line selection dialog: 'GREEN' or 'RED'
+beacon1 = False  # RED LINE: Switch at block 27 (to blocks 76-72)
+beacon2 = False  # RED LINE: Switch at block 38 (to blocks 71-67)
 leftDoorOpen = False
 rightDoorOpen = False
 headlightsOn = False
@@ -59,6 +62,7 @@ commandedSpeed = 0
 commandedAuthority = 0
 currentSpeed = 0
 manualSetpointSpeed = 0
+previousCommandedSpeed = 0.0  # Track previous commanded speed for detecting reductions
 passengerEmergencySignal = False
 brakeFailure = False
 engineFailure = False
@@ -83,12 +87,23 @@ lastSentPower = None  # Track last power sent to avoid duplicates
 # Complete route starting from block 63 (YARD):
 # 63→150 (forward), then 28→1 (backward through F to A), then 13→62 (forward through D back to yard)
 # This creates a continuous loop through the entire Green Line
+# YARD (block 63) is only visited on initialization, then the train enters the main loop at GLENBURY
 preloadedTrackInformation = {
     'segments': [
+        # INITIALIZATION SEGMENT (YARD to first loop station)
+        {
+            'from_station': 'YARD',
+            'to_station': 'GLENBURY',
+            'distance': 200.0 + 100.0,  # meters + half of block 65 (200m block)
+            'from_block': 63,
+            'to_block': 65,
+            'station_block_half_length': 100.0
+        },
+        # MAIN LOOP BEGINS HERE - will restart at index 1 after completion
         {
             'from_station': 'GLENBURY',
             'to_station': 'DORMONT',
-            'distance': 1000.0 + 50.0,  # meters + half of block 73 (100m block)
+            'distance': 100.0 + 200.0 + 100.0 + 100.0 + 100.0 + 100.0 + 100.0 + 50.0,  # blocks 65, 66, 67, 68, 69, 70, 71, 72, 73
             'from_block': 65,
             'to_block': 73,
             'station_block_half_length': 50.0
@@ -245,6 +260,118 @@ preloadedTrackInformation = {
             'to_block': 65,
             'station_block_half_length': 100.0
         }
+        # MAIN LOOP ENDS HERE - restarts at segment index 1 (GLENBURY → DORMONT)
+    ]
+}
+
+# RED LINE PRELOADED TRACK INFORMATION
+# Route: YARD (Block 8) → SHADYSIDE (7) → HERRON AVE (16) [initialization]
+# Main Loop: HERRON AVE (16) → SWISSVILLE → ... → SHADYSIDE (7) → HERRON AVE (16)
+# YARD (block 8) is only visited on initialization, then the train enters the main loop at HERRON AVE
+redLineTrackInformation = {
+    'segments': [
+        # INITIALIZATION SEGMENTS (YARD to first loop station)
+        # YARD to SHADYSIDE (Block 8 backwards to Block 7)
+        {
+            'from_station': 'YARD',
+            'to_station': 'SHADYSIDE',
+            'distance': 37.5,
+            'from_block': 8,
+            'to_block': 7,
+            'station_block_half_length': 37.5
+        },
+        # SHADYSIDE to HERRON AVE (Block 7 backwards through blocks 6,5,4,3,2,1, then jump to 15, then to 16)
+        {
+            'from_station': 'SHADYSIDE',
+            'to_station': 'HERRON AVE',
+            'distance': 37.5 + 50.0 + 50.0 + 50.0 + 50.0 + 50.0 + 50.0 + 60.0 + 25.0,  # blocks 7,6,5,4,3,2,1, jump to 15, then 16
+            'from_block': 7,
+            'to_block': 16,
+            'station_block_half_length': 25.0
+        },
+        # MAIN LOOP BEGINS HERE - will restart at index 2 after completion
+        # HERRON AVE to SWISSVILLE (Block 16 forward to Block 21)
+        {
+            'from_station': 'HERRON AVE',
+            'to_station': 'SWISSVILLE',
+            'distance': 25.0 + 200.0 + 400.0 + 400.0 + 200.0 + 50.0,  # blocks 16, 17, 18, 19, 20, 21
+            'from_block': 16,
+            'to_block': 21,
+            'station_block_half_length': 50.0
+        },
+        # SWISSVILLE to PENN STATION (Block 21 forward to Block 25 - underground)
+        {
+            'from_station': 'SWISSVILLE',
+            'to_station': 'PENN STATION',
+            'distance': 325.0,
+            'from_block': 21,
+            'to_block': 25,
+            'station_block_half_length': 25.0
+        },
+        # PENN STATION to STEEL PLAZA (Block 25 forward to Block 35 - underground)
+        {
+            'from_station': 'PENN STATION',
+            'to_station': 'STEEL PLAZA',
+            'distance': 520.0,
+            'from_block': 25,
+            'to_block': 35,
+            'station_block_half_length': 25.0
+        },
+        # STEEL PLAZA to FIRST AVE (Block 35 forward to Block 45 - underground)
+        {
+            'from_station': 'STEEL PLAZA',
+            'to_station': 'FIRST AVE',
+            'distance': 520.0,
+            'from_block': 35,
+            'to_block': 45,
+            'station_block_half_length': 25.0
+        },
+        # FIRST AVE to STATION SQUARE (Block 45 forward to Block 48 - underground then surface)
+        {
+            'from_station': 'FIRST AVE',
+            'to_station': 'STATION SQUARE',
+            'distance': 212.5,
+            'from_block': 45,
+            'to_block': 48,
+            'station_block_half_length': 37.5
+        },
+        # STATION SQUARE to SOUTH HILLS JUNCTION (Block 48 forward to Block 60)
+        {
+            'from_station': 'STATION SQUARE',
+            'to_station': 'SOUTH HILLS JUNCTION',
+            'distance': 743.2,
+            'from_block': 48,
+            'to_block': 60,
+            'station_block_half_length': 37.5
+        },
+        # SOUTH HILLS JUNCTION back to block 15 (Block 60 forward to 66, then jump to 52 and backwards to 15)
+        {
+            'from_station': 'SOUTH HILLS JUNCTION',
+            'to_station': 'HERRON AVE',
+            'distance': 37.5 + 75.0 + 75.0 + 75.0 + 75.0 + 75.0 + 75.0 + 43.2 + 50.0 + 50.0 + 50.0 + 50.0 + 75.0 + 75.0 + 75.0 + 75.0 + 75.0 + 75.0 + 50.0 + 60.0 + 60.0 + 50.0 + 50.0 + 50.0 + 50.0 + 50.0 + 50.0 + 50.0 + 50.0 + 50.0 + 50.0 + 200.0 + 50.0 + 60.0 + 25.0,  # 60→66, jump to 52, then 52→15, then to 16
+            'from_block': 60,
+            'to_block': 16,
+            'station_block_half_length': 25.0
+        },
+        # HERRON AVE to SHADYSIDE (Block 16 backwards to 15, jump to 1, then forward through 2,3,4,5,6,7)
+        {
+            'from_station': 'HERRON AVE',
+            'to_station': 'SHADYSIDE',
+            'distance': 25.0 + 60.0 + 50.0 + 50.0 + 50.0 + 50.0 + 50.0 + 50.0 + 50.0 + 37.5,  # blocks 16→15→1→2→3→4→5→6→7
+            'from_block': 16,
+            'to_block': 7,
+            'station_block_half_length': 37.5
+        },
+        # SHADYSIDE back to HERRON AVE (Block 7 backwards through blocks 6,5,4,3,2,1, then jump to 15, then to 16)
+        {
+            'from_station': 'SHADYSIDE',
+            'to_station': 'HERRON AVE',
+            'distance': 37.5 + 50.0 + 50.0 + 50.0 + 50.0 + 50.0 + 50.0 + 60.0 + 25.0,  # blocks 7,6,5,4,3,2,1, jump to 15, then 16
+            'from_block': 7,
+            'to_block': 16,
+            'station_block_half_length': 25.0
+        }
+        # MAIN LOOP ENDS HERE - restarts at segment index 2 (HERRON AVE → SWISSVILLE)
     ]
 }
 
@@ -256,13 +383,19 @@ distanceToNextStation = preloadedTrackInformation['segments'][0]['distance']  # 
 lastPositionUpdateTime = None  # For calculating displacement
 
 # Underground sections - blocks where headlights and interior lights should be ON
-UNDERGROUND_BLOCKS = {36, 37, 38, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 
+# GREEN LINE
+greenLineUndergroundBlocks = {36, 37, 38, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 
                       53, 54, 55, 56, 57, 122, 123, 124, 125, 126, 127, 128, 129, 130, 
                       131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 142, 143}
 
+# RED LINE - Blocks 24-46 are underground according to the data, plus branch blocks
+redLineUndergroundBlocks = {24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
+                            67, 68, 69, 70, 71, 72, 73, 74, 75, 76}
+
 # Station door side mapping - which doors open at each station
 # Format: station_name: 'left', 'right', or 'both'
-STATION_DOOR_SIDES = {
+# GREEN LINE
+greenLineStationDoorSides = {
     'PIONEER': 'left',
     'EDGEBROOK': 'left',
     'LLC PLAZA': 'both',
@@ -278,20 +411,30 @@ STATION_DOOR_SIDES = {
     'CASTLE SHANNON': 'left'
 }
 
+# RED LINE
+redLineStationDoorSides = {
+    'SHADYSIDE': 'both',
+    'HERRON AVE': 'both',
+    'SWISSVILLE': 'both',
+    'PENN STATION': 'both',
+    'STEEL PLAZA': 'both',
+    'FIRST AVE': 'both',
+    'STATION SQUARE': 'both',
+    'SOUTH HILLS JUNCTION': 'both'
+}
+
+# Will be set based on selected line
+UNDERGROUND_BLOCKS = greenLineUndergroundBlocks
+STATION_DOOR_SIDES = greenLineStationDoorSides
+
 # Special case: INGLEWOOD at block 132 uses left door instead of right
 STATION_DOOR_EXCEPTIONS = {
     132: 'left'  # INGLEWOOD at block 132 uses left door
 }
 
-print(f"[INIT] Underground lighting system loaded: {len(UNDERGROUND_BLOCKS)} underground blocks")
-print(f"[INIT] Station door system loaded: {len(STATION_DOOR_SIDES)} stations configured")
-print(f"[INIT] Complete route: 22 station stops including 2 visits to LLC PLAZA")
-
-# Current block tracking
-currentBlock = 63  # Start at yard
+# Current block tracking - will be set based on selected line
+currentBlock = 63  # Default to Green Line yard
 lastUndergroundState = False  # Track if we were underground last update
-
-print(f"[INIT] Starting at block {currentBlock} (Underground: {currentBlock in UNDERGROUND_BLOCKS})")
 
 # Automatic mode control parameters
 DECELERATION_DISTANCE = 200.0  # Start decelerating 200m before station (meters)
@@ -426,6 +569,23 @@ class GPIOClient:
             self.connected = False
             return False
     
+    def setServiceBrake(self, state):
+        """Control service brake (for automatic station stops)"""
+        if not self.connected:
+            return False
+        
+        command = {
+            'type': 'set_service_brake',
+            'state': state
+        }
+        
+        try:
+            self.socket.sendall((json.dumps(command) + '\n').encode('utf-8'))
+            return True
+        except:
+            self.connected = False
+            return False
+    
     def disconnect(self):
         """Disconnect from GPIO server"""
         self.running = False
@@ -443,9 +603,7 @@ def getCurrentSpeed():
     return currentSpeed * MS_TO_MPH
 
 def getCommandedSpeed():
-    """Get commanded speed in MPH (converted from m/s for display)"""
-    MS_TO_MPH = 2.23694  # 1 m/s = 2.23694 mph
-    return commandedSpeed * MS_TO_MPH
+    return commandedSpeed 
 
 def getCommandedAuthority():
     return commandedAuthority
@@ -467,7 +625,12 @@ def getNextStationName():
     """Get the name of the next station"""
     if currentSegmentIndex < len(preloadedTrackInformation['segments']):
         return preloadedTrackInformation['segments'][currentSegmentIndex]['to_station']
-    return "CASTLE SHANNON"  # Final station
+    # Return appropriate looping station based on selected line
+    # Both lines loop back to their first station
+    if selectedLine == 'RED':
+        return "SHADYSIDE"  # Red Line loops: YARD → SHADYSIDE
+    else:
+        return "GLENBURY"  # Green Line loops: YARD → GLENBURY
 
 def shouldStartDecelerating():
     """Check if train should start decelerating for station approach"""
@@ -483,6 +646,7 @@ def updatePositionTracking():
     global currentSegmentIndex, isAtStation, stationDwellStartTime, systemLogViewer
     global _position_print_counter
     global currentBlock, lastUndergroundState
+    global serviceBrakeActive
     
     if not autoModeEnabled:
         return
@@ -490,9 +654,95 @@ def updatePositionTracking():
     # Calculate current block based on segment and distance traveled
     def getCurrentBlockNumber():
         """Determine current block based on position in route"""
-        # Route order: 63→150, 28→1, 13→62
-        route_order = list(range(63, 151)) + list(range(28, 0, -1)) + list(range(13, 63))
+        global beacon1, beacon2
         
+        if selectedLine == 'GREEN':
+            # GREEN LINE Route order: 63→150, 28→1, 13→62
+            route_order = list(range(63, 151)) + list(range(28, 0, -1)) + list(range(13, 63))
+        else:  # RED LINE
+            # RED LINE Route - Complex with switches
+            # Main route: 8→7→...→1 → jump to 16 → 17...→66 → jump to 52 → 51...→16 → jump to 1 → ...→8 (loop)
+            # This is handled segment by segment since switches can redirect
+            
+            if currentSegmentIndex >= len(preloadedTrackInformation['segments']):
+                return 8  # Default to Red Line yard
+            
+            segment = preloadedTrackInformation['segments'][currentSegmentIndex]
+            from_block = segment['from_block']
+            to_block = segment['to_block']
+            
+            # Calculate progress through segment (0.0 to 1.0)
+            total_distance = segment['distance']
+            progress = min(1.0, distanceTraveledInSegment / total_distance) if total_distance > 0 else 0.0
+            
+            # Determine route for this specific segment
+            if from_block == 8 and to_block == 7:
+                # YARD to SHADYSIDE
+                return 8 if progress < 0.5 else 7
+            elif from_block == 7 and to_block == 16:
+                # SHADYSIDE to HERRON AVE (7→6→5→4→3→2→1→15→16)
+                blocks = [7, 6, 5, 4, 3, 2, 1, 15, 16]
+                idx = min(int(progress * len(blocks)), len(blocks) - 1)
+                return blocks[idx]
+            elif from_block == 16 and to_block == 21:
+                # HERRON AVE to SWISSVILLE (16→17→18→19→20→21)
+                blocks = [16, 17, 18, 19, 20, 21]
+                idx = min(int(progress * len(blocks)), len(blocks) - 1)
+                return blocks[idx]
+            elif from_block == 21 and to_block == 25:
+                # SWISSVILLE to PENN STATION (21→22→23→24→25)
+                blocks = [21, 22, 23, 24, 25]
+                idx = min(int(progress * len(blocks)), len(blocks) - 1)
+                return blocks[idx]
+            elif from_block == 25 and to_block == 35:
+                # PENN STATION to STEEL PLAZA (25→26→27→28→29→30→31→32→33→34→35)
+                blocks = [25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]
+                idx = min(int(progress * len(blocks)), len(blocks) - 1)
+                current = blocks[idx]
+                
+                # Check for switch at block 27
+                if current == 27 and beacon1:
+                    # Switch activated! Redirect to branch 76→72
+                    print("[SWITCH] Beacon 1 detected at block 27 - taking branch to blocks 76-72")
+                    return 76  # Enter branch
+                return current
+            elif from_block == 35 and to_block == 45:
+                # STEEL PLAZA to FIRST AVE (35→36→37→38→39→40→41→42→43→44→45)
+                blocks = [35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45]
+                idx = min(int(progress * len(blocks)), len(blocks) - 1)
+                current = blocks[idx]
+                
+                # Check for switch at block 38
+                if current == 38 and beacon2:
+                    # Switch activated! Redirect to branch 71→67
+                    print("[SWITCH] Beacon 2 detected at block 38 - taking branch to blocks 71-67")
+                    return 71  # Enter branch
+                return current
+            elif from_block == 45 and to_block == 48:
+                # FIRST AVE to STATION SQUARE (45→46→47→48)
+                blocks = [45, 46, 47, 48]
+                idx = min(int(progress * len(blocks)), len(blocks) - 1)
+                return blocks[idx]
+            elif from_block == 48 and to_block == 60:
+                # STATION SQUARE to SOUTH HILLS JUNCTION (48→49→50→51→52→53→54→55→56→57→58→59→60)
+                blocks = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
+                idx = min(int(progress * len(blocks)), len(blocks) - 1)
+                return blocks[idx]
+            elif from_block == 60 and to_block == 16:
+                # SOUTH HILLS JUNCTION back to HERRON AVE (complex return path)
+                # 60→61→62→63→64→65→66→52→51→...→15→16
+                blocks = [60, 61, 62, 63, 64, 65, 66, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 15, 16]
+                idx = min(int(progress * len(blocks)), len(blocks) - 1)
+                return blocks[idx]
+            elif from_block == 16 and to_block == 7:
+                # HERRON AVE to SHADYSIDE (16→15→1→2→3→4→5→6→7)
+                blocks = [16, 15, 1, 2, 3, 4, 5, 6, 7]
+                idx = min(int(progress * len(blocks)), len(blocks) - 1)
+                return blocks[idx]
+            else:
+                return from_block  # Fallback
+        
+        # GREEN LINE logic (original)
         if currentSegmentIndex >= len(preloadedTrackInformation['segments']):
             return 63  # Default to start
         
@@ -603,6 +853,25 @@ def updatePositionTracking():
         if stationDwellStartTime is not None:
             dwellElapsed = currentTime - stationDwellStartTime
             if dwellElapsed >= STATION_DWELL_TIME:
+                # RELEASE SERVICE BRAKE before departing
+                if 'speedDisplay' in globals():
+                    sd = globals()['speedDisplay']
+                    if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
+                        # Release service brake via GPIO server
+                        result = sd.gpio_client.setServiceBrake(False)
+                        if result:
+                            serviceBrakeActive = False
+                            print(f"🟢 Service brake RELEASED for departure")
+                            
+                            # Send service brake command to Train Model
+                            if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                                sd.server.send_to_ui("Train Model", {
+                                    'command': 'Service Brake',
+                                    'value': False,
+                                    'train_id': 1
+                                })
+                                print(f"[AUTO BRAKE] Service brake release sent to Train Model")
+                
                 # Close doors before departing
                 if 'speedDisplay' in globals():
                     sd = globals()['speedDisplay']
@@ -624,16 +893,52 @@ def updatePositionTracking():
                 
                 # Check if we've reached the end
                 if currentSegmentIndex >= len(preloadedTrackInformation['segments']):
-                    final_msg = "Reached final station: CASTLE SHANNON - Journey Complete"
-                    print(final_msg)
+                    # Both lines loop - restart at the main loop beginning (after YARD initialization)
+                    if selectedLine == 'RED':
+                        loop_msg = "Completed Red Line loop - Continuing to SWISSVILLE"
+                        currentSegmentIndex = 2  # Restart at HERRON AVE → SWISSVILLE (main loop start)
+                    else:
+                        loop_msg = "Completed Green Line loop - Continuing to DORMONT"
+                        currentSegmentIndex = 1  # Restart at GLENBURY → DORMONT (main loop start)
+                    
+                    print(loop_msg)
                     
                     # Send to System Log UI
                     if systemLogViewer:
-                        systemLogViewer.handleLogMessage(final_msg, 'system')
+                        systemLogViewer.handleLogMessage(loop_msg, 'system')
                     
-                    isAtStation = True  # Stay at station
-                    stationDwellStartTime = None  # Prevent further departure attempts
+                    # Reset for next segment
+                    distanceTraveledInSegment = 0.0
+                    distanceToNextStation = preloadedTrackInformation['segments'][currentSegmentIndex]['distance']
+                    isAtStation = False
+                    stationDwellStartTime = None
+                    
+                    # Send announcement for next station
+                    next_station = preloadedTrackInformation['segments'][currentSegmentIndex]['to_station']
+                    if 'speedDisplay' in globals():
+                        sd = globals()['speedDisplay']
+                        if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                            announcement_text = f"Travelling to {next_station}."
+                            sd.server.send_to_ui("Train Model", {
+                                'command': 'Announcement',
+                                'text': announcement_text,
+                                'train_id': 1
+                            })
+                            print(f"📢 Announcement: {announcement_text}")
                     return
+                
+                # Send departure announcement to Train Model (port 12345)
+                next_station = preloadedTrackInformation['segments'][currentSegmentIndex]['to_station']
+                if 'speedDisplay' in globals():
+                    sd = globals()['speedDisplay']
+                    if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                        announcement_text = f"Travelling to {next_station}."
+                        sd.server.send_to_ui("Train Model", {
+                            'command': 'Announcement',
+                            'text': announcement_text,
+                            'train_id': 1
+                        })
+                        print(f"📢 Announcement: {announcement_text}")
                 
                 # Reset for next segment
                 distanceTraveledInSegment = 0.0
@@ -669,6 +974,37 @@ def updatePositionTracking():
         
         arrival_msg = f"*** ARRIVED AT {currentStation} ***"
         print(arrival_msg)
+        
+        # Send arrival announcement to Train Model (port 12345)
+        if 'speedDisplay' in globals():
+            sd = globals()['speedDisplay']
+            if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                announcement_text = f"Arrived at {currentStation}."
+                sd.server.send_to_ui("Train Model", {
+                    'command': 'Announcement',
+                    'text': announcement_text,
+                    'train_id': 1
+                })
+                print(f"📢 Announcement: {announcement_text}")
+        
+        # ENGAGE SERVICE BRAKE at station
+        if 'speedDisplay' in globals():
+            sd = globals()['speedDisplay']
+            if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
+                # Engage service brake via GPIO server
+                result = sd.gpio_client.setServiceBrake(True)
+                if result:
+                    serviceBrakeActive = True
+                    print(f"🛑 Service brake ENGAGED at {currentStation}")
+                    
+                    # Send service brake command to Train Model
+                    if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                        sd.server.send_to_ui("Train Model", {
+                            'command': 'Service Brake',
+                            'value': True,
+                            'train_id': 1
+                        })
+                        print(f"[AUTO BRAKE] Service brake command sent to Train Model")
         
         # Control door LEDs based on station platform side
         print(f"[DOOR DEBUG] At station {currentStation}, checking door control")
@@ -715,14 +1051,16 @@ def calculatePowerCommand():
     - Decelerates as train approaches station
     - Stops at station
     - Maintains stop during dwell time
+    - Uses service brake when commanded speed is reduced to slow down safely
     
-    All calculations done in METRIC (m/s), then converted to imperial for UI display.
+    Commanded speed is in MPH, current speed is in m/s.
     
     Returns:
         Power in kW (kilowatts)
     """
     global integralError, lastUpdateTime, powerEngineerPanel, prevError
     global _diagnostic_counter, _holding_print_counter, _decel_print_counter
+    global previousCommandedSpeed, serviceBrakeActive
     
     if not powerEngineerPanel:
         return 0.0
@@ -737,22 +1075,24 @@ def calculatePowerCommand():
     # Diagnostic output (first 5 calls only to avoid spam)
     if _diagnostic_counter < 5:
         _diagnostic_counter += 1
-        print(f"[DIAGNOSTIC {_diagnostic_counter}] commandedSpeed: {commandedSpeed}, currentSpeed: {currentSpeed}, drivetrainManualMode: {drivetrainManualMode}, autoModeEnabled: {autoModeEnabled}")
+        print(f"[DIAGNOSTIC {_diagnostic_counter}] commandedSpeed: {commandedSpeed} MPH, currentSpeed: {currentSpeed} m/s, drivetrainManualMode: {drivetrainManualMode}, autoModeEnabled: {autoModeEnabled}")
     
-    # Get commanded speed (already in m/s from Track Model or convert from manual input)
+    # Get commanded speed
     if drivetrainManualMode:
         # In manual mode, use manual setpoint speed (in MPH, convert to m/s)
         commandedSpeedMPH = manualSetpointSpeed
         commandedSpeedMS = commandedSpeedMPH * MPH_TO_MS
     else:
-        # In automatic mode, use commanded speed from track (already in m/s)
-        commandedSpeedMS = commandedSpeed
+        # In automatic mode, use commanded speed from track (already in MPH, convert to m/s)
+        commandedSpeedMPH = commandedSpeed
+        commandedSpeedMS = commandedSpeedMPH * MPH_TO_MS
         
         # AUTOMATIC MODE STATION LOGIC
         if autoModeEnabled and not emergencyBrakeEngaged:
             if isAtStation:
                 # Force stop at station
                 commandedSpeedMS = 0.0
+                commandedSpeedMPH = 0.0
                 # Print holding message occasionally (not every 100ms)
                 _holding_print_counter += 1
                 if _holding_print_counter >= 20:
@@ -772,32 +1112,98 @@ def calculatePowerCommand():
                     targetSpeed = (2 * DECEL_RATE * distToStation) ** 0.5
                     # Limit to current commanded speed (don't accelerate)
                     commandedSpeedMS = min(commandedSpeedMS, targetSpeed)
+                    commandedSpeedMPH = commandedSpeedMS * MS_TO_MPH
                     
                     # Print deceleration status (reduced frequency)
                     _decel_print_counter += 1
                     if _decel_print_counter >= 5:
                         _decel_print_counter = 0
-                        print(f"Decelerating for {getNextStationName()}: {distToStation:.1f}m, target {targetSpeed*MS_TO_MPH:.1f} MPH")
+                        print(f"Decelerating for {getNextStationName()}: {distToStation:.1f}m, target {commandedSpeedMPH:.1f} MPH")
                 else:
                     commandedSpeedMS = 0.0
-        
-        commandedSpeedMPH = commandedSpeedMS * MS_TO_MPH  # Convert for display
+                    commandedSpeedMPH = 0.0
     
-    # Get current actual speed (already in m/s from Train Model)
+    # Get current actual speed (in m/s from Train Model)
     currentSpeedMS = currentSpeed
     currentSpeedMPH = currentSpeedMS * MS_TO_MPH  # Convert for display only
+    
+    # SPEED REDUCTION DETECTION - Use service brake to slow down
+    # Service brake deceleration is approximately -2.67 m/s²
+    # Only apply if commanded speed dropped significantly and we're going faster than commanded
+    SPEED_REDUCTION_THRESHOLD = 5.0  # MPH - significant speed reduction
+    SERVICE_BRAKE_DURATION = 0.5  # seconds to apply brake
+    
+    if not hasattr(calculatePowerCommand, '_speed_reduction_brake_time'):
+        calculatePowerCommand._speed_reduction_brake_time = 0.0
+        calculatePowerCommand._last_check_time = time.time()
+    
+    current_time = time.time()
+    dt_check = current_time - calculatePowerCommand._last_check_time
+    calculatePowerCommand._last_check_time = current_time
+    
+    # Detect commanded speed reduction (not at station, not in manual mode)
+    if not drivetrainManualMode and not isAtStation and not emergencyBrakeEngaged:
+        speedReduction = previousCommandedSpeed - commandedSpeedMPH
+        
+        if speedReduction > SPEED_REDUCTION_THRESHOLD and currentSpeedMPH > commandedSpeedMPH + 3.0:
+            # Significant speed reduction detected and we're going too fast
+            # Apply service brake briefly to slow down
+            if calculatePowerCommand._speed_reduction_brake_time <= 0:
+                # Start brake application
+                calculatePowerCommand._speed_reduction_brake_time = SERVICE_BRAKE_DURATION
+                print(f"⚠️  Speed reduced from {previousCommandedSpeed:.1f} to {commandedSpeedMPH:.1f} MPH - applying service brake to slow down")
+                
+                # Apply service brake via GPIO
+                if 'speedDisplay' in globals():
+                    sd = globals()['speedDisplay']
+                    if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
+                        sd.gpio_client.setServiceBrake(True)
+                        serviceBrakeActive = True
+                        
+                        # Send to Train Model
+                        if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                            sd.server.send_to_ui("Train Model", {
+                                'command': 'Service Brake',
+                                'value': True,
+                                'train_id': 1
+                            })
+    
+    # Count down brake time and release when done
+    if calculatePowerCommand._speed_reduction_brake_time > 0:
+        calculatePowerCommand._speed_reduction_brake_time -= dt_check
+        
+        if calculatePowerCommand._speed_reduction_brake_time <= 0:
+            # Release service brake
+            calculatePowerCommand._speed_reduction_brake_time = 0.0
+            
+            if 'speedDisplay' in globals():
+                sd = globals()['speedDisplay']
+                if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
+                    sd.gpio_client.setServiceBrake(False)
+                    serviceBrakeActive = False
+                    print(f"🟢 Service brake released - now controlling to {commandedSpeedMPH:.1f} MPH with power")
+                    
+                    # Send to Train Model
+                    if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                        sd.server.send_to_ui("Train Model", {
+                            'command': 'Service Brake',
+                            'value': False,
+                            'train_id': 1
+                        })
     
     # DEBUG: Print speeds every 20 calls
     if not hasattr(calculatePowerCommand, '_speed_debug_counter'):
         calculatePowerCommand._speed_debug_counter = 0
     calculatePowerCommand._speed_debug_counter += 1
     if calculatePowerCommand._speed_debug_counter % 20 == 0:
-        print(f"[SPEED DEBUG] Commanded={commandedSpeedMS:.2f}m/s ({commandedSpeedMPH:.1f}MPH), Current={currentSpeedMS:.2f}m/s ({currentSpeedMPH:.1f}MPH), Error={commandedSpeedMS - currentSpeedMS:.2f}m/s")
+        print(f"[SPEED DEBUG] Commanded={commandedSpeedMPH:.1f} MPH ({commandedSpeedMS:.2f}m/s), Current={currentSpeedMPH:.1f} MPH ({currentSpeedMS:.2f}m/s), Error={commandedSpeedMS - currentSpeedMS:.2f}m/s")
     
     # SERVICE BRAKE CONTROL:
-    # The service brake is ONLY controlled by the GPIO hardware button
-    # The PI controller controls speed through POWER COMMANDS, not brakes
-    # This prevents the automatic mode from fighting the driver's brake input
+    # Service brake controlled by:
+    # 1. GPIO hardware button (manual control)
+    # 2. Automatic station stops
+    # 3. Speed reduction detection (above)
+    # The PI controller controls speed through POWER COMMANDS
     
     # Calculate velocity error in METRIC (m/s)
     velocityError = commandedSpeedMS - currentSpeedMS
@@ -870,12 +1276,131 @@ def cleanupAll():
     except:
         pass
 
+def selectTrainLine():
+    """
+    Display a dialog for the user to select which train line to operate.
+    Returns 'GREEN' or 'RED' based on user selection.
+    """
+    global selectedLine, preloadedTrackInformation, UNDERGROUND_BLOCKS, STATION_DOOR_SIDES, currentBlock, distanceToNextStation
+    
+    selection_made = [False]  # Use list to allow modification in nested function
+    
+    def select_line(line):
+        global selectedLine, preloadedTrackInformation, UNDERGROUND_BLOCKS, STATION_DOOR_SIDES, currentBlock, distanceToNextStation
+        selectedLine = line
+        
+        if line == 'GREEN':
+            # preloadedTrackInformation is already set to Green Line by default
+            UNDERGROUND_BLOCKS = greenLineUndergroundBlocks
+            STATION_DOOR_SIDES = greenLineStationDoorSides
+            currentBlock = 63  # Green Line yard
+            print(f"\n[LINE SELECTION] GREEN LINE Selected")
+            print(f"[INIT] Underground lighting system loaded: {len(UNDERGROUND_BLOCKS)} underground blocks")
+            print(f"[INIT] Station door system loaded: {len(STATION_DOOR_SIDES)} stations configured")
+            print(f"[INIT] Complete route: 22 station stops including 2 visits to LLC PLAZA")
+            print(f"[INIT] Starting at block {currentBlock} (Underground: {currentBlock in UNDERGROUND_BLOCKS})")
+        else:  # RED
+            preloadedTrackInformation = redLineTrackInformation
+            UNDERGROUND_BLOCKS = redLineUndergroundBlocks
+            STATION_DOOR_SIDES = redLineStationDoorSides
+            currentBlock = 8  # Red Line yard
+            print(f"\n[LINE SELECTION] RED LINE Selected")
+            print(f"[INIT] RED LINE - Underground lighting system loaded: {len(UNDERGROUND_BLOCKS)} underground blocks")
+            print(f"[INIT] RED LINE - Station door system loaded: {len(STATION_DOOR_SIDES)} stations configured")
+            print(f"[INIT] RED LINE - Complete route with switch logic for beacons")
+            print(f"[INIT] Starting at block {currentBlock} (Underground: {currentBlock in UNDERGROUND_BLOCKS})")
+        
+        distanceToNextStation = preloadedTrackInformation['segments'][0]['distance']
+        selection_made[0] = True
+        dialog.destroy()
+    
+    # Create selection dialog
+    dialog = tk.Tk()
+    dialog.title("Train Line Selection")
+    dialog.geometry("400x250")
+    dialog.configure(bg='#1e3c72')
+    dialog.resizable(False, False)
+    
+    # Center the window
+    dialog.update_idletasks()
+    width = dialog.winfo_width()
+    height = dialog.winfo_height()
+    x = (dialog.winfo_screenwidth() // 2) - (width // 2)
+    y = (dialog.winfo_screenheight() // 2) - (height // 2)
+    dialog.geometry(f'{width}x{height}+{x}+{y}')
+    
+    # Title
+    title_label = tk.Label(
+        dialog,
+        text="SELECT TRAIN LINE",
+        font=('Arial', 20, 'bold'),
+        bg='#1e3c72',
+        fg='white',
+        pady=20
+    )
+    title_label.pack()
+    
+    # Button frame
+    button_frame = tk.Frame(dialog, bg='#1e3c72')
+    button_frame.pack(expand=True)
+    
+    # Green Line button
+    green_button = tk.Button(
+        button_frame,
+        text="GREEN LINE",
+        font=('Arial', 16, 'bold'),
+        bg='#27ae60',
+        fg='white',
+        activebackground='#229954',
+        activeforeground='white',
+        width=12,
+        height=2,
+        command=lambda: select_line('GREEN')
+    )
+    green_button.pack(side='left', padx=10)
+    
+    # Red Line button
+    red_button = tk.Button(
+        button_frame,
+        text="RED LINE",
+        font=('Arial', 16, 'bold'),
+        bg='#e74c3c',
+        fg='white',
+        activebackground='#c0392b',
+        activeforeground='white',
+        width=12,
+        height=2,
+        command=lambda: select_line('RED')
+    )
+    red_button.pack(side='left', padx=10)
+    
+    # Prevent closing without selection
+    def on_closing():
+        if not selection_made[0]:
+            print("\n[ERROR] Line selection is required to proceed!")
+            return
+        dialog.destroy()
+    
+    dialog.protocol("WM_DELETE_WINDOW", on_closing)
+    dialog.mainloop()
+    
+    if not selection_made[0]:
+        print("\n[ERROR] No line selected. Exiting...")
+        import sys
+        sys.exit(1)
+    
+    return selectedLine
+
 def main():
     global powerEngineerPanel, speedDisplay
     
     print("=" * 60)
     print("Train Control System - Windows Hardware Controller")
     print("=" * 60)
+    
+    # First, let user select which line to operate
+    selectTrainLine()
+    
     print(f"Connecting to GPIO Server at {PI_HOST}:{PI_GPIO_PORT}")
     print("=" * 60)
     
@@ -1094,10 +1619,15 @@ class TrainSpeedDisplayUI:
             value = message.get('value')
             
             if command == 'Commanded Speed':
-                # Commanded speed comes from Track Model
-                # Assuming Track Model sends in m/s (metric), store as-is
-                global commandedSpeed
-                commandedSpeed = float(value)
+                # Commanded speed comes from Track Model in MPH (already converted)
+                global commandedSpeed, previousCommandedSpeed
+                
+                # Track previous commanded speed to detect reductions
+                if 'previousCommandedSpeed' not in globals():
+                    previousCommandedSpeed = 0.0
+                
+                previousCommandedSpeed = commandedSpeed
+                commandedSpeed = float(value)  # Already in MPH
             
             elif command == 'Commanded Authority':
                 global commandedAuthority
@@ -1132,7 +1662,7 @@ class TrainSpeedDisplayUI:
                 if self.gpio_client and self.gpio_client.connected:
                     self.gpio_client.setLED('signal_failure', value)
             
-            elif command == 'Cabin Temperature':
+            elif command == 'Temp':
                 # Update AC panel with current temperature from Train Model
                 global acPanel
                 if acPanel is not None:
@@ -1422,17 +1952,10 @@ class TrainSpeedDisplayUI:
         
         tk.Button(
             buttonFrame,
-            text="Track Info",
-            command=self._launchTrackInfoPanel,
-            **btnStyle
-        ).grid(row=0, column=2, padx=5, pady=5)
-        
-        tk.Button(
-            buttonFrame,
             text="System Log",
             command=self._launchSystemLogViewer,
             **btnStyle
-        ).grid(row=1, column=0, padx=5, pady=5)
+        ).grid(row=0, column=2, padx=5, pady=5)
     
     def _launchPowerEngineer(self):
         """Show Power Engineer Panel"""
@@ -1466,22 +1989,11 @@ class TrainSpeedDisplayUI:
         global announcementPanel
         if announcementPanel is None or not tk.Toplevel.winfo_exists(announcementPanel.root):
             announcementRoot = tk.Toplevel(self.root)
-            announcementPanel = StationAnnouncementPanel(announcementRoot)
+            announcementPanel = StationAnnouncementPanel(announcementRoot, parent=self)
             print("✓ Launched Announcement Panel")
         else:
             announcementPanel.root.lift()
             print("Announcement Panel already open")
-    
-    def _launchTrackInfoPanel(self):
-        """Launch Track Information Panel"""
-        global trackInfoPanel
-        if trackInfoPanel is None or not tk.Toplevel.winfo_exists(trackInfoPanel.root):
-            trackInfoRoot = tk.Toplevel(self.root)
-            trackInfoPanel = TrackInformationPanel(trackInfoRoot)
-            print("✓ Launched Track Info Panel")
-        else:
-            trackInfoPanel.root.lift()
-            print("Track Info Panel already open")
     
     def _launchSystemLogViewer(self):
         """Launch System Log Viewer"""

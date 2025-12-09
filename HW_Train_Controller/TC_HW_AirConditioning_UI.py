@@ -27,7 +27,7 @@ class ACSystemPanel:
     def _sendCommand(self):
         if self.send_message_callback and self.systemOn.get():
             msg = {
-                'command': 'Cabin Interior Temperature Control',
+                'command': 'Temp',
                 'value': self.targetTemp.get()
             }
             self.send_message_callback(msg)

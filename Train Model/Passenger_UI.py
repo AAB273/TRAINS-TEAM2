@@ -124,8 +124,8 @@ class TrainModelPassengerGUI:
 
 			command = message.get('command')
 			
-			if command == "Clock":
-				self.Clock = message.get('value')
+			# if command == "Clock":
+			# 	self.Clock = message.get('value')
 			value = message.get('value')
 			trainId = message.get('train_id')
 			
@@ -252,6 +252,8 @@ class TrainModelPassengerGUI:
 			elif command == 'Temp':
 				targetTemp = value
 				self._animateTemperatureChange(targetTemp, train)
+			elif command == 'Announcement':
+				train.setStation(value)
 			elif command == 'Service Brake':
 				if self.failureBrakeVar.get() and train == self.currentTrain:
 					pass
@@ -271,9 +273,8 @@ class TrainModelPassengerGUI:
 				train.setPowerCommand(value)
 			elif command == 'Train Horn':
 				pygame.mixer.Sound('Train Model/diesel-horn-02-98042.mp3').play()
-			elif command == 'Station Announcement Message':
-				train.setStation(value)
 			elif command == 'Commanded Authority':
+				wasActive = train.active if train else False
 				train.setAuthority(value)
 				self.server.send_to_ui("Train SW", {
 					'command': "Commanded Authority",
@@ -285,6 +286,9 @@ class TrainModelPassengerGUI:
 					'value': value,
 					'train_id': trainId if trainId else train.trainId
 				})
+				if not wasActive and train.active:
+					print(f"Train {train.trainId} activated - refreshing selector")
+					self.refreshTrainSelectorIfNeeded() 
 			elif command == 'Commanded Speed':
 				train.setCommandedSpeed(value)
 				self.server.send_to_ui("Train SW", {
@@ -342,7 +346,8 @@ class TrainModelPassengerGUI:
 					})
 				
 				# Update passenger disembarking logic for each train
-				self.updateDisembarking(train)
+				# if train.atStation:
+				# 	self.updateDisembarking(train)
 		
 		# Update UI for the currently selected train only
 		if self.currentTrain and self.currentTrain.active:
@@ -488,7 +493,6 @@ class TrainModelPassengerGUI:
 		
 		# Update passenger count
 		self.uiLabels['passengerCount'].config(text=f"Passenger Count: {train.passengerCount}")
-		self.uiLabels['disembarking'].config(text=f"Passengers Disembarking: {train.passengersDisembarking}")
 		self.uiLabels['crewCount'].config(text=f"Crew Count: {train.crewCount}")
 
 		# SIGNAL PICKUP FAILURE CHECKING
@@ -526,7 +530,7 @@ class TrainModelPassengerGUI:
 		if self.currentTrain.emergencyBrakeActive:
 			self.uiLabels['announcement'].config(text=f"EMERGENCY")
 		else:
-			self.uiLabels['announcement'].config(text=f"Arriving to Station {train.station} in {train.timeToStation}mins")
+			self.uiLabels['announcement'].config(text=f"{train.announcement} in {train.timeToStation}mins")
 
 		# Update power command and commanded values
 		self.uiLabels['power_command'].config(text=f"{train.powerCommand:.0f} Watts")
@@ -864,7 +868,7 @@ class TrainModelPassengerGUI:
 		self.canvasFrameCircle = tk.Canvas(cabinTempFrame, width=100, height=140, bg=self.offColor, highlightbackground=self.offColor)
 		self.canvasFrameCircle.pack(side='top', expand=True)
 		self.canvasFrameCircle.create_oval(8, 8, 92, 92, fill=self.offColor, outline='black', width=2)
-		self.uiLabels['cabin_temp'] = self.canvasFrameCircle.create_text(50, 50, text="75°F", font=('Arial', 20, 'bold'), fill='white')
+		self.uiLabels['cabin_temp'] = self.canvasFrameCircle.create_text(50, 50, text="72°F", font=('Arial', 20, 'bold'), fill='white')
 
 		# Train Dimensions
 		trainDimensionsFrame = tk.Frame(trainMetricsFrame, width=120, height=220, highlightbackground="black", highlightthickness=2, bg=self.offColor)

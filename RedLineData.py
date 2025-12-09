@@ -1,112 +1,112 @@
 class RedLine:
     def __init__(self):
         self.blocks = [
-            {"block_number": 1, "section": "A", "block_length_m": 50, "block_grade_percent": 0.5, "speed_limit_kmh": 40, "infrastructure": "", "station_side": "", "elevation_m": 0.25, "cumulative_elevation_m": 0.25},
-            {"block_number": 2, "section": "A", "block_length_m": 50, "block_grade_percent": 1, "speed_limit_kmh": 40, "infrastructure": "", "station_side": "", "elevation_m": 0.50, "cumulative_elevation_m": 0.75},
-            {"block_number": 3, "section": "A", "block_length_m": 50, "block_grade_percent": 1.5, "speed_limit_kmh": 40, "infrastructure": "", "station_side": "", "elevation_m": 0.75, "cumulative_elevation_m": 1.50},
-            {"block_number": 4, "section": "B", "block_length_m": 50, "block_grade_percent": 2, "speed_limit_kmh": 40, "infrastructure": "", "station_side": "", "elevation_m": 1.00, "cumulative_elevation_m": 2.50},
-            {"block_number": 5, "section": "B", "block_length_m": 50, "block_grade_percent": 1.5, "speed_limit_kmh": 40, "infrastructure": "", "station_side": "", "elevation_m": 0.75, "cumulative_elevation_m": 3.25},
-            {"block_number": 6, "section": "B", "block_length_m": 50, "block_grade_percent": 1, "speed_limit_kmh": 40, "infrastructure": "", "station_side": "", "elevation_m": 0.50, "cumulative_elevation_m": 3.75},
-            {"block_number": 7, "section": "C", "block_length_m": 75, "block_grade_percent": 0.5, "speed_limit_kmh": 40, "infrastructure": "STATION: SHADYSIDE", "station_side": "Left/Right", "elevation_m": 0.38, "cumulative_elevation_m": 4.13},
-            {"block_number": 8, "section": "C", "block_length_m": 75, "block_grade_percent": 0, "speed_limit_kmh": 40, "infrastructure": "", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": 4.13},
-            {"block_number": 9, "section": "C", "block_length_m": 75, "block_grade_percent": 0, "speed_limit_kmh": 40, "infrastructure": "SWITCH TO/FROM YARD (75-yard)", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": 4.13},
-            {"block_number": 10, "section": "D", "block_length_m": 75, "block_grade_percent": 0, "speed_limit_kmh": 40, "infrastructure": "", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": 4.13},
-            {"block_number": 11, "section": "D", "block_length_m": 75, "block_grade_percent": -0.5, "speed_limit_kmh": 40, "infrastructure": "RAILWAY CROSSING", "station_side": "", "elevation_m": -0.38, "cumulative_elevation_m": 3.75},
-            {"block_number": 12, "section": "D", "block_length_m": 75, "block_grade_percent": -1, "speed_limit_kmh": 40, "infrastructure": "", "station_side": "", "elevation_m": -0.75, "cumulative_elevation_m": 3.00},
-            {"block_number": 13, "section": "E", "block_length_m": 70, "block_grade_percent": -2, "speed_limit_kmh": 40, "infrastructure": "", "station_side": "", "elevation_m": -1.40, "cumulative_elevation_m": 1.60},
-            {"block_number": 14, "section": "E", "block_length_m": 60, "block_grade_percent": -1.25, "speed_limit_kmh": 40, "infrastructure": "", "station_side": "", "elevation_m": -0.75, "cumulative_elevation_m": 0.85},
-            {"block_number": 15, "section": "E", "block_length_m": 60, "block_grade_percent": -1, "speed_limit_kmh": 40, "infrastructure": "SWITCH (15-16; 1-16)", "station_side": "", "elevation_m": -0.60, "cumulative_elevation_m": 0.25},
-            {"block_number": 16, "section": "F", "block_length_m": 50, "block_grade_percent": -0.5, "speed_limit_kmh": 40, "infrastructure": "STATION: HERRON AVE", "station_side": "Left/Right", "elevation_m": -0.25, "cumulative_elevation_m": 0.00},
-            {"block_number": 17, "section": "F", "block_length_m": 200, "block_grade_percent": -0.5, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": -1.00, "cumulative_elevation_m": -1.00},
-            {"block_number": 18, "section": "F", "block_length_m": 400, "block_grade_percent": -0.06025, "speed_limit_kmh": 70, "infrastructure": "", "station_side": "", "elevation_m": -0.24, "cumulative_elevation_m": -1.24},
-            {"block_number": 19, "section": "F", "block_length_m": 400, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 20, "section": "F", "block_length_m": 200, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 21, "section": "G", "block_length_m": 100, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "STATION; SWISSVILLE", "station_side": "Left/Right", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 22, "section": "G", "block_length_m": 100, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 23, "section": "G", "block_length_m": 100, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 24, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 25, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "STATION; PENN STATION; UNDERGROUND", "station_side": "Left/Right", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 26, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 27, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "SWITCH (27-28; 27-76); UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 28, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 29, "section": "H", "block_length_m": 60, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 30, "section": "H", "block_length_m": 60, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 31, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 32, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "SWITCH (32-33; 33-72); UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 33, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 34, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 35, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "STATION; STEEL PLAZA; UNDERGROUND", "station_side": "Left/Right", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 36, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 37, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 38, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "SWITCH (38-39; 38-71); UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 39, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 40, "section": "H", "block_length_m": 60, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 41, "section": "H", "block_length_m": 60, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 42, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 43, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "SWITCH (43-44; 44-67); UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 44, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 45, "section": "H", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "STATION; FIRST AVE; UNDERGROUND", "station_side": "Left/Right", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 46, "section": "I", "block_length_m": 75, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 47, "section": "I", "block_length_m": 75, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "RAILWAY CROSSING", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 48, "section": "I", "block_length_m": 75, "block_grade_percent": 0, "speed_limit_kmh": 70, "infrastructure": "STATION; STATION SQUARE", "station_side": "Left/Right", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 49, "section": "J", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 60, "infrastructure": "", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 50, "section": "J", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 60, "infrastructure": "", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 51, "section": "J", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 52, "section": "J", "block_length_m": 43.2, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "SWITCH (52-53; 52-66)", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 53, "section": "J", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 54, "section": "J", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 55, "section": "K", "block_length_m": 75, "block_grade_percent": 0.5, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": 0.38, "cumulative_elevation_m": -0.87},
-            {"block_number": 56, "section": "K", "block_length_m": 75, "block_grade_percent": 0.5, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": 0.38, "cumulative_elevation_m": -0.49},
-            {"block_number": 57, "section": "K", "block_length_m": 75, "block_grade_percent": 0.5, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": 0.38, "cumulative_elevation_m": -0.12},
-            {"block_number": 58, "section": "L", "block_length_m": 75, "block_grade_percent": 1, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": 0.75, "cumulative_elevation_m": 0.63},
-            {"block_number": 59, "section": "L", "block_length_m": 75, "block_grade_percent": 0.5, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": 0.38, "cumulative_elevation_m": 1.01},
-            {"block_number": 60, "section": "L", "block_length_m": 75, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "STATION; SOUTH HILLS JUNCTION", "station_side": "Left/Right", "elevation_m": 0.00, "cumulative_elevation_m": 1.01},
-            {"block_number": 61, "section": "M", "block_length_m": 75, "block_grade_percent": -0.5, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": -0.38, "cumulative_elevation_m": 0.63},
-            {"block_number": 62, "section": "M", "block_length_m": 75, "block_grade_percent": -1, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": -0.75, "cumulative_elevation_m": -0.12},
-            {"block_number": 63, "section": "M", "block_length_m": 75, "block_grade_percent": -1, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": -0.75, "cumulative_elevation_m": -0.87},
-            {"block_number": 64, "section": "N", "block_length_m": 75, "block_grade_percent": -0.5, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": -0.38, "cumulative_elevation_m": -1.24},
-            {"block_number": 65, "section": "N", "block_length_m": 75, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 66, "section": "N", "block_length_m": 75, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 67, "section": "O", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 68, "section": "P", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 69, "section": "P", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 70, "section": "P", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 71, "section": "Q", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 72, "section": "R", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 73, "section": "S", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 74, "section": "S", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 75, "section": "S", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
-            {"block_number": 76, "section": "S", "block_length_m": 50, "block_grade_percent": 0, "speed_limit_kmh": 55, "infrastructure": "UNDERGROUND", "station_side": "", "elevation_m": 0.00, "cumulative_elevation_m": -1.24},
+            {"blockNumber": 1, "section": "A", "blockLengthM": 50, "blockGradePercent": 0.5, "speedLimitKmh": 40, "infrastructure": "", "stationSide": "", "elevationM": 0.25, "cumulativeElevationM": 0.25},
+            {"blockNumber": 2, "section": "A", "blockLengthM": 50, "blockGradePercent": 1.0, "speedLimitKmh": 40, "infrastructure": "", "stationSide": "", "elevationM": 0.50, "cumulativeElevationM": 0.75},
+            {"blockNumber": 3, "section": "A", "blockLengthM": 50, "blockGradePercent": 1.5, "speedLimitKmh": 40, "infrastructure": "", "stationSide": "", "elevationM": 0.75, "cumulativeElevationM": 1.50},
+            {"blockNumber": 4, "section": "B", "blockLengthM": 50, "blockGradePercent": 2.0, "speedLimitKmh": 40, "infrastructure": "", "stationSide": "", "elevationM": 1.00, "cumulativeElevationM": 2.50},
+            {"blockNumber": 5, "section": "B", "blockLengthM": 50, "blockGradePercent": 1.5, "speedLimitKmh": 40, "infrastructure": "", "stationSide": "", "elevationM": 0.75, "cumulativeElevationM": 3.25},
+            {"blockNumber": 6, "section": "B", "blockLengthM": 50, "blockGradePercent": 1.0, "speedLimitKmh": 40, "infrastructure": "", "stationSide": "", "elevationM": 0.50, "cumulativeElevationM": 3.75},
+            {"blockNumber": 7, "section": "C", "blockLengthM": 75, "blockGradePercent": 0.5, "speedLimitKmh": 40, "infrastructure": "STATION: SHADYSIDE", "stationSide": "Left/Right", "elevationM": 0.375, "cumulativeElevationM": 4.125},
+            {"blockNumber": 8, "section": "C", "blockLengthM": 75, "blockGradePercent": 0.0, "speedLimitKmh": 40, "infrastructure": "", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": 4.125},
+            {"blockNumber": 9, "section": "C", "blockLengthM": 75, "blockGradePercent": 0.0, "speedLimitKmh": 40, "infrastructure": "SWITCH TO/FROM YARD (75-yard)", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": 4.125},
+            {"blockNumber": 10, "section": "D", "blockLengthM": 75, "blockGradePercent": 0.0, "speedLimitKmh": 40, "infrastructure": "", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": 4.125},
+            {"blockNumber": 11, "section": "D", "blockLengthM": 75, "blockGradePercent": -0.5, "speedLimitKmh": 40, "infrastructure": "RAILWAY CROSSING", "stationSide": "", "elevationM": -0.375, "cumulativeElevationM": 3.75},
+            {"blockNumber": 12, "section": "D", "blockLengthM": 75, "blockGradePercent": -1.0, "speedLimitKmh": 40, "infrastructure": "", "stationSide": "", "elevationM": -0.75, "cumulativeElevationM": 3.00},
+            {"blockNumber": 13, "section": "E", "blockLengthM": 70, "blockGradePercent": -2.0, "speedLimitKmh": 40, "infrastructure": "", "stationSide": "", "elevationM": -1.40, "cumulativeElevationM": 1.60},
+            {"blockNumber": 14, "section": "E", "blockLengthM": 60, "blockGradePercent": -1.25, "speedLimitKmh": 40, "infrastructure": "", "stationSide": "", "elevationM": -0.75, "cumulativeElevationM": 0.85},
+            {"blockNumber": 15, "section": "E", "blockLengthM": 60, "blockGradePercent": -1.0, "speedLimitKmh": 40, "infrastructure": "SWITCH (15-16; 1-16)", "stationSide": "", "elevationM": -0.60, "cumulativeElevationM": 0.25},
+            {"blockNumber": 16, "section": "F", "blockLengthM": 50, "blockGradePercent": -0.5, "speedLimitKmh": 40, "infrastructure": "STATION: HERRON AVE", "stationSide": "Left/Right", "elevationM": -0.25, "cumulativeElevationM": 0.00},
+            {"blockNumber": 17, "section": "F", "blockLengthM": 200, "blockGradePercent": -0.5, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": -1.00, "cumulativeElevationM": -1.00},
+            {"blockNumber": 18, "section": "F", "blockLengthM": 400, "blockGradePercent": -0.06025, "speedLimitKmh": 70, "infrastructure": "", "stationSide": "", "elevationM": -0.241, "cumulativeElevationM": -1.241},
+            {"blockNumber": 19, "section": "F", "blockLengthM": 400, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 20, "section": "F", "blockLengthM": 200, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 21, "section": "G", "blockLengthM": 100, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "STATION; SWISSVILLE", "stationSide": "Left/Right", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 22, "section": "G", "blockLengthM": 100, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 23, "section": "G", "blockLengthM": 100, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 24, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 25, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "STATION; PENN STATION; UNDERGROUND", "stationSide": "Left/Right", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 26, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 27, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "SWITCH (27-28; 27-76); UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 28, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 29, "section": "H", "blockLengthM": 60, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 30, "section": "H", "blockLengthM": 60, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 31, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 32, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "SWITCH (32-33; 33-72); UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 33, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 34, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 35, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "STATION; STEEL PLAZA; UNDERGROUND", "stationSide": "Left/Right", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 36, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 37, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 38, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "SWITCH (38-39; 38-71); UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 39, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 40, "section": "H", "blockLengthM": 60, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 41, "section": "H", "blockLengthM": 60, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 42, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 43, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "SWITCH (43-44; 44-67); UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 44, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 45, "section": "H", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "STATION; FIRST AVE; UNDERGROUND", "stationSide": "Left/Right", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 46, "section": "I", "blockLengthM": 75, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 47, "section": "I", "blockLengthM": 75, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "RAILWAY CROSSING", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 48, "section": "I", "blockLengthM": 75, "blockGradePercent": 0.0, "speedLimitKmh": 70, "infrastructure": "STATION; STATION SQUARE", "stationSide": "Left/Right", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 49, "section": "J", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 60, "infrastructure": "", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 50, "section": "J", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 60, "infrastructure": "", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 51, "section": "J", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 52, "section": "J", "blockLengthM": 43.2, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "SWITCH (52-53; 52-66)", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 53, "section": "J", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 54, "section": "J", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 55, "section": "K", "blockLengthM": 75, "blockGradePercent": 0.5, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": 0.375, "cumulativeElevationM": -0.866},
+            {"blockNumber": 56, "section": "K", "blockLengthM": 75, "blockGradePercent": 0.5, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": 0.375, "cumulativeElevationM": -0.491},
+            {"blockNumber": 57, "section": "K", "blockLengthM": 75, "blockGradePercent": 0.5, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": 0.375, "cumulativeElevationM": -0.116},
+            {"blockNumber": 58, "section": "L", "blockLengthM": 75, "blockGradePercent": 1.0, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": 0.75, "cumulativeElevationM": 0.634},
+            {"blockNumber": 59, "section": "L", "blockLengthM": 75, "blockGradePercent": 0.5, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": 0.375, "cumulativeElevationM": 1.009},
+            {"blockNumber": 60, "section": "L", "blockLengthM": 75, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "STATION; SOUTH HILLS JUNCTION", "stationSide": "Left/Right", "elevationM": 0.00, "cumulativeElevationM": 1.009},
+            {"blockNumber": 61, "section": "M", "blockLengthM": 75, "blockGradePercent": -0.5, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": -0.375, "cumulativeElevationM": 0.634},
+            {"blockNumber": 62, "section": "M", "blockLengthM": 75, "blockGradePercent": -1.0, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": -0.75, "cumulativeElevationM": -0.116},
+            {"blockNumber": 63, "section": "M", "blockLengthM": 75, "blockGradePercent": -1.0, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": -0.75, "cumulativeElevationM": -0.866},
+            {"blockNumber": 64, "section": "N", "blockLengthM": 75, "blockGradePercent": -0.5, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": -0.375, "cumulativeElevationM": -1.241},
+            {"blockNumber": 65, "section": "N", "blockLengthM": 75, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 66, "section": "N", "blockLengthM": 75, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 67, "section": "O", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 68, "section": "P", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 69, "section": "P", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 70, "section": "P", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 71, "section": "Q", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 72, "section": "R", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 73, "section": "S", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 74, "section": "S", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 75, "section": "S", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
+            {"blockNumber": 76, "section": "T", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
         ]
 
-    def get_value(self, block_number, key):
+    def getValue(self, blockNumber, key):
         """
         Get a value from a specific block.
         
         Args:
-            block_number (int): The block number (1-76)
+            blockNumber (int): The block number (1-76)
             key (str): The field name to retrieve. Options:
                 - 'section'
-                - 'block_length_m'
-                - 'block_grade_percent'
-                - 'speed_limit_kmh'
+                - 'blockLengthM'
+                - 'blockGradePercent'
+                - 'speedLimitKmh'
                 - 'infrastructure'
-                - 'station_side'
-                - 'elevation_m'
-                - 'cumulative_elevation_m'
+                - 'stationSide'
+                - 'elevationM'
+                - 'cumulativeElevationM'
         
         Returns:
             The value of the requested field, or None if not found
         """
         for block in self.blocks:
-            if block['block_number'] == block_number:
+            if block['blockNumber'] == blockNumber:
                 return block.get(key)
         return None
 
-    def get_block(self, block_number):
+    def getBlock(self, blockNumber):
         """Get all data for a specific block."""
         for block in self.blocks:
-            if block['block_number'] == block_number:
+            if block['blockNumber'] == blockNumber:
                 return block
         return None
 
@@ -114,12 +114,3 @@ class RedLine:
 # Example usage:
 if __name__ == "__main__":
     red_line = RedLine()
-    
-    # Get specific values
-    print(f"Block 7 Infrastructure: {red_line.get_value(7, 'infrastructure')}")
-    print(f"Block 7 Station Side: {red_line.get_value(7, 'station_side')}")
-    print(f"Block 25 Infrastructure: {red_line.get_value(25, 'infrastructure')}")
-    print(f"Block 35 Speed Limit: {red_line.get_value(35, 'speed_limit_kmh')} km/h")
-    
-    # Get entire block
-    print(f"\nBlock 48 Info: {red_line.get_block(48)}")

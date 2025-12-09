@@ -101,12 +101,13 @@ class Train:
 		
 		# Line assignment
 		self.line = "green" 
+		self.lineData = GreenLine()
 		self.block = 63
 		self.atStation = False
 		self.previousBlock = 63
 
 		# Station
-		self.station = "Glenbury"
+		self.announcement = ""
 		self.timeToStation = 0
 		self.emergencyAnnouncement = "EMERGENCY"
 		
@@ -145,12 +146,12 @@ class Train:
 		# Updates the current block and retrieves associated speed limit and grade.
 		self.previousBlock = self.block
 		self.block = value
-		self.setSpeedLimit(self.lineData.getValue(value, 'speed_limit'))
-		self.setGrade(self.lineData.getValue(value, 'grade'))
+		self.setSpeedLimit(self.lineData.getValue(value, 'speedLimit'))
+		self.setGrade(self.lineData.getValue(value, 'blockGradePercent'))
 		stationCheck = self.lineData.getValue(value,'infrastructure') 
 		if "STATION" in stationCheck:
 			self.atStation = True
-		distanceDict = GreenLine.getDistance()
+		distanceDict = GreenLine.getDistance(value)
 		if distanceDict != None:
 			self.station = distanceDict['toStation']
 			self.distanceLeft = distanceDict['distance']
@@ -227,7 +228,7 @@ class Train:
 			if not self.authorityReceived:
 				self.authorityReceived = True
 				self.active = True
-				print(f"Train {self.trainId} received first authority - AUTO ACTIVATING")
+				#print(f"Train {self.trainId} received first authority - AUTO ACTIVATING")
 				self.serviceBrakeActive = False
 			
 			# Notify observers
@@ -280,9 +281,9 @@ class Train:
 		except ValueError:
 			pass
 
-	def setStation(self, stationName: str):
+	def setAnnouncement(self, announcement: str):
 		# Sets the current station name.
-		self.station = str(stationName)
+		self.announcement = str(announcement)
 		self._notifyObservers()
 		
 	def setTimeToStation(self, minutes: int):
@@ -407,18 +408,18 @@ class Train:
 		self.speedPrev = self.speed
 		self.speed = newSpeed
 		self.acceleration = aNew
-		self.distanceLeft = self.distanceLeft - distance
+		# self.distanceLeft = self.distanceLeft - distance
 		
-		if newSpeed > 0.1 and self.distanceLeft != 0: #may need to fix depending on how the train stops at a station
-			timeSeconds = self.distanceLeft / newSpeed
-			timeMinutes = max(0, int(timeSeconds / 60))
-			self.setTimeToStation(timeMinutes)
-		else:
-			if self.distanceLeft <= 0:
-				self.setTimeToStation(0)
-				self.distanceLeft = 0
-			else:
-				self.setTimeToStation("Soon")
+		# if newSpeed > 0.1 and self.distanceLeft != 0: #may need to fix depending on how the train stops at a station
+		# 	timeSeconds = self.distanceLeft / newSpeed
+		# 	timeMinutes = max(0, int(timeSeconds / 60))
+		# 	self.setTimeToStation(timeMinutes)
+		# else:
+		# 	if self.distanceLeft <= 0:
+		# 		self.setTimeToStation(0)
+		# 		self.distanceLeft = 0
+		# 	else:
+		# 		self.setTimeToStation("Soon")
 
 		self._notifyObservers()
 	
