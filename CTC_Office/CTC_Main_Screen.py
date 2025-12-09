@@ -69,7 +69,7 @@ class MainScreen:
         module_config = load_socket_config()
         ctc_config = module_config.get("CTC", {"port": 1})
         self.server = TrainSocketServer(port = ctc_config["port"], ui_id = "CTC")
-        self.server.set_allowed_connections(["Track SW", "Track HW", "Track Model", "Train Model"])  #add "CTC_Test_UI when using test ui"
+        self.server.set_allowed_connections(["Track SW", "Track HW", "Track Model", "Train Model", "Train SW", "Train HW"])  #add "CTC_Test_UI when using test ui"
         self.server.start_server(self._processMessage)
         self.server.connect_to_ui('localhost', 12342, "Track SW")
         self.server.connect_to_ui('localhost', 12343, "Track HW")
@@ -508,6 +508,7 @@ class MainScreen:
         time = clock.getTime()
         #self.send_to_ui("Train Model", self.clock)
         self.clockText.configure(text = time)
+        self.send_to_ui("Train Model", {"command": "TIME", "value": time})
         self.clockTimer = self.root.after(100, self.updateTime)
 
 ###############################################################################################################################################################
@@ -516,9 +517,18 @@ class MainScreen:
         if (change == "inc" and self.clockSpeed == 1):
             clock.tenTimesSpeed()
             self.clockSpeed = 10
+
+            self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
+            self.send_to_ui("Train SW", {"command": "MULT", "value": self.clockSpeed})
+            self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
+
+
         elif (change == "dec" and self.clockSpeed == 10):
             clock.normalSpeed()
             self.clockSpeed = 1
+            self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
+            self.send_to_ui("Train SW", {"command": "MULT", "value": self.clockSpeed})
+            self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
     
 ###############################################################################################################################################################
     

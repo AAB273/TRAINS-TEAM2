@@ -5389,7 +5389,7 @@ class TrackModelUI(tk.Tk):
                 switch_state = self.switch_states.get(27, 'normal')
                 beacon1_value = (switch_state == 'reverse')
                 self.server.send_to_ui("Train Model", {
-                    'command': 'beacon1',
+                    'command': 'Beacon1',
                     'value': beacon1_value
                 })
                 # print(f"Sent beacon1 to Train Model: {beacon1_value}")
@@ -5402,7 +5402,7 @@ class TrackModelUI(tk.Tk):
                 switch_state = self.switch_states.get(38, 'normal')
                 beacon2_value = (switch_state == 'reverse')
                 self.server.send_to_ui("Train Model", {
-                    'command': 'beacon2',
+                    'command': 'Beacon2',
                     'value': beacon2_value
                 })
                 # print(f"Sent beacon2 to Train Model: {beacon2_value}")
