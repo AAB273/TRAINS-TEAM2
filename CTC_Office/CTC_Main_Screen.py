@@ -548,11 +548,11 @@ class MainScreen:
 
         refMap = tk.Toplevel(self.root)
         refMap.title("Reference Map")
-        refMap.geometry("1000x500+1201+0")
+        refMap.geometry("800x750+1201+0")
         #configure the window holding the reference map
 
-        mapOriginalImage = Image.open("CTC_Office/blue_line.png") 
-        mapImage = ImageTk.PhotoImage(mapOriginalImage.resize((1000, 500)))
+        mapOriginalImage = Image.open("CTC_Office/Red and Green Line.png") 
+        mapImage = ImageTk.PhotoImage(mapOriginalImage.resize((800, 750)))
         #create and resize image
         mapImageLabel = ttk.Label(refMap, image = mapImage, background = "white")
         mapImageLabel.image = mapImage
