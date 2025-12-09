@@ -307,7 +307,7 @@ class TrainModelPassengerGUI:
 			elif command == 'Passengers Boarding':
 				self.updateDisembarking(train)
 				self.updateBoarding(value, train)
-			elif command == 'beacon1' or command == 'beacon2':
+			elif command == 'Beacon1' or command == 'Beacon2':
 				self.server.send_to_ui("Train SW", {
 					'command': command,
 					'value': value,
