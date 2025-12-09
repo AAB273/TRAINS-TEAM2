@@ -1,5 +1,5 @@
-import json          # ← ADD
-from pathlib import Path  # ← ADD
+import json          
+from pathlib import Path 
 
 def load_socket_config():
     """Load socket configuration from config.json"""
@@ -189,26 +189,56 @@ redLineStationDoorSides = {
     'SOUTH HILLS JUNCTION': 'both'
 }
 
+# GREEN LINE underground blocks
+greenLineUndergroundBlocks = {36, 37, 38, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 
+                      53, 54, 55, 56, 57, 122, 123, 124, 125, 126, 127, 128, 129, 130, 
+                      131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 142, 143}
+
+# RED LINE underground blocks
+redLineUndergroundBlocks = {24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
+                            67, 68, 69, 70, 71, 72, 73, 74, 75, 76}
+
+# Special case: INGLEWOOD at block 132 uses left door instead of right
+STATION_DOOR_EXCEPTIONS = {
+    132: 'left'  # INGLEWOOD at block 132 uses left door
+}
+
 class PositionTracker:
     """Track train position along the route"""
-    
-    def __init__(self, track_info, station_door_sides):
+    def __init__(self, track_info, station_door_sides, selected_line):
         self.track_info = track_info
         self.station_door_sides = station_door_sides
+        self.selected_line = selected_line
+        
+        # Set underground blocks based on selected line
+        if selected_line == 'GREEN':
+            self.underground_blocks = greenLineUndergroundBlocks
+        else:  # RED
+            self.underground_blocks = redLineUndergroundBlocks
+        
         self.current_segment_index = 0
         self.distance_traveled_in_segment = 0.0
         self.last_update_time = None
-        self.current_block = 63  # Default to Green Line yard
+        self.current_block = 63 if selected_line == 'GREEN' else 8
         self.is_at_station = False
         self.station_dwell_start_time = None
+        
+        # Track underground state
+        self.is_underground = self.current_block in self.underground_blocks
+        self.last_underground_state = self.is_underground
         
         # Constants
         self.DECELERATION_DISTANCE = 200.0  # meters
         self.STATION_STOP_THRESHOLD = 5.0   # meters
-        self.STATION_DWELL_TIME = 3.0       # seconds
+        self.STATION_DWELL_TIME = 30.0      # seconds - CHANGED TO 30 SECONDS
+        self.TIME_SCALE = 10.0  # 10x faster simulation
         
-    def update(self, current_speed_ms):
-        """Update position based on velocity and time"""
+        # Door safety
+        self.doors_open_at_station = False
+        self.doors_locked = False
+        
+    def update(self, current_speed_ms, ui_callback=None):
+        """Update position based on velocity and time with underground light control"""
         current_time = time.time()
         
         if self.last_update_time is None:
@@ -218,12 +248,50 @@ class PositionTracker:
         dt = current_time - self.last_update_time
         self.last_update_time = current_time
         
+        # Apply time acceleration
+        dt = dt * self.TIME_SCALE
+        
+        # Check and update underground status
+        self._update_underground_status(ui_callback)
+        
+        # Door safety: Lock doors when train is moving
+        if current_speed_ms > 1.0 and not self.doors_locked:
+            self.doors_locked = True
+            if ui_callback and hasattr(ui_callback, 'lock_doors'):
+                ui_callback.lock_doors()
+        
         # If at station, handle dwell time
         if self.is_at_station:
             if self.station_dwell_start_time is not None:
                 elapsed = current_time - self.station_dwell_start_time
+                
+                # Display remaining dwell time
+                if not hasattr(self, '_last_dwell_print'):
+                    self._last_dwell_print = 0
+                self._last_dwell_print += 1
+                
+                if self._last_dwell_print % 10 == 0:  # Every ~1 second
+                    remaining = max(0, self.STATION_DWELL_TIME - elapsed)
+                    if ui_callback and hasattr(ui_callback, 'add_to_status_log'):
+                        ui_callback.add_to_status_log(f"⏱️ Station dwell: {int(remaining)}s remaining")
+                    self._last_dwell_print = 0
+                
                 if elapsed >= self.STATION_DWELL_TIME:
-                    # Move to next segment
+                    # CLOSE DOORS before departure
+                    self.doors_open_at_station = False
+                    if ui_callback:
+                        # Close both doors
+                        if hasattr(ui_callback, 'send_left_door_signal'):
+                            ui_callback.send_left_door_signal(False)
+                        if hasattr(ui_callback, 'send_right_door_signal'):
+                            ui_callback.send_right_door_signal(False)
+                        if hasattr(ui_callback, 'add_to_status_log'):
+                            ui_callback.add_to_status_log("🚪 Doors closing before departure")
+                    
+                    # Move to next segment after door close delay
+                    time.sleep(0.5)
+                    
+                    # Reset for departure
                     self.current_segment_index += 1
                     if self.current_segment_index >= len(self.track_info['segments']):
                         self.current_segment_index = 1  # Loop back to main route
@@ -231,7 +299,13 @@ class PositionTracker:
                     self.distance_traveled_in_segment = 0.0
                     self.is_at_station = False
                     self.station_dwell_start_time = None
-                    print(f"Departing for {self.get_next_station_name()}")
+                    
+                    if ui_callback and hasattr(ui_callback, 'add_to_status_log'):
+                        next_station = self.get_next_station_name()
+                        ui_callback.add_to_status_log(f"Departing for {next_station}")
+                    
+                    # Reset door lock for next station
+                    self.doors_locked = False
             return
         
         # Calculate displacement
@@ -244,10 +318,71 @@ class PositionTracker:
             self.is_at_station = True
             self.station_dwell_start_time = current_time
             self.distance_traveled_in_segment = self.track_info['segments'][self.current_segment_index]['distance']
-            print(f"Arrived at {self.get_current_station_name()}")
+            
+            if ui_callback and hasattr(ui_callback, 'add_to_status_log'):
+                station_name = self.get_current_station_name()
+                ui_callback.add_to_status_log(f"*** ARRIVED AT {station_name} ***")
+            
+            # Open appropriate doors at station
+            self._open_station_doors(ui_callback)
         
         # Update current block
         self._update_current_block()
+
+    def _update_underground_status(self, ui_callback):
+        """Update underground status and control lights"""
+        # Check if we're in an underground block
+        new_underground = self.current_block in self.underground_blocks
+        
+        # Only update if state changed
+        if new_underground != self.last_underground_state:
+            self.is_underground = new_underground
+            
+            if ui_callback:
+                # Control lights via UI callback
+                if new_underground:
+                    if hasattr(ui_callback, 'send_headlights'):
+                        ui_callback.send_headlights(True)
+                    if hasattr(ui_callback, 'send_cabin_lights'):
+                        ui_callback.send_cabin_lights(True)
+                    if hasattr(ui_callback, 'add_to_status_log'):
+                        ui_callback.add_to_status_log(f"💡 Entering underground tunnel (Block {self.current_block}) - Lights ON")
+                else:
+                    if hasattr(ui_callback, 'send_headlights'):
+                        ui_callback.send_headlights(False)
+                    if hasattr(ui_callback, 'send_cabin_lights'):
+                        ui_callback.send_cabin_lights(False)
+                    if hasattr(ui_callback, 'add_to_status_log'):
+                        ui_callback.add_to_status_log(f"💡 Exiting tunnel - returning to surface (Block {self.current_block}) - Lights OFF")
+            
+            self.last_underground_state = new_underground
+
+    def _open_station_doors(self, ui_callback):
+        """Open appropriate doors at station"""
+        if not ui_callback:
+            return
+        
+        station_name = self.get_current_station_name()
+        
+        # Check for block-specific exceptions first
+        door_side = STATION_DOOR_EXCEPTIONS.get(self.current_block)
+        if not door_side:
+            # Use station default
+            door_side = self.station_door_sides.get(station_name, 'both')
+        
+        self.doors_open_at_station = True
+        
+        if hasattr(ui_callback, 'add_to_status_log'):
+            ui_callback.add_to_status_log(f"[DOOR] Station {station_name} at block {self.current_block}: {door_side} door(s)")
+        
+        # Open appropriate doors
+        if door_side == 'left' or door_side == 'both':
+            if hasattr(ui_callback, 'send_left_door_signal'):
+                ui_callback.send_left_door_signal(True)
+        
+        if door_side == 'right' or door_side == 'both':
+            if hasattr(ui_callback, 'send_right_door_signal'):
+                ui_callback.send_right_door_signal(True)
     
     def _update_current_block(self):
         """Update current block based on position"""
@@ -321,8 +456,8 @@ class Main_Window:
         #self.root.state('zoomed') for windows
 
         # Make fullscreen
-        self.screen_width = self.root.winfo_screenwidth()
-        self.screen_height = self.root.winfo_screenheight()
+        self.screen_width = self.root.winfo_screenwidth()-50
+        self.screen_height = self.root.winfo_screenheight()-50
         self.root.geometry(f"{self.screen_width}x{self.screen_height}+0+0")
         
         #make resizable
@@ -333,10 +468,10 @@ class Main_Window:
         
         # Initialize position tracker based on selected line
         if self.selected_line == 'GREEN':
-            self.position_tracker = PositionTracker(greenLineTrackInformation, greenLineStationDoorSides)
+            self.position_tracker = PositionTracker(greenLineTrackInformation, greenLineStationDoorSides, selected_line)
             self.current_block = 63
         else:  # RED
-            self.position_tracker = PositionTracker(redLineTrackInformation, redLineStationDoorSides)
+            self.position_tracker = PositionTracker(redLineTrackInformation, redLineStationDoorSides, selected_line)
             self.current_block = 8
 
         # Socket server setup
@@ -685,7 +820,7 @@ class Main_Window:
         self.is_auto_mode = True
         self.service_brake_active = False
         self.emergency_brake_active = False
-        self.door_safety_lock = True
+        self.door_safety_lock = False
         self.emergency_brake_auto_triggered = False
         self.commanded_authority = 0
 
@@ -700,6 +835,13 @@ class Main_Window:
         self.sample_time = 0.1  # 100ms update rate
         self.last_power_sent = None  # Track last power to avoid duplicates
 
+        # Track previous commanded speed for speed reduction detection
+        self.previous_commanded_speed_ms = 0.0
+        
+        # Brake time tracking for speed reduction
+        self.speed_reduction_brake_time = 0.0
+        self.last_brake_check_time = time.time()
+
         #create engineer UI
         self.engineer_ui = EngineerUI(self, callback=self._onPIDParametersApplied)
         
@@ -710,6 +852,41 @@ class Main_Window:
         #safety critical design:
         #self.safety_monitor = SafetyMonitor(self)
 
+    def lock_doors(self):
+        """Lock doors when train is moving"""
+        if not self.door_safety_lock:
+            self.door_safety_lock = True
+            
+            # Force close any open doors
+            if hasattr(self, 'left_door_btn') and self.left_door_btn.is_on:
+                self.left_door_btn.toggle()
+                self.send_left_door_signal(False)
+            
+            if hasattr(self, 'right_door_btn') and self.right_door_btn.is_on:
+                self.right_door_btn.toggle()
+                self.send_right_door_signal(False)
+            
+            # Disable door buttons
+            if hasattr(self, 'left_door_btn'):
+                self.left_door_btn.config(state="disabled")
+            if hasattr(self, 'right_door_btn'):
+                self.right_door_btn.config(state="disabled")
+            
+            self.add_to_status_log("Doors locked - train in motion")
+
+    def unlock_doors(self):
+        """Unlock doors when train is stopped at station"""
+        if self.door_safety_lock and self.current_speed_ms < 0.1:
+            self.door_safety_lock = False
+            
+            # Enable door buttons
+            if hasattr(self, 'left_door_btn'):
+                self.left_door_btn.config(state="normal")
+            if hasattr(self, 'right_door_btn'):
+                self.right_door_btn.config(state="normal")
+            
+            self.add_to_status_log("Doors unlocked - train stopped at station")
+
     def _process_message(self, message, source_ui_id):
         """Process incoming messages and update train state"""
         try:
@@ -718,6 +895,8 @@ class Main_Window:
             
             # ========== COMMANDED SPEED ==========
             if command == 'Commanded Speed':
+                # Track previous commanded speed for reduction detection
+                self.previous_commanded_speed_ms = self.commanded_speed_ms
                 # Input: mph from train model
                 speed_mph = float(value)  # Store as mph
                 self.commanded_speed_ms = speed_mph * MPH_TO_METERS_PER_SEC  # Convert to m/s for calculations
@@ -847,18 +1026,26 @@ class Main_Window:
         self.add_to_status_log("Doors closing")
     
     def calculate_power_command(self):
-        """Calculate power with authority-based speed adjustment"""
-        # NEW: Update position tracking
-        self.position_tracker.update(self.current_speed_ms)
+        """Calculate power with authority-based speed adjustment and anti-windup"""
+        # FIX: Reset integral error when service brake is active to prevent windup
+        if self.service_brake_active or self.emergency_brake_active:
+            self.integral_error = 0.0
+            return 0.0
         
-        # SAME: Get base commanded speed (keep your existing logic)
+        # Update position tracking with underground light control
+        self.position_tracker.update(self.current_speed_ms, self)
+        
+        # Update underground display
+        self.update_underground_display()
+        
+        # Get base commanded speed
         if self.is_auto_mode:
             commanded_speed_ms = self.commanded_speed_ms
         else:
             commanded_speed_mph = float(self.set_speed)
             commanded_speed_ms = commanded_speed_mph * MPH_TO_METERS_PER_SEC
         
-        # NEW: Apply authority-based speed reduction
+        # Apply authority-based speed reduction
         if self.commanded_authority == 0:
             # No authority - brake to stop
             commanded_speed_ms = 0.0
@@ -879,12 +1066,12 @@ class Main_Window:
             # Maximum authority - no restriction
             pass
         
-        # NEW: Apply speed limit from current segment
+        # Apply speed limit from current segment
         speed_limit_mph = self.position_tracker.get_current_speed_limit()
         speed_limit_ms = speed_limit_mph * MPH_TO_METERS_PER_SEC
         commanded_speed_ms = min(commanded_speed_ms, speed_limit_ms)
         
-        # NEW: Handle station approach
+        # Handle station approach
         if self.position_tracker.should_decelerate_for_station():
             dist_to_station = self.position_tracker.get_distance_to_next_station()
             DECEL_RATE = 1.0
@@ -892,24 +1079,66 @@ class Main_Window:
                 target_speed = (2 * DECEL_RATE * dist_to_station) ** 0.5
                 commanded_speed_ms = min(commanded_speed_ms, target_speed)
         
-        # NEW: Handle station stop and door control
+        # Handle station stop
         if self.position_tracker.is_at_station:
             commanded_speed_ms = 0.0
             if not self.service_brake_active:
                 self.service_brake_active = True
                 self.send_service_brake(True)
-                self._handle_station_doors()
-        elif self.service_brake_active and self.commanded_authority > 0:
-            # Release brake when leaving station
-            self.service_brake_active = False
-            self.send_service_brake(False)
-            self._close_all_doors()
+                self.add_to_status_log(f"Arrived at station: {self.position_tracker.get_current_station_name()}")
+            
+            # Unlock doors when stopped at station
+            self.unlock_doors()
+        elif self.position_tracker.is_at_station and self.service_brake_active:
+            # Keep brake on at station
+            commanded_speed_ms = 0.0
+        elif self.service_brake_active and self.commanded_authority > 0 and not self.position_tracker.is_at_station:
+            # Release brake when leaving station (handled by position tracker)
+            pass
         
-        # SAME: PI controller calculation (keep your existing PI logic)
+        # SPEED REDUCTION DETECTION - Apply service brake briefly for significant reductions
+        SPEED_REDUCTION_THRESHOLD = 2.0  # m/s
+        SERVICE_BRAKE_DURATION = 0.5  # seconds
+        
+        current_time = time.time()
+        dt_check = current_time - self.last_brake_check_time
+        self.last_brake_check_time = current_time
+        
+        # Detect commanded speed reduction (not at station, not in manual mode)
+        if not self.is_auto_mode and not self.position_tracker.is_at_station:
+            speed_reduction = self.previous_commanded_speed_ms - commanded_speed_ms
+            
+            if speed_reduction > SPEED_REDUCTION_THRESHOLD and self.current_speed_ms > commanded_speed_ms + 1.0:
+                # Significant speed reduction detected
+                if self.speed_reduction_brake_time <= 0:
+                    # Start brake application
+                    self.speed_reduction_brake_time = SERVICE_BRAKE_DURATION
+                    self.send_service_brake(True)
+                    self.service_brake_active = True
+                    self.integral_error = 0.0  # Reset integral
+                    self.add_to_status_log(f"⚠️ Speed reduction detected - applying service brake")
+        
+        # Count down brake time and release when done
+        if self.speed_reduction_brake_time > 0:
+            self.speed_reduction_brake_time -= dt_check
+            
+            if self.speed_reduction_brake_time <= 0:
+                # Release service brake
+                self.speed_reduction_brake_time = 0.0
+                self.send_service_brake(False)
+                self.service_brake_active = False
+                self.add_to_status_log(f"🟢 Service brake released after speed adjustment")
+        
+        # PI controller calculation
         current_speed_ms = self.current_speed_ms
         velocity_error = commanded_speed_ms - current_speed_ms
         
-        self.integral_error += velocity_error * self.sample_time
+        # ANTI-WINDUP: Only integrate if not at power limit
+        power_without_integral = self.kp * velocity_error
+        if power_without_integral < self.max_power_kw:
+            self.integral_error += velocity_error * self.sample_time
+        
+        # Limit integral windup
         max_integral = self.max_power_kw / (self.ki if self.ki > 0 else 1.0)
         self.integral_error = max(-max_integral, min(max_integral, self.integral_error))
         
@@ -918,6 +1147,16 @@ class Main_Window:
         power_kw = p_term + i_term
         
         power_kw = max(0.0, min(self.max_power_kw, power_kw))
+        
+        # Debug output (reduced frequency)
+        if not hasattr(self, '_speed_debug_counter'):
+            self._speed_debug_counter = 0
+        self._speed_debug_counter += 1
+        if self._speed_debug_counter % 20 == 0:
+            cmd_mph = commanded_speed_ms * METERS_PER_SEC_TO_MPH
+            curr_mph = current_speed_ms * METERS_PER_SEC_TO_MPH
+            print(f"[POWER DEBUG] Cmd={cmd_mph:.1f}mph, Curr={curr_mph:.1f}mph, Error={velocity_error:.2f}m/s, Power={power_kw:.1f}kW")
+            self._speed_debug_counter = 0
         
         return power_kw
 
@@ -971,22 +1210,8 @@ class Main_Window:
             self.update_ebrake_release_state()
     
     def update_displays(self):
-        """Update all displays"""
-        # SAME: Keep all your existing display updates
-        # Just add these new station info updates if you added those labels
-        
-        # NEW: Update station information displays (if you added them)
-        if hasattr(self, 'next_station_label'):
-            next_station = self.position_tracker.get_next_station_name()
-            distance = self.position_tracker.get_distance_to_next_station()
-            self.next_station_label.config(text=next_station)
-            
-        if hasattr(self, 'distance_label'):
-            distance = self.position_tracker.get_distance_to_next_station()
-            self.distance_label.config(text=f"Distance: {int(distance)} m")
-        
-        # SAME: Keep all your existing speed/brake/power logic
-        # Calculate and send power (your existing code)
+        """Update all displays including underground status"""
+        # Calculate and send power
         if not self.emergency_brake_active and not self.service_brake_active:
             try:
                 power_kw = self.calculate_power_command()
@@ -1002,9 +1227,18 @@ class Main_Window:
                 self.send_setpoint_power(0.0)
                 self.last_power_sent = 0
         
-        # SAME: Keep your existing schedule
+        # Update underground display
+        if hasattr(self, 'update_underground_display'):
+            self.update_underground_display()
+        
+        # Update door safety based on speed
+        if self.current_speed_ms > 1.0 and not self.door_safety_lock:
+            self.lock_doors()
+        elif self.current_speed_ms < 0.1 and self.door_safety_lock and self.position_tracker.is_at_station:
+            self.unlock_doors()
+        
+        # Schedule next update
         self.root.after(100, self.update_displays)
-
     
     def apply_brake_effect(self):
         """Apply brake effects to current speed"""
@@ -1125,19 +1359,23 @@ class Main_Window:
         self.root.after(2000, lambda: self.send_train_horn(False))
     
     def service_brake_action(self, pressed):
-        """Handle service brake button press/release - BOOLEAN VERSION"""
+        """Handle service brake button press/release with integral reset"""
         print(f"[DEBUG] Service brake action called: pressed={pressed}")
         
         if pressed:
             self.service_brake_active = True
-            self.send_service_brake(True)  # Send True (brake ON)
+            self.send_service_brake(True)
+            # FIX: Reset integral error when brake is applied
+            self.integral_error = 0.0
             self.add_to_status_log(f" Service brake applied")
-            print(f"SERVICE BRAKE: ACTIVE")
+            print(f"SERVICE BRAKE: ACTIVE (integral reset)")
         else:
             self.service_brake_active = False
-            self.send_service_brake(False)  # Send False (brake OFF)
+            self.send_service_brake(False)
+            # FIX: Reset integral error when brake is released
+            self.integral_error = 0.0
             self.add_to_status_log(" Service brake released")
-            print("SERVICE BRAKE: RELEASED")
+            print("SERVICE BRAKE: RELEASED (integral reset)")
     
     
     def emergency_brake_activate(self, pressed=None):
@@ -1343,7 +1581,7 @@ class Main_Window:
         """
         try:
             self.server.send_to_ui("Train Model", {
-                'command': "Emergency Brake Signal",
+                'command': "Emergency Brake",
                 'value': bool(is_active), 
                 'train_id' : 2
             })
