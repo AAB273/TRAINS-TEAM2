@@ -41,9 +41,9 @@ def launch_all():
     modules = [
         #("CTC", "CTC_Office/CTC_UI.py"),
         #("Track SW", "Wayside_Controller/SW/main.py"),
-        ("Track Model", "Track Model/UI_Structure.py"),
+        #("Track Model", "Track Model/UI_Structure.py"),
         ("Train Model", "Train Model/Passenger_UI.py"),
-        #("Train SW", "train_controller_sw/Driver_UI.py"),
+        ("Train SW", "train_controller_sw/Driver_UI.py"),
         #("Train HW","HW_Train_Controller/TC_HW_MainUI.py")
         
         ("Test UI","Train Model/Test_UI.py")

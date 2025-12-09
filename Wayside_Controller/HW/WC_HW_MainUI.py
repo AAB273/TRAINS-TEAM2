@@ -314,7 +314,7 @@ def _process_message(self, data, connection=None, server_instance=None):
                 
                 # Update maintenance LED
                 maint_led.config(bg="orange", text="MAINT REQ")
-                add_to_message_log("Maintenance Request LED activated", "INFO")
+                add_to_message_log("Maintenance Request LED activated")
             
         elif command == 'set_switch_position':
             # Legacy switch command - redirect to SW command
@@ -331,7 +331,9 @@ def _process_message(self, data, connection=None, server_instance=None):
                 # Log the switch command
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 log_message = f"{timestamp} CTC REQUEST: Toggle Switch {location} on {line} track"
-                message_logger.log(log_message, "INFO")
+                message_logger.log(log_message, "WARNING")
+                # Also use the old function for compatibility
+                add_to_message_log(f"CTC Switch Command: Block {location} on {line} Line")
                 
                 # Update the left panel switch display if it matches current line
                 if line.lower() == test_data.current_line.lower():
@@ -386,7 +388,7 @@ def _process_message(self, data, connection=None, server_instance=None):
                                     left_panel.switch_direction.set(new_direction)
                                     
                                     # Log the change
-                                    message_logger.log(f"Switch {found_switch}: Direction changed to {new_direction} by CTC", "INFO")
+                                    message_logger.log(f"Switch {found_switch}: Direction changed to {new_direction} by CTC")
                             
                             add_to_message_log(f"CTC Switch Command: Updated {found_switch} for Block {location}")
                         else:
@@ -1079,7 +1081,7 @@ class UITestData:
                 line = switch_data[1]
                 
                 print(f"CTC Switch Command: Block {location} on {line} Line")
-                add_to_message_log(f"CTC Switch Command: Block {location} on {line} Line", "INFO")
+                add_to_message_log(f"CTC Switch Command: Block {location} on {line} Line")
                 
                 # Update switch display if it matches current line
                 if line.lower() == self.current_line.lower() and hasattr(left_panel, 'switch_selector'):
@@ -1091,7 +1093,7 @@ class UITestData:
                             
                             # Optionally change direction
                             # This would depend on your switch logic
-                            add_to_message_log(f"Updated switch display for {switch_name}", "INFO")
+                            add_to_message_log(f"Updated switch display for {switch_name}")
                             break
                 
         except Exception as e:
@@ -1114,7 +1116,7 @@ class UITestData:
             # Update UI elements
             if hasattr(maint_led, 'config'):
                 maint_led.config(bg="orange", text="MAINT REQ")
-                add_to_message_log("Maintenance Request LED activated", "INFO")
+                add_to_message_log("Maintenance Request LED activated")
 
             # Send acknowledgment back to CTC
             if hasattr(self, 'server1'):
@@ -1769,7 +1771,7 @@ class PLCManager:
            
             self.plc_instance = plc_module.PLCController(self.message_logger.log)
             self.current_file = file_path
-            self.message_logger.log(f"PLC file loaded: {file_path}", "INFO")
+            self.message_logger.log(f"PLC file loaded: {file_path}")
             return True
         except Exception as e:
             self.message_logger.log(f"PLC load error: {e}")
@@ -1783,7 +1785,7 @@ class PLCManager:
        
         try:
             self.plc_instance.main()
-            self.message_logger.log(f"PLC file executed: {self.current_file.split('/')[-1]}", "INFO")
+            self.message_logger.log(f"PLC file executed: {self.current_file.split('/')[-1]}")
             return True
         except Exception as e:
             self.message_logger.log(f"PLC runtime error: {e}")
@@ -2261,7 +2263,7 @@ class LeftPanel(tk.Frame):
         # Reset button to normal state
         if hasattr(self, 'maint_call_btn'):
             self.maint_call_btn.config(state="normal")
-        add_to_message_log("Success popup closed, button reset", "INFO")
+        add_to_message_log("Success popup closed, button reset")
 
     def update_light_options(self):
         """Update combobox options based on current line"""

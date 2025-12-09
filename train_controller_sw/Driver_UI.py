@@ -4,7 +4,7 @@ from pathlib import Path  # ← ADD
 def load_socket_config():
     """Load socket configuration from config.json"""
     config_path = Path("config.json")
-    config = {}  # ✅ Initialize config first
+    config = {}  #  Initialize config first
     
     if config_path.exists():
         try:
@@ -42,6 +42,7 @@ from Engineer_UI import EngineerUI
 from FailureIndicator import FailureIndicator
 from ToggleButton import ToggleButton
 from ModeToggle import Mode_Toggle
+import pygame
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
@@ -717,11 +718,11 @@ class Main_Window:
             
             # ========== COMMANDED SPEED ==========
             if command == 'Commanded Speed':
-                # Input: m/s from Train Model
-                self.commanded_speed_ms = float(value)  # Store original m/s
-                speed_mph = self.commanded_speed_ms * METERS_PER_SEC_TO_MPH
+                # Input: mph from train model
+                speed_mph = float(value)  # Store as mph
+                self.commanded_speed_ms = speed_mph * MPH_TO_METERS_PER_SEC  # Convert to m/s for calculations
                 self.set_commanded_speed(round(speed_mph, 1))
-                self.add_to_status_log(f"Commanded: {speed_mph:.1f} mph ({self.commanded_speed_ms:.2f} m/s)")
+                self.add_to_status_log(f"Commanded: {speed_mph:.1f} mph")
             
             # ========== COMMANDED AUTHORITY ==========
             elif command == 'Commanded Authority':
@@ -735,7 +736,7 @@ class Main_Window:
                 self.set_emergency_signal(is_active)
                 if is_active and not self.emergency_brake_active:
                     self.emergency_brake_action(True)
-                    self.add_to_status_log("🚨 Passenger emergency: E-brake activated!")
+                    self.add_to_status_log(" Passenger emergency: E-brake activated!")
                 elif not is_active:
                     self.add_to_status_log("Passenger emergency signal cleared")
             

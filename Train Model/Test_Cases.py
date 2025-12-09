@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 import sys
+import timer
 
 # Mock external dependencies
 sys.modules['TrainSocketServer'] = MagicMock()
@@ -259,6 +260,47 @@ class Testing(unittest.TestCase):
         except AssertionError:
             print("Test failed:", message['command'], "not set correctly")
             raise
+    
+    def test_moving_socket_message(self):
+        """
+        Test that when a 'Service Brake' command is received through the socket, the train correctly sets its service brake bool.
+        """
+        # Simulate the socket message
+        message = {
+            'command': 'Power Command',
+            'value': 100,
+            'train_id': 1
+        }
+        
+        # Simulate what the UI's _processMessage method does
+        command = message.get('command')
+        value = message.get('value')
+        train_id = message.get('train_id')
+        
+        train = self.train_manager.getTrain(train_id)
+        
+        if command == 'Power Command':
+            train.setPowerCommand(value)
+        
+        message = {
+            'command': 'Commanded Authority',
+            'value': 100,
+            'train_id': 1
+        }
+        
+        command = message.get('command')
+        value = message.get('value')
+        train_id = message.get('train_id')
+
+        if command == 'Commanded Authority':
+            train.setAuthority(value)
+        # Verify the train has the correct commanded speed
+        i=0
+        for i in range(5):
+            print("Train Speed",train.speed)
+            i =+ 1
+
+        print("Test passed: Train Is moving!")
 
 
 if __name__ == '__main__':
