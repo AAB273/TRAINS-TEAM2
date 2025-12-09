@@ -15,11 +15,15 @@ from PIL import Image, ImageTk
 from time import strftime
 import CTC_Schedule_Screen
 
+
 #necessary to import the clock from the parent directory#
 import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-from clock import clock
+from clock import Clock
+from multiprocessing import Value, Lock
+import ctypes
 from TrainSocketServer import TrainSocketServer
+
 
 
 class MainScreen:
