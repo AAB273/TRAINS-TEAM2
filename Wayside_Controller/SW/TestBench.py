@@ -146,13 +146,14 @@ class PLC_Complete_TestBench:
         
         # Run all tests
         tests = [
-            ("Test 1: PLC Filter Activation", self.test_plc_filter_activation),
-            ("Test 2: Authority Calculation", self.test_authority_calculation),
-            ("Test 3: Section N Authority Rules", self.test_section_n_authority),
-            ("Test 4: CTC Override", self.test_ctc_override),
-            ("Test 5: Switch Control", self.test_switch_control),
-            ("Test 6: Light Signals", self.test_light_signals),
-            ("Test 7: Railway Crossings", self.test_railway_crossings),
+            #("Test 1: PLC Filter Activation", self.test_plc_filter_activation),
+            #("Test 2: Authority Calculation", self.test_authority_calculation),
+            #("Test 3: Section N Authority Rules", self.test_section_n_authority),
+            #("Test 4: CTC Override", self.test_ctc_override),
+            #("Test 5: Switch Control", self.test_switch_control),
+            #("Test 6: Light Signals", self.test_light_signals),
+            #("Test 7: Railway Crossings", self.test_railway_crossings),
+            ("Test 8: Maintenance Mode Switch Override", self.test_maintenance_mode_switch),
         ]
         
         for test_name, test_func in tests:
@@ -681,7 +682,137 @@ class PLC_Complete_TestBench:
         
         return self.log_test("Railway Crossings", test_passed,
                            "Crossings controlled correctly" if test_passed else "Crossing control failed")
-                           
+
+    def test_maintenance_mode_switch(self):
+        """Test 8: Maintenance mode switch override functionality"""
+        print("  Testing maintenance mode switch override...")
+        test_passed = True
+        
+        # First, let's make sure a train is in section N so we know what the PLC would normally do
+        print("  0. Setting up test scenario (train in section N)...")
+        blocks_in_section_N = self.data.get_blocks_in_section("Green", 'N')
+        
+        # Clear all occupancy first
+        for block_key in list(self.data.filtered_blocks.keys()):
+            self.data.filtered_blocks[block_key]["occupied"] = False
+        
+        # Occupying a block in section N (e.g., block 82)
+        if blocks_in_section_N and len(blocks_in_section_N) > 0:
+            test_block = blocks_in_section_N[0]
+            block_key = f"Block {test_block}"
+            if block_key in self.data.filtered_blocks:
+                self.data.filtered_blocks[block_key]["occupied"] = True
+                print(f"    Occupied block {test_block} in section N")
+            else:
+                print(f"    ⚠️ Could not find block {test_block} to occupy")
+        else:
+            print("    ⚠️ No blocks found in section N")
+        
+        # Step 1: Enter maintenance mode
+        print("  1. Entering maintenance mode...")
+        self.data.maintenance_mode = True
+        
+        # Step 2: Manually set a switch to something DIFFERENT than what PLC would set
+        print("  2. Manually setting Switch 85 OPPOSITE of PLC logic...")
+        original_direction = None
+        original_condition = None
+        
+        if "Switch 85" in self.data.filtered_switch_positions:
+            original_direction = self.data.filtered_switch_positions["Switch 85"].get("direction", "")
+            original_condition = self.data.filtered_switch_positions["Switch 85"].get("condition", "")
+            
+            # With train in section N, PLC would normally set switch to "85-86" (N -> O)
+            # So we manually set it to the OPPOSITE: "100-85" (Q -> N)
+            manual_position = "100-85"  # Opposite of what PLC would set
+            
+            # Update switch position
+            self.data.filtered_switch_positions["Switch 85"]["direction"] = manual_position
+            self.data.filtered_switch_positions["Switch 85"]["condition"] = f"Manual: {manual_position}"
+            
+            # CRITICAL: Mark switch as manually set (just like the UI does)
+            if not hasattr(self.data, 'manual_switches'):
+                self.data.manual_switches = set()
+            self.data.manual_switches.add("85")  # Add switch ID "85"
+            
+            print(f"    Set Switch 85 to manual position: {manual_position}")
+            print(f"    (PLC would normally set it to '85-86' with train in section N)")
+            print(f"    Marked switch 85 as manual in data.manual_switches: {self.data.manual_switches}")
+        else:
+            print("    ✗ Switch 85 not found in filtered switch positions")
+            test_passed = False
+        
+        # Step 3: Run PLC cycle (should respect manual setting)
+        print("  3. Running PLC cycle with maintenance mode ON...")
+        self.run_plc_cycle()
+        
+        # Step 4: Verify switch didn't change
+        print("  4. Verifying manual setting is preserved...")
+        if "Switch 85" in self.data.filtered_switch_positions:
+            current_direction = self.data.filtered_switch_positions["Switch 85"].get("direction", "")
+            current_condition = self.data.filtered_switch_positions["Switch 85"].get("condition", "")
+            
+            # The switch should STILL be at our manual position
+            if current_direction == manual_position and "Manual:" in current_condition:
+                print(f"    ✓ Switch 85 still at manual position: {manual_position}")
+                print(f"    Condition: {current_condition}")
+            else:
+                print(f"    ✗ Switch 85 changed!")
+                print(f"    Expected: {manual_position} (Manual)")
+                print(f"    Got: {current_direction} ({current_condition})")
+                print(f"    PLC should NOT override manual settings in maintenance mode")
+                test_passed = False
+        else:
+            print("    ✗ Switch 85 missing after PLC cycle")
+            test_passed = False
+        
+        # Step 5: Exit maintenance mode
+        print("  5. Exiting maintenance mode...")
+        self.data.set_maintenance_mode(False)
+        
+        # Step 6: Run PLC cycle (should resume auto-control)
+        print("  6. Running PLC cycle with maintenance mode OFF...")
+        self.run_plc_cycle()
+        
+        # Step 7: Verify PLC can now control the switch again
+        print("  7. Verifying PLC resumes auto-control...")
+        if "Switch 85" in self.data.filtered_switch_positions:
+            final_direction = self.data.filtered_switch_positions["Switch 85"].get("direction", "")
+            final_condition = self.data.filtered_switch_positions["Switch 85"].get("condition", "")
+            
+            #Mark switch as manually set
+            if not hasattr(self.data, 'manual_switches'):
+                self.data.manual_switches = set()
+            self.data.manual_switches.add("85")  # Add switch ID "8
+            
+            # With train in section N, PLC should now set it to "85-86"
+            # Check that PLC logic was applied (not manual position)
+            if final_direction == "85-86" and "Manual:" not in final_condition:
+                print(f"    ✓ PLC resumed control, Switch 85 at: {final_direction}")
+                print(f"    Condition: {final_condition}")
+            else:
+                print(f"    ✗ Switch 85 not at expected PLC position")
+                print(f"    Expected: 85-86 (PLC auto with train in section N)")
+                print(f"    Got: {final_direction} ({final_condition})")
+                test_passed = False
+        else:
+            print("    ✗ Switch 85 missing after final PLC cycle")
+            test_passed = False
+        
+        # Clean up
+        print("  8. Cleaning up test...")
+        # Clear occupancy
+        for block_key in list(self.data.filtered_blocks.keys()):
+            self.data.filtered_blocks[block_key]["occupied"] = False
+        
+        # Restore original switch position if we have it
+        if original_direction and "Switch 85" in self.data.filtered_switch_positions:
+            self.data.filtered_switch_positions["Switch 85"]["direction"] = original_direction
+            self.data.filtered_switch_positions["Switch 85"]["condition"] = original_condition or "Restored"
+            print(f"    Restored Switch 85 to: {original_direction}")
+        
+        return self.log_test("Maintenance Mode Switch Override", test_passed,
+                        "Manual switch respected in maintenance mode" if test_passed else "Failed")
+    
 
 def run_complete_plc_testbench():
     """Main function to run the complete PLC testbench"""

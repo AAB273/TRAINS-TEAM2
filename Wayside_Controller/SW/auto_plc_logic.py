@@ -77,14 +77,14 @@ def run_plc_cycle(data, log_callback):
     
     # Apply Section N dynamic logic if section N has occupied block
     if section_N_occupied:
-        print("\n[DEBUG] Running Section N dynamic authority logic...")
+        #print("\n[DEBUG] Running Section N dynamic authority logic...")
         section_n_dynamic_auth = apply_section_n_authority_logic(data, log_callback)
-        print(f"[DEBUG] Section N dynamic authorities calculated: {section_n_dynamic_auth}")
+        #print(f"[DEBUG] Section N dynamic authorities calculated: {section_n_dynamic_auth}")
     
     # ==============================================
     # FIX: Run switch control ONCE, before processing blocks
     # ==============================================
-    print("[DEBUG] Running switch control...")
+    #print("[DEBUG] Running switch control...")
     control_switches_automatically(data, log_callback)
     
     # Process each block
@@ -108,7 +108,7 @@ def run_plc_cycle(data, log_callback):
         if is_block_occupied:
             # Occupied block: authority 0
             final_authority = 0
-            print(f"[DEBUG] Block {block_num} is occupied: auth=0")
+            #print(f"[DEBUG] Block {block_num} is occupied: auth=0")
         elif occupied_blocks:
             # Find nearest occupied block AHEAD
             nearest_ahead = None
@@ -125,13 +125,13 @@ def run_plc_cycle(data, log_callback):
                 # Authority based on distance to nearest occupied block ahead
                 if min_distance == 1:
                     final_authority = 0
-                    print(f"[DEBUG] Block {block_num}: 1 block ahead of occupied {nearest_ahead}: auth=0")
+                    #print(f"[DEBUG] Block {block_num}: 1 block ahead of occupied {nearest_ahead}: auth=0")
                 elif min_distance == 2:
                     final_authority = 1
-                    print(f"[DEBUG] Block {block_num}: 2 blocks ahead of occupied {nearest_ahead}: auth=1")
+                    #print(f"[DEBUG] Block {block_num}: 2 blocks ahead of occupied {nearest_ahead}: auth=1")
                 elif min_distance == 3:
                     final_authority = 2
-                    print(f"[DEBUG] Block {block_num}: 3 blocks ahead of occupied {nearest_ahead}: auth=2")
+                    #print(f"[DEBUG] Block {block_num}: 3 blocks ahead of occupied {nearest_ahead}: auth=2")
                 # else: stays at 3 (default)
         
         # ==============================================
@@ -165,7 +165,7 @@ def run_plc_cycle(data, log_callback):
             # Check if this block has a dynamic authority from Section N
             if block_num in section_n_dynamic_auth:
                 dynamic_auth = section_n_dynamic_auth[block_num]
-                print(f"[DEBUG] Block {block_num}: Applying Section N dynamic auth {dynamic_auth} (was {final_authority})")
+                #print(f"[DEBUG] Block {block_num}: Applying Section N dynamic auth {dynamic_auth} (was {final_authority})")
                 final_authority = min(final_authority, dynamic_auth)  # Use most restrictive
             
             # Apply the fixed authority rules for specific blocks (74-76, 98-100)
@@ -188,8 +188,8 @@ def run_plc_cycle(data, log_callback):
         # ==============================================
         # DEBUG: Show final authority
         # ==============================================
-        if final_authority != default_authority:
-            print(f"[DEBUG] Block {block_num}: Final authority = {final_authority}")
+        #if final_authority != default_authority:
+            #print(f"[DEBUG] Block {block_num}: Final authority = {final_authority}")
         
         # Update data
         data.update_block_in_track_data(block_num, "authority", final_authority)
@@ -210,11 +210,8 @@ def run_plc_cycle(data, log_callback):
     # Trigger UI update
     print(f"[DEBUG] Triggering UI update with {len(data.on_data_update)} callbacks")
     for callback in data.on_data_update:
-        try:
             callback()
-        except Exception as e:
-            print(f"[DEBUG] PLC callback error: {e}")
-    
+        
     # Log occupancy changes
     if occupancy_changed and occupied_blocks:
         if log_callback:
@@ -244,48 +241,60 @@ def control_switches_automatically(data, log_callback):
     
     print(f"[DEBUG] Switch control: Train in section N = {train_in_section_N}")
     
-    # Switch 85
+    # Switch 85 - Check if manually set
     switch_85_name = "Switch 85"
-    if switch_85_name in data.filtered_switch_positions:
-        switch_85 = data.filtered_switch_positions[switch_85_name]
-        current_pos = switch_85.get("direction", "85-86")
-        
-        if train_in_section_N:
-            desired_pos = "85-86"
-            condition_text = f"N -> O"
-        else:
-            desired_pos = "100-85"
-            condition_text = f"Q -> N"
-        
-        # Only update if position actually needs to change
-        if current_pos != desired_pos:
-            print(f"[DEBUG] Switch 85: {current_pos} -> {desired_pos}")
-            # UPDATE BOTH DIRECTION AND CONDITION
-            data.update_track_data("switch_positions", switch_85_name, "direction", desired_pos)
-            data.update_track_data("switch_positions", switch_85_name, "condition", condition_text)
-        else:
-            print(f"[DEBUG] Switch 85: Already at {desired_pos}")
+    switch_85_id = "85"
     
-    # Switch 76
+    if switch_85_name in data.filtered_switch_positions:
+        # Check if this switch was manually set in maintenance mode
+        if hasattr(data, 'manual_switches') and switch_85_id in data.manual_switches:
+            print(f"[DEBUG] Switch 85: Skipping - manually set by user")
+        else:
+            switch_85 = data.filtered_switch_positions[switch_85_name]
+            current_pos = switch_85.get("direction", "85-86")
+            
+            if train_in_section_N:
+                desired_pos = "85-86"
+                condition_text = f"N -> O"
+            else:
+                desired_pos = "100-85"
+                condition_text = f"Q -> N"
+            
+            # Only update if position actually needs to change
+            if current_pos != desired_pos:
+                print(f"[DEBUG] Switch 85: {current_pos} -> {desired_pos}")
+                # UPDATE BOTH DIRECTION AND CONDITION
+                data.update_track_data("switch_positions", switch_85_name, "direction", desired_pos)
+                data.update_track_data("switch_positions", switch_85_name, "condition", condition_text)
+            else:
+                print(f"[DEBUG] Switch 85: Already at {desired_pos}")
+    
+    # Switch 76 - Check if manually set
     switch_76_name = "Switch 76"
+    switch_76_id = "76"
+    
     if switch_76_name in data.filtered_switch_positions:
-        switch_76 = data.filtered_switch_positions[switch_76_name]
-        current_pos = switch_76.get("direction", "76-77")
-        
-        if train_in_section_N:
-            desired_pos = "77-101"
-            condition_text = f"N -> R"
+        # Check if this switch was manually set in maintenance mode
+        if hasattr(data, 'manual_switches') and switch_76_id in data.manual_switches:
+            print(f"[DEBUG] Switch 76: Skipping - manually set by user")
         else:
-            desired_pos = "76-77"
-            condition_text = f"M -> N"
-        
-        if current_pos != desired_pos:
-            print(f"[DEBUG] Switch 76: {current_pos} -> {desired_pos}")
-            # UPDATE BOTH DIRECTION AND CONDITION
-            data.update_track_data("switch_positions", switch_76_name, "direction", desired_pos)
-            data.update_track_data("switch_positions", switch_76_name, "condition", condition_text)
-        else:
-            print(f"[DEBUG] Switch 76: Already at {desired_pos}")
+            switch_76 = data.filtered_switch_positions[switch_76_name]
+            current_pos = switch_76.get("direction", "76-77")
+            
+            if train_in_section_N:
+                desired_pos = "77-101"
+                condition_text = f"N -> R"
+            else:
+                desired_pos = "76-77"
+                condition_text = f"M -> N"
+            
+            if current_pos != desired_pos:
+                print(f"[DEBUG] Switch 76: {current_pos} -> {desired_pos}")
+                # UPDATE BOTH DIRECTION AND CONDITION
+                data.update_track_data("switch_positions", switch_76_name, "direction", desired_pos)
+                data.update_track_data("switch_positions", switch_76_name, "condition", condition_text)
+            else:
+                print(f"[DEBUG] Switch 76: Already at {desired_pos}")
     
     print("[DEBUG] Switch control complete")
     return train_in_section_N
