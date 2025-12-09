@@ -625,6 +625,15 @@ def getDistanceToNextStation():
 
 def getNextStationName():
     """Get the name of the next station"""
+    # Check if we're on RED LINE at a switch point with beacon active
+    if selectedLine == 'RED':
+        # Check for alternative route at block 27 (beacon1)
+        if currentBlock == 27 and beacon1:
+            return "ALTERNATIVE ROUTE (Blocks 76-72)"
+        # Check for alternative route at block 38 (beacon2)
+        elif currentBlock == 38 and beacon2:
+            return "ALTERNATIVE ROUTE (Blocks 71-67)"
+    
     if currentSegmentIndex < len(preloadedTrackInformation['segments']):
         return preloadedTrackInformation['segments'][currentSegmentIndex]['to_station']
     # Return appropriate looping station based on selected line
@@ -1679,6 +1688,7 @@ class TrainSpeedDisplayUI:
         global serviceBrakeActive, currentSpeed, passengerEmergencySignal
         global brakeFailure, engineFailure, signalFailure, acPanel
         global preloadedTrackInformation, distanceToNextStation
+        global beacon1, beacon2
         
         try:
             command = message.get('command')
@@ -1826,6 +1836,18 @@ class TrainSpeedDisplayUI:
                     for segment in preloadedTrackInformation['segments']:
                         print(f"  - {segment['from_station']} → {segment['to_station']}: {segment['distance']}m")
                     print("[BEACON DATA] Automatic mode station stopping enabled")
+            
+            elif command == 'Beacon1':
+                # RED LINE: Switch at block 27 (to blocks 76-72)
+                global beacon1
+                beacon1 = bool(value)
+                print(f"[BEACON1] Received: {beacon1} (Switch at block 27)")
+            
+            elif command == 'Beacon2':
+                # RED LINE: Switch at block 38 (to blocks 71-67)
+                global beacon2
+                beacon2 = bool(value)
+                print(f"[BEACON2] Received: {beacon2} (Switch at block 38)")
         
         except Exception as e:
             print(f"Error processing message: {e}")
@@ -2165,7 +2187,10 @@ class TrainSpeedDisplayUI:
                 'manualSetpoint': None,
                 'nextStation': None,
                 'distToStation': None,
-                'isAtStation': None
+                'isAtStation': None,
+                'beacon1': None,
+                'beacon2': None,
+                'currentBlock': None
             }
         
         cache = self._display_cache
@@ -2216,9 +2241,24 @@ class TrainSpeedDisplayUI:
             nextStation = getNextStationName()
             distToStation = getDistanceToNextStation()
             
-            if cache['nextStation'] != nextStation:
+            # Check if beacons or current block changed - force station name update
+            if (cache['beacon1'] != beacon1 or cache['beacon2'] != beacon2 or 
+                cache['currentBlock'] != currentBlock or cache['nextStation'] != nextStation):
                 self.nextStationValue.config(text=nextStation)
                 cache['nextStation'] = nextStation
+                cache['beacon1'] = beacon1
+                cache['beacon2'] = beacon2
+                cache['currentBlock'] = currentBlock
+                
+                # Highlight alternative route in orange
+                if "ALTERNATIVE ROUTE" in nextStation:
+                    self.nextStationValue.config(fg='#ffa500')  # Orange for alternative route
+                else:
+                    # Reset to normal color (or yellow if at station)
+                    if isAtStation:
+                        self.nextStationValue.config(fg='#ffff00')
+                    else:
+                        self.nextStationValue.config(fg='white')
             
             # Only update distance if changed significantly (> 1 foot to reduce jitter)
             distToStationFeet = distToStation * 3.28084
