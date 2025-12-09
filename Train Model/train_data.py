@@ -135,7 +135,6 @@ class Train:
 		self.line = value
 		if value == 'green':
 			self.lineData = GreenLine()
-			self.station = 'Glenbury'
 		elif value == 'red':
 			self.lineData = RedLine()
 		else:
@@ -155,6 +154,9 @@ class Train:
 		if distanceDict != None:
 			self.distanceLeft = distanceDict['distance']
 			print(self.distanceLeft)
+		# Line check
+		if value == 9 and not stationCheck:
+			self.setLine('red')
 			
 		
 	# Metric setters with validation
