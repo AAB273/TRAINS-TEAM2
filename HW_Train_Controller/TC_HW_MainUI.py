@@ -32,7 +32,7 @@ from TC_HW_SystemLogUI import SystemLogViewer
 from TrainSocketServer import TrainSocketServer
 
 # CONFIGURATION - SET YOUR PI'S IP ADDRESS HERE
-PI_HOST = '172.20.10.8'  # ← CHANGE THIS to your Pi's IP address
+PI_HOST = '10.6.9.132'  # ← CHANGE THIS to your Pi's IP address
 PI_GPIO_PORT = 12348
 
 def load_socket_config():
@@ -603,7 +603,8 @@ def getCurrentSpeed():
     return currentSpeed * MS_TO_MPH
 
 def getCommandedSpeed():
-    return commandedSpeed 
+    """Get commanded speed in MPH (already in MPH from Track Model)"""
+    return commandedSpeed  # Already in MPH, no conversion needed
 
 def getCommandedAuthority():
     return commandedAuthority
@@ -1087,6 +1088,43 @@ def calculatePowerCommand():
         commandedSpeedMPH = commandedSpeed
         commandedSpeedMS = commandedSpeedMPH * MPH_TO_MS
         
+        # COMMANDED AUTHORITY SPEED LIMITING
+        # Authority 0: Stop (emergency stop unless near station)
+        # Authority 1: 50% of commanded speed
+        # Authority 2: 75% of commanded speed
+        # Authority 3: 100% of commanded speed (full speed)
+        authoritySpeedLimit = commandedSpeedMPH  # Default to full speed
+        
+        if commandedAuthority == 0:
+            # Authority 0 - Stop immediately
+            if not (isAtStation or shouldStartDecelerating()):
+                # Not near a station - emergency stop
+                authoritySpeedLimit = 0.0
+                if not hasattr(calculatePowerCommand, '_auth0_printed'):
+                    calculatePowerCommand._auth0_printed = True
+                    print(f"⚠️  AUTHORITY 0: Emergency stop commanded")
+            # else: Near station, station logic will handle stopping
+        elif commandedAuthority == 1:
+            # Authority 1 - 50% speed
+            authoritySpeedLimit = commandedSpeedMPH * 0.50
+        elif commandedAuthority == 2:
+            # Authority 2 - 75% speed
+            authoritySpeedLimit = commandedSpeedMPH * 0.75
+        elif commandedAuthority == 3:
+            # Authority 3 - Full speed (100%)
+            authoritySpeedLimit = commandedSpeedMPH
+        else:
+            # Unknown authority - assume safe (full speed)
+            authoritySpeedLimit = commandedSpeedMPH
+        
+        # Apply authority limit to commanded speed
+        originalCommandedSpeedMPH = commandedSpeedMPH
+        commandedSpeedMPH = min(commandedSpeedMPH, authoritySpeedLimit)
+        commandedSpeedMS = commandedSpeedMPH * MPH_TO_MS
+        
+        # Track if authority limited the speed (for brake logic later)
+        authorityLimitActive = (commandedSpeedMPH < originalCommandedSpeedMPH)
+        
         # AUTOMATIC MODE STATION LOGIC
         if autoModeEnabled and not emergencyBrakeEngaged:
             if isAtStation:
@@ -1129,29 +1167,39 @@ def calculatePowerCommand():
     
     # SPEED REDUCTION DETECTION - Use service brake to slow down
     # Service brake deceleration is approximately -2.67 m/s²
-    # Only apply if commanded speed dropped significantly and we're going faster than commanded
+    # Applies for:
+    # 1. Commanded speed drops significantly
+    # 2. Authority limits speed (e.g., auth changes from 3→1, reducing speed to 50%)
     SPEED_REDUCTION_THRESHOLD = 5.0  # MPH - significant speed reduction
     SERVICE_BRAKE_DURATION = 0.5  # seconds to apply brake
     
     if not hasattr(calculatePowerCommand, '_speed_reduction_brake_time'):
         calculatePowerCommand._speed_reduction_brake_time = 0.0
         calculatePowerCommand._last_check_time = time.time()
+        calculatePowerCommand._last_effective_speed = commandedSpeedMPH
     
     current_time = time.time()
     dt_check = current_time - calculatePowerCommand._last_check_time
     calculatePowerCommand._last_check_time = current_time
     
-    # Detect commanded speed reduction (not at station, not in manual mode)
+    # Detect effective speed reduction (not at station, not in manual mode)
+    # "Effective speed" includes both commanded speed and authority limits
     if not drivetrainManualMode and not isAtStation and not emergencyBrakeEngaged:
-        speedReduction = previousCommandedSpeed - commandedSpeedMPH
+        # Calculate the effective speed reduction (accounts for both commanded speed and authority)
+        effectiveSpeedReduction = calculatePowerCommand._last_effective_speed - commandedSpeedMPH
         
-        if speedReduction > SPEED_REDUCTION_THRESHOLD and currentSpeedMPH > commandedSpeedMPH + 3.0:
+        if effectiveSpeedReduction > SPEED_REDUCTION_THRESHOLD and currentSpeedMPH > commandedSpeedMPH + 3.0:
             # Significant speed reduction detected and we're going too fast
             # Apply service brake briefly to slow down
             if calculatePowerCommand._speed_reduction_brake_time <= 0:
                 # Start brake application
                 calculatePowerCommand._speed_reduction_brake_time = SERVICE_BRAKE_DURATION
-                print(f"⚠️  Speed reduced from {previousCommandedSpeed:.1f} to {commandedSpeedMPH:.1f} MPH - applying service brake to slow down")
+                
+                # Determine reason for speed reduction
+                if authorityLimitActive:
+                    print(f"⚠️  Authority {commandedAuthority}: Speed limited to {commandedSpeedMPH:.1f} MPH - applying service brake to slow down")
+                else:
+                    print(f"⚠️  Speed reduced from {calculatePowerCommand._last_effective_speed:.1f} to {commandedSpeedMPH:.1f} MPH - applying service brake to slow down")
                 
                 # Apply service brake via GPIO
                 if 'speedDisplay' in globals():
@@ -1167,6 +1215,9 @@ def calculatePowerCommand():
                                 'value': True,
                                 'train_id': 1
                             })
+        
+        # Update last effective speed for next comparison
+        calculatePowerCommand._last_effective_speed = commandedSpeedMPH
     
     # Count down brake time and release when done
     if calculatePowerCommand._speed_reduction_brake_time > 0:
@@ -1662,7 +1713,7 @@ class TrainSpeedDisplayUI:
                 if self.gpio_client and self.gpio_client.connected:
                     self.gpio_client.setLED('signal_failure', value)
             
-            elif command == 'Temp':
+            elif command == 'Cabin Temperature':
                 # Update AC panel with current temperature from Train Model
                 global acPanel
                 if acPanel is not None:
@@ -1952,10 +2003,17 @@ class TrainSpeedDisplayUI:
         
         tk.Button(
             buttonFrame,
+            text="Track Info",
+            command=self._launchTrackInfoPanel,
+            **btnStyle
+        ).grid(row=0, column=2, padx=5, pady=5)
+        
+        tk.Button(
+            buttonFrame,
             text="System Log",
             command=self._launchSystemLogViewer,
             **btnStyle
-        ).grid(row=0, column=2, padx=5, pady=5)
+        ).grid(row=1, column=0, padx=5, pady=5)
     
     def _launchPowerEngineer(self):
         """Show Power Engineer Panel"""
@@ -1994,6 +2052,17 @@ class TrainSpeedDisplayUI:
         else:
             announcementPanel.root.lift()
             print("Announcement Panel already open")
+    
+    def _launchTrackInfoPanel(self):
+        """Launch Track Information Panel"""
+        global trackInfoPanel
+        if trackInfoPanel is None or not tk.Toplevel.winfo_exists(trackInfoPanel.root):
+            trackInfoRoot = tk.Toplevel(self.root)
+            trackInfoPanel = TrackInformationPanel(trackInfoRoot)
+            print("✓ Launched Track Info Panel")
+        else:
+            trackInfoPanel.root.lift()
+            print("Track Info Panel already open")
     
     def _launchSystemLogViewer(self):
         """Launch System Log Viewer"""

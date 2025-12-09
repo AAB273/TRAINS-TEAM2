@@ -28,14 +28,21 @@ class MurphyTrackFailures:
         # Format: {block_number: failure_type}
         # failure_type can be: None, "track_circuit", "broken_rail", "power"
         self.active_failures = {}
+
+        # Track which blocks have track elements in failure state
+        # Format: {block_number: True/False}
+        self.track_element_failures = {}
         
         # Initialize all blocks with no failure
         for block in self.data_manager.blocks:
             self.active_failures[block.block_number] = None
+            self.track_element_failures[block.block_number] = False
             if not hasattr(block, 'failure_mode'):
                 block.failure_mode = None
             if not hasattr(block, 'traversable'):
                 block.traversable = True
+            if not hasattr(block, 'track_element_failed'):
+                block.track_element_failed = False
 
     # -------------------------------------------------------------------------
     # FAILURE ACTIVATION
@@ -148,6 +155,15 @@ class MurphyTrackFailures:
         # Deactivate crossing
         if hasattr(block, 'crossing'):
             block.crossing = False  # Inactive
+
+        # Check if this block has track elements (signals or crossings)
+        # and mark them as failed for UI display
+        has_track_element = (hasattr(block, 'traffic_light_state') or 
+                             hasattr(block, 'crossing') or 
+                             hasattr(block, 'crossing_state'))
+        if has_track_element:
+            self.track_element_failures[block_num] = True
+            block.track_element_failed = True
         
         print(f"⚠️ POWER FAILURE activated on Block {block_num}")
         print(f"   - Beacon data disabled")
@@ -205,7 +221,9 @@ class MurphyTrackFailures:
         if failure_type == "power":
             # Signals and crossings will be restored by normal system operation
             # Don't force them on, let the system control them normally
-            pass
+            # Clear track element failure status
+            self.track_element_failures[block_num] = False
+            block.track_element_failed = False
         
         print(f"✅ Failure cleared on Block {block_num} (was: {failure_type})")
         return True
@@ -316,6 +334,19 @@ class MurphyTrackFailures:
         return failure != "power"
 
     # -------------------------------------------------------------------------
+    def is_track_element_failed(self, block_num):
+        """
+        Check if a track element (signal/crossing) is in failure state.
+        This happens when a power failure occurs on a block with track elements.
+        
+        Args:
+            block_num (int): Block number to check
+            
+        Returns:
+            bool: True if track element is failed, False otherwise
+        """
+        return self.track_element_failures.get(block_num, False)
+
     # UI INTEGRATION
     # -------------------------------------------------------------------------
     
@@ -365,6 +396,14 @@ class MurphyTrackFailures:
         else:
             return "gray"
     
+    def _print_active_failures(self):
+        """Helper method to print active failures count."""
+        failures = self.get_all_failures()
+        if failures:
+            print(f"   - Active failures: {len(failures)} block(s)")
+        else:
+            print(f"   - No other active failures")
+
     def print_failure_summary(self):
         """Print a summary of all active failures to console."""
         failures = self.get_all_failures()
@@ -387,6 +426,6 @@ class MurphyTrackFailures:
             elif failure_type == "broken_rail":
                 print(f"  └─ Effects: Not traversable")
             elif failure_type == "power":
-                print(f"  └─ Effects: No beacon, No heating, No signals/crossings")
+                print(f"  └─ Effects: No beacon, No heating, Track elements show FAILURE")
         
         print("="*60 + "\n")
