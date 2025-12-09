@@ -86,7 +86,8 @@ def run_plc_cycle(data, log_callback):
     # ==============================================
     #print("[DEBUG] Running switch control...")
     control_switches_automatically(data, log_callback)
-    
+    apply_ctc_speed_overrides(data, log_callback)
+
     # Process each block
     for block_key, block_info in data.filtered_blocks.items():
         block_num = block_info["number"]
@@ -513,3 +514,312 @@ def apply_section_n_authority_logic(data, log_callback):
     
     print(f"[DEBUG] Section N authority updates calculated: {authority_updates}")
     return authority_updates
+
+def apply_ctc_speed_overrides(data, log_callback):
+    """
+    Apply CTC speed override logic for PLC sections K-Y only:
+    1. When CTC sends suggested speed, set that SECTION to CTC speed (max 43.5 mph)
+    2. When section becomes unoccupied OR train reaches authority 0 (and is occupied), 
+       reset to default (32 mph) AND clear suggested speed
+    """
+    current_line = data.current_line
+    
+    # PLC sections we control
+    plc_sections = ['K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y']
+    
+    # Track which suggested speeds to clear
+    suggested_speeds_to_clear = []
+    
+    # Check if CTC has suggested any speeds
+    if current_line in data.suggested_speed:
+        ctc_suggested_speeds = data.suggested_speed[current_line]
+        
+        # Process each block with CTC suggested speed
+        for block_str, ctc_speed_str in ctc_suggested_speeds.items():
+            try:
+                block_num = int(block_str)
+                
+                # Get the section for this block
+                block_section = data.get_section_for_block(current_line, block_str)
+                
+                # Only process if section is in PLC sections K-Y
+                if block_section and block_section in plc_sections:
+                    
+                    # Convert CTC speed from m/s to mph (if needed) and cap at 43.5 mph
+                    ctc_speed_mph = float(ctc_speed_str) * 2.23694  # Convert m/s to mph
+                    
+                    # Cap at maximum speed of 43.5 mph
+                    if ctc_speed_mph > 43.5:
+                        ctc_speed_mph = 43.5
+                        print(f"  CTC Speed Capped: Section {block_section} speed capped to 43.5 mph")
+                    
+                    print(f"  CTC Speed Override: Block {block_num} in Section {block_section} -> {ctc_speed_mph:.1f} mph")
+                    
+                    # Find all blocks in this section
+                    blocks_in_section = data.get_blocks_in_section(current_line, block_section)
+                    
+                    # Apply CTC speed to ALL blocks in this section
+                    for section_block in blocks_in_section:
+                        section_block_str = str(section_block)
+                        
+                        # Set commanded speed for this block
+                        data.commanded_speed[current_line][section_block_str] = str(ctc_speed_mph)
+                        print(f"    -> Block {section_block}: Speed set to {ctc_speed_mph:.1f} mph")
+                        
+                        # Send to Track Model if this block is occupied
+                        block_key = f"Block {section_block}"
+                        if block_key in data.filtered_blocks:
+                            if data.filtered_blocks[block_key].get("occupied", False):
+                                # Send commanded values to Track Model
+                                commanded_auth = data.commanded_authority[current_line].get(section_block_str, "3")
+                                if hasattr(data, 'app') and data.app:
+                                    data.app.send_commanded_to_track_model(
+                                        current_line, section_block_str, 
+                                        str(ctc_speed_mph), commanded_auth
+                                    )
+                                    print(f"    -> Sent to Track Model (occupied)")
+                
+            except (ValueError, TypeError) as e:
+                print(f"  Error processing CTC speed for block {block_str}: {e}")
+    
+    # Reset sections to default speed when conditions are met
+    # ONLY for PLC sections K-Y
+    for section in plc_sections:
+        blocks_in_section = data.get_blocks_in_section(current_line, section)
+        
+        # Skip if no blocks in this section
+        if not blocks_in_section:
+            continue
+        
+        # Check if section should be reset to default speed
+        should_reset = False
+        
+        # Condition 1: Check if entire section is unoccupied
+        section_occupied = False
+        for block_num in blocks_in_section:
+            block_key = f"Block {block_num}"
+            if block_key in data.filtered_blocks:
+                if data.filtered_blocks[block_key].get("occupied", False):
+                    section_occupied = True
+                    break
+        
+        if not section_occupied:
+            should_reset = True
+            print(f"  Speed Reset: Section {section} is unoccupied -> reset to default")
+            
+            # Mark any suggested speeds in this section for clearing
+            if current_line in data.suggested_speed:
+                for block_str in list(data.suggested_speed[current_line].keys()):
+                    try:
+                        block_section = data.get_section_for_block(current_line, block_str)
+                        if block_section == section:
+                            suggested_speeds_to_clear.append(block_str)
+                            print(f"    -> Will clear suggested speed for block {block_str}")
+                    except:
+                        pass
+        
+        # Condition 2: Check if any block in section has authority 0 AND is occupied
+        # This means train has reached stopping point
+        if not should_reset:  # Only check if section is occupied
+            for block_num in blocks_in_section:
+                block_str = str(block_num)
+                block_key = f"Block {block_num}"
+                
+                # Check both: authority = 0 AND block is occupied
+                block_auth = data.commanded_authority[current_line].get(block_str, "3")
+                is_occupied = False
+                
+                if block_key in data.filtered_blocks:
+                    is_occupied = data.filtered_blocks[block_key].get("occupied", False)
+                
+                if block_auth == "0" and is_occupied:
+                    should_reset = True
+                    print(f"  Speed Reset: Block {block_num} in Section {section} has authority 0 AND is occupied -> reset to default")
+                    
+                    # Mark suggested speeds in this section for clearing
+                    if current_line in data.suggested_speed:
+                        for block_str in list(data.suggested_speed[current_line].keys()):
+                            try:
+                                block_section = data.get_section_for_block(current_line, block_str)
+                                if block_section == section:
+                                    suggested_speeds_to_clear.append(block_str)
+                                    print(f"    -> Will clear suggested speed for block {block_str}")
+                            except:
+                                pass
+                    break
+        
+        # Reset section to default speed if conditions are met
+        if should_reset:
+            default_speed = "32"  # Default speed in mph
+            
+            for block_num in blocks_in_section:
+                block_str = str(block_num)
+                
+                # Update commanded speed
+                data.commanded_speed[current_line][block_str] = default_speed
+                
+                # Send to Track Model if block is occupied
+                block_key = f"Block {block_num}"
+                if block_key in data.filtered_blocks:
+                    if data.filtered_blocks[block_key].get("occupied", False):
+                        commanded_auth = data.commanded_authority[current_line].get(block_str, "3")
+                        if hasattr(data, 'app') and data.app:
+                            data.app.send_commanded_to_track_model(
+                                current_line, block_str, default_speed, commanded_auth
+                            )
+                            print(f"    -> Block {block_num}: Reset to default speed {default_speed} mph")
+    
+    # Actually clear the suggested speeds
+    if suggested_speeds_to_clear and current_line in data.suggested_speed:
+        for block_str in suggested_speeds_to_clear:
+            if block_str in data.suggested_speed[current_line]:
+                del data.suggested_speed[current_line][block_str]
+                print(f"  CTC Speed CLEARED: Removed suggested speed for block {block_str}")
+
+def apply_commanded_speed_overrides(data, log_callback):
+    """
+    Apply commanded speed override logic for PLC sections K-Y only:
+    1. When user sets commanded speed, set that SECTION to commanded speed (max 43.5 mph)
+    2. When section becomes unoccupied OR train reaches authority 0 (and is occupied), 
+       reset to default (32 mph) AND clear commanded speed override
+    """
+    current_line = data.current_line
+    
+    # PLC sections we control
+    plc_sections = ['K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y']
+    
+    # Track which commanded speeds to clear (we'll track by section)
+    commanded_speeds_to_clear = set()
+    
+    # First, check for sections that should have their commanded speeds cleared
+    for section in plc_sections:
+        blocks_in_section = data.get_blocks_in_section(current_line, section)
+        
+        # Skip if no blocks in this section
+        if not blocks_in_section:
+            continue
+        
+        # Check if section should be reset to default speed
+        should_reset = False
+        
+        # Condition 1: Check if entire section is unoccupied
+        section_occupied = False
+        for block_num in blocks_in_section:
+            block_key = f"Block {block_num}"
+            if block_key in data.filtered_blocks:
+                if data.filtered_blocks[block_key].get("occupied", False):
+                    section_occupied = True
+                    break
+        
+        if not section_occupied:
+            should_reset = True
+            print(f"  Commanded Speed Reset: Section {section} is unoccupied -> reset to default")
+            commanded_speeds_to_clear.add(section)
+        
+        # Condition 2: Check if any block in section has authority 0 AND is occupied
+        # This means train has reached stopping point
+        if not should_reset:  # Only check if section is occupied
+            for block_num in blocks_in_section:
+                block_str = str(block_num)
+                block_key = f"Block {block_num}"
+                
+                # Check both: authority = 0 AND block is occupied
+                block_auth = data.commanded_authority[current_line].get(block_str, "3")
+                is_occupied = False
+                
+                if block_key in data.filtered_blocks:
+                    is_occupied = data.filtered_blocks[block_key].get("occupied", False)
+                
+                if block_auth == "0" and is_occupied:
+                    should_reset = True
+                    print(f"  Commanded Speed Reset: Block {block_num} in Section {section} has authority 0 AND is occupied -> reset to default")
+                    commanded_speeds_to_clear.add(section)
+                    break
+    
+    # Now apply commanded speed logic
+    # We need to track which blocks have user-set commanded speeds
+    # (Different from CTC suggested speeds)
+    
+    # Reset sections that need clearing
+    for section in commanded_speeds_to_clear:
+        blocks_in_section = data.get_blocks_in_section(current_line, section)
+        
+        for block_num in blocks_in_section:
+            block_str = str(block_num)
+            
+            # Set default speed
+            default_speed = "32"
+            data.commanded_speed[current_line][block_str] = default_speed
+            
+            # Send to Track Model if block is occupied
+            block_key = f"Block {block_num}"
+            if block_key in data.filtered_blocks:
+                if data.filtered_blocks[block_key].get("occupied", False):
+                    commanded_auth = data.commanded_authority[current_line].get(block_str, "3")
+                    if hasattr(data, 'app') and data.app:
+                        data.app.send_commanded_to_track_model(
+                            current_line, block_str, default_speed, commanded_auth
+                        )
+                        print(f"    -> Block {block_num}: Reset to default speed {default_speed} mph")
+    
+    # For sections NOT being cleared, we need to ensure commanded speeds are applied correctly
+    # This is tricky because we don't track which speeds were user-set vs PLC-calculated
+    
+    # One approach: Check if any block in a section has a commanded speed different from default
+    # and apply it to the whole section (similar to CTC logic)
+    
+    for section in plc_sections:
+        if section in commanded_speeds_to_clear:
+            continue  # Already handled above
+            
+        blocks_in_section = data.get_blocks_in_section(current_line, section)
+        
+        # Find any user-set commanded speed in this section
+        user_set_speed = None
+        for block_num in blocks_in_section:
+            block_str = str(block_num)
+            cmd_speed = data.commanded_speed[current_line].get(block_str)
+            
+            # Check if this speed looks like it was user-set (not default and not CTC)
+            if cmd_speed and cmd_speed != "32":
+                # Check if it's not a CTC speed (CTC sends m/s, user sends mph)
+                # User speeds in mph could be any value, but CTC speeds are from suggested_speed
+                if current_line in data.suggested_speed and block_str in data.suggested_speed[current_line]:
+                    # This is a CTC speed, not user commanded
+                    continue
+                
+                # This might be a user-set speed
+                try:
+                    speed_float = float(cmd_speed)
+                    # Cap at maximum speed of 43.5 mph
+                    if speed_float > 43.5:
+                        speed_float = 43.5
+                        cmd_speed = "43.5"
+                        print(f"  Commanded Speed Capped: Section {section} speed capped to 43.5 mph")
+                    
+                    user_set_speed = cmd_speed
+                    print(f"  Commanded Speed Override: Found user-set speed {cmd_speed} mph in Section {section}")
+                    break
+                except (ValueError, TypeError):
+                    continue
+        
+        # Apply user-set speed to entire section if found
+        if user_set_speed:
+            for block_num in blocks_in_section:
+                block_str = str(block_num)
+                
+                # Set commanded speed for this block
+                data.commanded_speed[current_line][block_str] = user_set_speed
+                
+                # Send to Track Model if this block is occupied
+                block_key = f"Block {block_num}"
+                if block_key in data.filtered_blocks:
+                    if data.filtered_blocks[block_key].get("occupied", False):
+                        # Send commanded values to Track Model
+                        commanded_auth = data.commanded_authority[current_line].get(block_str, "3")
+                        if hasattr(data, 'app') and data.app:
+                            data.app.send_commanded_to_track_model(
+                                current_line, block_str, 
+                                user_set_speed, commanded_auth
+                            )
+                            print(f"    -> Block {block_num}: Applied commanded speed {user_set_speed} mph")
