@@ -303,7 +303,7 @@ class ScheduleScreen:
             print(speed)
 
             #self.mainScreen.send_to_ui("CTC_Test_UI", {"command": "TL", "value": [str(self.trainNum - 1), f"{speed:.3f}", str(auth), line]})
-            self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": line.title(), "block": location, "speed": f"{speed:.3f}", "authority": str(auth), "value_type": "suggested"}})
+            self.mainScreen.send_to_ui("Track HW", {"command": "update_speed_auth", "value": {"track": line.title(), "block": location, "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
             self.mainScreen.send_to_ui("Track SW", {"command": "update_speed_auth", "value": {"track": line.title(), "block": location, "speed": f"{speed:.2f}", "authority": str(auth), "value_type": "suggested"}})
     
             return auth  #for test case 1
