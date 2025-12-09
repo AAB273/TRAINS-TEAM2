@@ -410,10 +410,12 @@ class Train:
 		self.speedPrev = self.speed
 		self.speed = newSpeed
 		self.acceleration = aNew
-		self.distanceLeft = self.distanceLeft - distance
+		
+		if self.distance != None:
+			self.distanceLeft = self.distanceLeft - distance
 		
 
-		if newSpeed > 0.1 and self.distanceLeft != 0: #may need to fix depending on how the train stops at a station
+		if newSpeed > 0.1 and self.distanceLeft != None: #may need to fix depending on how the train stops at a station
 			timeSeconds = self.distanceLeft / newSpeed
 			timeMinutes = max(0, int(timeSeconds / 60))
 			self.setTimeToStation(timeMinutes)
