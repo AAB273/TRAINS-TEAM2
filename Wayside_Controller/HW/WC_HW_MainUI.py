@@ -734,7 +734,7 @@ class UITestData:
         try:
             global_clock.endTimer()
         except:
-            print(f"Error stopping clock: {e}")
+            # print(f"Error stopping clock: {e}")
             pass
 
         # Properly stop the socket server with comprehensive cleanup
@@ -745,7 +745,7 @@ class UITestData:
                     disconnect_msg = {
                         'command': 'server_shutdown',
                         'message': 'Main UI is closing',
-                        'timestamp': time.time()
+                        'timestamp': self.clock.getTime()
                     }
                     for ui_id, connection in list(self.server1.connections.items()):
                         try:
@@ -1204,10 +1204,12 @@ def load_line_data(self, filename):
                 "switches": {
                     "Switch 12-13": {"condition": "Normal", "direction": "Blocks 12-13"},
                     "Switch 28-29": {"condition": "Normal", "direction": "Blocks 28-29"},
-                    "Switch 57-Yard": {"condition": "Normal", "direction": "Blocks 57-Yard"}
+                    "Switch 57-Yard": {"condition": "Normal", "direction": "Blocks 57-Yard"},
+                    "Switch 62-Yard": {"condition": "Normal", "direction": "Blocks Yard-63"}
                 },
                 "lights": {
-                    "Light 12": {"condition": "Normal", "signal": "Green"},
+                    "Light 1": {"condition": "Normal", "signal": "Green"},
+                    "Light 13": {"condition": "Normal", "signal": "Green"},
                     "Light 28": {"condition": "Normal", "signal": "Yellow"},
                     "Light 57": {"condition": "Normal", "signal": "Red"},
                     "Light 19": {"condition": "Normal", "signal": "Red"}
@@ -1754,6 +1756,18 @@ class LeftPanel(tk.Frame):
         self.update_crossing_options()
         self.update_switch_options()
         self.update_light_options()
+        # Force update display for first item in each category
+        if self.crossing_selector['values']:
+            self.crossing_selector.set(self.crossing_selector['values'][0])
+            self.update_crossing_display()
+    
+        if self.switch_selector['values']:
+            self.switch_selector.set(self.switch_selector['values'][0])
+            self.update_switch_display()
+    
+        if self.light_selector['values']:
+            self.light_selector.set(self.light_selector['values'][0])
+            self.update_light_display()
    
     def update_crossing_display(self, event=None):
         selected = self.crossing_selector.get()
@@ -2041,10 +2055,10 @@ class RightPanel(tk.Frame):
         #                               width=8, relief=tk.SUNKEN)
         # self.occupied_label.grid(row=1, column=1, padx=2, pady=2, sticky='w')
 
-        # Line
-        tk.Label(current_block_frame, text="Line:", bg='#cccccc', width=10).grid(row=0, column=2, padx=2, pady=2, sticky='w')
-        self.line_label = tk.Label(current_block_frame, text="N/A", bg='white', width=8, relief=tk.SUNKEN)  # THIS WAS MISSING
-        self.line_label.grid(row=0, column=3, padx=2, pady=2, sticky='w')
+        # # Line
+        # tk.Label(current_block_frame, text="Line:", bg='#cccccc', width=10).grid(row=0, column=2, padx=2, pady=2, sticky='w')
+        # self.line_label = tk.Label(current_block_frame, text="N/A", bg='white', width=8, relief=tk.SUNKEN)  # THIS WAS MISSING
+        # self.line_label.grid(row=0, column=3, padx=2, pady=2, sticky='w')
 
         # Block number display
         tk.Label(current_block_frame, text="Block #:", bg='#cccccc', 
@@ -2053,10 +2067,10 @@ class RightPanel(tk.Frame):
                                        width=8, relief=tk.SUNKEN)
         self.block_num_label.grid(row=0, column=1, padx=3, pady=2, sticky='w')
         
-        # # Section
-        # tk.Label(current_block_frame, text="Section:", bg='#cccccc', width=10).grid(row=1, column=0, padx=2, pady=2, sticky='w')
-        # self.section_label = tk.Label(current_block_frame, text="N/A", bg='white', width=8, relief=tk.SUNKEN)
-        # self.section_label.grid(row=1, column=1, padx=4, pady=2, sticky='w')
+        # Section
+        tk.Label(current_block_frame, text="Section:", bg='#cccccc', width=10).grid(row=1, column=0, padx=2, pady=2, sticky='w')
+        self.section_label = tk.Label(current_block_frame, text="N/A", bg='white', width=8, relief=tk.SUNKEN)
+        self.section_label.grid(row=1, column=1, padx=4, pady=2, sticky='w')
 
     def update_current_block_info(self):
         """Update current block display from data"""
