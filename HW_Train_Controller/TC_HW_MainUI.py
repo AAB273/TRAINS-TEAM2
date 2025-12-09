@@ -1138,6 +1138,16 @@ def calculatePowerCommand():
     if drivetrainManualMode:
         # In manual mode, use manual setpoint speed (in MPH, convert to m/s)
         commandedSpeedMPH = manualSetpointSpeed
+        
+        # MANUAL MODE SPEED LIMIT ENFORCEMENT
+        # Unless authority is 4, manual speed cannot exceed the track speed limit
+        if commandedAuthority != 4:
+            # displayCommandedSpeed is the raw track speed limit (authority-unadjusted)
+            # Limit manual setpoint to not exceed track speed limit
+            if commandedSpeedMPH > displayCommandedSpeed:
+                commandedSpeedMPH = displayCommandedSpeed
+                print(f"[MANUAL MODE] Speed limited to track limit: {displayCommandedSpeed:.1f} MPH (Authority={commandedAuthority})")
+        
         commandedSpeedMS = commandedSpeedMPH * MPH_TO_MS
     else:
         # In automatic mode, use commanded speed from track (already in MPH, convert to m/s)
@@ -1404,8 +1414,8 @@ def selectTrainLine():
     # Green Line button
     green_button = tk.Button(
         button_frame,
-        text="GREEN LINE",
-        font=('Arial', 16, 'bold'),
+        text="GREEN LINE\nHW",
+        font=('Arial', 15, 'bold'),
         bg='#27ae60',
         fg='white',
         activebackground='#229954',
@@ -1419,8 +1429,8 @@ def selectTrainLine():
     # Red Line button
     red_button = tk.Button(
         button_frame,
-        text="RED LINE",
-        font=('Arial', 16, 'bold'),
+        text="RED LINE\nHW",
+        font=('Arial', 15, 'bold'),
         bg='#e74c3c',
         fg='white',
         activebackground='#c0392b',
