@@ -130,6 +130,16 @@ class TrainModelPassengerGUI:
 			value = message.get('value')
 			trainId = message.get('train_id')
 			
+			if command == 'Beacon1' or command == 'Beacon2':
+				self.server.send_to_ui("Train SW", {
+					'command': command,
+					'value': value
+				})
+				self.server.send_to_ui("Train HW", {
+					'command': command,
+					'value': value
+				})
+
 			# Determine which train to operate on
 			if trainId is not None:
 				# Operate on specified train
@@ -307,15 +317,15 @@ class TrainModelPassengerGUI:
 			elif command == 'Passengers Boarding':
 				self.updateDisembarking(train)
 				self.updateBoarding(value, train)
-			elif command == 'Beacon1' or command == 'Beacon2':
-				self.server.send_to_ui("Train SW", {
-					'command': command,
-					'value': value
-				})
-				self.server.send_to_ui("Train HW", {
-					'command': command,
-					'value': value
-				})
+			# elif command == 'Beacon1' or command == 'Beacon2':
+			# 	self.server.send_to_ui("Train SW", {
+			# 		'command': command,
+			# 		'value': value
+			# 	})
+			# 	self.server.send_to_ui("Train HW", {
+			# 		'command': command,
+			# 		'value': value
+			# 	})
 			elif command == 'TIME':
 				self.uiLabels['time'].config(text=value)
 			elif command == 'MULT':
