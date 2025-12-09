@@ -73,7 +73,8 @@ class TrainModelPassengerGUI:
 		self.previousFailureSignalPickupState = False
 		self.failureActivationInProgress = False
 		self.previousActiveTrains = set()
-		#self.clockSpeed = clock.getSpeed() * 100
+		self.clockMultiplier = 1
+		self.clockSpeed = 1000
 
 		self.setupGUI()
 		
@@ -304,10 +305,23 @@ class TrainModelPassengerGUI:
 			elif command == 'Block Occupancy':
 				train.setBlock(value)
 			elif command == 'Passengers Boarding':
+				self.updateDisembarking(train)
 				self.updateBoarding(value, train)
-			elif command == 'Beacon':
-				if train.line == 'Green':
-					print(f"Beacon data for train {train.trainId}")
+			elif command == 'beacon1' or command == 'beacon2':
+				self.server.send_to_ui("Train SW", {
+					'command': command,
+					'value': value,
+					'train_id': trainId if trainId else train.trainId
+				})
+				self.server.send_to_ui("Train HW", {
+					'command': command,
+					'value': value,
+					'train_id': trainId if trainId else train.trainId
+				})
+			elif command == 'TIME':
+				self.uiLabels['time'].config(text=value)
+			elif command == 'MULT':
+				self.updateClockSpeed(value)
 			
 			# Update UI if this is the currently selected train
 			if train == self.currentTrain:
@@ -344,10 +358,6 @@ class TrainModelPassengerGUI:
 						'value': train.speed,
 						'train_id': train.trainId
 					})
-				
-				# Update passenger disembarking logic for each train
-				# if train.atStation:
-				# 	self.updateDisembarking(train)
 		
 		# Update UI for the currently selected train only
 		if self.currentTrain and self.currentTrain.active:
@@ -355,6 +365,12 @@ class TrainModelPassengerGUI:
 		
 		# Schedule next update
 		self.root.after(100, self.continuousPhysicsUpdate)
+
+	def updateClockSpeed(self, clockMultiplier):
+		if clockMultiplier == '1':
+			self.clockSpeed = 1000
+		elif clockMultiplier == '10':
+			self.clockSpeed = 100
 
 	def emergencyBrakeActivated(self, train=None):
 		# Activates the emergency brake and notifies other modules.
@@ -938,9 +954,7 @@ class TrainModelPassengerGUI:
 		# Initialize the train selector dropdown
 		self.root.after(100, self.refreshTrainSelector)
 
-		self.root.after(100, self.continuousPhysicsUpdate)
-
-		#self.root.after(100, self.updateTime)
+		self.root.after(self.clockSpeed, self.continuousPhysicsUpdate) # 100ms  = 10x,  1000ms = 1x
 
 		self.root.after(5000, self.cycleThroughAds)
 
