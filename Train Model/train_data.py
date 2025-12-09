@@ -135,7 +135,6 @@ class Train:
 		self.line = value
 		if value == 'green':
 			self.lineData = GreenLine()
-			self.station = 'Glenbury'
 		elif value == 'red':
 			self.lineData = RedLine()
 		else:
@@ -151,9 +150,13 @@ class Train:
 		stationCheck = self.lineData.getValue(value,'infrastructure') 
 		if "STATION" in stationCheck:
 			self.atStation = True
-		distanceDict = GreenLine.getDistance(value)
+		distanceDict = self.lineData.getDistance(value)
 		if distanceDict != None:
 			self.distanceLeft = distanceDict['distance']
+			print(self.distanceLeft)
+		# Line check
+		if value == 9 and not ("STATION" in stationCheck):
+			self.setLine('red')
 			
 		
 	# Metric setters with validation
@@ -382,7 +385,7 @@ class Train:
 			newSpeed = 0
 			aNew = 0
 		
-		if self.speedLimit != 0:
+		if self.speedLimit != 0 and self.commandedAuthority != 4:
 			if newSpeed > self.speedLimitMps:
 				newSpeed = self.speedLimitMps
 				aNew = 0
@@ -407,9 +410,12 @@ class Train:
 		self.speedPrev = self.speed
 		self.speed = newSpeed
 		self.acceleration = aNew
-		# self.distanceLeft = self.distanceLeft - distance
 		
-		if newSpeed > 0.1 and self.distanceLeft != 0: #may need to fix depending on how the train stops at a station
+		if self.distance != None:
+			self.distanceLeft = self.distanceLeft - distance
+		
+
+		if newSpeed > 0.1 and self.distanceLeft != None: #may need to fix depending on how the train stops at a station
 			timeSeconds = self.distanceLeft / newSpeed
 			timeMinutes = max(0, int(timeSeconds / 60))
 			self.setTimeToStation(timeMinutes)
