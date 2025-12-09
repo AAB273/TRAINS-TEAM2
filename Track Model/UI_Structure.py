@@ -5881,6 +5881,10 @@ class TrackModelUI(tk.Tk):
                 train_id = message.get('train_id')
 
                 # ---------------------------
+                
+                # Convert train_id to string if it's an integer (Passenger_UI sends as int)
+                if train_id is not None and isinstance(train_id, int):
+                    train_id = str(train_id)
                 # 1. Require a train_id
                 # ---------------------------
                 if not train_id:
