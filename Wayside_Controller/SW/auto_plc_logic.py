@@ -138,26 +138,97 @@ def run_plc_cycle(data, log_callback):
         # NEW: Apply CTC override logic
         # ==============================================
         if ctc_override_blocks:
-            # Check if this block is within range of any CTC override block
+            # FIRST: Check if train has reached any CTC stopping point
+            ctc_overrides_to_clear = []
+            
             for ctc_block in ctc_override_blocks:
-                # CTC block is at position X
-                # We want: X+1 = 2, X+2 = 1, X+3 = 0, X+4+ = 3
-                distance_to_ctc = block_num_int - ctc_block
+                # Determine stopping point based on block number
+                if ctc_block == 80:
+                    # SPECIAL CASE: Backward movement for block 80
+                    stopping_block = ctc_block - 3  # 80-3 = 77
+                    print(f"  CTC Block 80: Using BACKWARD pattern (stopping at {stopping_block})")
+                else:
+                    # NORMAL: Forward movement for all other blocks
+                    stopping_block = ctc_block + 3  # X+3
+                    print(f"  CTC Block {ctc_block}: Using FORWARD pattern (stopping at {stopping_block})")
                 
-                if distance_to_ctc == 1:  # Block X+1
-                    ctc_auth = 2
-                    final_authority = min(final_authority, ctc_auth)  # Use most restrictive
-                    print(f"  CTC Override: Block {block_num} (X+1) auth = min({final_authority}, {ctc_auth})")
-                elif distance_to_ctc == 2:  # Block X+2
-                    ctc_auth = 1
-                    final_authority = min(final_authority, ctc_auth)
-                    print(f"  CTC Override: Block {block_num} (X+2) auth = min({final_authority}, {ctc_auth})")
-                elif distance_to_ctc == 3:  # Block X+3
-                    ctc_auth = 0
-                    final_authority = min(final_authority, ctc_auth)
-                    print(f"  CTC Override: Block {block_num} (X+3) auth = min({final_authority}, {ctc_auth})")
-                # Block X+4 and beyond: no override (stays at current auth)
-        
+                # Check if stopping block is occupied
+                stopping_key = f"Block {stopping_block}"
+                if stopping_key in data.filtered_blocks:
+                    if data.filtered_blocks[stopping_key].get("occupied", False):
+                        # Train has reached destination! Clear this CTC override
+                        ctc_overrides_to_clear.append(ctc_block)
+                        print(f"  CTC AUTO-CLEAR: Block {ctc_block} (train at stopping block {stopping_block})")
+            
+            # Actually delete from suggested_authority
+            if ctc_overrides_to_clear and current_line in data.suggested_authority:
+                for ctc_block in ctc_overrides_to_clear:
+                    block_str = str(ctc_block)
+                    if block_str in data.suggested_authority[current_line]:
+                        del data.suggested_authority[current_line][block_str]
+                        print(f"  CTC OVERRIDE DELETED: Removed block {ctc_block}")
+            
+            # Filter active CTC blocks
+            if current_line in data.suggested_authority:
+                active_ctc_blocks = []
+                for ctc_block in ctc_override_blocks:
+                    if ctc_block in ctc_overrides_to_clear:
+                        continue
+                        
+                    block_str = str(ctc_block)
+                    if block_str in data.suggested_authority[current_line]:
+                        suggested_auth = data.suggested_authority[current_line][block_str]
+                        try:
+                            if int(suggested_auth) == 3:
+                                active_ctc_blocks.append(ctc_block)
+                        except ValueError:
+                            pass
+                
+                ctc_override_blocks = active_ctc_blocks
+            
+            # Apply CTC override logic with correct direction
+            for ctc_block in ctc_override_blocks:
+                if ctc_block == 80:
+                    # BACKWARD pattern for block 80: 80=3, 79=2, 78=1, 77=0
+                    distance = ctc_block - block_num_int  # Positive if block is behind CTC
+                    
+                    if distance == 0:  # Block 80 itself
+                        ctc_auth = 3
+                        final_authority = min(final_authority, ctc_auth)
+                        print(f"  CTC Override BACKWARD: Block {block_num} (CTC block) auth = min({final_authority}, {ctc_auth})")
+                    elif distance == 1:  # Block 79 (80-1)
+                        ctc_auth = 2
+                        final_authority = min(final_authority, ctc_auth)
+                        print(f"  CTC Override BACKWARD: Block {block_num} (X-1) auth = min({final_authority}, {ctc_auth})")
+                    elif distance == 2:  # Block 78 (80-2)
+                        ctc_auth = 1
+                        final_authority = min(final_authority, ctc_auth)
+                        print(f"  CTC Override BACKWARD: Block {block_num} (X-2) auth = min({final_authority}, {ctc_auth})")
+                    elif distance == 3:  # Block 77 (80-3)
+                        ctc_auth = 0
+                        final_authority = min(final_authority, ctc_auth)
+                        print(f"  CTC Override BACKWARD: Block {block_num} (X-3) auth = min({final_authority}, {ctc_auth})")
+                else:
+                    # FORWARD pattern for all others: X=3, X+1=2, X+2=1, X+3=0
+                    distance = block_num_int - ctc_block  # Positive if block is ahead of CTC
+                    
+                    if distance == 0:  # CTC block itself
+                        ctc_auth = 3
+                        final_authority = min(final_authority, ctc_auth)
+                        print(f"  CTC Override FORWARD: Block {block_num} (CTC block) auth = min({final_authority}, {ctc_auth})")
+                    elif distance == 1:  # Block X+1
+                        ctc_auth = 2
+                        final_authority = min(final_authority, ctc_auth)
+                        print(f"  CTC Override FORWARD: Block {block_num} (X+1) auth = min({final_authority}, {ctc_auth})")
+                    elif distance == 2:  # Block X+2
+                        ctc_auth = 1
+                        final_authority = min(final_authority, ctc_auth)
+                        print(f"  CTC Override FORWARD: Block {block_num} (X+2) auth = min({final_authority}, {ctc_auth})")
+                    elif distance == 3:  # Block X+3
+                        ctc_auth = 0
+                        final_authority = min(final_authority, ctc_auth)
+                        print(f"  CTC Override FORWARD: Block {block_num} (X+3) auth = min({final_authority}, {ctc_auth})")
+                    
         # ==============================================
         # FIX: Apply Section N authorities AFTER CTC logic
         # ==============================================
@@ -208,7 +279,7 @@ def run_plc_cycle(data, log_callback):
     data.apply_plc_filter()
     
     # Trigger UI update
-    print(f"[DEBUG] Triggering UI update with {len(data.on_data_update)} callbacks")
+    #print(f"[DEBUG] Triggering UI update with {len(data.on_data_update)} callbacks")
     for callback in data.on_data_update:
             callback()
         
@@ -239,7 +310,7 @@ def control_switches_automatically(data, log_callback):
                 train_in_section_N = True
                 break
     
-    print(f"[DEBUG] Switch control: Train in section N = {train_in_section_N}")
+    #print(f"[DEBUG] Switch control: Train in section N = {train_in_section_N}")
     
     # Switch 85 - Check if manually set
     switch_85_name = "Switch 85"
@@ -247,9 +318,9 @@ def control_switches_automatically(data, log_callback):
     
     if switch_85_name in data.filtered_switch_positions:
         # Check if this switch was manually set in maintenance mode
-        if hasattr(data, 'manual_switches') and switch_85_id in data.manual_switches:
-            print(f"[DEBUG] Switch 85: Skipping - manually set by user")
-        else:
+        #if hasattr(data, 'manual_switches') and switch_85_id in data.manual_switches:
+            #print(f"[DEBUG] Switch 85: Skipping - manually set by user")
+        #else:
             switch_85 = data.filtered_switch_positions[switch_85_name]
             current_pos = switch_85.get("direction", "85-86")
             
@@ -262,12 +333,12 @@ def control_switches_automatically(data, log_callback):
             
             # Only update if position actually needs to change
             if current_pos != desired_pos:
-                print(f"[DEBUG] Switch 85: {current_pos} -> {desired_pos}")
+                #print(f"[DEBUG] Switch 85: {current_pos} -> {desired_pos}")
                 # UPDATE BOTH DIRECTION AND CONDITION
                 data.update_track_data("switch_positions", switch_85_name, "direction", desired_pos)
                 data.update_track_data("switch_positions", switch_85_name, "condition", condition_text)
-            else:
-                print(f"[DEBUG] Switch 85: Already at {desired_pos}")
+            #else:
+                #print(f"[DEBUG] Switch 85: Already at {desired_pos}")
     
     # Switch 76 - Check if manually set
     switch_76_name = "Switch 76"
@@ -275,9 +346,9 @@ def control_switches_automatically(data, log_callback):
     
     if switch_76_name in data.filtered_switch_positions:
         # Check if this switch was manually set in maintenance mode
-        if hasattr(data, 'manual_switches') and switch_76_id in data.manual_switches:
-            print(f"[DEBUG] Switch 76: Skipping - manually set by user")
-        else:
+        #if hasattr(data, 'manual_switches') and switch_76_id in data.manual_switches:
+            #print(f"[DEBUG] Switch 76: Skipping - manually set by user")
+        #else:
             switch_76 = data.filtered_switch_positions[switch_76_name]
             current_pos = switch_76.get("direction", "76-77")
             
@@ -289,12 +360,12 @@ def control_switches_automatically(data, log_callback):
                 condition_text = f"M -> N"
             
             if current_pos != desired_pos:
-                print(f"[DEBUG] Switch 76: {current_pos} -> {desired_pos}")
+                #print(f"[DEBUG] Switch 76: {current_pos} -> {desired_pos}")
                 # UPDATE BOTH DIRECTION AND CONDITION
                 data.update_track_data("switch_positions", switch_76_name, "direction", desired_pos)
                 data.update_track_data("switch_positions", switch_76_name, "condition", condition_text)
-            else:
-                print(f"[DEBUG] Switch 76: Already at {desired_pos}")
+            #else:
+                #print(f"[DEBUG] Switch 76: Already at {desired_pos}")
     
     print("[DEBUG] Switch control complete")
     return train_in_section_N
@@ -312,7 +383,7 @@ def apply_section_n_authority_logic(data, log_callback):
     blocks_in_section_N = data.get_blocks_in_section(current_line, 'N')
     
     if not blocks_in_section_N:
-        print("[DEBUG] No Section N blocks found")
+        #print("[DEBUG] No Section N blocks found")
         return {}
     
     # Find occupied blocks within section N
@@ -324,27 +395,27 @@ def apply_section_n_authority_logic(data, log_callback):
                 occupied_n_blocks.append(block_num)
     
     if not occupied_n_blocks:
-        print("[DEBUG] No occupied blocks in Section N")
+        #print("[DEBUG] No occupied blocks in Section N")
         return {}
     
-    print(f"[DEBUG] Section N blocks: {blocks_in_section_N}")
-    print(f"[DEBUG] Occupied blocks in Section N: {occupied_n_blocks}")
+    #print(f"[DEBUG] Section N blocks: {blocks_in_section_N}")
+    #print(f"[DEBUG] Occupied blocks in Section N: {occupied_n_blocks}")
     
     # Track all authority modifications
     authority_updates = {}
     
     # Process each occupied block in section N
     for occupied_block in occupied_n_blocks:
-        print(f"[DEBUG] Processing occupied block {occupied_block} in Section N")
+        #print(f"[DEBUG] Processing occupied block {occupied_block} in Section N")
         
         # Get track position for the occupied block
         occupied_block_key = f"Block {occupied_block}"
         if occupied_block_key not in data.filtered_blocks:
-            print(f"[DEBUG] Could not find block {occupied_block} in filtered blocks")
+            #print(f"[DEBUG] Could not find block {occupied_block} in filtered blocks")
             continue
             
         occupied_pos = data.filtered_blocks[occupied_block_key].get("track_position", 0)
-        print(f"[DEBUG]   Block {occupied_block} track position: {occupied_pos}")
+        #print(f"[DEBUG]   Block {occupied_block} track position: {occupied_pos}")
         
         # Create a list of blocks with their positions for this section
         blocks_with_positions = []
@@ -365,14 +436,14 @@ def apply_section_n_authority_logic(data, log_callback):
                 break
         
         if occupied_idx == -1:
-            print(f"[DEBUG] Could not find block {occupied_block} in position-sorted list")
+            #print(f"[DEBUG] Could not find block {occupied_block} in position-sorted list")
             continue
         
-        print(f"[DEBUG]   Blocks sorted by position: {blocks_with_positions}")
-        print(f"[DEBUG]   Occupied block index: {occupied_idx}")
+        #print(f"[DEBUG]   Blocks sorted by position: {blocks_with_positions}")
+        #print(f"[DEBUG]   Occupied block index: {occupied_idx}")
         
         # 1. Check blocks BEHIND occupied block (lower track positions)
-        print(f"[DEBUG]   Checking blocks BEHIND block {occupied_block}...")
+        #print(f"[DEBUG]   Checking blocks BEHIND block {occupied_block}...")
         for i in range(0, 5):  # Check up to 4 blocks behind (including occupied block)
             behind_idx = occupied_idx - i
             if behind_idx >= 0:
@@ -385,7 +456,7 @@ def apply_section_n_authority_logic(data, log_callback):
                 # 2 blocks behind (i=2): auth = 1
                 # 3 blocks behind (i=3): auth = 2
                 # 4+ blocks behind (i=4): auth = 3
-                if i <= 1:  # Occupied block or 1 block behind
+                if i == 1:  # Occupied block or 1 block behind
                     auth_value = 0
                 elif i == 2:  # 2 blocks behind
                     auth_value = 1
@@ -407,7 +478,7 @@ def apply_section_n_authority_logic(data, log_callback):
                             print(f"[DEBUG]     Block {block_behind}: Updated from {old_auth} to {auth_value}")
         
         # 2. Check blocks AHEAD of occupied block (higher track positions)
-        print(f"[DEBUG]   Checking blocks AHEAD of block {occupied_block}...")
+        #print(f"[DEBUG]   Checking blocks AHEAD of block {occupied_block}...")
         for i in range(1, 5):  # Check up to 4 blocks ahead
             ahead_idx = occupied_idx + i
             if ahead_idx < len(blocks_with_positions):

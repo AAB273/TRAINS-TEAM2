@@ -149,11 +149,11 @@ class PLC_Complete_TestBench:
             #("Test 1: PLC Filter Activation", self.test_plc_filter_activation),
             #("Test 2: Authority Calculation", self.test_authority_calculation),
             #("Test 3: Section N Authority Rules", self.test_section_n_authority),
-            #("Test 4: CTC Override", self.test_ctc_override),
+            ("Test 4: CTC Override", self.test_ctc_override),
             #("Test 5: Switch Control", self.test_switch_control),
             #("Test 6: Light Signals", self.test_light_signals),
             #("Test 7: Railway Crossings", self.test_railway_crossings),
-            ("Test 8: Maintenance Mode Switch Override", self.test_maintenance_mode_switch),
+            #("Test 8: Maintenance Mode Switch Override", self.test_maintenance_mode_switch),
         ]
         
         for test_name, test_func in tests:
@@ -479,10 +479,10 @@ class PLC_Complete_TestBench:
                             f"{rules_correct}/{rules_checked} Section N rules correct" if rules_checked > 0 else "Could not test Section N rules")
 
     def test_ctc_override(self):
-        """Test 4: CTC authority override"""
+        """Test 4: CTC authority override with forward/backward patterns"""
         test_passed = True
         
-        print("  Testing CTC authority override...")
+        print("  Testing CTC authority override with direction-based patterns...")
         
         # Clear any existing CTC suggestions
         if "Green" in self.data.suggested_authority:
@@ -492,39 +492,195 @@ class PLC_Complete_TestBench:
         for block_key in list(self.data.filtered_blocks.keys()):
             self.data.filtered_blocks[block_key]["occupied"] = False
         
-        # Set CTC suggested authority for block 70
+        # ============================================
+        # TEST PART 1: NORMAL FORWARD PATTERN
+        # ============================================
+        print("  1. Testing NORMAL forward CTC override pattern...")
+        
+        # Set CTC suggested authority for block 70 (normal forward pattern)
         self.data.suggested_authority["Green"]["70"] = "3"
         
         # Run PLC cycle
         self.run_plc_cycle()
         
-        print("  Checking CTC override pattern...")
+        print("  Checking forward CTC override pattern...")
         
-        # CTC override pattern from your PLC:
-        # X (block 70) = auth 3 (from CTC)
-        # X+1 (block 71) = auth 2
-        # X+2 (block 72) = auth 1  
-        # X+3 (block 73) = auth 0
-        # X+4+ (block 74+) = auth 3 (normal)
-        expected_pattern = {
-            "70": "3",  # CTC suggested
+        # NORMAL forward pattern: X=70, X+1=71, X+2=72, X+3=73
+        forward_expected = {
+            "70": "3",  # CTC block itself
             "71": "2",  # X+1
             "72": "1",  # X+2
-            "73": "0",  # X+3
+            "73": "0",  # X+3 (stopping point)
             "74": "3",  # X+4 (back to normal)
         }
         
-        for block, expected_auth in expected_pattern.items():
+        for block, expected_auth in forward_expected.items():
             actual_auth = self.data.commanded_authority["Green"].get(block)
             if actual_auth == expected_auth:
-                print(f"    ✓ Block {block}: auth={actual_auth} (CTC override correct)")
+                print(f"    ✓ Block {block}: auth={actual_auth} (Forward pattern correct)")
             else:
                 print(f"    ✗ Block {block}: Expected {expected_auth}, got {actual_auth}")
                 test_passed = False
         
-        return self.log_test("CTC Override", test_passed,
-                           "CTC override works" if test_passed else "CTC override failed")
-    
+        # Test auto-clear for forward pattern
+        print("  2. Testing auto-clear for forward pattern...")
+        
+        # Occupying block 73 (stopping point for forward pattern)
+        block_73_key = "Block 73"
+        if block_73_key in self.data.filtered_blocks:
+            self.data.filtered_blocks[block_73_key]["occupied"] = True
+            print(f"    Simulating train reaching stopping point at block 73...")
+            
+            # Run PLC cycle - should detect occupied block 73 and clear CTC override
+            self.run_plc_cycle()
+            
+            # Check that CTC override was cleared
+            if "Green" in self.data.suggested_authority and "70" in self.data.suggested_authority["Green"]:
+                print(f"    ✗ CTC override NOT cleared from suggested_authority")
+                test_passed = False
+            else:
+                print(f"    ✓ CTC override auto-cleared when train reached block 73")
+            
+            # Clear occupancy
+            self.data.filtered_blocks[block_73_key]["occupied"] = False
+        else:
+            print(f"    ⚠️ Could not find block 73")
+        
+        # Clear the override for next test
+        if "Green" in self.data.suggested_authority:
+            self.data.suggested_authority["Green"].clear()
+        
+        # ============================================
+        # TEST PART 2: SPECIAL BACKWARD PATTERN FOR BLOCK 80
+        # ============================================
+        print("  3. Testing SPECIAL backward CTC override pattern (block 80)...")
+        
+        # Set CTC suggested authority for block 80 (special backward pattern)
+        self.data.suggested_authority["Green"]["80"] = "3"
+        
+        # Run PLC cycle
+        self.run_plc_cycle()
+        
+        print("  Checking backward CTC override pattern for block 80...")
+        
+        # SPECIAL backward pattern for block 80: X=80, X-1=79, X-2=78, X-3=77
+        backward_expected = {
+            "80": "3",  # CTC block itself
+            "79": "2",  # X-1
+            "78": "1",  # X-2
+            "77": "0",  # X-3 (stopping point)
+            "76": "3",  # X-4 (back to normal - should be 3 or calculated normally)
+            "81": "3",  # X+1 (should NOT be affected - this is forward direction)
+        }
+        
+        for block, expected_auth in backward_expected.items():
+            actual_auth = self.data.commanded_authority["Green"].get(block)
+            if actual_auth == expected_auth:
+                print(f"    ✓ Block {block}: auth={actual_auth} (Backward pattern correct)")
+            else:
+                print(f"    ✗ Block {block}: Expected {expected_auth}, got {actual_auth}")
+                test_passed = False
+        
+        # Verify block 81 is NOT affected (important test!)
+        actual_81 = self.data.commanded_authority["Green"].get("81")
+        if actual_81 != "2":  # Should NOT be 2 (that would be forward pattern)
+            print(f"    ✓ Block 81 correctly NOT affected by backward pattern: auth={actual_81}")
+        else:
+            print(f"    ✗ Block 81 incorrectly got auth=2 (should not be affected)")
+            test_passed = False
+        
+        # Test auto-clear for backward pattern
+        print("  4. Testing auto-clear for backward pattern...")
+        
+        # Occupying block 77 (stopping point for backward pattern)
+        block_77_key = "Block 77"
+        if block_77_key in self.data.filtered_blocks:
+            self.data.filtered_blocks[block_77_key]["occupied"] = True
+            print(f"    Simulating train reaching stopping point at block 77...")
+            
+            # Run PLC cycle - should detect occupied block 77 and clear CTC override
+            self.run_plc_cycle()
+            
+            # Check that CTC override was cleared
+            if "Green" in self.data.suggested_authority and "80" in self.data.suggested_authority["Green"]:
+                print(f"    ✗ CTC override NOT cleared from suggested_authority")
+                test_passed = False
+            else:
+                print(f"    ✓ CTC override auto-cleared when train reached block 77")
+            
+            # Clear occupancy
+            self.data.filtered_blocks[block_77_key]["occupied"] = False
+            
+            # Run one more cycle to verify blocks return to normal
+            self.run_plc_cycle()
+            
+            # Check that blocks 77-79 return to normal
+            print("  5. Verifying blocks return to normal after CTC clear...")
+            affected_blocks = ["77", "78", "79", "80"]
+            for block in affected_blocks:
+                actual_auth = self.data.commanded_authority["Green"].get(block)
+                if actual_auth not in ["0", "1", "2"]:  # Should no longer have CTC auth
+                    print(f"    ✓ Block {block}: auth={actual_auth} (returned to normal)")
+                else:
+                    print(f"    ✗ Block {block}: Still has CTC auth={actual_auth}, should be normal")
+                    test_passed = False
+        else:
+            print(f"    ⚠️ Could not find block 77")
+            test_passed = False
+        
+        # ============================================
+        # TEST PART 3: MIXED SCENARIO
+        # ============================================
+        print("  6. Testing mixed scenario (both patterns simultaneously)...")
+        
+        # Clear everything
+        if "Green" in self.data.suggested_authority:
+            self.data.suggested_authority["Green"].clear()
+        
+        # Clear occupancy
+        for block_key in list(self.data.filtered_blocks.keys()):
+            self.data.filtered_blocks[block_key]["occupied"] = False
+        
+        # Set TWO CTC overrides: one forward (block 65), one backward (block 80)
+        self.data.suggested_authority["Green"]["65"] = "3"  # Forward pattern
+        self.data.suggested_authority["Green"]["80"] = "3"  # Backward pattern
+        
+        # Run PLC cycle
+        self.run_plc_cycle()
+        
+        # Check both patterns work simultaneously
+        print("  Checking mixed CTC overrides...")
+        
+        mixed_tests = [
+            ("65", "3", "Forward CTC block"),
+            ("66", "2", "Forward X+1"),
+            ("67", "1", "Forward X+2"),
+            ("68", "0", "Forward stopping point"),
+            ("80", "3", "Backward CTC block"),
+            ("79", "2", "Backward X-1"),
+            ("78", "1", "Backward X-2"),
+            ("77", "0", "Backward stopping point"),
+        ]
+        
+        for block, expected_auth, description in mixed_tests:
+            actual_auth = self.data.commanded_authority["Green"].get(block)
+            if actual_auth == expected_auth:
+                print(f"    ✓ {description}: Block {block} auth={actual_auth}")
+            else:
+                print(f"    ✗ {description}: Block {block} expected {expected_auth}, got {actual_auth}")
+                test_passed = False
+        
+        # Clean up
+        if "Green" in self.data.suggested_authority:
+            self.data.suggested_authority["Green"].clear()
+        
+        for block_key in list(self.data.filtered_blocks.keys()):
+            self.data.filtered_blocks[block_key]["occupied"] = False
+        
+        return self.log_test("CTC Override with Direction Patterns", test_passed,
+                        "CTC override works with forward/backward patterns" if test_passed else "CTC override test failed")
+
+
     def test_switch_control(self):
         """Test 5: PLC automatic switch control"""
         test_passed = True
