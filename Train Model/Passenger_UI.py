@@ -253,7 +253,7 @@ class TrainModelPassengerGUI:
 				targetTemp = value
 				self._animateTemperatureChange(targetTemp, train)
 			elif command == 'Announcement':
-				train.setStation(value)
+				train.setAnnouncement(value)
 			elif command == 'Service Brake':
 				if self.failureBrakeVar.get() and train == self.currentTrain:
 					pass
@@ -940,7 +940,7 @@ class TrainModelPassengerGUI:
 
 		self.root.after(100, self.continuousPhysicsUpdate)
 
-		self.root.after(100, self.updateTime)
+		#self.root.after(100, self.updateTime)
 
 		self.root.after(5000, self.cycleThroughAds)
 
