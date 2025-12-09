@@ -40,9 +40,11 @@ class TrackModelUI(tk.Tk):
             port=config["port"],
             ui_id="Track Model"
         )
-        self.server.set_allowed_connections(["Track SW","Track HW", "Train Model", "CTC"])
+        self.server.set_allowed_connections(["Track SW","Track HW", "Train Model", "CTC", "Train HW","Train SW"])
         self.server.start_server(self._process_message)
         self.server.connect_to_ui('localhost', 12341, "CTC")
+        #self.server.connect_to_ui('localhost', 12346, "Train SW")
+        #self.server.connect_to_ui('localhost', 12347, "Train HW")
         self.server.connect_to_ui('localhost', 12345, "Train Model")
         self.server.connect_to_ui('localhost', 12342,  'Track SW')
         self.server.connect_to_ui('localhost', 12343,'Track HW')
@@ -499,7 +501,7 @@ class TrackModelUI(tk.Tk):
                 self._initialize_station_ticket_sales()
                 
                 # Reinitialize station beacons with 128-bit arrays
-                self.initialize_station_beacons()
+                # self.initialize_station_beacons()  # Not needed - beacons based on switch states
                 
                 # print(f"[UI]  Successfully switched to {selected}")
                 
@@ -3365,28 +3367,36 @@ class TrackModelUI(tk.Tk):
                     })
                     
 
-                    # Check for beacon data using BeaconManager
-                    if occupancy != 0 and hasattr(self, 'beacon_manager'):
-                        if self.beacon_manager.is_station_block(block_num):
-                            train_id = str(occupancy)  # occupancy is now just the train number
-                            beacon_message = self.beacon_manager.format_beacon_message(block_num, train_id)
-                            if beacon_message:
-                                # Send beacon data to Train Model
-                                self.server.send_to_ui("Train Model", beacon_message)
-                                # print(f" BEACON ACTIVATED at Block {block_num} for {train_id}")
-                                # print(f"   Next station: {beacon_message['beacon_info']['next_station_name']}")
-                                # print(f"   Distance: {beacon_message['beacon_info']['distance_to_next_station']}m")
-                                # Send to Train SW for train controller
-                                self.server.send_to_ui("Train SW", beacon_message)
-                                # print(f" Beacon data sent to Train SW")
-                                # Report to CTC
-                                self.server.send_to_ui("CTC", {
-                                    "command": "beacon_activated",
-                                    "block": block_num,
-                                    "train_id": train_id,
-                                    "station_info": beacon_message['beacon_info']
-                                })
-                                # print(f" Beacon activation reported to CTC")
+                    # Check for beacon data - only blocks 27 and 38 on Red Line
+                    if occupancy != 0 and block_num in [27, 38]:
+                        # Only send beacons if on Red Line
+                        current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
+                        if "Red" in current_line or "red" in current_line:
+                            # Get switch state for this beacon block
+                            switch_state = self.switch_states.get(block_num, 'normal')
+                            beacon_value = (switch_state == 'reverse')
+                            
+                            # Determine which beacon command to send
+                            beacon_command = 'beacon1' if block_num == 27 else 'beacon2'
+                            
+                            # Send beacon data to Train Model
+                            beacon_message = {
+                                'command': beacon_command,
+                                'value': beacon_value
+                            }
+                            self.server.send_to_ui("Train Model", beacon_message)
+                            # print(f" {beacon_command.upper()} ACTIVATED at Block {block_num}: {beacon_value}")
+                            
+                            # Send to Train SW for train controller
+                            self.server.send_to_ui("Train SW", beacon_message)
+                            
+                            # Report to CTC
+                            self.server.send_to_ui("CTC", {
+                                "command": "beacon_activated",
+                                "block": block_num,
+                                "beacon": beacon_command,
+                                "beacon_value": beacon_value
+                            })
             # print(f" Sent occupancy update: Block {block_num} = {occupancy}")
             
         except Exception as e:
@@ -3394,9 +3404,13 @@ class TrackModelUI(tk.Tk):
     
     def is_beacon_active(self, block):
         """Check if a beacon is active for a given block."""
-        # For now, beacons are always active at stations
+        # Only blocks 27 and 38 on Red Line have beacons
         if hasattr(block, 'block_number'):
-            return block.block_number in self.station_blocks
+            block_num = block.block_number
+            # Check if on Red Line
+            current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
+            if "Red" in current_line or "red" in current_line:
+                return block_num in [27, 38]
         return False
     
     def log_switch_change(self, block_num, from_block, to_block, state, direction):
@@ -3555,18 +3569,18 @@ class TrackModelUI(tk.Tk):
             terminal.insert("end", f"  Commanded Speed: {speed} m/s\n")
             terminal.insert("end", f"  Commanded Authority: {auth} blocks\n\n")
 
-        # Beacons - updated for 128-bit
+        # Beacons - Only blocks 27 and 38 on Red Line
         terminal.insert("end", "=== BEACON STATUS ===\n")
         active_beacons = [block for block in dm.blocks if self.is_beacon_active(block)]
         if active_beacons:
             for block in active_beacons:
-                hex_string = self.beacon_to_hex(block)
-                # Show first 16 bits as sample and full hex
-                sample_bits = self.get_beacon_bits(block, 0, 16)
-                terminal.insert("end", f"Block {block.block_number}: [{''.join(str(bit) for bit in sample_bits)}...]\n")
-                terminal.insert("end", f"           Hex: {hex_string}\n")
+                block_num = block.block_number
+                # Get switch state for this beacon
+                switch_state = self.switch_states.get(block_num, 'normal')
+                beacon_value = (switch_state == 'reverse')
+                terminal.insert("end", f"Beacon{1 if block_num == 27 else 2} (Block {block_num}): {beacon_value} (switch: {switch_state})\n")
         else:
-            terminal.insert("end", "No active beacons\n")
+            terminal.insert("end", "No active beacons (only on Red Line, blocks 27 & 38)\n")
         terminal.insert("end", "\n")
 
         terminal.see("end")
@@ -4816,40 +4830,45 @@ class TrackModelUI(tk.Tk):
 
     def send_beacon_data_on_departure(self, train_id, block_num):
         """
-        Send 128-bit beacon array to Train Model when a train departs from a station.
-        Called when train authority increases from 0 (train starts moving after stop).
+        Send beacon data to Train Model when a train departs.
+        Only blocks 27 and 38 on Red Line have beacons.
         
         Args:
             train_id (str): ID of the departing train
-            block_num (int): Block number of the station being departed
+            block_num (int): Block number being departed
         
         Returns:
             bool: True if beacon data was sent successfully, False otherwise
         """
         try:
-            # Get beacon data for this station block
-            beacon_message = self.beacon_manager.format_beacon_message(block_num, train_id)
-            
-            if beacon_message:
-                # Send to Train Model
-                self.server.send_to_ui("Train Model", beacon_message)
-                
-                # Get station name for logging
-                station_info = next(
-                    (s for s in self.data_manager.station_location if s[0] == block_num), 
-                    None
-                )
-                station_name = station_info[1] if station_info else f"Block {block_num}"
-                
-                print(f"Sent beacon data to Train Model:")
-                print(f"   Train: {train_id}")
-                print(f"   Departed from: {station_name} (Block {block_num})")
-                print(f"   Beacon array: 128-bit unique identifier")
-                
-                return True
-            else:
-                # No beacon data for this block (shouldn't happen if train was stopped at station)
+            # Only send beacons for blocks 27 and 38 on Red Line
+            if block_num not in [27, 38]:
                 return False
+            
+            # Check if on Red Line
+            current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
+            if "Green" in current_line:
+                return False
+            
+            # Get switch state for this beacon block
+            switch_state = self.switch_states.get(block_num, 'normal')
+            beacon_value = (switch_state == 'reverse')
+            
+            # Determine which beacon command to send
+            beacon_command = 'beacon1' if block_num == 27 else 'beacon2'
+            
+            # Send beacon data to Train Model
+            beacon_message = {
+                'command': beacon_command,
+                'value': beacon_value
+            }
+            self.server.send_to_ui("Train Model", beacon_message)
+            
+            print(f"Sent {beacon_command} to Train Model:")
+            print(f"   Block: {block_num}")
+            print(f"   Value (switch state): {beacon_value}")
+            
+            return True
                 
         except Exception as e:
             return False
@@ -5351,26 +5370,42 @@ class TrackModelUI(tk.Tk):
         # print(f" Sent commanded authority to Train Model")
 
     def send_beacons_to_train_model(self):
-        """Send beacon data to Train Model only for occupied blocks."""
-        beacon_data = {}
+        """
+        Send beacon data to Train Model.
+        Only 2 beacons exist in the system, both on the Red Line:
+        - beacon1: boolean representing switch 27 state
+        - beacon2: boolean representing switch 38 state
+        """
+        # Only send beacons if we're on the Red Line
+        current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
+        if "Green" in current_line:
+            return  # No beacons on Green Line
         
-        for block in self.data_manager.blocks:
-            # Only send beacon if:
-            # 1. Block is occupied
-            # 2. Beacon can be sent (no track circuit or power failure)
-            # 3. Block has beacon data
-            if (block.occupancy and 
-                self.murphy_failures.can_send_beacon(block.block_number) and
-                hasattr(block, 'beacon') and block.beacon):
-                beacon_data[block.block_number] = block.beacon
+        # Beacon1: Block 27 - switch state
+        if len(self.data_manager.blocks) >= 27:
+            block_27 = self.data_manager.blocks[26]  # 0-indexed
+            if block_27.occupancy:
+                # Get switch state: True if reverse, False if normal
+                switch_state = self.switch_states.get(27, 'normal')
+                beacon1_value = (switch_state == 'reverse')
+                self.server.send_to_ui("Train Model", {
+                    'command': 'beacon1',
+                    'value': beacon1_value
+                })
+                # print(f"Sent beacon1 to Train Model: {beacon1_value}")
         
-        # Only send message if there are occupied blocks with beacons
-        if beacon_data:
-            self.server.send_to_ui("Train Model", {
-                'command': 'Beacon',
-                'data': beacon_data
-            })
-            # print(f"Sent beacons to Train Model ({len(beacon_data)} occupied blocks)")
+        # Beacon2: Block 38 - switch state  
+        if len(self.data_manager.blocks) >= 38:
+            block_38 = self.data_manager.blocks[37]  # 0-indexed
+            if block_38.occupancy:
+                # Get switch state: True if reverse, False if normal
+                switch_state = self.switch_states.get(38, 'normal')
+                beacon2_value = (switch_state == 'reverse')
+                self.server.send_to_ui("Train Model", {
+                    'command': 'beacon2',
+                    'value': beacon2_value
+                })
+                # print(f"Sent beacon2 to Train Model: {beacon2_value}")
 
     def send_passengers_boarding_to_train_model(self):
         """
