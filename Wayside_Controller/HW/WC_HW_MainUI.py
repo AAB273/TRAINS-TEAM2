@@ -2091,7 +2091,7 @@ class LeftPanel(tk.Frame):
             popup = tk.Toplevel(self)
             popup.title("Maintenance Request")
             popup.geometry("400x200")
-            popup.configure(bg='#1a1a4d')
+            popup.configure(bg="#bcbcbe")
         
         # Center the popup
             popup.transient(self)
