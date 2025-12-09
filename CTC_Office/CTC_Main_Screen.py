@@ -230,6 +230,7 @@ class MainScreen:
                 #if value is not already in the treeview, add a new parent/child set
                     level = self.lsArea.insert('', "end", text = line.title())
                     self.lsArea.insert(level, "end", text = "Block " + location + ", " + line, values = [state])
+            return state
 
         elif (code == "RC"):
             #railway crossing data case
@@ -274,6 +275,8 @@ class MainScreen:
                 #if value is not already in the treeview, add a new parent/child set
                     level = self.rcArea.insert('', "end", text = line.title())
                     self.rcArea.insert(level, "end", text = "Block " + location, values = [state])
+
+            return state
         
 ###############################################################################################################################################################
 
@@ -516,9 +519,11 @@ class MainScreen:
         if (change == "inc" and self.clockSpeed == 1):
             clock.tenTimesSpeed()
             self.clockSpeed = 10
+            return self.clockSpeed
         elif (change == "dec" and self.clockSpeed == 10):
             clock.normalSpeed()
             self.clockSpeed = 1
+            return self.clockSpeed
     
 ###############################################################################################################################################################
     
