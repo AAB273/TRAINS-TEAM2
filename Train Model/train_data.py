@@ -413,15 +413,15 @@ class Train:
 		if self.distanceLeft != None:
 			self.distanceLeft = self.distanceLeft - distance
 		
-
-		if newSpeed > 0.1 and self.distanceLeft != None: #may need to fix depending on how the train stops at a station
-			timeSeconds = self.distanceLeft / newSpeed
-			timeMinutes = max(0, int(timeSeconds / 60))
-			self.setTimeToStation(timeMinutes)
-		else:
-			if self.distanceLeft <= 0:
-				self.setTimeToStation(0)
-				self.distanceLeft = 0
+		if self.distanceLeft != None:
+			if newSpeed > 0.1: #may need to fix depending on how the train stops at a station
+				timeSeconds = self.distanceLeft / newSpeed
+				timeMinutes = max(0, int(timeSeconds / 60))
+				self.setTimeToStation(timeMinutes)
+			else:
+				if self.distanceLeft <= 0:
+					self.setTimeToStation(0)
+					self.distanceLeft = 0
 
 		self._notifyObservers()
 	
