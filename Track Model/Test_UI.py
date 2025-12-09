@@ -409,8 +409,8 @@ class TrackModelTestUI(tk.Toplevel):
                 # Generate train ID if not provided
                 if not train_id_input:
                     if not hasattr(self.manager, "next_train_id"):
-                        self.manager.next_train_id = 11000
-                    train_id = f"Train_{self.manager.next_train_id}"
+                        self.manager.next_train_id = 1
+                    train_id = str(self.manager.next_train_id)  # Simple number like "1", "2", "3"
                     self.manager.next_train_id += 1
                 else:
                     train_id = train_id_input
@@ -435,8 +435,8 @@ class TrackModelTestUI(tk.Toplevel):
                 # Set block occupancy to the train number
                 if block_num <= len(self.manager.blocks):
                     block = self.manager.blocks[block_num - 1]
-                    # Extract train number from train_id (e.g., "Train_11000" -> 11000)
-                    train_num = int(train_id.split('_')[1]) if '_' in train_id else 1
+                    # Train ID is now just a simple number like "1", "2", "3"
+                    train_num = int(train_id)  # Train ID is now just a simple number
                     block.occupancy = train_num
                     print(f"✅ Set block {block_num} occupancy to {train_num}")
                 
@@ -454,8 +454,8 @@ class TrackModelTestUI(tk.Toplevel):
                 
                 # Set actual speed for train movement
                 if hasattr(self.master, 'train_actual_speeds'):
-                    self.master.train_actual_speeds[train_id] = float(speed)
-                    print(f"✅ Set actual speed for {train_id}: {speed} m/s")
+                    self.master.train_actual_speeds[train_id] = 0  # Wait for Train Model to send actual speed
+                    print(f"✅ Initialized actual speed for {train_id}: 0 m/s (waiting for Train Model)")
                 
                 if hasattr(self.master, 'train_positions_in_block'):
                     self.master.train_positions_in_block[train_id] = 0
