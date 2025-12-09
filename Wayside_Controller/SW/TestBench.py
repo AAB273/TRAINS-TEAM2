@@ -146,16 +146,16 @@ class PLC_Complete_TestBench:
         
         # Run all tests
         tests = [
-            #("Test 1: PLC Filter Activation", self.test_plc_filter_activation),
-            #("Test 2: Authority Calculation", self.test_authority_calculation),
-            #("Test 3: Section N Authority Rules", self.test_section_n_authority),
-            #("Test 4: CTC Override", self.test_ctc_override),
-            #("Test 5: Switch Control", self.test_switch_control),
-            #("Test 6: Light Signals", self.test_light_signals),
+            ("Test 1: PLC Filter Activation", self.test_plc_filter_activation),
+            ("Test 2: Authority Calculation", self.test_authority_calculation),
+            ("Test 3: Section N Authority Rules", self.test_section_n_authority),
+            ("Test 4: CTC Override", self.test_ctc_override),
+            ("Test 5: Switch Control", self.test_switch_control),
+            ("Test 6: Light Signals", self.test_light_signals),
             ("Test 7: Railway Crossings", self.test_railway_crossings),
-            #("Test 8: Maintenance Mode Switch Override", self.test_maintenance_mode_switch),
-            #("Test 9: CTC Speed Override", self.test_ctc_speed_override),
-            #("Test 10: Commanded Speed Override", self.test_commanded_speed_override),
+            ("Test 8: Maintenance Mode Switch Override", self.test_maintenance_mode_switch),
+            ("Test 9: CTC Speed Override", self.test_ctc_speed_override),
+            ("Test 10: Commanded Speed Override", self.test_commanded_speed_override),
         ]
         
         for test_name, test_func in tests:
