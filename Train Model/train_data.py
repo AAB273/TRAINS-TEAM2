@@ -410,8 +410,7 @@ class Train:
 		self.speedPrev = self.speed
 		self.speed = newSpeed
 		self.acceleration = aNew
-		
-		if self.distance != None:
+		if self.distanceLeft != None:
 			self.distanceLeft = self.distanceLeft - distance
 		
 
