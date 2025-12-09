@@ -307,9 +307,21 @@ def _process_message(self, data, connection=None, server_instance=None):
 
         elif command == 'set_block_occupancy':
             pass  # Add handling if needed
+        elif command == 'MAINT':
+                # Handle maintenance request from CTC
+                print("CTC Maintenance Request Received")
+                add_to_message_log("CTC: Maintenance Request Received", "WARNING")
+                
+                # Update maintenance LED
+                maint_led.config(bg="orange", text="MAINT REQ")
+                add_to_message_log("Maintenance Request LED activated", "INFO")
             
         elif command == 'set_switch_position':
             add_to_message_log(f"Switch position update: {value}")
+        elif command == "SW":
+            # Handel switch command from CTC
+            self.handle_ctc_switch(value)
+            return  # stop processing here    
             
         else:
             print(f"Unknown command: {command} with value: {value}")
@@ -902,7 +914,7 @@ class UITestData:
                 
         except Exception as e:
             add_to_message_log(f"ERROR handling CTC message: {e}", "ERROR")
-
+    
     def _handle_speed_auth_update(self, data):
         """Handle speed and authority updates from CTC"""
         try:
@@ -963,10 +975,91 @@ class UITestData:
                 right_panel.block_combo.set(block)
             
             add_to_message_log(f"CTC: Block {block} - Speed: {speed:.3f} mph, Authority: {authority} blocks")
-          ####################################################################################################################
+
         except Exception as e:
             print(f"Error handling speed/auth update: {e}")
             add_to_message_log(f"ERROR processing CTC update: {e}", "ERROR")
+
+
+
+
+    def handle_ctc_switch(self, switch_data):
+        """Handle switch command from CTC"""
+        try:
+            if isinstance(switch_data, list) and len(switch_data) >= 2:
+                location = str(switch_data[0])
+                line = switch_data[1]
+                
+                print(f"CTC Switch Command: Block {location} on {line} Line")
+                add_to_message_log(f"CTC Switch Command: Block {location} on {line} Line", "INFO")
+                
+                # Update switch display if it matches current line
+                if line.lower() == self.current_line.lower() and hasattr(left_panel, 'switch_selector'):
+                    # Find the switch that includes this block
+                    for switch_name in self.track_data.get("switches", {}):
+                        if location in switch_name:
+                            left_panel.switch_selector.set(switch_name)
+                            left_panel.update_switch_display()
+                            
+                            # Optionally change direction
+                            # This would depend on your switch logic
+                            add_to_message_log(f"Updated switch display for {switch_name}", "INFO")
+                            break
+                
+        except Exception as e:
+            print(f"Error handling CTC switch command: {e}")
+            add_to_message_log(f"ERROR: Failed to process CTC switch command: {e}", "ERROR")
+    
+    def handle_ctc_maintenance(self, maint_data=None):
+        """Handle maintenance mode request from CTC"""
+        try:
+            print("CTC maintenance request received")
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Update maintenance mode
+            self.maintenance_mode = True
+            
+            # Log the maintenance request
+            log_message = f"{current_time} CTC: Maintenance Request Received"
+            add_to_message_log(log_message, "WARNING")
+            
+            # Update UI elements
+            if hasattr(maint_led, 'config'):
+                maint_led.config(bg="orange", text="MAINT REQ")
+                add_to_message_log("Maintenance Request LED activated", "INFO")
+            
+            # Optionally switch to maintenance mode in the UI
+            if hasattr(view_var_maint, 'set'):
+                view_var_maint.set(True)
+                toggle_maintenance_mode()
+                
+            # Update left panel if it exists
+            if hasattr(left_panel, 'update_mode_ui'):
+                left_panel.update_mode_ui()
+                
+            # Update right panel if it exists
+            if hasattr(right_panel, 'update_mode_ui'):
+                right_panel.update_mode_ui()
+                
+            # Send acknowledgment back to CTC
+            if hasattr(self, 'server1'):
+                ack_message = {
+                    'command': 'MAINT_ACK',
+                    'value': {
+                        'status': 'accepted',
+                        'timestamp': current_time,
+                        'message': 'Maintenance mode activated'
+                    }
+                }
+                self.server1.send_to_ui('CTC', ack_message)
+          ####################################################################################################################
+        except Exception as e:
+            error_msg = f"Error processing CTC maintenance command: {e}"
+            print(f"✗ {error_msg}")
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            add_to_message_log(f"{current_time} ERROR: Failed to process CTC maintenance request", "ERROR")
+
+
         #             value_type = data.get('value_type', 'suggested').strip()
                 
                 
@@ -1669,12 +1762,33 @@ def toggle_maintenance_mode():
     # Update the maintenance LED color/text
     if test_data.maintenance_mode:
         maint_led.config(bg="orange", text="MM ON")
+        add_to_message_log("Maintenance Mode Activated", "WARNING")
     else:
         maint_led.config(bg="gray", text="MM OFF")
+
+    # Send acknowledgment to CTC if this was triggered by CTC request
+    if hasattr(test_data, 'server1'):
+            ack_message = {
+                'command': 'MAINT_ACK',
+                'value': {
+                    'status': 'active',
+                    'mode': 'manual',
+                    'message': 'Maintenance mode manually activated'
+                }
+            }
+            test_data.server1.send_to_ui('CTC', ack_message)
+    else:
+        maint_led.config(bg="gray", text="MM OFF")
+        add_to_message_log("Maintenance Mode Deactivated", "INFO")
+
 
     # Update the right panel UI
     if hasattr(right_panel, 'update_mode_ui'):
         right_panel.update_mode_ui()
+    
+    # Update the left panel UI
+    if hasattr(left_panel, 'update_mode_ui'):
+        left_panel.update_mode_ui()
 
     # Keep the main screen visible regardless of maintenance mode
     if view_var_main.get():
@@ -1715,6 +1829,9 @@ class LeftPanel(tk.Frame):
 
         # Initialize with current line data
         self.update_crossing_options()
+
+        #maintenance call button for CTC request
+        self.maintenance_request_section()
 
     def create_crossing_section(self):
         crossing_frame = tk.LabelFrame(self, text="Railway Crossing Detail",
@@ -1823,7 +1940,107 @@ class LeftPanel(tk.Frame):
         # sendLights.pack(side=tk.BOTTOM)
         # Initialize with current line data
         self.update_light_options()
-   
+
+    def maintenance_request_section(self):
+        """Create maintenance call button section"""
+        maint_frame = tk.LabelFrame(self, text="Maintenance Actions",
+                                   bg='#cccccc', font=('Arial', 9, 'bold'))
+        maint_frame.pack(fill=tk.X, pady=5)
+       
+        # Maintenance Call Button
+        self.maint_call_btn = tk.Button(
+            maint_frame,
+            text="Request Maintenance",
+            font=("Arial", 9, "bold"),
+            width=18,
+            height=2,
+            bg="#FFA500",  # Orange color
+            fg="white",
+            command=self.send_maintenance_request
+        )
+        self.maint_call_btn.pack(pady=5, padx=5)
+       
+        # # Maintenance Status Label
+        # self.maint_status_label = tk.Label(
+        #     maint_frame,
+        #     text="Status: Ready",
+        #     bg='#cccccc',
+        #     font=('Arial', 8)
+        # )
+        # self.maint_status_label.pack(pady=2)
+       
+        # # Add a separator
+        # sep = tk.Frame(maint_frame, height=2, bg='#999999')
+        # sep.pack(fill=tk.X, pady=3)
+       
+        # # Status indicator
+        # self.status_indicator = tk.Label(
+        #     maint_frame,
+        #     text="●",
+        #     font=("Arial", 12),
+        #     fg="green",
+        #     bg='#cccccc'
+        # )
+        # self.status_indicator.pack(pady=2)
+
+    def send_maintenance_request(self):
+        """Send maintenance request to CTC and other UIs"""
+        try:
+            print("Sending maintenance request...")
+            add_to_message_log("Sending maintenance request to CTC")
+            
+            # Update button state
+            self.maint_call_btn.config(
+                text="Request Sent",
+                bg="#666666",
+                state="disabled"
+            )
+            self.maint_status_label.config(text="Status: Request Sent")
+            self.status_indicator.config(fg="orange", text="●")
+            
+            # Create maintenance request message
+            maint_message = {
+                'command': 'MAINT',
+                'value': {
+                    'source': 'Track_HW',
+                    'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    'line': test_data.current_line,
+                    'priority': 'normal',
+                    'message': 'Maintenance assistance requested'
+                }
+            }
+            
+            # Send to CTC
+            if hasattr(test_data, 'server1'):
+                test_data.server1.send_to_ui('CTC', maint_message)
+                add_to_message_log(f"Maintenance request sent to CTC for {test_data.current_line} Line", "INFO")
+            
+            # Also send to Test UI
+            test_data.server1.send_to_ui('WC_HW_TestUI', maint_message)
+            
+            # Update maintenance LED in header
+            maint_led.config(bg="orange", text="MAINT REQ")
+            
+            # Schedule button reset after 10 seconds
+            self.after(10000, self.reset_maintenance_button)
+            
+        except Exception as e:
+            print(f"Error sending maintenance request: {e}")
+            add_to_message_log(f"ERROR: Failed to send maintenance request: {e}", "ERROR")
+            self.maint_call_btn.config(state="normal")
+            self.maint_status_label.config(text="Status: Failed")
+            self.status_indicator.config(fg="red", text="●")
+
+    def reset_maintenance_button(self):
+        """Reset maintenance button to normal state"""
+        self.maint_call_btn.config(
+            text="Request Maintenance",
+            bg="#FFA500",
+            state="normal"
+        )
+        self.maint_status_label.config(text="Status: Ready")
+        self.status_indicator.config(fg="green", text="●")
+        add_to_message_log("Maintenance request timer reset", "INFO")
     def update_light_options(self):
         """Update combobox options based on current line"""
         lights = list(self.data.filtered_track_data.get("lights", {}).keys())
@@ -1908,7 +2125,25 @@ class LeftPanel(tk.Frame):
             new_value = self.light_signal.get()
             self.data.track_data["lights"][selected]["signal"] = new_value
             message_logger.log(f"Light {selected}: Signal changed from {old_value} to {new_value}")
-   
+
+
+    def handle_maintenance_request(self):
+        """Handle maintenance request - enable editable fields"""
+        print("LeftPanel: Handling maintenance request")
+        
+        # Enable switch controls for maintenance
+        self.switch_direction.config(state='readonly')
+        
+        # Visual feedback for maintenance mode
+        self.switch_direction.config(background='#ffffcc')
+        
+        # Add maintenance-specific styling
+        for widget in [self.switch_selector, self.light_selector, self.crossing_selector]:
+            widget.config(background='#fff0cc')
+        
+        add_to_message_log("LeftPanel: Maintenance controls enabled", "INFO")
+
+
     def update_mode_ui(self):
         # Refresh UI based on maintenance mode
         # pass
@@ -1924,7 +2159,29 @@ class LeftPanel(tk.Frame):
             add_to_message_log("switch controls enabled for maintenance")
         else:
             self.switch_direction.config(state='disabled')
-       
+
+
+        # Enable/disable comboboxes based on maintenance mode
+        if self.data.maintenance_mode:
+        # Maintenance mode ON
+            self.switch_direction.config(state='readonly')
+            self.switch_direction.config(background='#ffffcc')
+        
+        # Visual feedback for maintenance mode
+            for widget in [self.switch_selector, self.light_selector, self.crossing_selector]:
+                widget.config(background='#fff0cc')
+        
+            add_to_message_log("Maintenance Mode: Switch controls enabled", "INFO")
+        else:
+            # Maintenance mode OFF
+            self.switch_direction.config(state='disabled')
+            self.switch_direction.config(background='white')
+        
+            # Reset backgrounds
+            for widget in [self.switch_selector, self.light_selector, self.crossing_selector]:
+                widget.config(background='white')
+        
+        
         #update light controls
         self.light_signal.config(state='disabled')
 
