@@ -7,6 +7,7 @@ class RailwayData:
         self.maintenance_mode = False
         self.current_line = "Green"  # Default line
         self.app = None
+        self.manual_switches = set() 
         
         
         # Callbacks for UI updates
@@ -525,8 +526,15 @@ class RailwayData:
     def set_maintenance_mode(self, mode):
         """Set maintenance mode and notify all UI components"""
         self.maintenance_mode = mode
+
+        # Clear manual switch markings when exiting maintenance mode
+        if not mode and hasattr(self, 'manual_switches'):
+            print(f"[SYSTEM] Exiting maintenance mode - resetting {len(self.manual_switches)} manual switches")
+            self.manual_switches.clear()
+            
         mode_text = "activated" if mode else "deactivated"
         print(f"Maintenance mode {mode_text}")
+
         for callback in self.on_maintenance_mode_change:
             callback()
     
