@@ -86,6 +86,14 @@ lastSentPower = None  # Track last power sent to avoid duplicates
 preloadedTrackInformation = {
     'segments': [
         {
+            'from_station': 'YARD',
+            'to_station': 'GLENBURY',
+            'distance': 200.0 + 100.0,  # meters + half of block 65 (200m block)
+            'from_block': 63,
+            'to_block': 65,
+            'station_block_half_length': 100.0
+        },
+        {
             'from_station': 'GLENBURY',
             'to_station': 'DORMONT',
             'distance': 1000.0 + 50.0,  # meters + half of block 73 (100m block)
@@ -426,6 +434,23 @@ class GPIOClient:
             self.connected = False
             return False
     
+    def setServiceBrake(self, state):
+        """Control service brake (for automatic station stops)"""
+        if not self.connected:
+            return False
+        
+        command = {
+            'type': 'set_service_brake',
+            'state': state
+        }
+        
+        try:
+            self.socket.sendall((json.dumps(command) + '\n').encode('utf-8'))
+            return True
+        except:
+            self.connected = False
+            return False
+    
     def disconnect(self):
         """Disconnect from GPIO server"""
         self.running = False
@@ -483,6 +508,7 @@ def updatePositionTracking():
     global currentSegmentIndex, isAtStation, stationDwellStartTime, systemLogViewer
     global _position_print_counter
     global currentBlock, lastUndergroundState
+    global serviceBrakeActive
     
     if not autoModeEnabled:
         return
@@ -603,6 +629,25 @@ def updatePositionTracking():
         if stationDwellStartTime is not None:
             dwellElapsed = currentTime - stationDwellStartTime
             if dwellElapsed >= STATION_DWELL_TIME:
+                # RELEASE SERVICE BRAKE before departing
+                if 'speedDisplay' in globals():
+                    sd = globals()['speedDisplay']
+                    if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
+                        # Release service brake via GPIO server
+                        result = sd.gpio_client.setServiceBrake(False)
+                        if result:
+                            serviceBrakeActive = False
+                            print(f"🟢 Service brake RELEASED for departure")
+                            
+                            # Send service brake command to Train Model
+                            if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                                sd.server.send_to_ui("Train Model", {
+                                    'command': 'Service Brake',
+                                    'value': False,
+                                    'train_id': 1
+                                })
+                                print(f"[AUTO BRAKE] Service brake release sent to Train Model")
+                
                 # Close doors before departing
                 if 'speedDisplay' in globals():
                     sd = globals()['speedDisplay']
@@ -669,6 +714,25 @@ def updatePositionTracking():
         
         arrival_msg = f"*** ARRIVED AT {currentStation} ***"
         print(arrival_msg)
+        
+        # ENGAGE SERVICE BRAKE at station
+        if 'speedDisplay' in globals():
+            sd = globals()['speedDisplay']
+            if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
+                # Engage service brake via GPIO server
+                result = sd.gpio_client.setServiceBrake(True)
+                if result:
+                    serviceBrakeActive = True
+                    print(f"🛑 Service brake ENGAGED at {currentStation}")
+                    
+                    # Send service brake command to Train Model
+                    if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                        sd.server.send_to_ui("Train Model", {
+                            'command': 'Service Brake',
+                            'value': True,
+                            'train_id': 1
+                        })
+                        print(f"[AUTO BRAKE] Service brake command sent to Train Model")
         
         # Control door LEDs based on station platform side
         print(f"[DOOR DEBUG] At station {currentStation}, checking door control")
@@ -929,7 +993,7 @@ class TrainSpeedDisplayUI:
         
         # Start our server that listens for Train Model
         self.server = TrainSocketServer(port=train_controller_hw_config["port"], ui_id="Train HW")
-        self.server.set_allowed_connections(["Train Model", "Train SW"])
+        self.server.set_allowed_connections(["Train Model, Train SW"])
         self.server.start_server(self._process_message)
         print(f"✓ Train Controller HW server started on port {train_controller_hw_config['port']}")
         

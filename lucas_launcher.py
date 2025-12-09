@@ -1,20 +1,16 @@
 import subprocess
 import sys
-import os
 import time
+import os
 from pathlib import Path
-
-# Add lib folder to Python path so it finds bundled libraries
-exe_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-lib_dir = os.path.join(exe_dir, 'lib')
-if os.path.exists(lib_dir):
-    sys.path.insert(0, lib_dir)
 
 if os.environ.get('TRAINS_LAUNCHER_RUNNING') == '1':
     print("ERROR: Recursive launch detected!")
     sys.exit(1)
 
 def launch_all():
+    exe_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+    
     print("\n" + "="*60)
     print("TRAINS TEAM 2 - UNIFIED CONTROL SYSTEM")
     print(f"Running from: {exe_dir}")
@@ -22,16 +18,15 @@ def launch_all():
     
     modules = [
         ("Train Model", "Train Model/Passenger_UI.py"),
-        ("Train SW", "train_controller_sw/Driver_UI.py"),
-        ("Test UI", "Train Model/Test_UI.py")
+        ("Test UI", "Train Model/Test_UI.py"),
+        ("Train HW","HW_Train_Controller/TC_HW_MainUI.py")
     ]
     
     processes = []
     
-    # Set environment for subprocesses
+    # Set PYTHONPATH to include exe_dir so imports work
     env = os.environ.copy()
     env['PYTHONPATH'] = exe_dir + os.pathsep + env.get('PYTHONPATH', '')
-    env['TRAINS_LAUNCHER_RUNNING'] = '1'
     
     print("Starting modules...\n")
     for module_name, module_file in modules:
@@ -45,10 +40,9 @@ def launch_all():
                 startupinfo.wShowWindow = subprocess.SW_HIDE
                 
                 process = subprocess.Popen(
-                    [sys.executable, file_path],
-                    cwd=exe_dir,
-                    env=env,
-                    startupinfo=startupinfo
+                [sys.executable, file_path],
+                cwd=exe_dir,
+                env=env
                 )
                 processes.append((module_name, process))
                 print(f"    SUCCESS: {module_name} started")
@@ -59,6 +53,7 @@ def launch_all():
             print(f"  ! File not found: {file_path}")
     
     time.sleep(3)
+    
     
     print("\n" + "="*60)
     print(f"SUCCESS: {len(processes)} modules launched!")
