@@ -85,6 +85,9 @@ def run_plc_cycle(data, log_callback):
     # FIX: Run switch control ONCE, before processing blocks
     # ==============================================
     control_switches_automatically(data, log_callback)
+    control_lights_automatically(data, log_callback)
+    control_railway_crossings(data, log_callback)
+
     
     # Initialize commanded speed dict if needed
     if current_line not in data.commanded_speed:
@@ -871,3 +874,190 @@ def apply_commanded_speed_overrides(data, log_callback):
                                 user_set_speed, commanded_auth
                             )
                             print(f"    -> Block {block_num}: Applied commanded speed {user_set_speed} mph")
+
+
+def control_lights_automatically(data, log_callback):
+    """
+    Control lights based on occupancy logic:
+    - Light 75: Controls approach to Section N from blocks 86-100
+    - Light 100: Controls approach to Section N from blocks 69-76
+    """
+    current_line = data.current_line
+    
+    # Get blocks in Section N
+    blocks_in_section_N = data.get_blocks_in_section(current_line, 'N')
+    
+    # ==============================================
+    # Check if Section N is occupied
+    # ==============================================
+    section_N_occupied = False
+    for block_num in blocks_in_section_N:
+        block_key = f"Block {block_num}"
+        if block_key in data.filtered_blocks:
+            if data.filtered_blocks[block_key].get("occupied", False):
+                section_N_occupied = True
+                break
+    
+    print(f"[DEBUG] Section N occupied: {section_N_occupied}")
+    
+    # ==============================================
+    # LIGHT 75 LOGIC
+    # ==============================================
+    light_75_name = "Light 75"
+    
+    if light_75_name in data.filtered_light_states:
+        # Check blocks 86-100 for occupancy
+        blocks_86_to_100_occupied = False
+        for block_num in range(86, 101):  # 86 to 100 inclusive
+            block_key = f"Block {block_num}"
+            if block_key in data.filtered_blocks:
+                if data.filtered_blocks[block_key].get("occupied", False):
+                    blocks_86_to_100_occupied = True
+                    print(f"[DEBUG] Light 75: Block {block_num} is occupied (86-100 range)")
+                    break
+        
+        print(f"[DEBUG] Light 75: Blocks 86-100 occupied: {blocks_86_to_100_occupied}")
+        
+        # Determine Light 75 state
+        if section_N_occupied:
+            # RED: Section N is occupied
+            light_state = "Red"
+            condition_text = "Section N occupied"
+        elif blocks_86_to_100_occupied:
+            # YELLOW: Blocks 86-100 are occupied (but N is not)
+            light_state = "Yellow"
+            condition_text = "Blocks 86-100 occupied"
+        else:
+            # GREEN: Nothing occupied in 86-100 and N is not occupied
+            light_state = "Green"
+            condition_text = "Clear path to Section N"
+        
+        print(f"[DEBUG] Light 75: Setting to {light_state} - {condition_text}")
+        
+        # Update light state
+        data.update_track_data("light_states", light_75_name, "signal", light_state)
+        data.update_track_data("light_states", light_75_name, "condition", condition_text)
+    
+    # ==============================================
+    # LIGHT 100 LOGIC
+    # ==============================================
+    light_100_name = "Light 100"
+    
+    if light_100_name in data.filtered_light_states:
+        # Check blocks 69-76 for occupancy
+        blocks_69_to_76_occupied = False
+        for block_num in range(69, 77):  # 69 to 76 inclusive
+            block_key = f"Block {block_num}"
+            if block_key in data.filtered_blocks:
+                if data.filtered_blocks[block_key].get("occupied", False):
+                    blocks_69_to_76_occupied = True
+                    print(f"[DEBUG] Light 100: Block {block_num} is occupied (69-76 range)")
+                    break
+        
+        print(f"[DEBUG] Light 100: Blocks 69-76 occupied: {blocks_69_to_76_occupied}")
+        
+        # Check blocks 101-116 for occupancy (for SUPER GREEN)
+        blocks_101_to_116_occupied = False
+        for block_num in range(101, 117):  # 101 to 116 inclusive
+            block_key = f"Block {block_num}"
+            if block_key in data.filtered_blocks:
+                if data.filtered_blocks[block_key].get("occupied", False):
+                    blocks_101_to_116_occupied = True
+                    print(f"[DEBUG] Light 100: Block {block_num} is occupied (101-116 range)")
+                    break
+        
+        print(f"[DEBUG] Light 100: Blocks 101-116 occupied: {blocks_101_to_116_occupied}")
+        
+        # Determine Light 100 state
+        if section_N_occupied:
+            # RED: Section N is occupied
+            light_state = "Red"
+            condition_text = "Section N occupied"
+        elif blocks_69_to_76_occupied:
+            # YELLOW: Blocks 69-76 are occupied (but N is not)
+            light_state = "Yellow"
+            condition_text = "Blocks 69-76 occupied"
+        elif not blocks_101_to_116_occupied:
+            # SUPER GREEN: Nothing in 69-76, N, AND 101-116
+            light_state = "Super Green"
+            condition_text = "Clear path through Section N and beyond"
+        else:
+            # GREEN: Nothing in 69-76 and N, but something in 101-116
+            light_state = "Green"
+            condition_text = "Clear path to Section N"
+        
+        print(f"[DEBUG] Light 100: Setting to {light_state} - {condition_text}")
+        
+        # Update light state
+        data.update_track_data("light_states", light_100_name, "signal", light_state)
+        data.update_track_data("light_states", light_100_name, "condition", condition_text)
+    
+    print("[DEBUG] Light control complete")
+
+def control_railway_crossings(data, log_callback):
+    """
+    Control Railway Crossing 108
+    Activate when train is on block 108 OR block 107
+    """
+    current_line = data.current_line
+    crossing_name = "Railway 108"  # CHANGED from "Railway Crossing 108"
+    
+    print(f"[DEBUG] Controlling {crossing_name}")
+    
+    # CRITICAL: Create crossing if it doesn't exist
+    if crossing_name not in data.railway_crossings:
+        print(f"[DEBUG] Creating Railway 108 dynamically")
+        
+        # Add to main data
+        data.railway_crossings[crossing_name] = {
+            "lights": "Off",
+            "bar": "Open",
+            "condition": "Not initialized",
+            "line": current_line,
+            "section": data.get_section_for_block(current_line, "108")  # ADD SECTION
+        }
+        
+        # Also add to filtered data
+        data.filtered_railway_crossings[crossing_name] = {
+            "lights": "Off",
+            "bar": "Open",
+            "condition": "Not initialized",
+            "line": current_line,
+            "section": data.get_section_for_block(current_line, "108")  # ADD SECTION
+        }
+        print(f"[DEBUG] Railway 108 created - will appear in UI")
+    
+    # Initialize variables
+    crossing_occupied = False
+    previous_occupied = False
+    
+    # Check block 108
+    if "Block 108" in data.filtered_blocks:
+        crossing_occupied = data.filtered_blocks["Block 108"].get("occupied", False)
+    
+    # Check block 107  
+    if "Block 107" in data.filtered_blocks:
+        previous_occupied = data.filtered_blocks["Block 107"].get("occupied", False)
+    
+    # Activate if train on 108 OR 107
+    should_activate = crossing_occupied or previous_occupied
+    
+    if should_activate:
+        lights_state = "On"
+        bar_state = "Closed"
+        if crossing_occupied:
+            condition_text = f"Lights: {lights_state}, Bar: {bar_state}"  # CHANGED
+        else:
+            condition_text = f"Lights: {lights_state}, Bar: {bar_state}"  # CHANGED
+    else:
+        lights_state = "Off"
+        bar_state = "Open"
+        condition_text = f"Lights: {lights_state}, Bar: {bar_state}"  # CHANGED
+    
+    print(f"[DEBUG] Railway 108: Lights={lights_state}, Bar={bar_state}, Condition={condition_text}")
+
+
+    # Update using the standard method
+    data.update_track_data("railway_crossings", crossing_name, "lights", lights_state)
+    data.update_track_data("railway_crossings", crossing_name, "bar", bar_state)
+    data.update_track_data("railway_crossings", crossing_name, "condition", condition_text)
