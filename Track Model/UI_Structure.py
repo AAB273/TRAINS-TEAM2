@@ -6191,7 +6191,7 @@ class TrackModelUI(tk.Tk):
         Determine if a block is controlled by Track SW based on current line.
         
         Green Line: Track SW controls blocks 63-149
-        Red Line: Track SW controls blocks 25-48 and 67-76
+        Red Line: Track SW controls blocks 21-48 and 67-76
         
         Returns True if block is controlled by Track SW, False if Track HW
         """
@@ -6201,8 +6201,8 @@ class TrackModelUI(tk.Tk):
             # Green Line: Track SW controls 63-149
             return 63 <= block_num <= 149
         else:
-            # Red Line: Track SW controls 25-48 and 67-76
-            return (25 <= block_num <= 48) or (67 <= block_num <= 76)
+            # Red Line: Track SW controls 21-48 and 67-76
+            return (21 <= block_num <= 48) or (67 <= block_num <= 76)
     
     def get_blocks_for_controller(self, source_ui_id, block_list):
         """
