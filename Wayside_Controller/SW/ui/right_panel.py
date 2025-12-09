@@ -358,6 +358,19 @@ class RightPanel(tk.Frame):
         self.data.commanded_authority[current_line][block] = authority
         self.data.commanded_speed[current_line][block] = speed
         
+        # ============================================
+        # NEW: Set flag indicating user has manually set authority
+        # ============================================
+        if not hasattr(self.data, 'user_authority_updated'):
+            self.data.user_authority_updated = {}
+        
+        if current_line not in self.data.user_authority_updated:
+            self.data.user_authority_updated[current_line] = {}
+        
+        # Mark this block as having user authority
+        self.data.user_authority_updated[current_line][block] = True
+        print(f" User set authority for block {block}, flag set")
+            
         # Update track_data immediately so PLC can work with it
         block_key = f"Block {block}"
         if hasattr(self.data, 'filtered_blocks') and block_key in self.data.filtered_blocks:

@@ -19,7 +19,7 @@ import os, sys
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
 #from clock import clock
-import pygame
+#import pygame
 import random
 
 class TrainModelPassengerGUI:
@@ -59,7 +59,7 @@ class TrainModelPassengerGUI:
 		trainHwConfig = moduleConfig.get("Train HW", {"port": 12347})
 		trackModelConfig = moduleConfig.get("Track Model", {"port": 12344})
 
-		pygame.mixer.init()
+		#pygame.mixer.init()
 
 		self.server.connect_to_ui('localhost', trainSwConfig["port"], "Train SW")
 		self.server.connect_to_ui('localhost', trainHwConfig["port"], "Train HW")
