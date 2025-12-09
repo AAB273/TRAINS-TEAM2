@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 # Configuration
-PI_HOST = '10.6.3.77'  # ← CHANGE THIS to your Pi's IP
+PI_HOST = '172.20.10.8'  # ← CHANGE THIS to your Pi's IP
 PI_GPIO_PORT = 12348
 
 class SystemLogViewer:

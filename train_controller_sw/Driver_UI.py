@@ -675,13 +675,13 @@ class Main_Window:
         
         # Update E-brake release button state
         self.update_ebrake_release_state()
-        
+        '''
         # *** CRITICAL: Only send power if we have control authority ***
         if not self.has_control_authority:
             # We don't have control authority yet - don't send any power
             # This prevents fighting with HW controller
             self.root.after(100, self.update_displays)
-            return
+            return'''
         
         # Calculate and send power command
         # Only send power when NOT in emergency brake and NOT in service brake
@@ -1141,7 +1141,7 @@ class Main_Window:
         except Exception as e:
             print(f"Error sending temperature setpoint: {e}")
 
-
+    '''
     def send_drivetrain_mode(self, is_auto):
         """
         Send drivetrain mode to Train Model
@@ -1157,7 +1157,7 @@ class Main_Window:
             print(f"Sent drivetrain mode: {'auto' if is_auto else 'manual'}")
         except Exception as e:
             print(f"Error sending drivetrain mode: {e}")
-
+    '''
 
     def send_service_brake(self, is_active):
         """
@@ -1188,7 +1188,7 @@ class Main_Window:
         """
         try:
             self.server.send_to_ui("Train Model", {
-                'command': "Station Announcement Message",
+                'command': "Announcement",
                 'value': str(message), 
                 'train_id' : 2
             })

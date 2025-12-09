@@ -7,7 +7,7 @@ def launch_three_guis():
     # Replace these with your exact filepaths
     PASSENGER_UI_PATH = "Wayside_Controller/SW/main.py"
     TRACK_MODEL_UI_PATH = "CTC_Office/CTC_UI.py"
-    TEST_UI_PATH = "Wayside_Controller/HW/WC_HW_MainUI"  # ✅ Third GUI
+    TEST_UI_PATH = "Wayside_Controller/HW/WC_HW_MainUI.py"  # ✅ Third GUI
     # PASSENGER_UI_PATH = "Train Model/Passenger_UI.py"
     # TRACK_MODEL_UI_PATH = "Track Model/UI_Structure.py"
     # TEST_UI_PATH = "Train Model/Test_UI.py"  # ✅ Third GUI

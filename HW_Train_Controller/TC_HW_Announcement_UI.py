@@ -17,9 +17,10 @@ class StationAnnouncementPanel:
 		timeLabels: Dict of time labels for each tab
 	"""
 	
-	def __init__(self, root):
+	def __init__(self, root, parent=None):
 		# Initializes the station announcement panel.
 		self.root = root
+		self.parent = parent  # Reference to main UI (SpeedDisplay) for socket access
 		self.root.title("STATION ANNOUNCEMENT PANEL")
 		self.root.geometry("500x700")
 		self.root.configure(bg='#2c3e50')
@@ -316,6 +317,20 @@ class StationAnnouncementPanel:
 		
 		print(f"ANNOUNCEMENT ({line}): {announcement}")
 		
+		# Send announcement through socket server to Train Model
+		if self.parent and hasattr(self.parent, 'server') and self.parent.server:
+			if hasattr(self.parent, 'train_model_connected') and self.parent.train_model_connected:
+				self.parent.server.send_to_ui("Train Model", {
+					'command': 'Announcement',
+					'text': announcement,
+					'train_id': 1
+				})
+				print(f"📢 Announcement sent to Train Model: {announcement}")
+			else:
+				print("⚠️ Not connected to Train Model - announcement not sent")
+		else:
+			print("⚠️ No socket server available - announcement not sent")
+		
 	def _announceEmergency(self):
 		# Broadcasts emergency message.
 		msg = self.emergencyText.get('1.0', 'end-1c').strip()
@@ -324,6 +339,20 @@ class StationAnnouncementPanel:
 			return
 		
 		print(f"EMERGENCY BROADCAST: {msg}")
+		
+		# Send emergency announcement through socket server to Train Model
+		if self.parent and hasattr(self.parent, 'server') and self.parent.server:
+			if hasattr(self.parent, 'train_model_connected') and self.parent.train_model_connected:
+				self.parent.server.send_to_ui("Train Model", {
+					'command': 'Announcement',
+					'text': f"EMERGENCY: {msg}",
+					'train_id': 1
+				})
+				print(f"📢 Emergency announcement sent to Train Model: {msg}")
+			else:
+				print("⚠️ Not connected to Train Model - emergency announcement not sent")
+		else:
+			print("⚠️ No socket server available - emergency announcement not sent")
 		
 	def _updateTime(self):
 		# Updates the time display on all tabs.
