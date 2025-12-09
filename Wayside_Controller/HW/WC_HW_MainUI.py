@@ -2098,7 +2098,7 @@ class RightPanel(tk.Frame):
                     # Color coding for occupancy
                     occupied_text = row[0] if len(row) > 0 else "No"
                     occupied_color = '#ffcccc' if occupied_text == "Yes" else '#ccffcc'
-                    self.occupied_label.config(text=occupied_text, bg=occupied_color)
+                    self.occupied_label(text=occupied_text, bg=occupied_color)
 
                     found = True
                     break #exits the loop once finding matching new row
@@ -2108,14 +2108,14 @@ class RightPanel(tk.Frame):
                 self.block_num_label.config(text="N/A")
                 self.line_label.config(text="N/A", bg='white')
                 self.section_label.config(text="N/A")
-                self.occupied_label.config(text="N/A", bg='white')
+                self.occupied_label(text="N/A", bg='white')
         else:
                 print("DEBUG: No block selected")
                 # Set default values
                 self.block_num_label.config(text="N/A")
                 self.line_label.config(text="N/A", bg='white')
                 self.section_label.config(text="N/A")
-                self.occupied_label.config(text="N/A", bg='white')
+                self.occupied_label(text="N/A", bg='white')
 
     def create_suggested_section(self):
         """Display suggested authority and speed"""
