@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from datetime import datetime
+
 def run_plc_cycle(data, log_callback):
     """
     PLC with CTC override logic
@@ -77,15 +79,20 @@ def run_plc_cycle(data, log_callback):
     
     # Apply Section N dynamic logic if section N has occupied block
     if section_N_occupied:
-        #print("\n[DEBUG] Running Section N dynamic authority logic...")
         section_n_dynamic_auth = apply_section_n_authority_logic(data, log_callback)
-        #print(f"[DEBUG] Section N dynamic authorities calculated: {section_n_dynamic_auth}")
     
     # ==============================================
     # FIX: Run switch control ONCE, before processing blocks
     # ==============================================
-    #print("[DEBUG] Running switch control...")
     control_switches_automatically(data, log_callback)
+    
+    # Initialize commanded speed dict if needed
+    if current_line not in data.commanded_speed:
+        data.commanded_speed[current_line] = {}
+    
+    # Initialize commanded authority dict if needed
+    if current_line not in data.commanded_authority:
+        data.commanded_authority[current_line] = {}
     
     # Process each block
     for block_key, block_info in data.filtered_blocks.items():
@@ -108,7 +115,6 @@ def run_plc_cycle(data, log_callback):
         if is_block_occupied:
             # Occupied block: authority 0
             final_authority = 0
-            #print(f"[DEBUG] Block {block_num} is occupied: auth=0")
         elif occupied_blocks:
             # Find nearest occupied block AHEAD
             nearest_ahead = None
@@ -125,109 +131,21 @@ def run_plc_cycle(data, log_callback):
                 # Authority based on distance to nearest occupied block ahead
                 if min_distance == 1:
                     final_authority = 0
-                    #print(f"[DEBUG] Block {block_num}: 1 block ahead of occupied {nearest_ahead}: auth=0")
                 elif min_distance == 2:
                     final_authority = 1
-                    #print(f"[DEBUG] Block {block_num}: 2 blocks ahead of occupied {nearest_ahead}: auth=1")
                 elif min_distance == 3:
                     final_authority = 2
-                    #print(f"[DEBUG] Block {block_num}: 3 blocks ahead of occupied {nearest_ahead}: auth=2")
-                # else: stays at 3 (default)
         
         # ==============================================
-        # NEW: Apply CTC override logic
+        # NEW: Apply CTC override logic using extracted function
         # ==============================================
         if ctc_override_blocks:
-            # FIRST: Check if train has reached any CTC stopping point
-            ctc_overrides_to_clear = []
-            
-            for ctc_block in ctc_override_blocks:
-                # Determine stopping point based on block number
-                if ctc_block == 80:
-                    # SPECIAL CASE: Backward movement for block 80
-                    stopping_block = ctc_block - 3  # 80-3 = 77
-                    print(f"  CTC Block 80: Using BACKWARD pattern (stopping at {stopping_block})")
-                else:
-                    # NORMAL: Forward movement for all other blocks
-                    stopping_block = ctc_block + 3  # X+3
-                    print(f"  CTC Block {ctc_block}: Using FORWARD pattern (stopping at {stopping_block})")
-                
-                # Check if stopping block is occupied
-                stopping_key = f"Block {stopping_block}"
-                if stopping_key in data.filtered_blocks:
-                    if data.filtered_blocks[stopping_key].get("occupied", False):
-                        # Train has reached destination! Clear this CTC override
-                        ctc_overrides_to_clear.append(ctc_block)
-                        print(f"  CTC AUTO-CLEAR: Block {ctc_block} (train at stopping block {stopping_block})")
-            
-            # Actually delete from suggested_authority
-            if ctc_overrides_to_clear and current_line in data.suggested_authority:
-                for ctc_block in ctc_overrides_to_clear:
-                    block_str = str(ctc_block)
-                    if block_str in data.suggested_authority[current_line]:
-                        del data.suggested_authority[current_line][block_str]
-                        print(f"  CTC OVERRIDE DELETED: Removed block {ctc_block}")
-            
-            # Filter active CTC blocks
-            if current_line in data.suggested_authority:
-                active_ctc_blocks = []
-                for ctc_block in ctc_override_blocks:
-                    if ctc_block in ctc_overrides_to_clear:
-                        continue
-                        
-                    block_str = str(ctc_block)
-                    if block_str in data.suggested_authority[current_line]:
-                        suggested_auth = data.suggested_authority[current_line][block_str]
-                        try:
-                            if int(suggested_auth) == 3:
-                                active_ctc_blocks.append(ctc_block)
-                        except ValueError:
-                            pass
-                
-                ctc_override_blocks = active_ctc_blocks
-            
-            # Apply CTC override logic with correct direction
-            for ctc_block in ctc_override_blocks:
-                if ctc_block == 80:
-                    # BACKWARD pattern for block 80: 80=3, 79=2, 78=1, 77=0
-                    distance = ctc_block - block_num_int  # Positive if block is behind CTC
-                    
-                    if distance == 0:  # Block 80 itself
-                        ctc_auth = 3
-                        final_authority = min(final_authority, ctc_auth)
-                        print(f"  CTC Override BACKWARD: Block {block_num} (CTC block) auth = min({final_authority}, {ctc_auth})")
-                    elif distance == 1:  # Block 79 (80-1)
-                        ctc_auth = 2
-                        final_authority = min(final_authority, ctc_auth)
-                        print(f"  CTC Override BACKWARD: Block {block_num} (X-1) auth = min({final_authority}, {ctc_auth})")
-                    elif distance == 2:  # Block 78 (80-2)
-                        ctc_auth = 1
-                        final_authority = min(final_authority, ctc_auth)
-                        print(f"  CTC Override BACKWARD: Block {block_num} (X-2) auth = min({final_authority}, {ctc_auth})")
-                    elif distance == 3:  # Block 77 (80-3)
-                        ctc_auth = 0
-                        final_authority = min(final_authority, ctc_auth)
-                        print(f"  CTC Override BACKWARD: Block {block_num} (X-3) auth = min({final_authority}, {ctc_auth})")
-                else:
-                    # FORWARD pattern for all others: X=3, X+1=2, X+2=1, X+3=0
-                    distance = block_num_int - ctc_block  # Positive if block is ahead of CTC
-                    
-                    if distance == 0:  # CTC block itself
-                        ctc_auth = 3
-                        final_authority = min(final_authority, ctc_auth)
-                        print(f"  CTC Override FORWARD: Block {block_num} (CTC block) auth = min({final_authority}, {ctc_auth})")
-                    elif distance == 1:  # Block X+1
-                        ctc_auth = 2
-                        final_authority = min(final_authority, ctc_auth)
-                        print(f"  CTC Override FORWARD: Block {block_num} (X+1) auth = min({final_authority}, {ctc_auth})")
-                    elif distance == 2:  # Block X+2
-                        ctc_auth = 1
-                        final_authority = min(final_authority, ctc_auth)
-                        print(f"  CTC Override FORWARD: Block {block_num} (X+2) auth = min({final_authority}, {ctc_auth})")
-                    elif distance == 3:  # Block X+3
-                        ctc_auth = 0
-                        final_authority = min(final_authority, ctc_auth)
-                        print(f"  CTC Override FORWARD: Block {block_num} (X+3) auth = min({final_authority}, {ctc_auth})")
+            final_authority, updated_ctc_override_blocks = apply_ctc_override_logic(
+                data, current_line, block_num_int, final_authority, 
+                occupied_blocks, ctc_override_blocks
+            )
+            # Update the list for consistency
+            ctc_override_blocks = updated_ctc_override_blocks
                     
         # ==============================================
         # FIX: Apply Section N authorities AFTER CTC logic
@@ -236,7 +154,6 @@ def run_plc_cycle(data, log_callback):
             # Check if this block has a dynamic authority from Section N
             if block_num in section_n_dynamic_auth:
                 dynamic_auth = section_n_dynamic_auth[block_num]
-                #print(f"[DEBUG] Block {block_num}: Applying Section N dynamic auth {dynamic_auth} (was {final_authority})")
                 final_authority = min(final_authority, dynamic_auth)  # Use most restrictive
             
             # Apply the fixed authority rules for specific blocks (74-76, 98-100)
@@ -257,29 +174,56 @@ def run_plc_cycle(data, log_callback):
                     print(f"  Section N Fixed: Block {block_num} auth = min({old_auth}, {section_N_fixed_auth}) = {final_authority}")
         
         # ==============================================
-        # DEBUG: Show final authority
+        # IMPORTANT: Set default speed here before speed overrides
         # ==============================================
-        #if final_authority != default_authority:
-            #print(f"[DEBUG] Block {block_num}: Final authority = {final_authority}")
+        final_speed = default_speed
         
         # Update data
         data.update_block_in_track_data(block_num, "authority", final_authority)
         data.update_block_in_track_data(block_num, "speed", final_speed)
         
-        # Update commanded values
-        if current_line not in data.commanded_authority:
-            data.commanded_authority[current_line] = {}
-        if current_line not in data.commanded_speed:
-            data.commanded_speed[current_line] = {}
-        
+        # Store commanded values for later speed override processing
         data.commanded_authority[current_line][block_num] = str(final_authority)
         data.commanded_speed[current_line][block_num] = str(final_speed)
         
+    # ==============================================
+    # FIX: Apply CTC and Commanded Speed Overrides AFTER all blocks processed
+    # ==============================================
+    print("\n[SPEED OVERRIDES]")
+    # Apply CTC speed overrides first
+    apply_ctc_speed_overrides(data, log_callback)
+    
+    # Apply commanded speed overrides second (user-set speeds)
+    apply_commanded_speed_overrides(data, log_callback)
+    
+    # ==============================================
+    # Now send updated commanded values to track model for occupied blocks
+    # ==============================================
+    print("\n[SENDING TO TRACK MODEL]")
+    for block_key, block_info in data.filtered_blocks.items():
+        block_num = block_info["number"]
+        block_num_str = str(block_num)
+        
+        # Check if block is occupied
+        if block_info.get("occupied", False):
+            # Get current commanded values
+            cmd_speed = data.commanded_speed[current_line].get(block_num_str, "32")
+            cmd_auth = data.commanded_authority[current_line].get(block_num_str, "3")
+            
+            # Send to track model
+            if hasattr(data, 'app') and data.app:
+                try:
+                    data.app.send_commanded_to_track_model(
+                        current_line, block_num_str, cmd_speed, cmd_auth
+                    )
+                    print(f"  Block {block_num}: Speed={cmd_speed} mph, Authority={cmd_auth}")
+                except Exception as e:
+                    print(f"  Error sending block {block_num} to track model: {e}")
+    
     # Apply filter
     data.apply_plc_filter()
     
     # Trigger UI update
-    #print(f"[DEBUG] Triggering UI update with {len(data.on_data_update)} callbacks")
     for callback in data.on_data_update:
             callback()
         
@@ -516,3 +460,414 @@ def apply_section_n_authority_logic(data, log_callback):
     
     print(f"[DEBUG] Section N authority updates calculated: {authority_updates}")
     return authority_updates
+
+def apply_ctc_override_logic(data, current_line, block_num_int, final_authority, occupied_blocks, ctc_override_blocks):
+    """
+    Apply CTC override authority logic.
+    Returns: tuple of (updated_final_authority, updated_ctc_override_blocks)
+    """
+    if not ctc_override_blocks:
+        return final_authority, ctc_override_blocks
+    
+    # FIRST: Check if train has reached any CTC stopping point
+    ctc_overrides_to_clear = []
+    
+    for ctc_block in ctc_override_blocks:
+        # Determine stopping point based on block number
+        if ctc_block == 80:
+            # SPECIAL CASE: Backward movement for block 80
+            stopping_block = ctc_block - 3  # 80-3 = 77
+            print(f"  CTC Block 80: Using BACKWARD pattern (stopping at {stopping_block})")
+        else:
+            # NORMAL: Forward movement for all other blocks
+            stopping_block = ctc_block + 3  # X+3
+            print(f"  CTC Block {ctc_block}: Using FORWARD pattern (stopping at {stopping_block})")
+        
+        # Check if stopping block is occupied
+        stopping_key = f"Block {stopping_block}"
+        if stopping_key in data.filtered_blocks:
+            if data.filtered_blocks[stopping_key].get("occupied", False):
+                # Train has reached destination! Clear this CTC override
+                ctc_overrides_to_clear.append(ctc_block)
+                print(f"  CTC AUTO-CLEAR: Block {ctc_block} (train at stopping block {stopping_block})")
+    
+    # Actually delete from suggested_authority
+    if ctc_overrides_to_clear and current_line in data.suggested_authority:
+        for ctc_block in ctc_overrides_to_clear:
+            block_str = str(ctc_block)
+            if block_str in data.suggested_authority[current_line]:
+                del data.suggested_authority[current_line][block_str]
+                print(f"  CTC OVERRIDE DELETED: Removed block {ctc_block}")
+    
+    # Filter active CTC blocks
+    if current_line in data.suggested_authority:
+        active_ctc_blocks = []
+        for ctc_block in ctc_override_blocks:
+            if ctc_block in ctc_overrides_to_clear:
+                continue
+                
+            block_str = str(ctc_block)
+            if block_str in data.suggested_authority[current_line]:
+                suggested_auth = data.suggested_authority[current_line][block_str]
+                try:
+                    if int(suggested_auth) == 3:
+                        active_ctc_blocks.append(ctc_block)
+                except ValueError:
+                    pass
+        
+        ctc_override_blocks = active_ctc_blocks
+    
+    # Apply CTC override logic with correct direction
+    for ctc_block in ctc_override_blocks:
+        if ctc_block == 80:
+            # BACKWARD pattern for block 80: 80=3, 79=2, 78=1, 77=0
+            distance = ctc_block - block_num_int  # Positive if block is behind CTC
+            
+            if distance == 0:  # Block 80 itself
+                ctc_auth = 3
+                final_authority = min(final_authority, ctc_auth)
+                print(f"  CTC Override BACKWARD: Block {block_num_int} (CTC block) auth = min({final_authority}, {ctc_auth})")
+            elif distance == 1:  # Block 79 (80-1)
+                ctc_auth = 2
+                final_authority = min(final_authority, ctc_auth)
+                print(f"  CTC Override BACKWARD: Block {block_num_int} (X-1) auth = min({final_authority}, {ctc_auth})")
+            elif distance == 2:  # Block 78 (80-2)
+                ctc_auth = 1
+                final_authority = min(final_authority, ctc_auth)
+                print(f"  CTC Override BACKWARD: Block {block_num_int} (X-2) auth = min({final_authority}, {ctc_auth})")
+            elif distance == 3:  # Block 77 (80-3)
+                ctc_auth = 0
+                final_authority = min(final_authority, ctc_auth)
+                print(f"  CTC Override BACKWARD: Block {block_num_int} (X-3) auth = min({final_authority}, {ctc_auth})")
+        else:
+            # FORWARD pattern for all others: X=3, X+1=2, X+2=1, X+3=0
+            distance = block_num_int - ctc_block  # Positive if block is ahead of CTC
+            
+            if distance == 0:  # CTC block itself
+                ctc_auth = 3
+                final_authority = min(final_authority, ctc_auth)
+                print(f"  CTC Override FORWARD: Block {block_num_int} (CTC block) auth = min({final_authority}, {ctc_auth})")
+            elif distance == 1:  # Block X+1
+                ctc_auth = 2
+                final_authority = min(final_authority, ctc_auth)
+                print(f"  CTC Override FORWARD: Block {block_num_int} (X+1) auth = min({final_authority}, {ctc_auth})")
+            elif distance == 2:  # Block X+2
+                ctc_auth = 1
+                final_authority = min(final_authority, ctc_auth)
+                print(f"  CTC Override FORWARD: Block {block_num_int} (X+2) auth = min({final_authority}, {ctc_auth})")
+            elif distance == 3:  # Block X+3
+                ctc_auth = 0
+                final_authority = min(final_authority, ctc_auth)
+                print(f"  CTC Override FORWARD: Block {block_num_int} (X+3) auth = min({final_authority}, {ctc_auth})")
+    
+    return final_authority, ctc_override_blocks
+
+
+def apply_ctc_speed_overrides(data, log_callback):
+    """
+    Apply CTC speed override logic for PLC sections K-Y only:
+    1. When CTC sends suggested speed, set that SECTION to CTC speed (max 43.5 mph)
+    2. When section becomes unoccupied OR train reaches authority 0 (and is occupied), 
+       reset to default (32 mph) AND clear suggested speed
+    """
+    current_line = data.current_line
+    
+    # PLC sections we control
+    plc_sections = ['K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y']
+    
+    # Track which suggested speeds to clear
+    suggested_speeds_to_clear = []
+    
+    # Check if CTC has suggested any speeds
+    if current_line in data.suggested_speed:
+        ctc_suggested_speeds = data.suggested_speed[current_line]
+        
+        # Process each block with CTC suggested speed
+        for block_str, ctc_speed_str in ctc_suggested_speeds.items():
+            try:
+                block_num = int(block_str)
+                
+                # Get the section for this block
+                block_section = data.get_section_for_block(current_line, block_str)
+                
+                # Only process if section is in PLC sections K-Y
+                if block_section and block_section in plc_sections:
+                    
+                    # Convert CTC speed from m/s to mph (if needed) and cap at 43.5 mph
+                    ctc_speed_mph = float(ctc_speed_str) * 2.23694  # Convert m/s to mph
+                    
+                    # Cap at maximum speed of 43.5 mph
+                    if ctc_speed_mph > 43.5:
+                        ctc_speed_mph = 43.5
+                        print(f"  CTC Speed Capped: Section {block_section} speed capped to 43.5 mph")
+                    
+                    print(f"  CTC Speed Override: Block {block_num} in Section {block_section} -> {ctc_speed_mph:.1f} mph")
+                    
+                    # Find all blocks in this section
+                    blocks_in_section = data.get_blocks_in_section(current_line, block_section)
+                    
+                    # Apply CTC speed to ALL blocks in this section
+                    for section_block in blocks_in_section:
+                        section_block_str = str(section_block)
+                        
+                        # Set commanded speed for this block
+                        data.commanded_speed[current_line][section_block_str] = str(ctc_speed_mph)
+                        print(f"    -> Block {section_block}: Speed set to {ctc_speed_mph:.1f} mph")
+                        
+                        # Send to Track Model if this block is occupied
+                        block_key = f"Block {section_block}"
+                        if block_key in data.filtered_blocks:
+                            if data.filtered_blocks[block_key].get("occupied", False):
+                                # Send commanded values to Track Model
+                                commanded_auth = data.commanded_authority[current_line].get(section_block_str, "3")
+                                if hasattr(data, 'app') and data.app:
+                                    data.app.send_commanded_to_track_model(
+                                        current_line, section_block_str, 
+                                        str(ctc_speed_mph), commanded_auth
+                                    )
+                                    print(f"    -> Sent to Track Model (occupied)")
+                
+            except (ValueError, TypeError) as e:
+                print(f"  Error processing CTC speed for block {block_str}: {e}")
+    
+    # Reset sections to default speed when conditions are met
+    # ONLY for PLC sections K-Y
+    for section in plc_sections:
+        blocks_in_section = data.get_blocks_in_section(current_line, section)
+        
+        # Skip if no blocks in this section
+        if not blocks_in_section:
+            continue
+        
+        # Check if section should be reset to default speed
+        should_reset = False
+        
+        # Condition 1: Check if entire section is unoccupied
+        section_occupied = False
+        for block_num in blocks_in_section:
+            block_key = f"Block {block_num}"
+            if block_key in data.filtered_blocks:
+                if data.filtered_blocks[block_key].get("occupied", False):
+                    section_occupied = True
+                    break
+        
+        if not section_occupied:
+            should_reset = True
+            print(f"  Speed Reset: Section {section} is unoccupied -> reset to default")
+            
+            # Mark any suggested speeds in this section for clearing
+            if current_line in data.suggested_speed:
+                for block_str in list(data.suggested_speed[current_line].keys()):
+                    try:
+                        block_section = data.get_section_for_block(current_line, block_str)
+                        if block_section == section:
+                            suggested_speeds_to_clear.append(block_str)
+                            print(f"    -> Will clear suggested speed for block {block_str}")
+                    except:
+                        pass
+        
+        # Condition 2: Check if any block in section has authority 0 AND is occupied
+        # This means train has reached stopping point
+        if not should_reset:  # Only check if section is occupied
+            for block_num in blocks_in_section:
+                block_str = str(block_num)
+                block_key = f"Block {block_num}"
+                
+                # Check both: authority = 0 AND block is occupied
+                block_auth = data.commanded_authority[current_line].get(block_str, "3")
+                is_occupied = False
+                
+                if block_key in data.filtered_blocks:
+                    is_occupied = data.filtered_blocks[block_key].get("occupied", False)
+                
+                if block_auth == "0" and is_occupied:
+                    should_reset = True
+                    print(f"  Speed Reset: Block {block_num} in Section {section} has authority 0 AND is occupied -> reset to default")
+                    
+                    # Mark suggested speeds in this section for clearing
+                    if current_line in data.suggested_speed:
+                        for block_str in list(data.suggested_speed[current_line].keys()):
+                            try:
+                                block_section = data.get_section_for_block(current_line, block_str)
+                                if block_section == section:
+                                    suggested_speeds_to_clear.append(block_str)
+                                    print(f"    -> Will clear suggested speed for block {block_str}")
+                            except:
+                                pass
+                    break
+        
+        # Reset section to default speed if conditions are met
+        if should_reset:
+            default_speed = "32"  # Default speed in mph
+            
+            for block_num in blocks_in_section:
+                block_str = str(block_num)
+                
+                # Update commanded speed
+                data.commanded_speed[current_line][block_str] = default_speed
+                
+                # Send to Track Model if block is occupied
+                block_key = f"Block {block_num}"
+                if block_key in data.filtered_blocks:
+                    if data.filtered_blocks[block_key].get("occupied", False):
+                        commanded_auth = data.commanded_authority[current_line].get(block_str, "3")
+                        if hasattr(data, 'app') and data.app:
+                            data.app.send_commanded_to_track_model(
+                                current_line, block_str, default_speed, commanded_auth
+                            )
+                            print(f"    -> Block {block_num}: Reset to default speed {default_speed} mph")
+    
+    # Actually clear the suggested speeds
+    if suggested_speeds_to_clear and current_line in data.suggested_speed:
+        for block_str in suggested_speeds_to_clear:
+            if block_str in data.suggested_speed[current_line]:
+                del data.suggested_speed[current_line][block_str]
+                print(f"  CTC Speed CLEARED: Removed suggested speed for block {block_str}")
+
+def apply_commanded_speed_overrides(data, log_callback):
+    """
+    Apply commanded speed override logic for PLC sections K-Y only:
+    1. When user sets commanded speed, set that SECTION to commanded speed (max 43.5 mph)
+    2. When section becomes unoccupied OR train reaches authority 0 (and is occupied), 
+       reset to default (32 mph) AND clear commanded speed override
+    """
+    current_line = data.current_line
+    
+    # PLC sections we control
+    plc_sections = ['K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y']
+    
+    # Track which commanded speeds to clear (we'll track by section)
+    commanded_speeds_to_clear = set()
+    
+    # First, check for sections that should have their commanded speeds cleared
+    for section in plc_sections:
+        blocks_in_section = data.get_blocks_in_section(current_line, section)
+        
+        # Skip if no blocks in this section
+        if not blocks_in_section:
+            continue
+        
+        # Check if section should be reset to default speed
+        should_reset = False
+        
+        # Condition 1: Check if entire section is unoccupied
+        section_occupied = False
+        for block_num in blocks_in_section:
+            block_key = f"Block {block_num}"
+            if block_key in data.filtered_blocks:
+                if data.filtered_blocks[block_key].get("occupied", False):
+                    section_occupied = True
+                    break
+        
+        if not section_occupied:
+            should_reset = True
+            print(f"  Commanded Speed Reset: Section {section} is unoccupied -> reset to default")
+            commanded_speeds_to_clear.add(section)
+        
+        # Condition 2: Check if any block in section has authority 0 AND is occupied
+        # This means train has reached stopping point
+        if not should_reset:  # Only check if section is occupied
+            for block_num in blocks_in_section:
+                block_str = str(block_num)
+                block_key = f"Block {block_num}"
+                
+                # Check both: authority = 0 AND block is occupied
+                block_auth = data.commanded_authority[current_line].get(block_str, "3")
+                is_occupied = False
+                
+                if block_key in data.filtered_blocks:
+                    is_occupied = data.filtered_blocks[block_key].get("occupied", False)
+                
+                if block_auth == "0" and is_occupied:
+                    should_reset = True
+                    print(f"  Commanded Speed Reset: Block {block_num} in Section {section} has authority 0 AND is occupied -> reset to default")
+                    commanded_speeds_to_clear.add(section)
+                    break
+    
+    # Now apply commanded speed logic
+    # We need to track which blocks have user-set commanded speeds
+    # (Different from CTC suggested speeds)
+    
+    # Reset sections that need clearing
+    for section in commanded_speeds_to_clear:
+        blocks_in_section = data.get_blocks_in_section(current_line, section)
+        
+        for block_num in blocks_in_section:
+            block_str = str(block_num)
+            
+            # Set default speed
+            default_speed = "32"
+            data.commanded_speed[current_line][block_str] = default_speed
+            
+            # Send to Track Model if block is occupied
+            block_key = f"Block {block_num}"
+            if block_key in data.filtered_blocks:
+                if data.filtered_blocks[block_key].get("occupied", False):
+                    commanded_auth = data.commanded_authority[current_line].get(block_str, "3")
+                    if hasattr(data, 'app') and data.app:
+                        data.app.send_commanded_to_track_model(
+                            current_line, block_str, default_speed, commanded_auth
+                        )
+                        print(f"    -> Block {block_num}: Reset to default speed {default_speed} mph")
+    
+    # For sections NOT being cleared, we need to ensure commanded speeds are applied correctly
+    # This is tricky because we don't track which speeds were user-set vs PLC-calculated
+    
+    # One approach: Check if any block in a section has a commanded speed different from default
+    # and apply it to the whole section (similar to CTC logic)
+    
+    for section in plc_sections:
+        if section in commanded_speeds_to_clear:
+            continue  # Already handled above
+            
+        blocks_in_section = data.get_blocks_in_section(current_line, section)
+        
+        # Find any user-set commanded speed in this section
+        user_set_speed = None
+        for block_num in blocks_in_section:
+            block_str = str(block_num)
+            cmd_speed = data.commanded_speed[current_line].get(block_str)
+            
+            # Check if this speed looks like it was user-set (not default and not CTC)
+            if cmd_speed and cmd_speed != "32":
+                # Check if it's not a CTC speed (CTC sends m/s, user sends mph)
+                # User speeds in mph could be any value, but CTC speeds are from suggested_speed
+                if current_line in data.suggested_speed and block_str in data.suggested_speed[current_line]:
+                    # This is a CTC speed, not user commanded
+                    continue
+                
+                # This might be a user-set speed
+                try:
+                    speed_float = float(cmd_speed)
+                    # Cap at maximum speed of 43.5 mph
+                    if speed_float > 43.5:
+                        speed_float = 43.5
+                        cmd_speed = "43.5"
+                        print(f"  Commanded Speed Capped: Section {section} speed capped to 43.5 mph")
+                    
+                    user_set_speed = cmd_speed
+                    print(f"  Commanded Speed Override: Found user-set speed {cmd_speed} mph in Section {section}")
+                    break
+                except (ValueError, TypeError):
+                    continue
+        
+        # Apply user-set speed to entire section if found
+        if user_set_speed:
+            for block_num in blocks_in_section:
+                block_str = str(block_num)
+                
+                # Set commanded speed for this block
+                data.commanded_speed[current_line][block_str] = user_set_speed
+                
+                # Send to Track Model if this block is occupied
+                block_key = f"Block {block_num}"
+                if block_key in data.filtered_blocks:
+                    if data.filtered_blocks[block_key].get("occupied", False):
+                        # Send commanded values to Track Model
+                        commanded_auth = data.commanded_authority[current_line].get(block_str, "3")
+                        if hasattr(data, 'app') and data.app:
+                            data.app.send_commanded_to_track_model(
+                                current_line, block_str, 
+                                user_set_speed, commanded_auth
+                            )
+                            print(f"    -> Block {block_num}: Applied commanded speed {user_set_speed} mph")
