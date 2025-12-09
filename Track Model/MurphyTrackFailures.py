@@ -28,14 +28,25 @@ class MurphyTrackFailures:
         # Format: {block_number: failure_type}
         # failure_type can be: None, "track_circuit", "broken_rail", "power"
         self.active_failures = {}
+
+        # Track which blocks have track elements in failure state
+        # Format: {block_number: True/False}
+        self.track_element_failures = {}
+
+        # Store original occupancy values for blocks with broken rail failures
+        # Format: {block_number: original_occupancy}
+        self.broken_rail_original_occupancy = {}
         
         # Initialize all blocks with no failure
         for block in self.data_manager.blocks:
             self.active_failures[block.block_number] = None
+            self.track_element_failures[block.block_number] = False
             if not hasattr(block, 'failure_mode'):
                 block.failure_mode = None
             if not hasattr(block, 'traversable'):
                 block.traversable = True
+            if not hasattr(block, 'track_element_failed'):
+                block.track_element_failed = False
 
     # -------------------------------------------------------------------------
     # FAILURE ACTIVATION
@@ -43,7 +54,7 @@ class MurphyTrackFailures:
     
     def activate_track_circuit_failure(self, block_num):
         """
-        Track Circuit Failure: Block cannot send beacon data and cannot be heated.
+        Track Circuit Failure: Block cannot report occupancy, send beacon data, or be heated.
         
         Args:
             block_num (int): Block number to apply failure to
@@ -68,6 +79,9 @@ class MurphyTrackFailures:
         if hasattr(block, 'beacon'):
             block.beacon = [0] * len(block.beacon)
         
+
+        # Clear occupancy - track circuit cannot detect trains
+        block.occupancy = 0
         # Break the heater (turns it off and marks as broken)
         if self.heater_manager:
             self.heater_manager.break_heater(block_num)
@@ -75,6 +89,7 @@ class MurphyTrackFailures:
         print(f"⚠️ TRACK CIRCUIT FAILURE activated on Block {block_num}")
         print(f"   - Beacon data disabled")
         print(f"   - Heater broken and turned off")
+        print(f"   - Occupancy reporting disabled (block shows as unoccupied)")
         self._print_active_failures()
         return True
     
@@ -101,17 +116,24 @@ class MurphyTrackFailures:
         self.active_failures[block_num] = "broken_rail"
         block.failure_mode = "broken_rail"
         
+        # Store original occupancy and mark block as occupied
+        # This prevents trains from entering the broken section
+        original_occupancy = getattr(block, 'occupancy', 0)
+        self.broken_rail_original_occupancy[block_num] = original_occupancy
+        block.occupancy = 1  # Mark as occupied to prevent train entry
+
         # Mark block as non-traversable (this should be checked by train controller)
         block.traversable = False
         
         print(f"⚠️ BROKEN RAIL FAILURE activated on Block {block_num}")
         print(f"   - Block marked as non-traversable")
         print(f"   - Trains cannot drive over this block")
+        print(f"   - Block set to occupied (occupancy = 1)")
         return True
     
     def activate_power_failure(self, block_num):
         """
-        Power Failure: Block cannot send beacon data, be heated, 
+        Power Failure: Block cannot report occupancy, send beacon data, be heated,
         and any track elements (Signal, Crossing) are turned off.
         
         Args:
@@ -133,6 +155,9 @@ class MurphyTrackFailures:
         self.active_failures[block_num] = "power"
         block.failure_mode = "power"
         
+
+        # Clear occupancy - track circuit cannot detect trains
+        block.occupancy = 0
         # Disable beacon data
         if hasattr(block, 'beacon'):
             block.beacon = [0] * len(block.beacon)
@@ -148,9 +173,19 @@ class MurphyTrackFailures:
         # Deactivate crossing
         if hasattr(block, 'crossing'):
             block.crossing = False  # Inactive
+
+        # Check if this block has track elements (signals or crossings)
+        # and mark them as failed for UI display
+        has_track_element = (hasattr(block, 'traffic_light_state') or 
+                             hasattr(block, 'crossing') or 
+                             hasattr(block, 'crossing_state'))
+        if has_track_element:
+            self.track_element_failures[block_num] = True
+            block.track_element_failed = True
         
         print(f"⚠️ POWER FAILURE activated on Block {block_num}")
         print(f"   - Beacon data disabled")
+        print(f"   - Occupancy reporting disabled (block shows as unoccupied)")
         print(f"   - Heater broken and turned off")
         print(f"   - Traffic lights turned off")
         print(f"   - Railroad crossing deactivated")
@@ -201,11 +236,18 @@ class MurphyTrackFailures:
         if failure_type == "broken_rail":
             # Restore traversability
             block.traversable = True
+            # Restore original occupancy
+            original_occupancy = self.broken_rail_original_occupancy.get(block_num, 0)
+            block.occupancy = original_occupancy
+            if block_num in self.broken_rail_original_occupancy:
+                del self.broken_rail_original_occupancy[block_num]
         
         if failure_type == "power":
             # Signals and crossings will be restored by normal system operation
             # Don't force them on, let the system control them normally
-            pass
+            # Clear track element failure status
+            self.track_element_failures[block_num] = False
+            block.track_element_failed = False
         
         print(f"✅ Failure cleared on Block {block_num} (was: {failure_type})")
         return True
@@ -270,6 +312,20 @@ class MurphyTrackFailures:
         """
         failure = self.active_failures.get(block_num)
         return failure not in ["track_circuit", "power"]
+
+    def can_report_occupancy(self, block_num):
+        """
+        Check if a block can report occupancy.
+        Track circuit and power failures prevent occupancy detection.
+        
+        Args:
+            block_num (int): Block number to check
+            
+        Returns:
+            bool: True if occupancy can be reported, False otherwise
+        """
+        failure = self.active_failures.get(block_num)
+        return failure not in ["track_circuit", "power"]
     
     def can_heat(self, block_num):
         """
@@ -316,6 +372,19 @@ class MurphyTrackFailures:
         return failure != "power"
 
     # -------------------------------------------------------------------------
+    def is_track_element_failed(self, block_num):
+        """
+        Check if a track element (signal/crossing) is in failure state.
+        This happens when a power failure occurs on a block with track elements.
+        
+        Args:
+            block_num (int): Block number to check
+            
+        Returns:
+            bool: True if track element is failed, False otherwise
+        """
+        return self.track_element_failures.get(block_num, False)
+
     # UI INTEGRATION
     # -------------------------------------------------------------------------
     
@@ -365,6 +434,14 @@ class MurphyTrackFailures:
         else:
             return "gray"
     
+    def _print_active_failures(self):
+        """Helper method to print active failures count."""
+        failures = self.get_all_failures()
+        if failures:
+            print(f"   - Active failures: {len(failures)} block(s)")
+        else:
+            print(f"   - No other active failures")
+
     def print_failure_summary(self):
         """Print a summary of all active failures to console."""
         failures = self.get_all_failures()
@@ -383,10 +460,10 @@ class MurphyTrackFailures:
             
             # Show specific effects
             if failure_type == "track_circuit":
-                print(f"  └─ Effects: No beacon, No heating")
+                print(f"  └─ Effects: No occupancy detection, No beacon, No heating")
             elif failure_type == "broken_rail":
-                print(f"  └─ Effects: Not traversable")
+                print(f"  └─ Effects: Not traversable, Block occupied")
             elif failure_type == "power":
-                print(f"  └─ Effects: No beacon, No heating, No signals/crossings")
+                print(f"  └─ Effects: No occupancy detection, No beacon, No heating, Track elements show FAILURE")
         
         print("="*60 + "\n")

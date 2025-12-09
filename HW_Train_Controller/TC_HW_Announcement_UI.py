@@ -322,7 +322,7 @@ class StationAnnouncementPanel:
 			if hasattr(self.parent, 'train_model_connected') and self.parent.train_model_connected:
 				self.parent.server.send_to_ui("Train Model", {
 					'command': 'Announcement',
-					'text': announcement,
+					'value': announcement,
 					'train_id': 1
 				})
 				print(f"📢 Announcement sent to Train Model: {announcement}")
@@ -345,7 +345,7 @@ class StationAnnouncementPanel:
 			if hasattr(self.parent, 'train_model_connected') and self.parent.train_model_connected:
 				self.parent.server.send_to_ui("Train Model", {
 					'command': 'Announcement',
-					'text': f"EMERGENCY: {msg}",
+					'value': f"EMERGENCY: {msg}",
 					'train_id': 1
 				})
 				print(f"📢 Emergency announcement sent to Train Model: {msg}")
