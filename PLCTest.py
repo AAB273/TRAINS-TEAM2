@@ -40,7 +40,7 @@ def launch_all():
     
     modules = [
         ("Track SW", "Wayside_Controller/SW/main.py"),
-        ("Track HW", "Wayside_Controller/SW/main.py"),
+        ("Track HW", "Wayside_Controller/HW/WC_HW_MainUI.py"),
         ("Track Model", "Track Model/UI_Structure.py"),
     ]
     
