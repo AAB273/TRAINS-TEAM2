@@ -2059,47 +2059,25 @@ class LeftPanel(tk.Frame):
             command=self.send_maintenance_request
         )
         self.maint_call_btn.pack(pady=5, padx=5)
-       
-        # # Maintenance Status Label
-        # self.maint_status_label = tk.Label(
-        #     maint_frame,
-        #     text="Status: Ready",
-        #     bg='#cccccc',
-        #     font=('Arial', 8)
-        # )
-        # self.maint_status_label.pack(pady=2)
-       
-        # # Add a separator
-        # sep = tk.Frame(maint_frame, height=2, bg='#999999')
-        # sep.pack(fill=tk.X, pady=3)
-       
-        # # Status indicator
-        # self.status_indicator = tk.Label(
-        #     maint_frame,
-        #     text="●",
-        #     font=("Arial", 12),
-        #     fg="green",
-        #     bg='#cccccc'
-        # )
-        # self.status_indicator.pack(pady=2)
 
     def send_maintenance_request(self):
         """Send maintenance request to CTC and other UIs"""
         try:
             print("Sending maintenance request...")
-            # Create the pop-up message
-            popup = tk.Toplevel(self)
-            popup.title("Maintenance Request")
-            popup.geometry("400x200")
-            popup.configure(bg="#bcbcbe")
-        
-        # Center the popup
-            popup.transient(self)
-            popup.grab_set()
-        
-        # Popup message content
-            message_frame = tk.Frame(popup, bg='#1a1a4d')
+            # Create a confirmation popup first
+            confirm_popup = tk.Toplevel(self)
+            confirm_popup.title("Confirm Maintenance Request")
+            confirm_popup.geometry("400x250")
+            confirm_popup.configure(bg="#1a1a4d")
+            
+            # Center the popup
+            confirm_popup.transient(self)
+            confirm_popup.grab_set()
+            
+            # Popup message content - QUESTION
+            message_frame = tk.Frame(confirm_popup, bg='#1a1a4d')
             message_frame.pack(expand=True, fill='both', padx=20, pady=20)
+
         
         # Title
             title_label = tk.Label(
@@ -2114,7 +2092,7 @@ class LeftPanel(tk.Frame):
         # Message
             message_label = tk.Label(
                 message_frame,
-                text="Maintenance has been requested\nbased on CTC's request",
+                text="Do you want to send a maintenance request\nto the CTC and other systems?",
                 bg='#1a1a4d',
                 fg='white',
                 font=('Arial', 12),
@@ -2132,32 +2110,62 @@ class LeftPanel(tk.Frame):
                 justify='center'
             )
             info_label.pack(pady=10)
-        
-            # OK button
-            ok_button = tk.Button(
-                message_frame,
-                text="OK",
-                command=popup.destroy,
+
+            # Button frame
+            button_frame = tk.Frame(message_frame, bg='#1a1a4d')
+            button_frame.pack(pady=15)
+            
+            # YES button - sends the request
+            yes_button = tk.Button(
+                button_frame,
+                text="YES",
+                command=lambda: self.confirm_and_send_request(confirm_popup),
                 bg='#FFA500',
                 fg='white',
                 font=('Arial', 10, 'bold'),
-                width=10,
+                width=8,
                 height=1
             )
-            ok_button.pack(pady=10)
-        
-        # Close the popup when clicking the X
-            popup.protocol("WM_DELETE_WINDOW", popup.destroy)
+            yes_button.pack(side=tk.LEFT, padx=10)
+            
+            # NO button - cancels
+            no_button = tk.Button(
+                button_frame,
+                text="NO",
+                command=confirm_popup.destroy,
+                bg='#666666',
+                fg='white',
+                font=('Arial', 10, 'bold'),
+                width=8,
+                height=1
+            )
+            no_button.pack(side=tk.LEFT, padx=10)
+            
+            # Close the popup when clicking the X
+            confirm_popup.protocol("WM_DELETE_WINDOW", confirm_popup.destroy)
+            # # Update button state
+            # self.maint_call_btn.config(
+            #     text="Request Sent",
+            #     bg="#666666",
+            #     state="disabled"
+            # )
+
+        except Exception as e:
+            print(f"Error creating confirmation popup: {e}")
+            add_to_message_log(f"ERROR: Failed to create confirmation popup: {e}")
+    def confirm_and_send_request(self, confirm_popup):
+        """Actually send the maintenance request after confirmation"""
+        try:
+            # Close the confirmation popup
+            confirm_popup.destroy()
+            
+            # Log the request
             add_to_message_log("Sending maintenance request to CTC")
             
-            # Update button state
+            # Update button state TEMPORARILY (will be reset when popup closes)
             self.maint_call_btn.config(
-                text="Request Sent",
-                bg="#666666",
                 state="disabled"
             )
-            self.maint_status_label.config(text="Status: Request Sent")
-            self.status_indicator.config(fg="orange", text="●")
             
             # Create maintenance request message
             maint_message = {
@@ -2191,17 +2199,63 @@ class LeftPanel(tk.Frame):
             self.maint_call_btn.config(state="normal")
             self.maint_status_label.config(text="Status: Failed")
             self.status_indicator.config(fg="red", text="●")
-
-    def reset_maintenance_button(self):
-        """Reset maintenance button to normal state"""
-        self.maint_call_btn.config(
-            text="Request Maintenance",
-            bg="#FFA500",
-            state="normal"
+    
+    def show_success_popup(self):
+        """Show success popup after sending request"""
+        success_popup = tk.Toplevel(self)
+        success_popup.title("Request Sent")
+        success_popup.geometry("350x180")
+        success_popup.configure(bg="#1a1a4d")
+        
+        # Center the popup
+        success_popup.transient(self)
+        
+        # Message frame
+        message_frame = tk.Frame(success_popup, bg='#1a1a4d')
+        message_frame.pack(expand=True, fill='both', padx=20, pady=20)
+        
+        # Success message
+        success_label = tk.Label(
+            message_frame,
+            text="✓ Maintenance Request Sent",
+            bg='#1a1a4d',
+            fg='white',
+            font=('Arial', 12, 'bold')
         )
-        self.maint_status_label.config(text="Status: Ready")
-        self.status_indicator.config(fg="green", text="●")
-        add_to_message_log("Maintenance request timer reset", "INFO")
+        success_label.pack(pady=10)
+        
+        # Details
+        details_label = tk.Label(
+            message_frame,
+            text=f"Sent to CTC for {test_data.current_line} Line",
+            bg='#1a1a4d',
+            fg='#cccccc',
+            font=('Arial', 10)
+        )
+        details_label.pack(pady=5)
+        
+        # OK button
+        ok_button = tk.Button(
+            message_frame,
+            text="OK",
+            command=lambda: self.close_success_popup(success_popup),
+            bg='#FFA500',
+            fg='white',
+            font=('Arial', 10, 'bold'),
+            width=10,
+            height=1
+        )
+        ok_button.pack(pady=15)
+        
+        # Close the popup when clicking the X
+        success_popup.protocol("WM_DELETE_WINDOW", lambda: self.close_success_popup(success_popup))
+    
+    def close_success_popup(self, popup):
+        """Close success popup and reset button"""
+        popup.destroy()
+        # Reset button to normal state
+        self.maint_call_btn.config(state="normal")
+
     def update_light_options(self):
         """Update combobox options based on current line"""
         lights = list(self.data.filtered_track_data.get("lights", {}).keys())
