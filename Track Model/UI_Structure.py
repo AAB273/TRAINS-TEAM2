@@ -40,11 +40,9 @@ class TrackModelUI(tk.Tk):
             port=config["port"],
             ui_id="Track Model"
         )
-        self.server.set_allowed_connections(["Track SW","Track HW", "Train Model", "CTC", "Train HW","Train SW"])
+        self.server.set_allowed_connections(["Track SW","Track HW", "Train Model", "CTC"])
         self.server.start_server(self._process_message)
         self.server.connect_to_ui('localhost', 12341, "CTC")
-        #self.server.connect_to_ui('localhost', 12346, "Train SW")
-        #self.server.connect_to_ui('localhost', 12347, "Train HW")
         self.server.connect_to_ui('localhost', 12345, "Train Model")
         self.server.connect_to_ui('localhost', 12342,  'Track SW')
         self.server.connect_to_ui('localhost', 12343,'Track HW')
@@ -6191,7 +6189,7 @@ class TrackModelUI(tk.Tk):
         Determine if a block is controlled by Track SW based on current line.
         
         Green Line: Track SW controls blocks 63-149
-        Red Line: Track SW controls blocks 25-48 and 67-76
+        Red Line: Track SW controls blocks 21-48 and 67-76
         
         Returns True if block is controlled by Track SW, False if Track HW
         """
@@ -6201,8 +6199,8 @@ class TrackModelUI(tk.Tk):
             # Green Line: Track SW controls 63-149
             return 63 <= block_num <= 149
         else:
-            # Red Line: Track SW controls 25-48 and 67-76
-            return (25 <= block_num <= 48) or (67 <= block_num <= 76)
+            # Red Line: Track SW controls 21-48 and 67-76
+            return (21 <= block_num <= 48) or (67 <= block_num <= 76)
     
     def get_blocks_for_controller(self, source_ui_id, block_list):
         """
