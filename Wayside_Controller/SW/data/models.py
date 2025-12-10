@@ -511,13 +511,22 @@ class RailwayData:
             )
         }
         
-        self.filtered_railway_crossings = {
-            k: v for k, v in self.railway_crossings.items() 
+        # CRITICAL FIX: Also check filtered_railway_crossings for dynamic crossings
+        self.filtered_railway_crossings = {}
+        
+        # First, add crossings from main data
+        for k, v in self.railway_crossings.items():
             if v.get("line") == line and (
                 not self.plc_filter_active or 
                 v.get("section", "Unknown") in self.plc_filter_sections
-            )
-        }
+            ):
+                self.filtered_railway_crossings[k] = v
+        
+        # Also, check if PLC has already added to filtered_railway_crossings
+        # (This happens when PLC creates crossings dynamically)
+        for k, v in self.filtered_railway_crossings.copy().items():
+            if v.get("line") == line and k not in self.filtered_railway_crossings:
+                self.filtered_railway_crossings[k] = v
         
         # Reinitialize blocks for the new line
         self.initialize_track_blocks()
