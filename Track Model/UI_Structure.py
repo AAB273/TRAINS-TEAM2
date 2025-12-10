@@ -2446,7 +2446,7 @@ class TrackModelUI(tk.Tk):
                             self.log_to_terminal(f"[BLOCK 33 MODE CHECK] Train {train_id} mode = {current_mode}")
                         
                         # Check Red Line switch routing directly (not self.switch_routing which may be set to Green)
-                        has_switch_routing_red = hasattr(self, 'switch_routing_red')
+                        has_switch_routing_red = hasattr(self.data_manager, 'switch_routing_red')
                         switch_32_in_routing = 32 in self.switch_routing_red if has_switch_routing_red else False
                         self.log_to_terminal(f"[BLOCK 33 SWITCH CHECK] has_switch_routing_red = {has_switch_routing_red}")
                         self.log_to_terminal(f"[BLOCK 33 SWITCH CHECK] 32 in switch_routing_red = {switch_32_in_routing}")
@@ -2504,7 +2504,7 @@ class TrackModelUI(tk.Tk):
                             self.log_to_terminal(f"[BLOCK 44 MODE CHECK] Train {train_id} mode = {current_mode}")
                         
                         # Check Red Line switch routing directly (not self.switch_routing which may be set to Green)
-                        has_switch_routing_red = hasattr(self, 'switch_routing_red')
+                        has_switch_routing_red = hasattr(self.data_manager, 'switch_routing_red')
                         switch_43_in_routing = 43 in self.switch_routing_red if has_switch_routing_red else False
                         self.log_to_terminal(f"[BLOCK 44 SWITCH CHECK] has_switch_routing_red = {has_switch_routing_red}")
                         self.log_to_terminal(f"[BLOCK 44 SWITCH CHECK] 43 in switch_routing_red = {switch_43_in_routing}")
@@ -2573,7 +2573,7 @@ class TrackModelUI(tk.Tk):
                     self.log_to_terminal(f"[BLOCK 27 MODE CHECK] Train {train_id} mode = {current_mode}")
                 
                 # Check Red Line switch routing directly (not self.switch_routing which may be set to Green)
-                has_switch_routing_red = hasattr(self, 'switch_routing_red')
+                has_switch_routing_red = hasattr(self.data_manager, 'switch_routing_red')
                 switch_27_in_routing = 27 in self.switch_routing_red if has_switch_routing_red else False
                 self.log_to_terminal(f"[BLOCK 27 SWITCH CHECK] has_switch_routing_red = {has_switch_routing_red}")
                 self.log_to_terminal(f"[BLOCK 27 SWITCH CHECK] 27 in switch_routing_red = {switch_27_in_routing}")
@@ -2626,7 +2626,7 @@ class TrackModelUI(tk.Tk):
                     self.log_to_terminal(f"[BLOCK 38 MODE CHECK] Train {train_id} mode = {current_mode}")
                 
                 # Check Red Line switch routing directly (not self.switch_routing which may be set to Green)
-                has_switch_routing_red = hasattr(self, 'switch_routing_red')
+                has_switch_routing_red = hasattr(self.data_manager, 'switch_routing_red')
                 switch_38_in_routing = 38 in self.switch_routing_red if has_switch_routing_red else False
                 self.log_to_terminal(f"[BLOCK 38 SWITCH CHECK] has_switch_routing_red = {has_switch_routing_red}")
                 self.log_to_terminal(f"[BLOCK 38 SWITCH CHECK] 38 in switch_routing_red = {switch_38_in_routing}")
@@ -2858,7 +2858,8 @@ class TrackModelUI(tk.Tk):
             # Not in backward mode: normal forward progression
             # Check for any special routing at block 1
             if current_block == 1:
-                if hasattr(self, 'switch_routing') and 1 in self.data_manager.get_current_switch_routing(self.selected_line.get()):
+                switch_routing = self.data_manager.get_current_switch_routing(self.selected_line.get())
+                if switch_routing and 1 in switch_routing:
                     switch_state = self.data_manager.switch_states.get(1, "normal")
                     if switch_state == "normal":
                         return 2
@@ -5599,7 +5600,7 @@ class TrackModelUI(tk.Tk):
                                 pass
                         else:
                             # If no switch direction set, check switch_states dictionary
-                            if hasattr(self, 'switch_states') and 62 in self.data_manager.switch_states:
+                            if hasattr(self.data_manager, 'switch_states') and 62 in self.data_manager.switch_states:
                                 switch_direction = self.data_manager.switch_states[62]
                                 if switch_direction == "reverse":
                                     switch_allows_yard_entry = True
@@ -6180,14 +6181,15 @@ class TrackModelUI(tk.Tk):
                                         self.log_to_terminal(f"[SWITCH UPDATE]   Normalized direction: {direction}")
                                     
                                     # Show routing path if configured
-                                    if hasattr(self, "switch_routing") and block_num in self.data_manager.get_current_switch_routing(self.selected_line.get()):
+                                    switch_routing = self.data_manager.get_current_switch_routing(self.selected_line.get())
+                                    if switch_routing and block_num in switch_routing:
                                         next_block = switch_routing[block_num][direction]
                                         # print(f"   Switch {block_num}: {direction} → routes to block {next_block} (from {source_ui_id})")
                                     # Store switch direction in block
                                     block.switch_direction = direction
                                     
                                     # Update switch states dictionary
-                                    if not hasattr(self, 'switch_states'):
+                                    if not hasattr(self.data_manager, 'switch_states'):
                                         self.data_manager.switch_states = {}
                                     self.data_manager.switch_states[block_num] = direction
                                     
@@ -6243,7 +6245,7 @@ class TrackModelUI(tk.Tk):
                         block_obj.switch_direction = direction
                         
                         # Update switch states dictionary
-                        if not hasattr(self, 'switch_states'):
+                        if not hasattr(self.data_manager, 'switch_states'):
                             self.data_manager.switch_states = {}
                         self.data_manager.switch_states[block] = direction
                         
