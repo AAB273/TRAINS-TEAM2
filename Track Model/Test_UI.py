@@ -14,12 +14,15 @@ class TrackModelTestUI(tk.Toplevel):
 
         # Socket server (kept for potential future use, but train deployment uses direct data access)
         self.server = TrainSocketServer(port=12346, ui_id="Test_UI")
-        self.server.set_allowed_connections(["UI_Structure", "Track Model"])
+        self.server.set_allowed_connections(["UI_Structure", "Track Model", "Train Model"])
 
         def empty_handler(message, source_ui_id):
             print(f"Test UI received: {message} from {source_ui_id}")
 
         self.server.start_server(empty_handler)
+        
+        # Connect to Train Model for beacon signals
+        self.server.connect_to_ui('localhost', 12345, "Train Model")
 
 
         self.manager = manager
@@ -85,6 +88,32 @@ class TrackModelTestUI(tk.Toplevel):
         else:
             print(f"❌ Failed to send {command} to {target_ui}")
             self.status_label.config(text=f"❌ Failed: {command}")
+        return success
+    
+    def send_beacon(self, beacon_name, state):
+        """Send beacon signal to Train Model (which forwards to Train HW/SW)"""
+        print(f"\n{'='*60}")
+        print(f"[BEACON] Sending {beacon_name} = {state} from Track Model Test UI")
+        
+        # Send beacon directly to Train Model
+        message = {
+            'command': beacon_name,
+            'value': state
+        }
+        
+        # Track Model forwards to Train Model
+        target_ui = "Train Model"
+        success = self.server.send_to_ui(target_ui, message)
+        
+        state_str = "Activated" if state else "Deactivated"
+        if success:
+            print(f"[BEACON] ✓ {beacon_name} {state_str} - sent to Train Model")
+            self.status_label.config(text=f"✅ {beacon_name} {state_str}", fg="green")
+        else:
+            print(f"[BEACON] ✗ Failed to send {beacon_name}")
+            self.status_label.config(text=f"❌ Failed: {beacon_name}", fg="red")
+        print(f"{'='*60}\n")
+        
         return success
     
     # ---------------- Track/Station Data ----------------
@@ -523,6 +552,30 @@ class TrackModelTestUI(tk.Toplevel):
 
         self.tree_trains.bind("<<TreeviewSelect>>", self.on_train_select)
         self.refresh_train_table()
+
+        # ---- Beacon Controls (Red Line Switches) ----
+        tk.Label(frame, text="Beacon Controls (Red Line Switches)", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=(20, 5))
+        
+        beacon_frame = tk.Frame(frame, bg="lightgray", relief="ridge", bd=2)
+        beacon_frame.pack(fill="x", padx=10, pady=5)
+        
+        # Beacon1 controls
+        beacon1_frame = tk.Frame(beacon_frame, bg="lightgray")
+        beacon1_frame.pack(fill="x", padx=10, pady=5)
+        tk.Label(beacon1_frame, text="Beacon1 (Block 27 → 76-72):", bg="lightgray", font=("Arial", 10)).pack(side="left", padx=5)
+        tk.Button(beacon1_frame, text="ON", bg="green", fg="white", font=("Arial", 9, "bold"),
+                 command=lambda: self.send_beacon('Beacon1', True), width=8).pack(side="left", padx=2)
+        tk.Button(beacon1_frame, text="OFF", bg="red", fg="white", font=("Arial", 9, "bold"),
+                 command=lambda: self.send_beacon('Beacon1', False), width=8).pack(side="left", padx=2)
+        
+        # Beacon2 controls
+        beacon2_frame = tk.Frame(beacon_frame, bg="lightgray")
+        beacon2_frame.pack(fill="x", padx=10, pady=5)
+        tk.Label(beacon2_frame, text="Beacon2 (Block 38 → 71-67):", bg="lightgray", font=("Arial", 10)).pack(side="left", padx=5)
+        tk.Button(beacon2_frame, text="ON", bg="green", fg="white", font=("Arial", 9, "bold"),
+                 command=lambda: self.send_beacon('Beacon2', True), width=8).pack(side="left", padx=2)
+        tk.Button(beacon2_frame, text="OFF", bg="red", fg="white", font=("Arial", 9, "bold"),
+                 command=lambda: self.send_beacon('Beacon2', False), width=8).pack(side="left", padx=2)
 
     def on_train_select(self, event):
         selected = self.tree_trains.selection()
