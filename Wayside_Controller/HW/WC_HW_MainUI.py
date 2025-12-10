@@ -399,12 +399,12 @@ def _process_message(self, data, connection=None, server_instance=None):
                 # Send acknowledgment back to CTC
                 if hasattr(test_data, 'server1'):
                     ack_message = {
-                        'command': 'SW_ACK',
-                        'value': {
-                            'location': location,
-                            'line': line,
-                            'status': 'processed',
-                            'timestamp': timestamp
+                        "command": 'SW_ACK',
+                        "value": {
+                            "location" : location,
+                            "line": line,
+                            "status": 'processed',
+                            "timestamp": timestamp
                         }
                     }
                     test_data.server1.send_to_ui('CTC', ack_message)
@@ -908,9 +908,9 @@ class UITestData:
                 # 1. First, notify connected clients
                 if hasattr(self.server1, 'connections'):
                     disconnect_msg = {
-                        'command': 'server_shutdown',
-                        'message': 'Main UI is closing',
-                        'timestamp': self.clock.getTime()
+                        "command": 'server_shutdown',
+                        "message": 'Main UI is closing',
+                        "timestamp": self.clock.getTime()
                     }
                     for ui_id, connection in list(self.server1.connections.items()):
                         try:
@@ -1130,11 +1130,11 @@ class UITestData:
             # Send acknowledgment back to CTC
             if hasattr(self, 'server1'):
                 ack_message = {
-                    'command': 'MAINT_ACK',
-                    'value': {
-                        'status': 'accepted',
-                        'timestamp': current_time,
-                        'message': 'Maintenance mode activated'
+                    "command": "MAINT_ACK",
+                    "value": {
+                        "status": 'accepted',
+                        "timestamp": current_time,
+                        "message": 'Maintenance mode activated'
                     }
                 }
             self.server1.send_to_ui('CTC', ack_message)
@@ -2943,11 +2943,11 @@ class RightPanel(tk.Frame):
         
         # Create the exact message format Track Model expects
             message = {
-            'command': 'Speed and Authority',
-            'block_number': int(block),
-            'commanded_speed': float(speed_value),
-            'commanded_authority': int(auth_value),
-            'track': track
+            "command": "Speed and Authority",
+            "block_number": int(block),
+            "commanded_speed": float(speed_value),
+            "commanded_authority": int(auth_value),
+            "track": track
             }
         
         # Send to Track Model
