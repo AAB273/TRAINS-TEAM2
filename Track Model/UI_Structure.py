@@ -6323,43 +6323,50 @@ class TrackModelUI(tk.Tk):
             # ============================================================
             elif command == 'rc_states':
                 if isinstance(value, list):
-                    # print(f" Received railroad crossing states from {source_ui_id}")
+                    print(f"\n[RC_STATES] Received railroad crossing states from {source_ui_id}")
+                    print(f"[RC_STATES] Array length: {len(value)}")
                     
-                    # Get all blocks with crossings for the current line
-                    # You'll need to determine which blocks have crossings
-                    # For now, using crossing_blocks set if it exists
-                    if hasattr(self, 'crossing_blocks') and self.data_manager.crossing_blocks:
+                    # Get ALL blocks with crossings for the current line (unfiltered)
+                    if hasattr(self.data_manager, 'crossing_blocks') and self.data_manager.crossing_blocks:
                         crossing_block_list = sorted(list(self.data_manager.crossing_blocks))
                     else:
-                        # If no crossing_blocks set, you may need to define them
-                        # Green Line example blocks with crossings (adjust as needed)
-                        crossing_block_list = []  # Add your crossing block numbers here
+                        crossing_block_list = []
                     
-                    # Filter crossing blocks based on which controller sent the message
-                    filtered_crossing_blocks = self.get_blocks_for_controller(source_ui_id, crossing_block_list)
+                    print(f"[RC_STATES] All crossing blocks on line: {crossing_block_list}")
                     
                     # Process each crossing state
+                    # Wayside sends ALL crossings, but we only update ones in their range
                     for i, state in enumerate(value):
-                        if i < len(filtered_crossing_blocks):
-                            block_num = filtered_crossing_blocks[i]
+                        if i < len(crossing_block_list):
+                            block_num = crossing_block_list[i]
                             
-                            # Convert integer to boolean: 0 = False (inactive/up), 1 = True (active/down)
+                            # FILTER: Only update if this block belongs to the sender
+                            if source_ui_id == "Track SW" and not self.is_track_sw_block(block_num):
+                                # Skip - this crossing belongs to Track HW
+                                print(f"[RC_STATES] Skipping block {block_num} - belongs to Track HW")
+                                continue
+                            elif source_ui_id == "Track HW" and self.is_track_sw_block(block_num):
+                                # Skip - this crossing belongs to Track SW
+                                print(f"[RC_STATES] Skipping block {block_num} - belongs to Track SW")
+                                continue
+                            
+                            # Update this crossing (it belongs to the sender)
                             try:
                                 crossing_active = bool(int(state))
                                 
-                                # Update the block's crossing state
                                 if 1 <= block_num <= len(self.data_manager.blocks):
                                     block = self.data_manager.blocks[block_num - 1]
                                     block.crossing_state = crossing_active
                                     state_text = "ACTIVE (DOWN)" if crossing_active else "INACTIVE (UP)"
-                                    # print(f"   Updated railroad crossing at block {block_num}: {state_text} (from {source_ui_id})")
+                                    print(f"[RC_STATES] ✓ Updated crossing at block {block_num}: {state_text}")
                             except (ValueError, TypeError) as e:
-                                print(f"   Could not parse crossing state for block {block_num}: {state}")
+                                print(f"[RC_STATES] Could not parse state for block {block_num}: {state}")
                     
                     # Refresh UI to show crossing updates
                     self.refresh_bidirectional_controls()
-                    self.refresh_ui()
-                    # print(f"[DEBUG] Railroad crossing states updated from {source_ui_id}")
+                    self.refresh_track_data_table()
+                    self.refresh_track_system_table()
+                    print(f"[RC_STATES] Processing complete\n")
                 else:
                     pass
                     # print(f" Invalid rc_states format: {value}")
@@ -6376,45 +6383,57 @@ class TrackModelUI(tk.Tk):
             # ============================================================
             elif command == 'light_states':
                 if isinstance(value, list):
-                    # print(f" Received light states from {source_ui_id}")
+                    print(f"\n[LIGHT_STATES] Received light states from {source_ui_id}")
+                    print(f"[LIGHT_STATES] Array length: {len(value)}")
                     
-                    # Get all blocks with lights for the current line
+                    # Get ALL blocks with lights for the current line (unfiltered)
                     current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
                     
-                    # Determine which blocks have lights based on current line
                     if "Green" in current_line:
-                        light_blocks = sorted(self.data_manager.green_line_lights)  # Green Line: {1, 62, 76, 100, 150}
+                        light_blocks = sorted(self.data_manager.green_line_lights)
                     else:
-                        # Red Line: {1, 10, 15, 28, 32, 39, 43, 53, 66, 67, 71, 72, 76}
                         light_blocks = sorted(self.data_manager.red_line_lights)
                     
-                    # Filter light blocks based on which controller sent the message
-                    filtered_light_blocks = self.get_blocks_for_controller(source_ui_id, light_blocks)
+                    print(f"[LIGHT_STATES] All light blocks on {current_line}: {light_blocks}")
                     
                     # Process each light state
+                    # Wayside sends ALL lights, but we only update ones in their range
                     for i, bit_array in enumerate(value):
-                        if i < len(filtered_light_blocks):
-                            block_num = filtered_light_blocks[i]
+                        if i < len(light_blocks):
+                            block_num = light_blocks[i]
                             
-                            # Convert string bits to boolean
+                            # FILTER: Only update if this block belongs to the sender
+                            if source_ui_id == "Track SW" and not self.is_track_sw_block(block_num):
+                                # Skip - this light belongs to Track HW
+                                print(f"[LIGHT_STATES] Skipping block {block_num} - belongs to Track HW")
+                                continue
+                            elif source_ui_id == "Track HW" and self.is_track_sw_block(block_num):
+                                # Skip - this light belongs to Track SW
+                                print(f"[LIGHT_STATES] Skipping block {block_num} - belongs to Track SW")
+                                continue
+                            
+                            # Update this light (it belongs to the sender)
                             if isinstance(bit_array, list) and len(bit_array) == 2:
                                 try:
-                                    bit0 = bool(int(bit_array[0]))  # '1' -> True, '0' -> False
+                                    bit0 = bool(int(bit_array[0]))
                                     bit1 = bool(int(bit_array[1]))
                                     
-                                    # Update the block's light state
                                     if 1 <= block_num <= len(self.data_manager.blocks):
                                         block = self.data_manager.blocks[block_num - 1]
                                         state = (1 if bit0 else 0) + (2 if bit1 else 0)
                                         block.traffic_light_state = state
-                                        # print(f"   Updated signal at block {block_num}: State {state} from bits [{bit0}, {bit1}] (from {source_ui_id})")
+                                        
+                                        # Decode state for logging
+                                        state_name = ["Red (0)", "Green (1)", "Yellow (2)", "Super Green (3)"][state]
+                                        print(f"[LIGHT_STATES] ✓ Updated light at block {block_num}: {state_name}")
                                 except (ValueError, TypeError) as e:
-                                    print(f"   Could not parse bit array for block {block_num}: {bit_array}")
+                                    print(f"[LIGHT_STATES] Could not parse bit array for block {block_num}: {bit_array}")
                     
                     # Refresh UI to show light updates
                     self.refresh_bidirectional_controls()
-                    self.refresh_ui()
-                    # print(f"[DEBUG] Light states updated from {source_ui_id}")
+                    self.refresh_track_data_table()
+                    self.refresh_track_system_table()
+                    print(f"[LIGHT_STATES] Processing complete\n")
                 else:
                     pass
                     # print(f" Invalid light_states format: {value}")
