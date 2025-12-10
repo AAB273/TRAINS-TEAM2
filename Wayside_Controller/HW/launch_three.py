@@ -49,7 +49,7 @@ def launch_four_guis():
         
         # Launch Track Model UI
         # print("🛤️ Launching Track Model UI...")
-        # processes[3] = subprocess.Popen([sys.executable, TRACK_MODEL_UI_PATH])
+        processes[3] = subprocess.Popen([sys.executable, TRACK_MODEL_UI_PATH])
         
         print("\n✅ All 4 GUIs launched successfully!")
         print("📋 Running Applications:")
