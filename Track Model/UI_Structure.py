@@ -150,6 +150,8 @@ class TrackModelUI(tk.Tk):
         # --- POPULATE INFRASTRUCTURE SETS AFTER LOADING ---
         self._populate_infrastructure_sets()
 
+        self.diagram_drawer.draw_green_line_stations()
+
         # Initialize traffic light states and occupancy for all blocks
         for b in self.data_manager.blocks:
             if not hasattr(b, "traffic_light_state"):
@@ -3781,6 +3783,10 @@ class TrackModelUI(tk.Tk):
                     )
                     self.red_dots.append(dot)
             
+            
+            # Redraw Green Line stations if applicable
+            if hasattr(self, 'diagram_drawer'):
+                self.diagram_drawer.draw_green_line_stations()
             # print(f"[UI]  Background image resized to {new_width}x{new_height}")
             # print(f"    Original: {original_width}x{original_height} (aspect: {original_aspect:.4f})")
             # print(f"    New aspect: {new_width/new_height:.4f} (difference: {abs(original_aspect - new_width/new_height):.6f})")
