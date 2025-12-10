@@ -51,6 +51,33 @@ class TrackDiagramDrawer:
         "Crossing 2": (215, 379),
     }
 
+    
+    # Green Line Traffic Light Coordinates (blocks 1, 62, 76, 100, 150)
+    GREEN_LINE_LIGHT_COORDINATES = {
+        1: (189, 31),
+        62: (357, 267),
+        76: (240, 477),
+        100: (109, 467),
+        150: (66, 132),
+    }
+    
+    # Red Line Traffic Light Coordinates (blocks 1, 10, 15, 28, 32, 39, 43, 53, 66, 67, 71, 72, 76)
+    RED_LINE_LIGHT_COORDINATES = {
+        1: (288, 107),
+        10: (383, 116),
+        15: (286, 151),
+        28: (211, 185),
+        32: (208, 228),
+        39: (214, 273),
+        43: (216, 319),
+        53: (217, 331),
+        66: (103, 396),
+        67: (114, 365),
+        71: (186, 327),
+        72: (183, 257),
+        76: (191, 235),
+    }
+
     def __init__(self, ui_reference: Any, track_data: Any):
         """
         Initialize the TrackDiagramDrawer.
@@ -78,6 +105,9 @@ class TrackDiagramDrawer:
         
         # Try to load crossing icon from the uploads directory
         self._load_crossing_icon()
+        
+        # Traffic light attributes
+        self.light_items = {}  # Store references to traffic light icons on canvas
         
         # Block position coordinates for occupancy display
         self.block_positions_occupancy = {
@@ -436,6 +466,186 @@ class TrackDiagramDrawer:
                 except:
                     pass
         self.crossing_items.clear()
+    
+    # -------------------------------------------------------------------------
+    # TRAFFIC LIGHT METHODS
+    # -------------------------------------------------------------------------
+    def draw_green_line_traffic_lights(self):
+        """
+        Draw traffic light icons for Green Line blocks with signals.
+        Only displays if Green Line is selected.
+        """
+        if not self._is_green_line_selected():
+            return
+            
+        if not hasattr(self.ui_reference, 'track_canvas'):
+            return
+            
+        canvas = self.ui_reference.track_canvas
+        x_offset, y_offset = self._get_image_offsets()
+        
+        # Clear existing traffic lights first
+        self.clear_traffic_lights()
+        
+        # Draw traffic light for each block
+        for block_num, (base_x, base_y) in self.GREEN_LINE_LIGHT_COORDINATES.items():
+            # Apply offsets
+            x = base_x + x_offset
+            y = base_y + y_offset
+            
+            # Get traffic light state for this block
+            state = self._get_traffic_light_state(block_num)
+            
+            # Determine color based on state
+            # State 0: Red, State 1: Green, State 2: Yellow, State 3: Super Green
+            if state == 0:
+                color = "red"
+            elif state == 1:
+                color = "green"
+            elif state == 2:
+                color = "yellow"
+            elif state == 3:
+                color = "#00FF00"  # Bright green for "super green"
+            else:
+                color = "gray"  # Default/unknown state
+            
+            # Draw traffic light circle (18px diameter)
+            light_size = 18
+            item_id = canvas.create_oval(
+                x - light_size/2, y - light_size/2,
+                x + light_size/2, y + light_size/2,
+                fill=color, outline="black", width=2
+            )
+            
+            # Store reference
+            if block_num not in self.light_items:
+                self.light_items[block_num] = []
+            self.light_items[block_num].append(item_id)
+    
+    def draw_red_line_traffic_lights(self):
+        """
+        Draw traffic light icons for Red Line blocks with signals.
+        Only displays if Red Line is selected.
+        """
+        if not self._is_red_line_selected():
+            return
+            
+        if not hasattr(self.ui_reference, 'track_canvas'):
+            return
+            
+        canvas = self.ui_reference.track_canvas
+        x_offset, y_offset = self._get_image_offsets()
+        
+        # Clear existing traffic lights first
+        self.clear_traffic_lights()
+        
+        # Draw traffic light for each block
+        for block_num, (base_x, base_y) in self.RED_LINE_LIGHT_COORDINATES.items():
+            # Apply offsets
+            x = base_x + x_offset
+            y = base_y + y_offset
+            
+            # Get traffic light state for this block
+            state = self._get_traffic_light_state(block_num)
+            
+            # Determine color based on state
+            # State 0: Red, State 1: Green, State 2: Yellow, State 3: Super Green
+            if state == 0:
+                color = "red"
+            elif state == 1:
+                color = "green"
+            elif state == 2:
+                color = "yellow"
+            elif state == 3:
+                color = "#00FF00"  # Bright green for "super green"
+            else:
+                color = "gray"  # Default/unknown state
+            
+            # Draw traffic light circle (18px diameter)
+            light_size = 18
+            item_id = canvas.create_oval(
+                x - light_size/2, y - light_size/2,
+                x + light_size/2, y + light_size/2,
+                fill=color, outline="black", width=2
+            )
+            
+            # Store reference
+            if block_num not in self.light_items:
+                self.light_items[block_num] = []
+            self.light_items[block_num].append(item_id)
+    
+    def update_traffic_light(self, block_num: int, state: int):
+        """
+        Update a single traffic light's color based on its state.
+        
+        Args:
+            block_num: The block number
+            state: Traffic light state (0=Red, 1=Green, 2=Yellow, 3=Super Green)
+        """
+        # Check which line is selected and if this block has a light on that line
+        is_green = self._is_green_line_selected()
+        is_red = self._is_red_line_selected()
+        
+        if is_green and block_num not in self.GREEN_LINE_LIGHT_COORDINATES:
+            return
+        if is_red and block_num not in self.RED_LINE_LIGHT_COORDINATES:
+            return
+            
+        if not hasattr(self.ui_reference, 'track_canvas'):
+            return
+            
+        canvas = self.ui_reference.track_canvas
+        
+        # Determine color
+        if state == 0:
+            color = "red"
+        elif state == 1:
+            color = "green"
+        elif state == 2:
+            color = "yellow"
+        elif state == 3:
+            color = "#00FF00"  # Bright green
+        else:
+            color = "gray"
+        
+        # Update existing light items
+        if block_num in self.light_items:
+            for item_id in self.light_items[block_num]:
+                try:
+                    canvas.itemconfig(item_id, fill=color)
+                except:
+                    pass
+    
+    def clear_traffic_lights(self):
+        """
+        Remove all traffic light icons from the canvas.
+        """
+        if hasattr(self.ui_reference, 'track_canvas'):
+            canvas = self.ui_reference.track_canvas
+            for block_num, items in self.light_items.items():
+                for item_id in items:
+                    try:
+                        canvas.delete(item_id)
+                    except:
+                        pass
+        self.light_items.clear()
+    
+    def _get_traffic_light_state(self, block_num: int) -> int:
+        """
+        Get the traffic light state for a given block.
+        
+        Args:
+            block_num: The block number
+            
+        Returns:
+            int: Traffic light state (0=Red, 1=Green, 2=Yellow, 3=Super Green)
+        """
+        if hasattr(self.track_data, 'blocks') and self.track_data.blocks:
+            if block_num <= len(self.track_data.blocks):
+                block = self.track_data.blocks[block_num - 1]
+                if hasattr(block, 'traffic_light_state'):
+                    return block.traffic_light_state
+        return 0  # Default to red if not found
 
     # -------------------------------------------------------------------------
     # CORE DRAWING FUNCTIONS
@@ -453,6 +663,7 @@ class TrackDiagramDrawer:
         self.icon_refs.clear()
         self.station_items.clear()
         self.crossing_items.clear()
+        self.light_items.clear()
 
         y = 100
         block_length = 60
@@ -486,6 +697,12 @@ class TrackDiagramDrawer:
         
         # Draw Red Line railroad crossings if applicable
         self.draw_red_line_crossings()
+        
+        # Draw Green Line traffic lights if applicable
+        self.draw_green_line_traffic_lights()
+        
+        # Draw Red Line traffic lights if applicable
+        self.draw_red_line_traffic_lights()
 
     def draw_track_icons(self):
         """
@@ -556,6 +773,7 @@ class TrackDiagramDrawer:
         self.icon_refs.clear()
         self.station_items.clear()
         self.crossing_items.clear()
+        self.light_items.clear()
 
     # -------------------------------------------------------------------------
     # BLOCK POSITION MANAGEMENT
