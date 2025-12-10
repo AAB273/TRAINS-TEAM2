@@ -629,15 +629,7 @@ def getDistanceToNextStation():
 
 def getNextStationName():
     """Get the name of the next station"""
-<<<<<<< HEAD
-    # If returning to yard, always show YARD
-    if returningToYard:
-        return "YARD"
-    
     # Check if we're on RED LINE at a switch point with beacon active OR in alternative route blocks
-=======
-    # Check if we're on RED LINE at a switch point with beacon active
->>>>>>> 6e8d770908bea4843055fc152e9f4e58e25a7f31
     if selectedLine == 'RED':
         # Check for alternative route at block 27 (beacon1)
         if currentBlock == 27 and beacon1:
