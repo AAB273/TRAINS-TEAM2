@@ -5,7 +5,17 @@ from tkinter import ttk
 
 
 class FileUploadManager:
+    # Manages file upload operations for track data including Excel, CSV, text, and image files.
+    
+    """
+    Attributes:
+        data_manager: Instance of TrackDataManager for backend data storage
+        ui_reference: Optional reference to TrackModelUI for UI refresh operations
+        terminals: List of terminal widgets for logging messages
+    """
+    
     def __init__(self, data_manager, ui_reference=None):
+        # Initializes the upload manager with data manager and optional UI reference.
         """
         Initialize the upload manager.
 
@@ -17,6 +27,7 @@ class FileUploadManager:
         self.terminals = []
     
     def upload_track_file(self):
+        # Handles track file uploads by prompting user and routing to appropriate handler based on file type.
         """Handle track file uploads (e.g., Excel or CSV) and pass to TrackDataManager."""
         from tkinter import filedialog, messagebox
         import os
@@ -73,6 +84,7 @@ class FileUploadManager:
             traceback.print_exc()
             
     def auto_load_green_line(self, sheet_name="Green Line"):
+        # Automatically loads track data from Track Data.xlsx if it exists in the directory.
         """
         Automatically load track data from 'Track Data.xlsx' if it exists in the directory.
         Reads columns for block geometry and infrastructure, then updates the TrackDataManager.
@@ -211,6 +223,7 @@ class FileUploadManager:
 
 
     def _extract_station_name_from_line(self, line, block_num):
+        # Extracts station name from a line of infrastructure text.
         """Extract station name from a single line of infrastructure text"""
         try:
             line_upper = line.upper()
@@ -261,6 +274,7 @@ class FileUploadManager:
     # ---------------- Excel / CSV / Text Upload Handlers ----------------
 
     def handle_excel_upload(self, filename):
+        # Processes Excel file uploads and updates track data.
         """Process Excel file for track data with the specific structure"""
         try:
             import pandas as pd
@@ -283,6 +297,7 @@ class FileUploadManager:
 
 
     def handle_text_upload(self, filename):
+        # Processes text or CSV file uploads and updates track data.
         """Process text file for track data – supports CSV or delimited formats."""
         try:
             # Try CSV first
@@ -319,6 +334,7 @@ class FileUploadManager:
 
 
     def handle_data_upload(self, filename):
+        # Routes data file uploads to appropriate handler based on file extension.
         """Handle Excel/TXT upload - read track data"""
         try:
             file_extension = filename.lower().split('.')[-1]
@@ -336,6 +352,7 @@ class FileUploadManager:
     # ---------------- Data Processing Core ----------------
 
     def process_structured_track_data(self, df):
+        # Updates track blocks from structured DataFrame with validation.
         """Update track blocks from structured DataFrame."""
         for index, row in df.iterrows():
             if index < len(self.data_manager.blocks):
@@ -373,6 +390,7 @@ class FileUploadManager:
     #         print(f"❌ Text processing error: {e}")
 
     def parse_text_track_data(self, lines):
+        # Parses raw text lines into structured dictionary format for track data.
         """Parse raw text into structured dictionary form."""
         data = {}
         current_section = None
@@ -401,6 +419,7 @@ class FileUploadManager:
         return data
 
     def process_track_data(self, data):
+        # Processes either DataFrame or dictionary input and updates blocks accordingly.
         """Process either DataFrame or dict input and update the blocks accordingly."""
         try:
             if hasattr(data, "columns"):
@@ -415,6 +434,7 @@ class FileUploadManager:
             print(f"❌ Error processing track data: {e}")
 
     def process_dataframe(self, df):
+        # Processes and applies updates from a DataFrame to track blocks.
         """Process and apply updates from a DataFrame."""
         for index, row in df.iterrows():
             if index < len(self.data_manager.blocks):
@@ -430,6 +450,7 @@ class FileUploadManager:
                 print(f"📝 Updated block {block.block_number}: Grade={block.grade}%, Elevation={block.elevation}m")
 
     def process_data_dict(self, data_dict):
+        # Processes dictionary-based track data and updates block attributes.
         """Process dictionary-based track data."""
         print(f"📋 Processing data dictionary: {list(data_dict.keys())}")
         if "Block Grade (%)" in data_dict:
@@ -442,6 +463,7 @@ class FileUploadManager:
     # ---------------- Logging Utilities ----------------
 
     def _log_success(self, filename, filetype):
+        # Logs success message to UI terminal if available, otherwise prints to console.
         """Log success message to UI terminal if available, otherwise just print"""
         message = f"[SUCCESS] {filetype} data loaded from: {filename.split('/')[-1]}"
         
@@ -452,6 +474,7 @@ class FileUploadManager:
 
 
     def _log_error(self, filetype, error):
+        # Logs error message to UI terminal if available, otherwise prints to console.
         """Log error message to UI terminal if available, otherwise just print"""
         message = f"[ERROR] {filetype} processing failed: {str(error)}"
         

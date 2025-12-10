@@ -6,12 +6,20 @@ Broken Railroad, and Power Failure.
 """
 
 class MurphyTrackFailures:
+    # Manages Murphy Failures for track blocks including circuit failures, broken rails, and power failures.
+    
     """
-    Handles all Murphy failure modes for the track system.
-    Integrates with HeaterSystemManager, signals, and crossings.
+    Attributes:
+        data_manager: Reference to TrackDataManager
+        heater_manager: Reference to HeaterSystemManager for power failure integration
+        ui: Reference to UI for updating signals and crossings
+        active_failures: Dictionary tracking active failure types for each block
+        track_element_failures: Dictionary tracking track element failure states
+        broken_rail_original_occupancy: Dictionary storing original occupancy for broken rail failures
     """
     
     def __init__(self, data_manager, heater_manager=None, ui_reference=None):
+        # Initializes the Murphy Track Failures Manager with failure tracking for all blocks.
         """
         Initialize the Murphy Track Failures Manager.
         
@@ -53,6 +61,7 @@ class MurphyTrackFailures:
     # -------------------------------------------------------------------------
     
     def activate_track_circuit_failure(self, block_num):
+        # Activates track circuit failure for a block, preventing occupancy reporting.
         """
         Track Circuit Failure: Block cannot report occupancy, send beacon data, or be heated.
         
@@ -94,6 +103,7 @@ class MurphyTrackFailures:
         return True
     
     def activate_broken_rail_failure(self, block_num):
+        # Activates broken rail failure for a block, making it untraversable and clearing occupancy.
         """
         Broken Railroad Failure: Track cannot be driven over.
         
@@ -132,6 +142,7 @@ class MurphyTrackFailures:
         return True
     
     def activate_power_failure(self, block_num):
+        # Activates power failure for a block, disabling heaters, signals, and crossings.
         """
         Power Failure: Block cannot report occupancy, send beacon data, be heated,
         and any track elements (Signal, Crossing) are turned off.
@@ -196,6 +207,7 @@ class MurphyTrackFailures:
     # -------------------------------------------------------------------------
     
     def clear_failure(self, block_num):
+        # Clears the failure mode for a block and restores normal operation.
         """
         Clear any active failure on a block (repair the block).
         
@@ -212,6 +224,7 @@ class MurphyTrackFailures:
         return self._clear_failure_internal(block_num)
     
     def _clear_failure_internal(self, block_num):
+        # Internal method to restore block attributes after clearing a failure.
         """Internal method to clear failure without validation."""
         block = self.data_manager.blocks[block_num - 1]
         failure_type = self.active_failures.get(block_num)
@@ -253,6 +266,7 @@ class MurphyTrackFailures:
         return True
     
     def clear_all_failures(self):
+        # Clears all active failures across all blocks.
         """Clear all active failures on all blocks."""
         count = 0
         for block_num in list(self.active_failures.keys()):
@@ -268,6 +282,7 @@ class MurphyTrackFailures:
     # -------------------------------------------------------------------------
     
     def get_failure_status(self, block_num):
+        # Returns the current failure status for a specific block.
         """
         Get the failure status of a specific block.
         
@@ -280,6 +295,7 @@ class MurphyTrackFailures:
         return self.active_failures.get(block_num)
     
     def has_failure(self, block_num):
+        # Checks if a block has any active failure.
         """
         Check if a block has any active failure.
         
@@ -292,6 +308,7 @@ class MurphyTrackFailures:
         return self.active_failures.get(block_num) is not None
     
     def get_all_failures(self):
+        # Returns a dictionary of all active failures.
         """
         Get all active failures in the system.
         
@@ -301,6 +318,7 @@ class MurphyTrackFailures:
         return {k: v for k, v in self.active_failures.items() if v is not None}
     
     def can_send_beacon(self, block_num):
+        # Checks if a block can send beacon signals based on failure state.
         """
         Check if a block can send beacon data.
         
@@ -314,6 +332,7 @@ class MurphyTrackFailures:
         return failure not in ["track_circuit", "power"]
 
     def can_report_occupancy(self, block_num):
+        # Checks if a block can report occupancy based on failure state.
         """
         Check if a block can report occupancy.
         Track circuit and power failures prevent occupancy detection.
@@ -328,6 +347,7 @@ class MurphyTrackFailures:
         return failure not in ["track_circuit", "power"]
     
     def can_heat(self, block_num):
+        # Checks if a blocks heater can operate based on power failure state.
         """
         Check if a block's heater can function.
         
@@ -341,6 +361,7 @@ class MurphyTrackFailures:
         return failure not in ["track_circuit", "power"]
     
     def is_traversable(self, block_num):
+        # Checks if a block is traversable based on broken rail failure state.
         """
         Check if a block can be driven over.
         
@@ -359,6 +380,7 @@ class MurphyTrackFailures:
         return getattr(block, 'traversable', True)
     
     def has_power(self, block_num):
+        # Checks if a block has power based on power failure state.
         """
         Check if a block has power.
         
@@ -373,6 +395,7 @@ class MurphyTrackFailures:
 
     # -------------------------------------------------------------------------
     def is_track_element_failed(self, block_num):
+        # Checks if a blocks track elements have failed.
         """
         Check if a track element (signal/crossing) is in failure state.
         This happens when a power failure occurs on a block with track elements.
@@ -389,6 +412,7 @@ class MurphyTrackFailures:
     # -------------------------------------------------------------------------
     
     def get_failure_display_text(self, block_num):
+        # Returns formatted text describing the blocks failure status for UI display.
         """
         Get display text for UI showing failure status.
         
@@ -412,6 +436,7 @@ class MurphyTrackFailures:
             return "❓ UNKNOWN"
     
     def get_failure_color(self, block_num):
+        # Returns appropriate color code for UI based on blocks failure state.
         """
         Get color code for failure status.
         
@@ -435,6 +460,7 @@ class MurphyTrackFailures:
             return "gray"
     
     def _print_active_failures(self):
+        # Internal debug method to print all active failures.
         """Helper method to print active failures count."""
         failures = self.get_all_failures()
         if failures:
@@ -443,6 +469,7 @@ class MurphyTrackFailures:
             print(f"   - No other active failures")
 
     def print_failure_summary(self):
+        # Prints a summary of all active failures for debugging.
         """Print a summary of all active failures to console."""
         failures = self.get_all_failures()
         
