@@ -360,9 +360,9 @@ class Testing(unittest.TestCase):
             self.train.calculateForceSpeedAccelerationDistance(dt=0.1)
             print(f"After {i+1} updates: Speed={self.train.speed:.2f} m/s")
         
-        self.train.setEngineFailure(True)
-	    self.train.setPowerCommand(0)
-	    self.train.setAcceleration(0)
+        # Assertions
+        self.assertGreater(self.train.speed, initial_speed,
+                          "Train should accelerate with power applied")
         
         print(f"\nResults:")
         print(f"  Speed increased from {initial_speed:.1f} to {self.train.speed:.1f} m/s")
