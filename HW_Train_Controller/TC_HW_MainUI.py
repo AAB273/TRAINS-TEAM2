@@ -570,13 +570,13 @@ class GPIOClient:
             self.connected = False
             return False
     
-    def setServiceBrake(self, state):
-        """Control service brake (for automatic station stops)"""
+    def setEmergencyBrake(self, state):
+        """Control emergency brake (for failure modes)"""
         if not self.connected:
             return False
         
         command = {
-            'type': 'set_service_brake',
+            'type': 'set_emergency_brake',
             'state': state
         }
         
@@ -891,23 +891,19 @@ def updatePositionTracking():
             dwellElapsed = currentTime - stationDwellStartTime
             if dwellElapsed >= STATION_DWELL_TIME:
                 # RELEASE SERVICE BRAKE before departing
+                serviceBrakeActive = False
+                print(f"🟢 Service brake RELEASED for departure")
+                
+                # Send service brake command to Train Model
                 if 'speedDisplay' in globals():
                     sd = globals()['speedDisplay']
-                    if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
-                        # Release service brake via GPIO server
-                        result = sd.gpio_client.setServiceBrake(False)
-                        if result:
-                            serviceBrakeActive = False
-                            print(f"🟢 Service brake RELEASED for departure")
-                            
-                            # Send service brake command to Train Model
-                            if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
-                                sd.server.send_to_ui("Train Model", {
-                                    'command': 'Service Brake',
-                                    'value': False,
-                                    'train_id': 1
-                                })
-                                print(f"[AUTO BRAKE] Service brake release sent to Train Model")
+                    if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                        sd.server.send_to_ui("Train Model", {
+                            'command': 'Service Brake',
+                            'value': False,
+                            'train_id': 1
+                        })
+                        print(f"[AUTO BRAKE] Service brake release sent to Train Model")
                 
                 # Close doors before departing
                 if 'speedDisplay' in globals():
@@ -1038,23 +1034,19 @@ def updatePositionTracking():
                 print(f"📢 Announcement: {announcement_text}")
         
         # ENGAGE SERVICE BRAKE at station
+        serviceBrakeActive = True
+        print(f"🛑 Service brake ENGAGED at {currentStation}")
+        
+        # Send service brake command to Train Model
         if 'speedDisplay' in globals():
             sd = globals()['speedDisplay']
-            if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
-                # Engage service brake via GPIO server
-                result = sd.gpio_client.setServiceBrake(True)
-                if result:
-                    serviceBrakeActive = True
-                    print(f"🛑 Service brake ENGAGED at {currentStation}")
-                    
-                    # Send service brake command to Train Model
-                    if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
-                        sd.server.send_to_ui("Train Model", {
-                            'command': 'Service Brake',
-                            'value': True,
-                            'train_id': 1
-                        })
-                        print(f"[AUTO BRAKE] Service brake command sent to Train Model")
+            if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
+                sd.server.send_to_ui("Train Model", {
+                    'command': 'Service Brake',
+                    'value': True,
+                    'train_id': 1
+                })
+                print(f"[AUTO BRAKE] Service brake command sent to Train Model")
         
         # Control door LEDs based on station platform side
         print(f"[DOOR DEBUG] At station {currentStation}, checking door control")
@@ -1688,7 +1680,7 @@ class TrainSpeedDisplayUI:
         global serviceBrakeActive, currentSpeed, passengerEmergencySignal
         global brakeFailure, engineFailure, signalFailure, acPanel
         global preloadedTrackInformation, distanceToNextStation
-        global beacon1, beacon2
+        global beacon1, beacon2, emergencyBrakeEngaged
         
         try:
             command = message.get('command')
@@ -1738,18 +1730,16 @@ class TrainSpeedDisplayUI:
                         commandedSpeed = 0.0
                         
                         # Engage service brake immediately
-                        if self.gpio_client and self.gpio_client.connected:
-                            self.gpio_client.setServiceBrake(True)
-                            serviceBrakeActive = True
-                            
-                            # Send to Train Model
-                            if self.server and self.train_model_connected:
-                                self.server.send_to_ui("Train Model", {
-                                    'command': 'Service Brake',
-                                    'value': True,
-                                    'train_id': 1
-                                })
-                                print(f"[AUTHORITY 0] Service brake ENGAGED for emergency stop")
+                        serviceBrakeActive = True
+                        
+                        # Send to Train Model
+                        if self.server and self.train_model_connected:
+                            self.server.send_to_ui("Train Model", {
+                                'command': 'Service Brake',
+                                'value': True,
+                                'train_id': 1
+                            })
+                            print(f"[AUTHORITY 0] Service brake ENGAGED for emergency stop")
                     else:
                         # At station - ignore authority 0 (station logic already handles stopping)
                         print(f"[AUTHORITY 0] At station - ignoring (station logic handles stop)")
@@ -1778,18 +1768,16 @@ class TrainSpeedDisplayUI:
                 if prev_authority == 0 and commandedAuthority > 0 and serviceBrakeActive and not isAtStation:
                     print(f"🟢 AUTHORITY {commandedAuthority} - Releasing emergency stop brake")
                     
-                    if self.gpio_client and self.gpio_client.connected:
-                        self.gpio_client.setServiceBrake(False)
-                        serviceBrakeActive = False
-                        
-                        # Send to Train Model
-                        if self.server and self.train_model_connected:
-                            self.server.send_to_ui("Train Model", {
-                                'command': 'Service Brake',
-                                'value': False,
-                                'train_id': 1
-                            })
-                            print(f"[AUTHORITY {commandedAuthority}] Service brake released")
+                    serviceBrakeActive = False
+                    
+                    # Send to Train Model
+                    if self.server and self.train_model_connected:
+                        self.server.send_to_ui("Train Model", {
+                            'command': 'Service Brake',
+                            'value': False,
+                            'train_id': 1
+                        })
+                        print(f"[AUTHORITY {commandedAuthority}] Service brake released")
             
             elif command == 'Current Speed':
                 # Update current speed from Train Model - critical for PI controller feedback!
@@ -1799,21 +1787,134 @@ class TrainSpeedDisplayUI:
                 passengerEmergencySignal = value
                 if self.gpio_client and self.gpio_client.connected:
                     self.gpio_client.setLED('passenger_emergency', value)
+                
+                # Activate or deactivate emergency brake based on passenger emergency
+                if value and not emergencyBrakeEngaged:
+                    print("⚠️  PASSENGER EMERGENCY - Activating Emergency Brake")
+                    if self.gpio_client and self.gpio_client.connected:
+                        self.gpio_client.setEmergencyBrake(True)
+                    emergencyBrakeEngaged = True
+                    
+                    # Notify Train Model
+                    if self.server and self.train_model_connected:
+                        self.server.send_to_ui("Train Model", {
+                            'command': 'emergency_brake',
+                            'value': 'on',
+                            'train_id': 1
+                        })
+                elif not value and emergencyBrakeEngaged:
+                    print("✓ PASSENGER EMERGENCY CLEARED - Releasing Emergency Brake")
+                    if self.gpio_client and self.gpio_client.connected:
+                        self.gpio_client.setEmergencyBrake(False)
+                    emergencyBrakeEngaged = False
+                    
+                    # Notify Train Model
+                    if self.server and self.train_model_connected:
+                        self.server.send_to_ui("Train Model", {
+                            'command': 'emergency_brake',
+                            'value': 'off',
+                            'train_id': 1
+                        })
             
-            elif command == 'Brake Failure':
+            elif command == 'Service Brake Failure':
+                # Handle Service Brake Failure (sent from Passenger UI)
                 brakeFailure = value
                 if self.gpio_client and self.gpio_client.connected:
                     self.gpio_client.setLED('brake_failure', value)
+                
+                # Activate or deactivate emergency brake based on brake failure
+                if value and not emergencyBrakeEngaged:
+                    print("⚠️  BRAKE FAILURE - Activating Emergency Brake")
+                    if self.gpio_client and self.gpio_client.connected:
+                        self.gpio_client.setEmergencyBrake(True)
+                    emergencyBrakeEngaged = True
+                    
+                    # Notify Train Model
+                    if self.server and self.train_model_connected:
+                        self.server.send_to_ui("Train Model", {
+                            'command': 'emergency_brake',
+                            'value': 'on',
+                            'train_id': 1
+                        })
+                elif not value and emergencyBrakeEngaged:
+                    print("✓ BRAKE FAILURE CLEARED - Releasing Emergency Brake")
+                    if self.gpio_client and self.gpio_client.connected:
+                        self.gpio_client.setEmergencyBrake(False)
+                    emergencyBrakeEngaged = False
+                    
+                    # Notify Train Model
+                    if self.server and self.train_model_connected:
+                        self.server.send_to_ui("Train Model", {
+                            'command': 'emergency_brake',
+                            'value': 'off',
+                            'train_id': 1
+                        })
             
             elif command == 'Train Engine Failure':
                 engineFailure = value
                 if self.gpio_client and self.gpio_client.connected:
                     self.gpio_client.setLED('engine_failure', value)
+                
+                # Activate or deactivate emergency brake based on engine failure
+                if value and not emergencyBrakeEngaged:
+                    print("⚠️  ENGINE FAILURE - Activating Emergency Brake")
+                    if self.gpio_client and self.gpio_client.connected:
+                        self.gpio_client.setEmergencyBrake(True)
+                    emergencyBrakeEngaged = True
+                    
+                    # Notify Train Model
+                    if self.server and self.train_model_connected:
+                        self.server.send_to_ui("Train Model", {
+                            'command': 'emergency_brake',
+                            'value': 'on',
+                            'train_id': 1
+                        })
+                elif not value and emergencyBrakeEngaged:
+                    print("✓ ENGINE FAILURE CLEARED - Releasing Emergency Brake")
+                    if self.gpio_client and self.gpio_client.connected:
+                        self.gpio_client.setEmergencyBrake(False)
+                    emergencyBrakeEngaged = False
+                    
+                    # Notify Train Model
+                    if self.server and self.train_model_connected:
+                        self.server.send_to_ui("Train Model", {
+                            'command': 'emergency_brake',
+                            'value': 'off',
+                            'train_id': 1
+                        })
             
             elif command == 'Signal Pickup Failure':
                 signalFailure = value
                 if self.gpio_client and self.gpio_client.connected:
                     self.gpio_client.setLED('signal_failure', value)
+                
+                # Activate or deactivate emergency brake based on signal failure
+                if value and not emergencyBrakeEngaged:
+                    print("⚠️  SIGNAL PICKUP FAILURE - Activating Emergency Brake")
+                    if self.gpio_client and self.gpio_client.connected:
+                        self.gpio_client.setEmergencyBrake(True)
+                    emergencyBrakeEngaged = True
+                    
+                    # Notify Train Model
+                    if self.server and self.train_model_connected:
+                        self.server.send_to_ui("Train Model", {
+                            'command': 'emergency_brake',
+                            'value': 'on',
+                            'train_id': 1
+                        })
+                elif not value and emergencyBrakeEngaged:
+                    print("✓ SIGNAL PICKUP FAILURE CLEARED - Releasing Emergency Brake")
+                    if self.gpio_client and self.gpio_client.connected:
+                        self.gpio_client.setEmergencyBrake(False)
+                    emergencyBrakeEngaged = False
+                    
+                    # Notify Train Model
+                    if self.server and self.train_model_connected:
+                        self.server.send_to_ui("Train Model", {
+                            'command': 'emergency_brake',
+                            'value': 'off',
+                            'train_id': 1
+                        })
             
             elif command == 'Temp':
                 # Update AC panel with current temperature from Train Model

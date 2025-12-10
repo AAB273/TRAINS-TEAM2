@@ -809,11 +809,28 @@ class TrackModelTestUI(tk.Toplevel):
                 entry = entries[attr]
                 if entry['state'] != 'disabled':
                     val = entry.get()
+                    old_val = getattr(block, attr, None)
+                    
                     if attr in ["switch_state", "crossing"]:
                         val = val.lower() in ["true", "1", "yes"]
                     else:
                         val = int(val)
                     setattr(block, attr, val)
+                    
+                    # Notify main UI if switch_state changed on a beacon block
+                    if attr == "switch_state" and block.block_number in [27, 38]:
+                        print(f"\n{'='*60}")
+                        print(f"[TEST UI DEBUG] Switch state changed on beacon block {block.block_number}")
+                        print(f"[TEST UI DEBUG] Old value: {old_val}")
+                        print(f"[TEST UI DEBUG] New value: {val}")
+                        print(f"[TEST UI DEBUG] Block occupancy: {block.occupancy}")
+                        if hasattr(self.master, 'notify_switch_change_from_test_ui'):
+                            print(f"[TEST UI DEBUG] Calling master.notify_switch_change_from_test_ui({block.block_number})")
+                            self.master.notify_switch_change_from_test_ui(block.block_number)
+                            print(f"🔔 Notified main UI of switch change on block {block.block_number}")
+                        else:
+                            print(f"[TEST UI DEBUG] ❌ master.notify_switch_change_from_test_ui NOT FOUND!")
+                        print(f"{'='*60}\n")
 
             # Signal
             if "signal" in entries:
