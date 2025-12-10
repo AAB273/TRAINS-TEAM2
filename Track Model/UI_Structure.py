@@ -6229,7 +6229,19 @@ class TrackModelUI(tk.Tk):
                         idx = self.data_manager.active_trains.index(train_id)
                         self.data_manager.commanded_speed[idx] = commanded_speed
                         self.data_manager.commanded_authority[idx] = commanded_authority
-                        # print(f" Updated commanded values for {train_id}: Speed={commanded_speed}, Authority={commanded_authority}")
+
+                            # Print to terminal
+                        print(f"\n{'='*70}")
+                        print(f"✓ RECEIVED FROM TRACK HW")
+                        print(f"{'='*70}")
+                        print(f"  Train ID: {train_id}")
+                        print(f"  Block: {block_num}")
+                        print(f"  Commanded Speed: {commanded_speed} mph")
+                        print(f"  Commanded Authority: {commanded_authority} blocks")
+                        print(f"  Track: {message.get('track', 'N/A')}")
+                        print(f"{'='*70}\n")
+
+                        print(f" Updated commanded values for {train_id}: Speed={commanded_speed}, Authority={commanded_authority}")
                         
                         # Send commanded speed to Train Model
                         self.server.send_to_ui("Train Model", {
@@ -6250,7 +6262,7 @@ class TrackModelUI(tk.Tk):
                         # print(f" Train {train_id} not found in active trains (will still display in Train Details). Available: {self.data_manager.active_trains}")
                 else:
                     pass
-                    # print(f" Invalid Speed and Authority format. Got speed={commanded_speed}, auth={commanded_authority}, block={block_num}")
+                    print(f" Invalid Speed and Authority format. Got speed={commanded_speed}, auth={commanded_authority}, block={block_num}")
             
             # ============================================================
             # SWITCH STATES - From Wayside Controller (bulk update)
