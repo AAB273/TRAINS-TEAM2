@@ -1,21 +1,15 @@
-import json    
-from pathlib import Path 
-
-def load_socket_config():
-    config_path = Path("config.json")
-    if config_path.exists():
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-    return config.get("modules", {})
-
+import json
+from pathlib import Path
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 import UI_Variables
 import tkinter.simpledialog as simpledialog
-import os, sys
+import os
+import sys
+import random
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-from Test_UI import TrackModelTestUI  # Test/debug UI
+from Test_UI import TrackModelTestUI
 from FileUploadManager import FileUploadManager
 from TrackDiagramDrawer import TrackDiagramDrawer
 from HeaterSystemManager import HeaterSystemManager
@@ -23,8 +17,32 @@ from TrainSocketServer import TrainSocketServer
 from MurphyTrackFailures import MurphyTrackFailures
 
 
+def load_socket_config():
+    # Loads socket configuration from config.json file.
+    config_path = Path("config.json")
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config.get("modules", {})
+
+
 class TrackModelUI(tk.Tk):
+    # The main user interface for the Track Model system.
+
+    """
+    Attributes:
+        data_manager: TrackDataManager instance managing all track data
+        server: TrainSocketServer instance for network communication
+        switch_blocks: Set of block numbers containing switches
+        switch_states: Dictionary tracking switch states for each block
+        file_manager: FileUploadManager for loading Excel track data
+        heater_manager: HeaterSystemManager for temperature control
+        diagram_drawer: TrackDiagramDrawer for track visualization
+        murphy_failures: MurphyTrackFailures for fault simulation
+    """
+
     def __init__(self, manager: UI_Variables.TrackDataManager):
+        # Initializes the Track Model UI with all necessary components and configurations.
         super().__init__()
         self.title("Track Model UI")
         self.geometry("1300x850")
@@ -40,11 +58,9 @@ class TrackModelUI(tk.Tk):
             port=config["port"],
             ui_id="Track Model"
         )
-        self.server.set_allowed_connections(["Track SW","Track HW", "Train Model", "CTC", "Train HW","Train SW"])
+        self.server.set_allowed_connections(["Track SW","Track HW", "Train Model", "CTC"])
         self.server.start_server(self._process_message)
         self.server.connect_to_ui('localhost', 12341, "CTC")
-        #self.server.connect_to_ui('localhost', 12346, "Train SW")
-        #self.server.connect_to_ui('localhost', 12347, "Train HW")
         self.server.connect_to_ui('localhost', 12345, "Train Model")
         self.server.connect_to_ui('localhost', 12342,  'Track SW')
         self.server.connect_to_ui('localhost', 12343,'Track HW')
@@ -118,11 +134,9 @@ class TrackModelUI(tk.Tk):
         self.track_system_sort_reverse = False
 
         # Initialize random FIRST
-        import random
         self.random = random
 
         # --- Auto-load Green Line data from Excel file FIRST ---
-        import os
         track_file = os.path.join(os.path.dirname(__file__), "Track Data.xlsx")
         if os.path.exists(track_file):
             loaded = self.data_manager.load_excel_data(track_file)
@@ -236,6 +250,7 @@ class TrackModelUI(tk.Tk):
 
     # ---------------- Helper ----------------
     def make_card(self, parent, title=None):
+        # Make card method.
         card = tk.Frame(parent, bg="white", bd=2, relief="ridge")
         if title:
             tk.Label(card, text=title, font=("Arial", 12, "bold"), bg="white").pack(anchor="w", padx=10, pady=5)
@@ -3633,6 +3648,7 @@ class TrackModelUI(tk.Tk):
         self.terminal.config(state="disabled")
 
     def PLCupload_file(self):
+        # Plcupload file method.
         from tkinter import filedialog
         filetypes = [
             ("Image files", "*.png *.jpg *.jpeg"),
