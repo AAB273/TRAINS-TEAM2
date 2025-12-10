@@ -629,22 +629,27 @@ def getDistanceToNextStation():
 
 def getNextStationName():
     """Get the name of the next station"""
-<<<<<<< HEAD
     # If returning to yard, always show YARD
     if returningToYard:
         return "YARD"
     
     # Check if we're on RED LINE at a switch point with beacon active OR in alternative route blocks
-=======
-    # Check if we're on RED LINE at a switch point with beacon active
->>>>>>> 6e8d770908bea4843055fc152e9f4e58e25a7f31
     if selectedLine == 'RED':
-        # Check for alternative route at block 27 (beacon1)
-        if currentBlock == 27 and beacon1:
+        # Beacon1 alternative route blocks: 27 (switch), 76, 75, 74, 73, 72 (NOT 32 - that's back on main)
+        if beacon1 and currentBlock in [27, 76, 75, 74, 73, 72]:
+            print(f"[BEACON DEBUG] ✓ ALTERNATIVE ROUTE 1: Block={currentBlock}, Beacon1={beacon1}")
             return "ALTERNATIVE ROUTE (Blocks 76-72)"
-        # Check for alternative route at block 38 (beacon2)
-        elif currentBlock == 38 and beacon2:
+        
+        # Beacon2 alternative route blocks: 38 (switch), 71, 70, 69, 68, 67 (NOT 39 - that's back on main)
+        if beacon2 and currentBlock in [38, 71, 70, 69, 68, 67]:
+            print(f"[BEACON DEBUG] ✓ ALTERNATIVE ROUTE 2: Block={currentBlock}, Beacon2={beacon2}")
             return "ALTERNATIVE ROUTE (Blocks 71-67)"
+        
+        # Debug when at beacon blocks but beacon not active
+        if currentBlock == 27:
+            print(f"[BEACON DEBUG] At Block 27 but Beacon1={beacon1}")
+        elif currentBlock == 38:
+            print(f"[BEACON DEBUG] At Block 38 but Beacon2={beacon2}")
     
     if currentSegmentIndex < len(preloadedTrackInformation['segments']):
         return preloadedTrackInformation['segments'][currentSegmentIndex]['to_station']
@@ -669,7 +674,7 @@ def updatePositionTracking():
     global currentSegmentIndex, isAtStation, stationDwellStartTime, systemLogViewer
     global _position_print_counter
     global currentBlock, lastUndergroundState
-    global serviceBrakeActive, returningToYard, commandedSpeed
+    global serviceBrakeActive, returningToYard, commandedSpeed, emergencyBrakeEngaged
     
     if not autoModeEnabled:
         return
@@ -729,6 +734,23 @@ def updatePositionTracking():
                 return blocks[idx]
             elif from_block == 25 and to_block == 35:
                 # PENN STATION to STEEL PLAZA (25→26→27→28→29→30→31→32→33→34→35)
+                
+                # If beacon1 active and we're IN alternative route blocks
+                if beacon1 and currentBlock in [76, 75, 74, 73, 72]:
+                    alt_blocks = [76, 75, 74, 73, 72]
+                    current_idx = alt_blocks.index(currentBlock)
+                    
+                    # If at the END of alternative route (block 72), rejoin main at block 32
+                    if currentBlock == 72:
+                        print("[ALT ROUTE 1] Completed alternative route, rejoining main at block 32")
+                        return 32
+                    
+                    # Otherwise continue through alternative blocks
+                    next_idx = current_idx + 1
+                    next_block = alt_blocks[next_idx]
+                    print(f"[ALT ROUTE 1] Continuing: {currentBlock} → {next_block}")
+                    return next_block
+                
                 blocks = [25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]
                 idx = min(int(progress * len(blocks)), len(blocks) - 1)
                 current = blocks[idx]
@@ -738,9 +760,28 @@ def updatePositionTracking():
                     # Switch activated! Redirect to branch 76→72
                     print("[SWITCH] Beacon 1 detected at block 27 - taking branch to blocks 76-72")
                     return 76  # Enter branch
+                    
                 return current
+            
             elif from_block == 35 and to_block == 45:
                 # STEEL PLAZA to FIRST AVE (35→36→37→38→39→40→41→42→43→44→45)
+                
+                # If beacon2 active and we're IN alternative route blocks
+                if beacon2 and currentBlock in [71, 70, 69, 68, 67]:
+                    alt_blocks = [71, 70, 69, 68, 67]
+                    current_idx = alt_blocks.index(currentBlock)
+                    
+                    # If at the END of alternative route (block 67), rejoin main at block 38
+                    if currentBlock == 67:
+                        print("[ALT ROUTE 2] Completed alternative route, rejoining main at block 38")
+                        return 38
+                    
+                    # Otherwise continue through alternative blocks
+                    next_idx = current_idx + 1
+                    next_block = alt_blocks[next_idx]
+                    print(f"[ALT ROUTE 2] Continuing: {currentBlock} → {next_block}")
+                    return next_block
+                
                 blocks = [35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45]
                 idx = min(int(progress * len(blocks)), len(blocks) - 1)
                 current = blocks[idx]
@@ -750,6 +791,7 @@ def updatePositionTracking():
                     # Switch activated! Redirect to branch 71→67
                     print("[SWITCH] Beacon 2 detected at block 38 - taking branch to blocks 71-67")
                     return 71  # Enter branch
+                    
                 return current
             elif from_block == 45 and to_block == 48:
                 # FIRST AVE to STATION SQUARE (45→46→47→48)
@@ -853,21 +895,25 @@ def updatePositionTracking():
                 commandedSpeed = 0.0  # Stop the train completely
                 
                 print(f"⚠️  RED LINE: Authority 1 detected at block 9 - RETURNING TO YARD")
-                print(f"🛑 STOPPING ALL MOVEMENT - Service brake ENGAGED")
+                print(f"🛑 STOPPING ALL MOVEMENT - Emergency brake ENGAGED")
                 
-                # Engage service brake to stop the train
+                # Engage EMERGENCY brake to stop the train
+                emergencyBrakeEngaged = True
                 serviceBrakeActive = True
                 
-                # Send service brake command to Train Model
+                # Send emergency brake command to Train Model
                 if 'speedDisplay' in globals():
                     sd = globals()['speedDisplay']
+                    if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
+                        sd.gpio_client.setEmergencyBrake(True)
+                    
                     if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
                         sd.server.send_to_ui("Train Model", {
-                            'command': 'Service Brake',
+                            'command': 'Emergency Brake',
                             'value': True,
                             'train_id': 1
                         })
-                        print(f"[YARD RETURN] Service brake command sent to Train Model")
+                        print(f"[YARD RETURN] Emergency brake command sent to Train Model")
                         
                         # Send announcement for yard return
                         sd.server.send_to_ui("Train Model", {
@@ -888,21 +934,25 @@ def updatePositionTracking():
                 commandedSpeed = 0.0  # Stop the train completely
                 
                 print(f"⚠️  GREEN LINE: Authority 1 detected at block 58 - RETURNING TO YARD")
-                print(f"🛑 STOPPING ALL MOVEMENT - Service brake ENGAGED")
+                print(f"🛑 STOPPING ALL MOVEMENT - Emergency brake ENGAGED")
                 
-                # Engage service brake to stop the train
+                # Engage EMERGENCY brake to stop the train
+                emergencyBrakeEngaged = True
                 serviceBrakeActive = True
                 
-                # Send service brake command to Train Model
+                # Send emergency brake command to Train Model
                 if 'speedDisplay' in globals():
                     sd = globals()['speedDisplay']
+                    if hasattr(sd, 'gpio_client') and sd.gpio_client and sd.gpio_client.connected:
+                        sd.gpio_client.setEmergencyBrake(True)
+                    
                     if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
                         sd.server.send_to_ui("Train Model", {
-                            'command': 'Service Brake',
+                            'command': 'Emergency Brake',
                             'value': True,
                             'train_id': 1
                         })
-                        print(f"[YARD RETURN] Service brake command sent to Train Model")
+                        print(f"[YARD RETURN] Emergency brake command sent to Train Model")
                         
                         # Send announcement for yard return
                         sd.server.send_to_ui("Train Model", {
@@ -1004,7 +1054,7 @@ def updatePositionTracking():
     lastPositionUpdateTime = currentTime
     
     # TIME ACCELERATION: 10x speed for faster simulation
-    TIME_SCALE = 100.0
+    TIME_SCALE = 10.0
     dt = dt * TIME_SCALE
     
     # If we're at a station, don't update position
@@ -1818,9 +1868,16 @@ class TrainSpeedDisplayUI:
         
         try:
             command = message.get('command')
+            
+            # DEBUG: Print all beacon-related messages
+            if command in ['Beacon1', 'Beacon2']:
+                print(f"[DEBUG] Received {command} from {source_ui_id}: {message}")
+            
             # Silently process routine messages
             
             if source_ui_id != "Train Model":
+                if command in ['Beacon1', 'Beacon2']:
+                    print(f"[DEBUG] REJECTED - source is '{source_ui_id}', expected 'Train Model'")
                 return
             
             self.train_model_connected = True
@@ -2088,12 +2145,18 @@ class TrainSpeedDisplayUI:
                 global beacon1
                 beacon1 = bool(value)
                 print(f"[BEACON1] Received: {beacon1} (Switch at block 27)")
+                print(f"[BEACON1] Current state: selectedLine={selectedLine}, currentBlock={currentBlock}, beacon1={beacon1}")
+                if selectedLine == 'RED' and currentBlock == 27:
+                    print(f"[BEACON1] ✓ Conditions met for alternative route display!")
             
             elif command == 'Beacon2':
                 # RED LINE: Switch at block 38 (to blocks 71-67)
                 global beacon2
                 beacon2 = bool(value)
                 print(f"[BEACON2] Received: {beacon2} (Switch at block 38)")
+                print(f"[BEACON2] Current state: selectedLine={selectedLine}, currentBlock={currentBlock}, beacon2={beacon2}")
+                if selectedLine == 'RED' and currentBlock == 38:
+                    print(f"[BEACON2] ✓ Conditions met for alternative route display!")
         
         except Exception as e:
             print(f"Error processing message: {e}")
@@ -2487,9 +2550,18 @@ class TrainSpeedDisplayUI:
             nextStation = getNextStationName()
             distToStation = getDistanceToNextStation()
             
+            # Debug output every time we're at a beacon block
+            if currentBlock in [27, 38]:
+                print(f"[DISPLAY DEBUG] At beacon block {currentBlock}: beacon1={beacon1}, beacon2={beacon2}, nextStation={nextStation}")
+            
             # Check if beacons or current block changed - force station name update
             if (cache['beacon1'] != beacon1 or cache['beacon2'] != beacon2 or 
                 cache['currentBlock'] != currentBlock or cache['nextStation'] != nextStation):
+                
+                # Debug when updating
+                if currentBlock in [27, 38]:
+                    print(f"[DISPLAY DEBUG] Updating display: {cache['nextStation']} → {nextStation}")
+                
                 self.nextStationValue.config(text=nextStation)
                 cache['nextStation'] = nextStation
                 cache['beacon1'] = beacon1
