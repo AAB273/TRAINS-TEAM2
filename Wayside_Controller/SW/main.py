@@ -172,8 +172,8 @@ class RailwayControlSystem:
         switch_list = []
         
         # Add track identifier as first element (0 for Green, 1 for Red)
-        track_id = 0 if track == "Green" else 1 if track == "Red" else 2
-        switch_list.append(track_id)
+        #track_id = 0 if track == "Green" else 1 if track == "Red" else 2
+        #switch_list.append(track_id)
         
         # Get all switches for the current track in PLC sections
         switches = []
