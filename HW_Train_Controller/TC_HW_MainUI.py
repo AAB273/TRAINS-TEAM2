@@ -1142,7 +1142,7 @@ def updatePositionTracking():
                     if 'speedDisplay' in globals():
                         sd = globals()['speedDisplay']
                         if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
-                            announcement_text = f"Travelling to {next_station}."
+                            announcement_text = f"Travelling to {next_station}"
                             sd.server.send_to_ui("Train Model", {
                                 'command': 'Announcement',
                                 'value': announcement_text,
@@ -1156,7 +1156,7 @@ def updatePositionTracking():
                 if 'speedDisplay' in globals():
                     sd = globals()['speedDisplay']
                     if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
-                        announcement_text = f"Travelling to {next_station}."
+                        announcement_text = f"Travelling to {next_station}"
                         sd.server.send_to_ui("Train Model", {
                             'command': 'Announcement',
                             'value': announcement_text,
@@ -1203,7 +1203,7 @@ def updatePositionTracking():
         if 'speedDisplay' in globals():
             sd = globals()['speedDisplay']
             if hasattr(sd, 'server') and sd.server and sd.train_model_connected:
-                announcement_text = f"Arrived at {currentStation}."
+                announcement_text = f"Arrived at {currentStation}"
                 sd.server.send_to_ui("Train Model", {
                     'command': 'Announcement',
                     'value': announcement_text,
