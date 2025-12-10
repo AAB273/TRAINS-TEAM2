@@ -330,14 +330,6 @@ class GPIOServer:
             return True
         return False
     
-    def setEmergencyBrake(self, state):
-        """Set emergency brake state (called remotely from failure modes)"""
-        self.emergencyBrakeEngaged = state
-        lgpio.gpio_write(self.h, EMERGENCY_BRAKE_LED, 1 if state else 0)
-        self.log(f"EMERGENCY BRAKE (Remote): {'🚨 ENGAGED 🚨' if state else 'RELEASED'}", 'brakes')
-        self.broadcastState()
-        return True
-    
     def broadcastState(self):
         """Send current state to all connected clients"""
         state_msg = {
@@ -430,17 +422,6 @@ class GPIOServer:
                 lgpio.gpio_write(self.h, INTERIOR_LIGHTS_LED, 1 if state else 0)
                 self.log(f"Interior Lights: {'ON' if state else 'OFF'} (Auto)", 'lights')
                 self.broadcastState()
-            
-            elif cmd_type == 'set_emergency_brake':
-                # Control emergency brake remotely (from failure modes)
-                state = command.get('state')
-                success = self.setEmergencyBrake(state)
-                
-                response = {
-                    'type': 'response',
-                    'success': success
-                }
-                client_socket.sendall((json.dumps(response) + '\n').encode('utf-8'))
             
             elif cmd_type == 'get_state':
                 state_msg = {

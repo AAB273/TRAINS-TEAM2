@@ -11,7 +11,7 @@ class TestUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Test Control Panel")
-        self.root.geometry("460x720")
+        self.root.geometry("460x820")
         
         self.server = TrainSocketServer(port=12349, ui_id="Test_UI")
         self.server.set_allowed_connections(["Train Model", "ui_3"])
@@ -231,30 +231,6 @@ class TestUI:
         ttk.Button(block_control_frame, text="Send", width=6,
                   command=lambda: self.send_block_number()).pack(side='left', padx=2)
         
-        # ===== BEACON CONTROL (RED LINE SWITCHES) =====
-        beacon_frame = ttk.LabelFrame(main_container, text="Beacon Control (Red Line Switches)", padding=6)
-        beacon_frame.pack(fill='x', padx=5, pady=2)
-        
-        # Beacon1 - Block 27 switch
-        beacon1_frame = tk.Frame(beacon_frame)
-        beacon1_frame.pack(fill='x', pady=2)
-        
-        tk.Label(beacon1_frame, text="Beacon1 (Block 27 → 76-72):").pack(side='left')
-        ttk.Button(beacon1_frame, text="Activate", width=8,
-                  command=lambda: self.send_beacon('Beacon1', True)).pack(side='left', padx=2)
-        ttk.Button(beacon1_frame, text="Deactivate", width=8,
-                  command=lambda: self.send_beacon('Beacon1', False)).pack(side='left', padx=2)
-        
-        # Beacon2 - Block 38 switch
-        beacon2_frame = tk.Frame(beacon_frame)
-        beacon2_frame.pack(fill='x', pady=2)
-        
-        tk.Label(beacon2_frame, text="Beacon2 (Block 38 → 71-67):").pack(side='left')
-        ttk.Button(beacon2_frame, text="Activate", width=8,
-                  command=lambda: self.send_beacon('Beacon2', True)).pack(side='left', padx=2)
-        ttk.Button(beacon2_frame, text="Deactivate", width=8,
-                  command=lambda: self.send_beacon('Beacon2', False)).pack(side='left', padx=2)
-        
         # ===== TRAIN HORN =====
         train_horn = ttk.Button(main_container, text="Train Horn", 
                                command=lambda: self.send_to_ui("horn"))
@@ -317,6 +293,7 @@ class TestUI:
                 self.status_label.config(text="Block number must be between 1 and 150")
         except ValueError:
             self.status_label.config(text="Invalid block number")
+<<<<<<< HEAD
     
     def send_beacon(self, beacon_name, state): #lucas
         """Send beacon signal (Beacon1 or Beacon2)"""
@@ -337,6 +314,8 @@ class TestUI:
             print(f"Failed to send {beacon_name} to {target_ui}")
             self.status_label.config(text=f"Failed: {beacon_name}")
         return success
+=======
+>>>>>>> 6e8d770908bea4843055fc152e9f4e58e25a7f31
             
     def run(self):
         self.root.mainloop()

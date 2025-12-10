@@ -300,7 +300,6 @@ class Testing(unittest.TestCase):
         
         # Store initial values
         initial_speed = self.train.speed
-        initial_distance = self.train.distanceLeft
         
         print("\n=== Testing 100ms UI Updates ===")
         
@@ -312,6 +311,58 @@ class Testing(unittest.TestCase):
         # Assertions
         self.assertGreater(self.train.speed, initial_speed,
                           "Train should accelerate with power applied")
+        
+        print(f"\nResults:")
+        print(f"  Speed increased from {initial_speed:.1f} to {self.train.speed:.1f} m/s")
+        
+        return True
+
+    def test_ui_100ms_updates_with_speed_limit(self):
+        """Test exactly what happens with 100ms UI updates."""
+        # Enable movement
+        self.train.powerCommand = 50000
+        self.train.serviceBrakeActive = False
+        self.train.speedLimitMps = 0.5
+        
+        # Store initial values
+        initial_speed = self.train.speed
+        
+        print("\n=== Testing 100ms UI Updates ===")
+        
+        # Simulate 1 second of UI updates (10 x 100ms)
+        for i in range(10):
+            self.train.calculateForceSpeedAccelerationDistance(dt=0.1)
+            print(f"After {i+1} updates: Speed={self.train.speed:.2f} m/s")
+        
+        # Assertions
+        self.assertGreater(self.train.speed, initial_speed,
+                          "Train should accelerate with power applied")
+        
+        print(f"\nResults:")
+        print(f"  Speed increased from {initial_speed:.1f} to {self.train.speed:.1f} m/s")
+        
+        return True
+    
+    def test_ui_100ms_updates_with_murphy_failures(self):
+        """Test exactly what happens with 100ms UI updates."""
+        # Enable movement
+        self.train.powerCommand = 50000
+        self.train.serviceBrakeActive = False
+        self.train.speedLimitMps = 0.5
+        
+        # Store initial values
+        initial_speed = self.train.speed
+        
+        print("\n=== Testing 100ms UI Updates Power Failure ===")
+        
+        # Simulate 1 second of UI updates (10 x 100ms)
+        for i in range(10):
+            self.train.calculateForceSpeedAccelerationDistance(dt=0.1)
+            print(f"After {i+1} updates: Speed={self.train.speed:.2f} m/s")
+        
+        self.train.setEngineFailure(True)
+	    self.train.setPowerCommand(0)
+	    self.train.setAcceleration(0)
         
         print(f"\nResults:")
         print(f"  Speed increased from {initial_speed:.1f} to {self.train.speed:.1f} m/s")
