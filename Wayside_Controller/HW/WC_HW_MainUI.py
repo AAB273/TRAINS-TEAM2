@@ -399,12 +399,12 @@ def _process_message(self, data, connection=None, server_instance=None):
                 # Send acknowledgment back to CTC
                 if hasattr(test_data, 'server1'):
                     ack_message = {
-                        'command': 'SW_ACK',
-                        'value': {
-                            'location': location,
-                            'line': line,
-                            'status': 'processed',
-                            'timestamp': timestamp
+                        "command": 'SW_ACK',
+                        "value": {
+                            "location" : location,
+                            "line": line,
+                            "status": 'processed',
+                            "timestamp": timestamp
                         }
                     }
                     test_data.server1.send_to_ui('CTC', ack_message)
@@ -908,9 +908,9 @@ class UITestData:
                 # 1. First, notify connected clients
                 if hasattr(self.server1, 'connections'):
                     disconnect_msg = {
-                        'command': 'server_shutdown',
-                        'message': 'Main UI is closing',
-                        'timestamp': self.clock.getTime()
+                        "command": 'server_shutdown',
+                        "message": 'Main UI is closing',
+                        "timestamp": self.clock.getTime()
                     }
                     for ui_id, connection in list(self.server1.connections.items()):
                         try:
@@ -1130,11 +1130,11 @@ class UITestData:
             # Send acknowledgment back to CTC
             if hasattr(self, 'server1'):
                 ack_message = {
-                    'command': 'MAINT_ACK',
-                    'value': {
-                        'status': 'accepted',
-                        'timestamp': current_time,
-                        'message': 'Maintenance mode activated'
+                    "command": "MAINT_ACK",
+                    "value": {
+                        "status": 'accepted',
+                        "timestamp": current_time,
+                        "message": 'Maintenance mode activated'
                     }
                 }
             self.server1.send_to_ui('CTC', ack_message)
@@ -2858,15 +2858,16 @@ class RightPanel(tk.Frame):
         self.update_speed()
     
     # Send combined to Track Model
-        self.send_combined_to_track_model()
+        # self.send_combined_to_track_model()
 
+    # Change it to this (add the send_commanded_to_track_model call):
     def update_authority(self):
         """Update commanded authority and send to Track Model"""
         new_authority = self.auth_entry.get()
         block = self.block_combo.get()
         current_line = self.data.current_line
-        
-        # Extract just the number from "X blocks"
+    
+    # Extract just the number from "X blocks"
         try:
             authority_value = int(new_authority.split()[0])
         except:
@@ -2875,95 +2876,89 @@ class RightPanel(tk.Frame):
         if block and current_line:
             # Store in local storage
             self.commanded_authority[current_line][block] = new_authority
-            # Store in shared data if available
+        # Store in shared data if available
             if hasattr(self.data, 'commanded_authority'):
                 self.data.commanded_authority[current_line][block] = new_authority
         
+        # Send to Track Model immediately (like main_SW.txt does)
+            speed = self.speed_entry.get()
+            self.send_commanded_to_track_model(current_line, block, speed, new_authority)
+    
         add_to_message_log(f"Commanded Authority updated to: {new_authority}")
         self.update_commanded_display()
 
     def update_speed(self):
-        """Update commanded speed and log the change"""
+        """Update commanded speed and send to Track Model"""
         new_speed = self.speed_entry.get()
         block = self.block_combo.get()
         current_line = self.data.current_line
-        
-            # Extract just the number from "X mph"
+    
+    # Extract just the number from "X mph"
         try:
             speed_value = float(new_speed.split()[0])
         except:
             speed_value = 0.0
 
         if block and current_line:
-            # Store in local storage
+        # Store in local storage
             self.commanded_speed[current_line][block] = new_speed
-            # Store in shared data if available
-            if hasattr(self.data, 'commanded_speed'):
-                self.data.commanded_speed[current_line][block] = new_speed
+        # Store in shared data if available
+        if hasattr(self.data, 'commanded_speed'):
+            self.data.commanded_speed[current_line][block] = new_speed
         
+        # Send to Track Model immediately (like main_SW.txt does)
+        authority = self.auth_entry.get()
+        self.send_commanded_to_track_model(current_line, block, new_speed, authority)
+    
         add_to_message_log(f"Commanded Speed updated to: {new_speed}")
         self.update_commanded_display()
 
-    def send_combined_to_track_model(self):
-        """Send combined speed and authority to Track Model"""
+    # Replace that entire function with this:
+    def send_commanded_to_track_model(self, track, block, speed, authority):
+        """Send commanded speed and authority to Track Model"""
         try:
-        # Get current values from entry fields
-            speed_text = self.speed_entry.get()
-            auth_text = self.auth_entry.get()
-            block = self.block_combo.get()
-        
             if not block or block == "":
                 add_to_message_log("ERROR: No block selected")
                 return
-            
-        # Parse speed value (remove "mph" if present)
+        
+        # Parse speed value
             try:
-                if "mph" in speed_text:
-                    speed_value = float(speed_text.replace("mph", "").strip())
+                if "mph" in str(speed):
+                    speed_value = float(str(speed).replace("mph", "").strip())
                 else:
-                    speed_value = float(speed_text)
+                    speed_value = float(speed)
             except:
                 speed_value = 0.0
                 add_to_message_log("WARNING: Invalid speed, using 0.0")
         
-        # Parse authority value (remove "blocks" if present)
+        # Parse authority value
             try:
-                if "blocks" in auth_text:
-                    auth_value = int(auth_text.replace("blocks", "").strip())
+                if "blocks" in str(authority):
+                    auth_value = int(str(authority).replace("blocks", "").strip())
                 else:
-                    auth_value = int(auth_text)
+                    auth_value = int(authority)
             except:
                 auth_value = 0
                 add_to_message_log("WARNING: Invalid authority, using 0")
         
         # Create the exact message format Track Model expects
             message = {
-            'command': 'Speed and Authority',
-            'block_number': int(block),  # Convert to int
-            'commanded_speed': float(speed_value),  # Convert to float
-            'commanded_authority': int(auth_value),  # Convert to int
-            'track': self.data.current_line  # "Green" or "Red"
+            "command": "Speed and Authority",
+            "block_number": int(block),
+            "commanded_speed": float(speed_value),
+            "commanded_authority": int(auth_value),
+            "track": track
             }
-        
-        # Log what we're sending
-            print(f"\n[DEBUG] Sending to Track Model:")
-            print(f"  Block: {block}")
-            print(f"  Speed: {speed_value} mph")
-            print(f"  Authority: {auth_value} blocks")
-            print(f"  Line: {self.data.current_line}")
         
         # Send to Track Model
             if hasattr(self.data, 'server1') and self.data.server1:
                 self.data.server1.send_to_ui('Track Model', message)
-                add_to_message_log(f"COMMAND: Block {block} - Speed: {speed_value:.1f} mph, Authority: {auth_value} blocks")
+                add_to_message_log(f"COMMANDED: Block {block} - Speed: {speed_value:.1f} mph, Authority: {auth_value} blocks")
             else:
                 add_to_message_log("ERROR: No server connection to Track Model")
-            
+        
         except Exception as e:
             add_to_message_log(f"ERROR sending to Track Model: {e}")
-            print(f"ERROR: {e}")
-            import traceback
-            traceback.print_exc()
 
     def update_commanded_display(self):
         """Update commanded values display"""

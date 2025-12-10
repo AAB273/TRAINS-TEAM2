@@ -11,7 +11,7 @@ class TestUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Test Control Panel")
-        self.root.geometry("460x620")
+        self.root.geometry("460x820")
         
         self.server = TrainSocketServer(port=12349, ui_id="Test_UI")
         self.server.set_allowed_connections(["Train Model", "ui_3"])
