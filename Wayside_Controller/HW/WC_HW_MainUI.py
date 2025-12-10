@@ -10,6 +10,11 @@ import json
 # import green_line
 # import red_line
 
+
+#############################################
+# MAKE EVERYTHING GO IN MESSAGE LOG ON UI #
+#############################################
+
 # from Clock import clock
 sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from clock import Clock
