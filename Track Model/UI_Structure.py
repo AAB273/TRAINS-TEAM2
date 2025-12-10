@@ -1728,6 +1728,46 @@ class TrackModelUI(tk.Tk):
                     status_text = "Up and Right"
                 else:  # direction == 2
                     status_text = "--"
+            elif group_name == "Blocks 1-15":
+                # Red Line Blocks 1-15
+                if direction == 3:
+                    status_text = "Clockwise"
+                elif direction == 4:
+                    status_text = "Counterclockwise"
+                else:  # direction == 2
+                    status_text = "--"
+            elif group_name == "Blocks 16-27":
+                # Red Line Blocks 16-27
+                if direction == 0:
+                    status_text = "Left and Down"
+                elif direction == 1:
+                    status_text = "Up and Right"
+                else:  # direction == 2
+                    status_text = "--"
+            elif group_name in ["Blocks 28-32", "Blocks 33-37", "Blocks 38-43", "Blocks 67-71", "Blocks 72-76"]:
+                # Red Line sections with Up/Down logic
+                if direction == 5:
+                    status_text = "Up"
+                elif direction == 6:
+                    status_text = "Down"
+                else:  # direction == 2
+                    status_text = "--"
+            elif group_name == "Blocks 44-52":
+                # Red Line Blocks 44-52 with complex logic
+                if direction == 7:
+                    status_text = "Down and Left"
+                elif direction == 8:
+                    status_text = "Right and Up"
+                else:  # direction == 2
+                    status_text = "--"
+            elif group_name == "Blocks 53-66":
+                # Red Line Blocks 53-66
+                if direction == 3:
+                    status_text = "Clockwise"
+                elif direction == 4:
+                    status_text = "Counterclockwise"
+                else:  # direction == 2
+                    status_text = "--"
             else:
                 # Use standard text for other groups (e.g., Blocks 77-85)
                 if direction == 0:
@@ -1818,7 +1858,305 @@ class TrackModelUI(tk.Tk):
             else:
                 return 2  # Both not red (should not happen) -> "--"
         
-        # For any other groups (Red Line, etc.), default to Left
+        # Red Line logic
+        elif group_name == "Blocks 1-15":
+            # Blocks 1-15: Based on lights at blocks 1 and 15
+            light_1_state = 0
+            light_15_state = 0
+            
+            if len(self.data_manager.blocks) > 0:  # Block 1 at index 0
+                block_1 = self.data_manager.blocks[0]
+                if hasattr(block_1, 'traffic_light_state'):
+                    light_1_state = block_1.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 14:  # Block 15 at index 14
+                block_15 = self.data_manager.blocks[14]
+                if hasattr(block_15, 'traffic_light_state'):
+                    light_15_state = block_15.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_1_red = (light_1_state == 0)
+            light_1_green = (light_1_state == 1)
+            light_15_red = (light_15_state == 0)
+            light_15_green = (light_15_state == 1)
+            
+            # Apply logic
+            if (light_1_red and light_15_red) or (light_1_green and light_15_green):
+                return 2  # Both same -> "--"
+            elif light_1_green and light_15_red:
+                return 3  # Light 1 green, 15 red -> "Clockwise"
+            elif light_1_red and light_15_green:
+                return 4  # Light 1 red, 15 green -> "Counterclockwise"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 16-27":
+            # Blocks 16-27: Based on lights at blocks 1, 15, and 28
+            light_1_state = 0
+            light_15_state = 0
+            light_28_state = 0
+            
+            if len(self.data_manager.blocks) > 0:  # Block 1 at index 0
+                block_1 = self.data_manager.blocks[0]
+                if hasattr(block_1, 'traffic_light_state'):
+                    light_1_state = block_1.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 14:  # Block 15 at index 14
+                block_15 = self.data_manager.blocks[14]
+                if hasattr(block_15, 'traffic_light_state'):
+                    light_15_state = block_15.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 27:  # Block 28 at index 27
+                block_28 = self.data_manager.blocks[27]
+                if hasattr(block_28, 'traffic_light_state'):
+                    light_28_state = block_28.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_1_red = (light_1_state == 0)
+            light_1_green = (light_1_state == 1)
+            light_15_red = (light_15_state == 0)
+            light_15_green = (light_15_state == 1)
+            light_28_red = (light_28_state == 0)
+            light_28_green = (light_28_state == 1)
+            
+            # Apply logic
+            # If light 28 is red AND (light 1 OR 15 is green) -> "Left and Down"
+            if light_28_red and (light_1_green or light_15_green):
+                return 0  # "Left and Down"
+            # If light 28 is green AND (light 1 OR 15 is red) -> "Up and Right"
+            elif light_28_green and (light_1_red or light_15_red):
+                return 1  # "Up and Right"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 28-32":
+            # Blocks 28-32: Controlled by lights 28 and 32
+            light_28_state = 0
+            light_32_state = 0
+            
+            if len(self.data_manager.blocks) > 27:  # Block 28 at index 27
+                block_28 = self.data_manager.blocks[27]
+                if hasattr(block_28, 'traffic_light_state'):
+                    light_28_state = block_28.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 31:  # Block 32 at index 31
+                block_32 = self.data_manager.blocks[31]
+                if hasattr(block_32, 'traffic_light_state'):
+                    light_32_state = block_32.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_28_red = (light_28_state == 0)
+            light_28_green = (light_28_state == 1)
+            light_32_red = (light_32_state == 0)
+            light_32_green = (light_32_state == 1)
+            
+            # Apply logic
+            if (light_28_red and light_32_red) or (light_28_green and light_32_green):
+                return 2  # Both same -> "--"
+            elif light_28_green and light_32_red:
+                return 6  # Light 28 green, 32 red -> "Down"
+            elif light_28_red and light_32_green:
+                return 5  # Light 28 red, 32 green -> "Up"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 33-37":
+            # Blocks 33-37: Controlled by lights 32 and 38
+            light_32_state = 0
+            light_38_state = 0
+            
+            if len(self.data_manager.blocks) > 31:  # Block 32 at index 31
+                block_32 = self.data_manager.blocks[31]
+                if hasattr(block_32, 'traffic_light_state'):
+                    light_32_state = block_32.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 37:  # Block 38 at index 37
+                block_38 = self.data_manager.blocks[37]
+                if hasattr(block_38, 'traffic_light_state'):
+                    light_38_state = block_38.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_32_red = (light_32_state == 0)
+            light_32_green = (light_32_state == 1)
+            light_38_red = (light_38_state == 0)
+            light_38_green = (light_38_state == 1)
+            
+            # Apply logic
+            if (light_32_red and light_38_red) or (light_32_green and light_38_green):
+                return 2  # Both same -> "--"
+            elif light_32_green and light_38_red:
+                return 6  # Light 32 green, 38 red -> "Down"
+            elif light_32_red and light_38_green:
+                return 5  # Light 32 red, 38 green -> "Up"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 38-43":
+            # Blocks 38-43: Controlled by lights 38 and 43
+            light_38_state = 0
+            light_43_state = 0
+            
+            if len(self.data_manager.blocks) > 37:  # Block 38 at index 37
+                block_38 = self.data_manager.blocks[37]
+                if hasattr(block_38, 'traffic_light_state'):
+                    light_38_state = block_38.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 42:  # Block 43 at index 42
+                block_43 = self.data_manager.blocks[42]
+                if hasattr(block_43, 'traffic_light_state'):
+                    light_43_state = block_43.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_38_red = (light_38_state == 0)
+            light_38_green = (light_38_state == 1)
+            light_43_red = (light_43_state == 0)
+            light_43_green = (light_43_state == 1)
+            
+            # Apply logic
+            if (light_38_red and light_43_red) or (light_38_green and light_43_green):
+                return 2  # Both same -> "--"
+            elif light_38_green and light_43_red:
+                return 6  # Light 38 green, 43 red -> "Down"
+            elif light_38_red and light_43_green:
+                return 5  # Light 38 red, 43 green -> "Up"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 44-52":
+            # Blocks 44-52: Controlled by lights 43, 52, and 66
+            light_43_state = 0
+            light_52_state = 0
+            light_66_state = 0
+            
+            if len(self.data_manager.blocks) > 42:  # Block 43 at index 42
+                block_43 = self.data_manager.blocks[42]
+                if hasattr(block_43, 'traffic_light_state'):
+                    light_43_state = block_43.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 51:  # Block 52 at index 51
+                block_52 = self.data_manager.blocks[51]
+                if hasattr(block_52, 'traffic_light_state'):
+                    light_52_state = block_52.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 65:  # Block 66 at index 65
+                block_66 = self.data_manager.blocks[65]
+                if hasattr(block_66, 'traffic_light_state'):
+                    light_66_state = block_66.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_43_red = (light_43_state == 0)
+            light_43_green = (light_43_state == 1)
+            light_52_red = (light_52_state == 0)
+            light_52_green = (light_52_state == 1)
+            light_66_red = (light_66_state == 0)
+            light_66_green = (light_66_state == 1)
+            
+            # Apply logic
+            if light_43_red and light_52_red and light_66_red:
+                return 2  # Light 43 red, 52 and 66 both red -> "--"
+            elif light_43_green and (light_52_red or light_66_red):
+                return 7  # Light 43 green, either 52 or 66 red -> "Down and Left"
+            elif light_43_green and light_52_green and light_66_green:
+                return 2  # Light 43 green, 52 and 66 both green -> "--"
+            elif light_43_red and (light_52_green or light_66_green):
+                return 8  # Light 43 red, either 52 or 66 green -> "Right and Up"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 53-66":
+            # Blocks 53-66: Controlled by lights 52 and 66
+            light_52_state = 0
+            light_66_state = 0
+            
+            if len(self.data_manager.blocks) > 51:  # Block 52 at index 51
+                block_52 = self.data_manager.blocks[51]
+                if hasattr(block_52, 'traffic_light_state'):
+                    light_52_state = block_52.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 65:  # Block 66 at index 65
+                block_66 = self.data_manager.blocks[65]
+                if hasattr(block_66, 'traffic_light_state'):
+                    light_66_state = block_66.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_52_red = (light_52_state == 0)
+            light_52_green = (light_52_state == 1)
+            light_66_red = (light_66_state == 0)
+            light_66_green = (light_66_state == 1)
+            
+            # Apply logic
+            if (light_52_red and light_66_red) or (light_52_green and light_66_green):
+                return 2  # Both same -> "--"
+            elif light_52_green and light_66_red:
+                return 3  # Light 52 green, 66 red -> "Clockwise"
+            elif light_66_green and light_52_red:
+                return 4  # Light 66 green, 52 red -> "Counterclockwise"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 67-71":
+            # Blocks 67-71: Like 28-32, light 71 acts like 28, light 67 acts like 32
+            light_67_state = 0
+            light_71_state = 0
+            
+            if len(self.data_manager.blocks) > 66:  # Block 67 at index 66
+                block_67 = self.data_manager.blocks[66]
+                if hasattr(block_67, 'traffic_light_state'):
+                    light_67_state = block_67.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 70:  # Block 71 at index 70
+                block_71 = self.data_manager.blocks[70]
+                if hasattr(block_71, 'traffic_light_state'):
+                    light_71_state = block_71.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_67_red = (light_67_state == 0)
+            light_67_green = (light_67_state == 1)
+            light_71_red = (light_71_state == 0)
+            light_71_green = (light_71_state == 1)
+            
+            # Apply logic (71 acts like 28, 67 acts like 32)
+            if (light_71_red and light_67_red) or (light_71_green and light_67_green):
+                return 2  # Both same -> "--"
+            elif light_71_green and light_67_red:
+                return 6  # Light 71 green, 67 red -> "Down"
+            elif light_71_red and light_67_green:
+                return 5  # Light 71 red, 67 green -> "Up"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 72-76":
+            # Blocks 72-76: Like 28-32, light 76 acts like 28, light 72 acts like 32
+            light_72_state = 0
+            light_76_state = 0
+            
+            if len(self.data_manager.blocks) > 71:  # Block 72 at index 71
+                block_72 = self.data_manager.blocks[71]
+                if hasattr(block_72, 'traffic_light_state'):
+                    light_72_state = block_72.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 75:  # Block 76 at index 75
+                block_76 = self.data_manager.blocks[75]
+                if hasattr(block_76, 'traffic_light_state'):
+                    light_76_state = block_76.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_72_red = (light_72_state == 0)
+            light_72_green = (light_72_state == 1)
+            light_76_red = (light_76_state == 0)
+            light_76_green = (light_76_state == 1)
+            
+            # Apply logic (76 acts like 28, 72 acts like 32)
+            if (light_76_red and light_72_red) or (light_76_green and light_72_green):
+                return 2  # Both same -> "--"
+            elif light_76_green and light_72_red:
+                return 6  # Light 76 green, 72 red -> "Down"
+            elif light_76_red and light_72_green:
+                return 5  # Light 76 red, 72 green -> "Up"
+            else:
+                return 2  # Default to "--"
+        
+        # For any other groups (like Blocks 16-27), default to Left
         return 0
 
     def toggle_bidirectional_direction(self, group_name):
@@ -4503,7 +4841,10 @@ class TrackModelUI(tk.Tk):
         
         for b in self.data_manager.blocks:
             has_switch = b.block_number in self.data_manager.switch_blocks or getattr(b, "switch_state", False)
-            has_signal = b.block_number in self.data_manager.light_states or getattr(b, "light_state", None) is not None
+            # Check which light set to use based on selected line
+            current_line = self.selected_line.get() if hasattr(self, "selected_line") else "Green Line"
+            light_set = self.data_manager.green_line_lights if "Green" in current_line else self.data_manager.red_line_lights
+            has_signal = b.block_number in light_set or getattr(b, "light_state", None) is not None
             has_crossing = b.block_number in self.data_manager.crossing_blocks or getattr(b, "crossing", False)
             
             has_station = False
@@ -5481,8 +5822,12 @@ class TrackModelUI(tk.Tk):
 
     def send_light_states_to_train_controller(self):
         """Send traffic light states to Train Controller as two-bit boolean arrays."""
+        # Get the appropriate light set based on selected line
+        current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
+        light_set = self.data_manager.green_line_lights if "Green" in current_line else self.data_manager.red_line_lights
+        
         light_data = {}
-        for block_num in self.data_manager.light_states:
+        for block_num in light_set:
             if block_num <= len(self.data_manager.blocks):
                 block = self.data_manager.blocks[block_num - 1]
                 # Check if block has power
@@ -5914,10 +6259,10 @@ class TrackModelUI(tk.Tk):
                     
                     # Determine which blocks have lights based on current line
                     if "Green" in current_line:
-                        light_blocks = sorted(self.data_manager.light_states)  # Green Line: {1, 62, 76, 100, 150}
+                        light_blocks = sorted(self.data_manager.green_line_lights)  # Green Line: {1, 62, 76, 100, 150}
                     else:
-                        # Red Line would have different light blocks - adjust as needed
-                        light_blocks = sorted(self.data_manager.light_states)  # Use all light blocks
+                        # Red Line: {1, 10, 15, 28, 32, 39, 43, 53, 66, 67, 71, 72, 76}
+                        light_blocks = sorted(self.data_manager.red_line_lights)
                     
                     # Filter light blocks based on which controller sent the message
                     filtered_light_blocks = self.get_blocks_for_controller(source_ui_id, light_blocks)
