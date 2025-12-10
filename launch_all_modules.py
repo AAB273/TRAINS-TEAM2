@@ -39,7 +39,7 @@ def launch_all():
     print("="*60 + "\n")
     
     modules = [
-        #("CTC", "CTC_Office/CTC_UI.py"),
+        ("CTC", "CTC_Office/CTC_UI.py"),
         #("Track SW", "Wayside_Controller/SW/main.py"),
         ("Track HW", "Wayside_Controller/HW/WC_HW_MainUI.py"),
         #("Track Model", "Track Model/UI_Structure.py"),
