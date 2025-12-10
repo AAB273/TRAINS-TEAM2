@@ -5565,35 +5565,54 @@ class TrackModelUI(tk.Tk):
 
     def send_failure_modes_to_wayside(self):
         """
-        Send failure modes to Wayside Controllers (Track SW and Track HW).
-        Groups failures by type and sends as arrays of block numbers.
+        Send ONLY power failures to Wayside Controllers.
+        Format: Array of [status, block] pairs where:
+        - status: 0 = failure removed, 1 = failure active
+        - block: block number
+        
+        Example: [1, 10, 0, 15, 1, 20]
+        - Block 10: failure active
+        - Block 15: failure removed
+        - Block 20: failure active
+        
+        Track circuit failures are handled by making the block never show occupancy.
+        Broken rail failures are handled by making the block always show as occupied.
+        Only power failures need to be explicitly sent to Wayside.
         """
+        # Get current failures
         failures = self.murphy_failures.get_all_failures()
         
-        # Group failures by type into arrays
-        track_circuit_failures = []
-        broken_rail_failures = []
-        power_failures = []
-        
+        # Get current power failure blocks
+        current_power_failures = set()
         for block_num, failure_type in failures.items():
-            if failure_type == "track_circuit":
-                track_circuit_failures.append(block_num)
-            elif failure_type == "broken_rail":
-                broken_rail_failures.append(block_num)
-            elif failure_type == "power_failure":
-                power_failures.append(block_num)
+            if failure_type == "power_failure":
+                current_power_failures.add(block_num)
         
-        # Sort arrays for consistent ordering
-        track_circuit_failures.sort()
-        broken_rail_failures.sort()
-        power_failures.sort()
+        # Track previous power failures to detect changes
+        if not hasattr(self, '_previous_power_failures'):
+            self._previous_power_failures = set()
         
-        # Create message with arrays of block numbers for each failure type
+        # Build array of [status, block] pairs
+        power_failure_array = []
+        
+        # Add newly activated or continuing failures (status = 1)
+        for block_num in sorted(current_power_failures):
+            power_failure_array.append(1)  # Status: active
+            power_failure_array.append(block_num)  # Block number
+        
+        # Add removed failures (status = 0)
+        removed_failures = self._previous_power_failures - current_power_failures
+        for block_num in sorted(removed_failures):
+            power_failure_array.append(0)  # Status: removed
+            power_failure_array.append(block_num)  # Block number
+        
+        # Update previous failures tracker
+        self._previous_power_failures = current_power_failures.copy()
+        
+        # Create message with power failure array
         failure_message = {
             'command': 'failure_modes',
-            'track_circuit_failures': track_circuit_failures,
-            'broken_rail_failures': broken_rail_failures,
-            'power_failures': power_failures
+            'power_failures': power_failure_array
         }
         
         # Send to both Track SW and Track HW
@@ -5601,17 +5620,19 @@ class TrackModelUI(tk.Tk):
         self.server.send_to_ui("Track HW", failure_message)
         
         # Debug output
-        total_failures = len(track_circuit_failures) + len(broken_rail_failures) + len(power_failures)
-        if total_failures > 0:
-            print(f"\n[FAILURE DEBUG] Sent failure modes to Wayside Controllers:")
-            if track_circuit_failures:
-                print(f"  🔴 Track Circuit Failures: {track_circuit_failures}")
-            if broken_rail_failures:
-                print(f"  🔴 Broken Rail Failures: {broken_rail_failures}")
-            if power_failures:
-                print(f"  🔴 Power Failures: {power_failures}")
+        if power_failure_array:
+            print(f"\n[FAILURE DEBUG] Sent power failures to Wayside Controllers:")
+            print(f"  ⚡ Power Failures Array: {power_failure_array}")
+            # Decode for easier reading
+            for i in range(0, len(power_failure_array), 2):
+                if i + 1 < len(power_failure_array):
+                    status = "ACTIVE" if power_failure_array[i] == 1 else "REMOVED"
+                    block = power_failure_array[i + 1]
+                    print(f"     Block {block}: {status}")
         # else:
-        #     print(f"[FAILURE DEBUG] No active failures to send")
+        #     print(f"[FAILURE DEBUG] No power failure changes to send")
+
+
 
 
     def send_block_occupancy_to_wayside(self):
