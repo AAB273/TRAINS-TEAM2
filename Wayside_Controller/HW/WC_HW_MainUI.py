@@ -2943,10 +2943,9 @@ class RightPanel(tk.Frame):
         # Create the exact message format Track Model expects
             message = {
             "command": "Speed and Authority",
-            "block_number": int(block),
-            "commanded_speed": float(speed_value),
-            "commanded_authority": int(auth_value),
-            "track": track
+            "block_number": (block),
+            "commanded_speed": (speed_value),
+            "commanded_authority": (auth_value),
             }
         
         # Send to Track Model
