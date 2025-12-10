@@ -78,6 +78,31 @@ class TrackDiagramDrawer:
         
         # Try to load crossing icon from the uploads directory
         self._load_crossing_icon()
+        
+        # Block position coordinates for occupancy display
+        self.block_positions_occupancy = {
+            1: (125, 240), 
+            2: (190, 240), 
+            3: (250, 240), 
+            4: (330, 240), 
+            5: (410, 240),  
+            6: (480, 110), 
+            7: (540, 90), 
+            8: (600, 70),  
+            9: (660, 110),  
+            10: (720, 105),  
+            11: (480, 300), 
+            12: (550, 330), 
+            13: (640, 360), 
+            14: (720, 400),  
+            15: (820, 340),  
+        }
+        
+        # Green Line specific positions (to be populated)
+        self.block_positions_green = {}
+        
+        # Red Line specific positions (to be populated)
+        self.block_positions_red = {}
 
     def _load_station_icon(self, size=(22, 22)):
         """
@@ -531,3 +556,41 @@ class TrackDiagramDrawer:
         self.icon_refs.clear()
         self.station_items.clear()
         self.crossing_items.clear()
+
+    # -------------------------------------------------------------------------
+    # BLOCK POSITION MANAGEMENT
+    # -------------------------------------------------------------------------
+    def set_line_positions(self, line="Green Line"):
+        """
+        Set block positions based on selected line.
+        
+        Args:
+            line (str): Line name ("Green Line" or "Red Line")
+        """
+        if "Red" in line:
+            if self.block_positions_red:
+                self.block_positions_occupancy = self.block_positions_red.copy()
+        else:
+            if self.block_positions_green:
+                self.block_positions_occupancy = self.block_positions_green.copy()
+    
+    def get_block_position(self, block_num):
+        """
+        Get the position coordinates for a block number.
+        
+        Args:
+            block_num (int): Block number to get position for
+            
+        Returns:
+            tuple: (x, y) coordinates or None if not found
+        """
+        return self.block_positions_occupancy.get(block_num, None)
+    
+    def update_block_positions(self, positions_dict):
+        """
+        Update block positions dynamically.
+        
+        Args:
+            positions_dict (dict): Dictionary of {block_num: (x, y)} to update
+        """
+        self.block_positions_occupancy.update(positions_dict)
