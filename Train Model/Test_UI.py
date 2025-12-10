@@ -293,7 +293,6 @@ class TestUI:
                 self.status_label.config(text="Block number must be between 1 and 150")
         except ValueError:
             self.status_label.config(text="Invalid block number")
-<<<<<<< HEAD
     
     def send_beacon(self, beacon_name, state): #lucas
         """Send beacon signal (Beacon1 or Beacon2)"""
@@ -314,8 +313,6 @@ class TestUI:
             print(f"Failed to send {beacon_name} to {target_ui}")
             self.status_label.config(text=f"Failed: {beacon_name}")
         return success
-=======
->>>>>>> 6e8d770908bea4843055fc152e9f4e58e25a7f31
             
     def run(self):
         self.root.mainloop()
