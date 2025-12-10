@@ -657,10 +657,9 @@ class UITestData:
             print(f"Sample row: {self.block_data[0]}")
         
     # SOCKET SERVER
-        self.server1 = TrainSocketServer(port=12344, ui_id="Track HW")
+        self.server1 = TrainSocketServer(port=12343, ui_id="Track HW")
         self.server1.set_allowed_connections(["WC_HW_TestUI", "CTC", "Track Model"])
         self.server1.start_server(_process_message)
-    
     # Connect to other UIs
         self.server1.connect_to_ui('localhost', 12346, "WC_HW_TestUI")
         self.server1.connect_to_ui('localhost', 12341, "CTC")
@@ -2953,11 +2952,24 @@ class RightPanel(tk.Frame):
         # Send to Track Model
             if hasattr(self.data, 'server1') and self.data.server1:
                 self.data.server1.send_to_ui('Track Model', message)
+
+                # Print to terminal
+                print(f"\n{'='*70}")
+                print(f"✓ SENT TO TRACK MODEL")
+                print(f"{'='*70}")
+                print(f"  Track: {track}")
+                print(f"  Block: {block}")
+                print(f"  Commanded Speed: {speed_value:.2f} mph")
+                print(f"  Commanded Authority: {auth_value} blocks")
+                print(f"  Message: {message}")
+                print(f"{'='*70}\n")
+
                 add_to_message_log(f"COMMANDED: Block {block} - Speed: {speed_value:.1f} mph, Authority: {auth_value} blocks")
             else:
                 add_to_message_log("ERROR: No server connection to Track Model")
         
         except Exception as e:
+            print(f"\n❌ ERROR: No server connection to Track Model\n")
             add_to_message_log(f"ERROR sending to Track Model: {e}")
 
     def update_commanded_display(self):
