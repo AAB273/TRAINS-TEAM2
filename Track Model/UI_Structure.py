@@ -63,7 +63,7 @@ class TrackModelUI(tk.Tk):
         self.server.connect_to_ui('localhost', 12341, "CTC")
         self.server.connect_to_ui('localhost', 12345, "Train Model")
         self.server.connect_to_ui('localhost', 12342,  'Track SW')
-        self.server.connect_to_ui('localhost', 12343,'Track HW')
+        self.server.connect_to_ui('localhost', 12343, "Track HW")
 
         self.previous_beacon_states = {27: None, 38: None}  # Track previous beacon states to detect changes
         self.terminals = []
@@ -1803,7 +1803,8 @@ class TrackModelUI(tk.Tk):
 
     def update_bidirectional_status(self, group_name):
         """Update the status display for a bidirectional group based on switches and signals"""
-        if (hasattr(self.data_manager, 'bidirectional_directions') and 
+        if (hasattr(self, 'bidir_controls') and
+            hasattr(self.data_manager, 'bidirectional_directions') and 
             group_name in self.data_manager.bidirectional_directions and
             group_name in self.bidir_controls):
             
@@ -2262,7 +2263,7 @@ class TrackModelUI(tk.Tk):
     def refresh_bidirectional_controls(self):
         """Refresh all bidirectional controls based on current switches and signals"""
         # # print(" Refreshing bidirectional controls based on switches and signals")
-        if hasattr(self.data_manager, 'bidirectional_directions'):
+        if hasattr(self, 'bidir_controls') and hasattr(self.data_manager, 'bidirectional_directions'):
             for group_name in self.data_manager.bidirectional_directions.keys():
                 self.update_bidirectional_status(group_name)
     
@@ -5509,7 +5510,7 @@ class TrackModelUI(tk.Tk):
         # NOTE: Beacons are now sent only on change (switch change or train entry), not periodically
         # NOTE: send_passengers_boarding_to_train_model is called ONLY when train authority 
         # reaches 0 at a station (via handle_train_arrival_at_station), not on every refresh
-        self.send_light_states_to_train_controller()
+        # NOTE: Light states are no longer sent to any module (removed functionality)
 
     def send_station_data_to_ctc(self, block_num):
         """
@@ -5939,32 +5940,7 @@ class TrackModelUI(tk.Tk):
         })
         print(f" Sent passengers boarding to Train Model")
 
-    def send_light_states_to_train_controller(self):
-        """Send traffic light states to Train Controller as two-bit boolean arrays."""
-        # Get the appropriate light set based on selected line
-        current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
-        light_set = self.data_manager.green_line_lights if "Green" in current_line else self.data_manager.red_line_lights
-        
-        light_data = {}
-        for block_num in light_set:
-            if block_num <= len(self.data_manager.blocks):
-                block = self.data_manager.blocks[block_num - 1]
-                # Check if block has power
-                if self.murphy_failures.has_power(block_num):
-                    state = getattr(block, 'traffic_light_state', 0)
-                    # Convert state (0-3) to two-bit boolean array [bit0, bit1]
-                    # State 0: [False, False], State 1: [True, False], 
-                    # State 2: [False, True], State 3: [True, True]
-                    light_data[block_num] = [bool(state & 1), bool(state & 2)]
-                else:
-                    light_data[block_num] = [False, False]  # No power = lights off
-        
-        self.server.send_to_ui("Train Controller", {
-            'command': 'Light States',
-            'data': light_data
-        })
-        # print(f" Sent light states to Train Controller as two-bit boolean arrays")
-
+    # NOTE: send_light_states function removed - no longer sends light states
 
     # ---------------- INPUT HANDLERS (Update _process_message) ----------------
 
