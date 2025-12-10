@@ -55,7 +55,9 @@ class TrackDataManager:
         # Traffic light blocks (hardcoded based on track layout)
         # Green Line: {1, 62, 76, 100, 150}
         # Red Line: {1, 10, 15, 28, 32, 39, 43, 53, 66, 67, 71, 72, 76}
-        self.light_states = {1, 10, 15, 28, 32, 39, 43, 53, 62, 66, 67, 71, 72, 76, 100, 150}
+        self.green_line_lights = {1, 62, 76, 100, 150}
+        self.red_line_lights = {1, 10, 15, 28, 32, 39, 43, 53, 66, 67, 71, 72, 76}
+        self.light_states = {1, 10, 15, 28, 32, 39, 43, 53, 62, 66, 67, 71, 72, 76, 100, 150}  # Combined for backward compatibility
 
         # ---------------- Default Track Setup ----------------
         self._create_default_blocks()
@@ -257,8 +259,8 @@ class TrackDataManager:
                 "Blocks 1-15": 0,
                 "Blocks 16-27": 0,
                 "Blocks 28-32": 0,
-                "Blocks 33-38": 0,
-                "Blocks 39-43": 0,
+                "Blocks 33-37": 0,
+                "Blocks 38-43": 0,
                 "Blocks 44-52": 0,
                 "Blocks 53-66": 0,
                 "Blocks 67-71": 0,

@@ -129,6 +129,72 @@ class Train:
 		# Notifies all registered observers of state changes.
 		for callback in self._observers:
 			callback(self)
+
+	def resetTrain(self):
+		"""Reset train to default state while preserving some settings"""
+		# Store what to preserve
+		trainId = self.trainId
+		wasDeployed = self.deployed
+		
+		# Reset all attributes using setters where possible
+		self.setSpeed(0.0)
+		self.setAcceleration(0.0)
+		self.setPassengerCount(0)
+		self.setDisembarking(0)
+		self.setCrewCount(2)
+		self.setPowerCommand(0.0)
+		self.setCabinTemp(72.0)
+		self.setGrade(0)
+		self.setElevation(0)
+		self.setSpeedLimit(40)
+		self.setCommandedSpeed(0)
+		self.setAuthority(0)
+		self.distanceLeft = None
+		
+		# Reset physics tracking
+		self.lastPowerCommand = 0.0
+		self.lastServiceBrake = True
+		self.lastEmergencyBrake = False
+		
+		# Reset dimensions
+		self.setHeight(3.42)
+		self.setLength(32.2)
+		self.setWidth(2.65)
+		
+		# Reset door states
+		self.setRightDoor(False)
+		self.setLeftDoor(False)
+		
+		# Reset light states
+		self.setHeadlights(False)
+		self.setInteriorLights(False)
+		
+		# Reset failure modes
+		self.setEngineFailure(False)
+		self.setSignalPickupFailure(False)
+		self.setBrakeFailure(False)
+		
+		# Reset brakes
+		self.setEmergencyBrake(False)
+		self.setServiceBrake(True)
+		
+		# Reset line and position
+		self.setLine("green")
+		self.block = 63
+		self.previousBlock = 63
+		self.atStation = False
+		
+		# Reset station info
+		self.setAnnouncement("")
+		self.setTimeToStation(0)
+		
+		# Reset activation flags
+		self.authorityReceived = False
+		self.active = False
+		
+		# Notify observers
+		self._notifyObservers()
+		print(f"Train {trainId} reset to default state")
 	
 	def setLine(self, value: str):
 		# Sets the train's line assignment and initializes line data.
@@ -150,6 +216,8 @@ class Train:
 		stationCheck = self.lineData.getValue(value,'infrastructure') 
 		if "STATION" in stationCheck:
 			self.atStation = True
+		else:
+			self.atStation = False
 		distanceDict = self.lineData.getDistance(value)
 		if distanceDict != None:
 			self.distanceLeft = distanceDict['distance']
@@ -157,6 +225,7 @@ class Train:
 		# Line check
 		if value == 9 and not ("STATION" in stationCheck):
 			self.setLine('red')
+
 			
 		
 	# Metric setters with validation
@@ -412,8 +481,6 @@ class Train:
 		self.acceleration = aNew
 		if self.distanceLeft != None:
 			self.distanceLeft = self.distanceLeft - distance
-		
-		if self.distanceLeft != None:
 			if newSpeed > 0.1: #may need to fix depending on how the train stops at a station
 				timeSeconds = self.distanceLeft / newSpeed
 				timeMinutes = max(0, int(timeSeconds / 60))

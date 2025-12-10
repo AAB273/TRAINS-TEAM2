@@ -83,13 +83,13 @@ class FileUploadManager:
             import traceback
             traceback.print_exc()
             
-    def auto_load_green_line(self, sheet_name="Green Line"):
-        # Automatically loads track data from Track Data.xlsx if it exists in the directory.
+    def load_track_line_data(self, sheet_name="Green Line"):
+        # Automatically loads track data from Track Data.xlsx for the specified line (Green or Red).
         """
         Automatically load track data from 'Track Data.xlsx' if it exists in the directory.
         Reads columns for block geometry and infrastructure, then updates the TrackDataManager.
         
-        :param sheet_name: Name of the Excel sheet to load (default: "Green Line")
+        :param sheet_name: Name of the Excel sheet to load (default: "Green Line", can also be "Red Line")
         """
         import os
         import pandas as pd
@@ -220,6 +220,15 @@ class FileUploadManager:
             import traceback
             traceback.print_exc()
             return False
+
+
+    def auto_load_green_line(self, sheet_name="Green Line"):
+        # Backward compatibility alias for load_track_line_data - use load_track_line_data instead.
+        """
+        DEPRECATED: Use load_track_line_data() instead.
+        This method is kept for backward compatibility.
+        """
+        return self.load_track_line_data(sheet_name=sheet_name)
 
 
     def _extract_station_name_from_line(self, line, block_num):
