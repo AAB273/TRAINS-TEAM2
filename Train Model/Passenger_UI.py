@@ -314,18 +314,38 @@ class TrainModelPassengerGUI:
 				})
 			elif command == 'Block Occupancy':
 				train.setBlock(value)
+				if train.line == 'green':
+					if (train.previousBlock == 57 and train.block != 58):
+						wasActive = train.active if train else False
+						train.active = False
+						if wasActive and not train.active:
+							if train.trainId in self.previousActiveTrains:
+								train.resetTrain()
+								self.previousActiveTrains.remove(train.trainId)
+						
+						self.refreshTrainSelector()
+				else:
+					if (train.previousBlock == 9 and train.block != 10):
+						wasActive = train.active if train else False
+						train.active = False
+						if wasActive and not train.active:
+							if train.trainId in self.previousActiveTrains:
+								train.resetTrain()
+								self.previousActiveTrains.remove(train.trainId)
+						
+						self.refreshTrainSelector()
+
+
 			elif command == 'Passengers Boarding':
-				self.updateDisembarking(train)
-				self.updateBoarding(value, train)
-			# elif command == 'Beacon1' or command == 'Beacon2':
-			# 	self.server.send_to_ui("Train SW", {
-			# 		'command': command,
-			# 		'value': value
-			# 	})
-			# 	self.server.send_to_ui("Train HW", {
-			# 		'command': command,
-			# 		'value': value
-			# 	})
+				if train.commandedAuthority == 1:
+					if train.block == 57 and train.line == 'green':
+						self.disembarkAll(train)
+					elif train.block == 9 and train.line == 'red':
+						self.disembarkAll(train)
+				else:
+					self.updateDisembarking(train)
+					self.updateBoarding(value, train)
+					
 			elif command == 'TIME':
 				self.uiLabels['time'].config(text=value)
 			elif command == 'MULT':
@@ -486,6 +506,21 @@ class TrainModelPassengerGUI:
 					'train_id': train.trainId
 				})
 
+	def disembarkAll(self, train):
+		train.setDisembarking(train.passengerCount)
+		train.setPassengerCount(0)
+
+		self.server.send_to_ui("Track Model", {
+					"command": 'Passenger Disembarking', 
+					'value': train.passengerCount,
+					'train_id': train.trainId
+				})
+		self.server.send_to_ui('Track Model', {
+					'command': 'Train Occupancy', 
+					'value': train.passengerCount,
+					'train_id': train.trainId
+				})
+		
 	def updateBoarding(self, boarding: int, train=None):
 		# Updates passenger boarding count and sends occupancy update to track model.
 		if train is None:
@@ -554,7 +589,10 @@ class TrainModelPassengerGUI:
 		if self.currentTrain.emergencyBrakeActive:
 			self.uiLabels['announcement'].config(text=f"EMERGENCY")
 		else:
-			self.uiLabels['announcement'].config(text=f"{train.announcement} in {train.timeToStation}mins")
+			if "Arrived" in train.announcement:
+				self.uiLabels['announcement'].config(text={train.announcement})
+			else:
+				self.uiLabels['announcement'].config(text=f"{train.announcement} in {train.timeToStation} mins")
 
 		# Update power command and commanded values
 		self.uiLabels['power_command'].config(text=f"{train.powerCommand:.0f} Watts")
