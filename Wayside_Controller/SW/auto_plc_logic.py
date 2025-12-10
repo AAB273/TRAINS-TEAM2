@@ -108,16 +108,13 @@ def run_plc_cycle(data, log_callback):
         
         # Default values
         default_authority = 3
-        default_speed = 32
+        default_speed = 25
         final_authority = default_authority
 
         # Check if block itself is occupied
         is_block_occupied = block_num_int in occupied_blocks
         
-        if is_block_occupied:
-            # Occupied block: authority 0
-            final_authority = 0
-        elif occupied_blocks:
+        if not is_block_occupied and occupied_blocks:
             # Find nearest occupied block AHEAD
             nearest_ahead = None
             min_distance = float('inf')
@@ -189,7 +186,7 @@ def run_plc_cycle(data, log_callback):
     # ==============================================
     # FIX: Apply CTC and Commanded Speed Overrides AFTER all blocks processed
     # ==============================================
-    print("\n[SPEED OVERRIDES]")
+    #print("\n[SPEED OVERRIDES]")
     # Apply CTC speed overrides first
     apply_ctc_speed_overrides(data, log_callback)
     
@@ -203,8 +200,8 @@ def run_plc_cycle(data, log_callback):
         
         # If this block doesn't have a commanded speed yet, set default
         if block_num_str not in data.commanded_speed[current_line]:
-            data.commanded_speed[current_line][block_num_str] = "32"
-            data.update_block_in_track_data(block_num, "speed", 32)
+            data.commanded_speed[current_line][block_num_str] = "25"
+            data.update_block_in_track_data(block_num, "speed", 25)
             
     # ==============================================
     # Now send updated commanded values to track model for occupied blocks
@@ -217,7 +214,7 @@ def run_plc_cycle(data, log_callback):
         # Check if block is occupied
         if block_info.get("occupied", False):
             # Get current commanded values
-            cmd_speed = data.commanded_speed[current_line].get(block_num_str, "32")
+            cmd_speed = data.commanded_speed[current_line].get(block_num_str, "25")
             cmd_auth = data.commanded_authority[current_line].get(block_num_str, "3")
             
             # Send to track model
@@ -472,7 +469,7 @@ def apply_ctc_speed_overrides(data, log_callback):
     """
     Apply CTC speed override logic for PLC sections K-Y only:
     1. When CTC sends suggested speed, set that SECTION to CTC speed (max 43.5 mph)
-    2. When section becomes unoccupied, reset to default (32 mph) AND clear suggested speed
+    2. When section becomes unoccupied, reset to default (25 mph) AND clear suggested speed
     """
     current_line = data.current_line
     
@@ -516,8 +513,8 @@ def apply_ctc_speed_overrides(data, log_callback):
                         
                         # Only set speed if not already set by user or previous CTC command
                         # Check if current speed is default (32) or needs updating
-                        current_speed = data.commanded_speed[current_line].get(section_block_str, "32")
-                        if current_speed == "32" or current_speed != str(ctc_speed_mph):
+                        current_speed = data.commanded_speed[current_line].get(section_block_str, "25")
+                        if current_speed == "25" or current_speed != str(ctc_speed_mph):
                             # Set commanded speed for this block
                             data.commanded_speed[current_line][section_block_str] = str(ctc_speed_mph)
                             data.update_block_in_track_data(section_block, "speed", ctc_speed_mph)
@@ -562,7 +559,7 @@ def apply_ctc_speed_overrides(data, log_callback):
         
         if not section_occupied:
             should_reset = True
-            print(f"  Speed Reset: Section {section} is unoccupied -> reset to default")
+            #print(f"  Speed Reset: Section {section} is unoccupied -> reset to default")
             
             # Mark any suggested speeds in this section for clearing
             if current_line in data.suggested_speed:
@@ -571,20 +568,20 @@ def apply_ctc_speed_overrides(data, log_callback):
                         block_section = data.get_section_for_block(current_line, block_str)
                         if block_section == section:
                             suggested_speeds_to_clear.append(block_str)
-                            print(f"    -> Will clear suggested speed for block {block_str}")
+                            #print(f"    -> Will clear suggested speed for block {block_str}")
                     except:
                         pass
         
         # Reset section to default speed if conditions are met
         if should_reset:
-            default_speed = "32"  # Default speed in mph
+            default_speed = "25"  # Default speed in mph
             
             for block_num in blocks_in_section:
                 block_str = str(block_num)
                 
                 # Update commanded speed
                 data.commanded_speed[current_line][block_str] = default_speed
-                data.update_block_in_track_data(block_num, "speed", 32)
+                data.update_block_in_track_data(block_num, "speed", 25)
                 
                 # Send to Track Model if block is occupied
                 block_key = f"Block {block_num}"
@@ -710,7 +707,7 @@ def apply_ctc_speed_overrides(data, log_callback):
     Apply CTC speed override logic for PLC sections K-Y only:
     1. When CTC sends suggested speed, set that SECTION to CTC speed (max 43.5 mph)
     2. UNLESS user has already set a commanded speed for that section
-    3. When section becomes unoccupied, reset to default (32 mph) AND clear suggested speed
+    3. When section becomes unoccupied, reset to default (25 mph) AND clear suggested speed
     """
     current_line = data.current_line
     
@@ -737,11 +734,11 @@ def apply_ctc_speed_overrides(data, log_callback):
                     
                     for section_block in blocks_in_section:
                         section_block_str = str(section_block)
-                        current_speed = data.commanded_speed[current_line].get(section_block_str, "32")
+                        current_speed = data.commanded_speed[current_line].get(section_block_str, "25")
                         
                         # Check if this looks like a user-set speed (not default)
                         # AND not from CTC (check suggested_speed dict)
-                        if current_speed != "32":
+                        if current_speed != "25":
                             # Check if this speed is from CTC (including capping)
                             is_ctc_speed = False
                             if current_line in data.suggested_speed:
@@ -789,8 +786,8 @@ def apply_ctc_speed_overrides(data, log_callback):
                         section_block_str = str(section_block)
                         
                         # Only set speed if not already set by user
-                        current_speed = data.commanded_speed[current_line].get(section_block_str, "32")
-                        if current_speed == "32":  # Only override default speed
+                        current_speed = data.commanded_speed[current_line].get(section_block_str, "25")
+                        if current_speed == "25":  # Only override default speed
                             # Set commanded speed for this block
                             data.commanded_speed[current_line][section_block_str] = str(ctc_speed_mph)
                             data.update_block_in_track_data(section_block, "speed", ctc_speed_mph)
@@ -836,7 +833,7 @@ def apply_ctc_speed_overrides(data, log_callback):
         
         if not section_occupied:
             should_reset = True
-            print(f"  Speed Reset: Section {section} is unoccupied -> reset to default")
+            #print(f"  Speed Reset: Section {section} is unoccupied -> reset to default")
             
             # Mark any suggested speeds in this section for clearing
             if current_line in data.suggested_speed:
@@ -845,13 +842,13 @@ def apply_ctc_speed_overrides(data, log_callback):
                         block_section = data.get_section_for_block(current_line, block_str)
                         if block_section == section:
                             suggested_speeds_to_clear.append(block_str)
-                            print(f"    -> Will clear suggested speed for block {block_str}")
+                            #print(f"    -> Will clear suggested speed for block {block_str}")
                     except:
                         pass
         
         # Reset section to default speed if conditions are met
         if should_reset:
-            default_speed = "32"  # Default speed in mph
+            default_speed = "25"  # Default speed in mph
             
             for block_num in blocks_in_section:
                 block_str = str(block_num)
@@ -881,7 +878,7 @@ def apply_commanded_speed_overrides(data, log_callback):
     """
     Apply commanded speed override logic for PLC sections K-Y only:
     1. When user sets commanded speed, set that SECTION to commanded speed (max 43.5 mph)
-    2. When section becomes unoccupied, reset to default (32 mph) AND clear commanded speed override
+    2. When section becomes unoccupied, reset to default (25 mph) AND clear commanded speed override
     3. DO NOT reset if CTC has set a speed for that section
     """
     current_line = data.current_line
@@ -931,7 +928,7 @@ def apply_commanded_speed_overrides(data, log_callback):
         
         if not section_occupied:
             should_reset = True
-            print(f"  Commanded Speed Reset: Section {section} is unoccupied -> reset to default")
+            #print(f"  Commanded Speed Reset: Section {section} is unoccupied -> reset to default")
             commanded_speeds_to_clear.add(section)
         
         # REMOVE THIS CONDITION: Don't reset based on authority 0 if CTC has speed
@@ -967,9 +964,9 @@ def apply_commanded_speed_overrides(data, log_callback):
             block_str = str(block_num)
             
             # Set default speed
-            default_speed = "32"
+            default_speed = "25"
             data.commanded_speed[current_line][block_str] = default_speed
-            data.update_block_in_track_data(block_num, "speed", 32)
+            data.update_block_in_track_data(block_num, "speed", 25)
             
             # Send to Track Model if block is occupied
             block_key = f"Block {block_num}"
@@ -1001,7 +998,7 @@ def apply_commanded_speed_overrides(data, log_callback):
             cmd_speed = data.commanded_speed[current_line].get(block_str)
             
             # Check if this speed looks like it was user-set (not default and not CTC)
-            if cmd_speed and cmd_speed != "32":
+            if cmd_speed and cmd_speed != "25":
                 # Check if it's not a CTC speed (CTC sends m/s, user sends mph)
                 # User speeds in mph could be any value, but CTC speeds are from suggested_speed
                 if current_line in data.suggested_speed and block_str in data.suggested_speed[current_line]:
