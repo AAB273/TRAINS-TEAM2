@@ -655,27 +655,30 @@ class UITestData:
         print(f"Total rows in block_data: {len(self.block_data)}")
         if self.block_data:
             print(f"Sample row: {self.block_data[0]}")
-        
+
+# ============================================================
+# SOCKET SERVER INITIALIZATION
+# ============================================================
+#########################################################################################
+##################### SOCKET SERVER CLASS ##############################################
+
     # SOCKET SERVER
-        self.server1 = TrainSocketServer(port=12344, ui_id="Track HW")
+        self.server1 = TrainSocketServer(port=12343, ui_id="Track HW")
         self.server1.set_allowed_connections(["WC_HW_TestUI", "CTC", "Track Model"])
         self.server1.start_server(_process_message)
     
     # Connect to other UIs
-        self.server1.connect_to_ui('localhost', 12346, "WC_HW_TestUI")
+        # self.server1.connect_to_ui('localhost', 12350, "WC_HW_TestUI")
         self.server1.connect_to_ui('localhost', 12341, "CTC")
         self.server1.connect_to_ui('localhost', 12344, "Track Model")
-    
+        print(f"\n[TRACK HW DEBUG] Server started on port 12343")
     # Call this after a short delay
         if hasattr(self, 'root'):
             self.root.after(2000, self.verify_server_running)    
         
         # In UITestData.__init__ after server starts:
-        print(f"\n[TRACK HW DEBUG] Server started on port 12344")
         print(f"[TRACK HW DEBUG] Waiting for connections...")
 
-# Add to _process_message:
-        # print(f"[TRACK HW] Connection from: {12341}")
 
     def load_complete_track_data(self, filename):
         """Load all green line blocks, merging sections where available"""
@@ -1805,9 +1808,7 @@ class PLCManager:
             "loaded": self.plc_instance is not None,
             "file": self.current_file
         }
-   
-#creating mock data instance
-test_data = UITestData()  
+    
 
 # Creating MessageLogger
 message_logger = MessageLogger(log_text)
@@ -2548,7 +2549,6 @@ class LeftPanel(tk.Frame):
             # Revert to original value
             self.update_light_display()
 
-test_data = UITestData()
 # Create the left panel with mock data
 left_panel = LeftPanel(main_frame, test_data)
 left_panel.pack(side="left", fill="y", padx=5, pady=5)
@@ -2564,14 +2564,15 @@ class RightPanel(tk.Frame):
     print(f"DEBUG: First row: {test_data.block_data[0] if test_data.block_data else 'Empty'}")
     print(f"DEBUG: Row structure: {[len(row) for row in test_data.block_data[:5]] if test_data.block_data else 'No data'}")
 
-    def __init__(self, parent, data):
+    def __init__(self, parent, data, server):
         super().__init__(parent, bg='#1a1a4d', width=250)
-        self.pack_propagate(False)
+        # self.pack_propagate(False)
         self.data = data
+        self.server1 = server
 
         # Connect line change callback
-        self.data.on_line_change.append(self.on_line_changed)
-        self.data.on_block_change.append(self.on_block_data_changed)
+        self.server1.on_line_change.append(self.on_line_changed)
+        self.server1.on_block_change.append(self.on_block_data_changed)
 
         # Initialize attributes first
         self.block_num_label = None
@@ -2944,15 +2945,26 @@ class RightPanel(tk.Frame):
         # Create the exact message format Track Model expects
             message = {
             "command": "Speed and Authority",
-            "block_number": int(block),
-            "commanded_speed": float(speed_value),
-            "commanded_authority": int(auth_value),
-            "track": track
+            "block_number": block,
+            "commanded_speed": speed_value,
+            "commanded_authority": auth_value,
             }
         
         # Send to Track Model
-            if hasattr(self.data, 'server1') and self.data.server1:
-                self.data.server1.send_to_ui('Track Model', message)
+            if self.server1:
+                self.server1.send_to_ui('Track Model', message)
+
+                    # Terminal output
+                print(f"\n{'='*70}")
+                print(f"✓ COMMANDED SPEED SENT TO TRACK MODEL")
+                print(f"{'='*70}")
+                print(f"  Track: {track}")
+                print(f"  Block: {block}")
+                print(f"  Speed: {speed_value:.2f} mph")
+                print(f"  Authority: {auth_value} blocks")
+                print(f"  Time: {datetime.now().strftime('%H:%M:%S')}")
+                print(f"{'='*70}\n")
+
                 add_to_message_log(f"COMMANDED: Block {block} - Speed: {speed_value:.1f} mph, Authority: {auth_value} blocks")
             else:
                 add_to_message_log("ERROR: No server connection to Track Model")
@@ -3642,7 +3654,7 @@ class RightPanel(tk.Frame):
 #############################################################################################################
 ################################################################################################################
 # Create the right panel with mock data
-right_panel = RightPanel(main_frame, test_data)
+right_panel = RightPanel(main_frame, test_data.server1)
 right_panel.pack(side="right", fill="y", padx=5, pady=5)
 
 # ---------- MAINTENANCE SCREEN (simple placeholder) ---------- #
