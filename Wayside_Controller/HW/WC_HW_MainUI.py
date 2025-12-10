@@ -197,16 +197,6 @@ def _process_message(self, data, connection=None, server_instance=None):
         print(f"{'='*60}")
         print(f"{'='*60}\n")
         
-        # 1. Handle connection test
-        if isinstance(data, str) and data.strip() == "CTC":
-            print("CTC connection test received")
-            add_to_message_log("CTC connection test received")
-            if connection:
-                try:
-                    connection.sendall(b"CTC_ACK")
-                except:
-                    pass
-            return
         
         # 2. Parse message
         message_data = None
@@ -250,16 +240,16 @@ def _process_message(self, data, connection=None, server_instance=None):
         # CALL YOUR EXISTING FUNCTIONS
         if hasattr(right_panel, 'update_suggested_speed'):
             right_panel.update_suggested_speed(speed)
-            print(f"✅ Called update_suggested_speed({speed})")
+            print(f"Called update_suggested_speed({speed})")
 
         if hasattr(right_panel, 'update_suggested_authority'):
             right_panel.update_suggested_authority(authority)
-            print(f"✅ Called update_suggested_authority({authority})")
+            print(f"Called update_suggested_authority({authority})")
 
         # Also select the block
         if hasattr(right_panel, 'block_combo') and block:
             right_panel.block_combo.set(str(block))
-            print(f"✅ Selected block {block} in dropdown")
+            print(f"Selected block {block} in dropdown")
 
         add_to_message_log(f"CTC Suggested: Block {block} - Speed: {speed:.3f} mph, Authority: {authority} blocks")
         
@@ -308,6 +298,8 @@ def _process_message(self, data, connection=None, server_instance=None):
                 
         elif command == 'ctc_suggestion':
             # Handle speed suggestion
+            print(f"\n[{timestamp}] CTC Suggestion Received")
+            add_to_message_log(f"CTC Update: Speed={speed_str}, Authority={authority_str}")
             handle_ctc_suggested_speed(value)
 
         elif command == 'set_block_occupancy':
@@ -483,8 +475,17 @@ def handle_ctc_suggested_speed(speed_data):
     
         # Format to 3 decimal places if conversion was successful
         if suggested_speed is not None:
+            speed_mps = suggested_speed
+            speed = speed_mps * 2.23694
+            # Log with conversion info
+            add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.2f} mph ({speed_mps:.2f} m/s)")
             formatted_speed = round(suggested_speed, 3)
             add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.2f} mph")
+            # Message log
+            message_logger.log(add_to_message_log, "INFO")
+            
+            # Update display
+            update_suggested_speed_display(formatted_speed)
             update_suggested_speed_display(formatted_speed)
             return formatted_speed
         else:
@@ -1013,6 +1014,9 @@ class UITestData:
     def _handle_speed_auth_update(self, data):
         """Handle speed and authority updates from CTC"""
         try:
+            # # Log receipt of message
+            # from datetime import datetime
+            # timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         # Handle different input formats from CTC
             if isinstance(data, dict):
             # Format 1: Direct dictionary with speed/authority
@@ -1025,7 +1029,6 @@ class UITestData:
                     # Only process if for current line
                     if track.lower() != self.current_line.lower():
                         return
-            
                 # Convert values
                 try:
                     speed = round(float(speed_str), 3)
@@ -1053,7 +1056,7 @@ class UITestData:
                 # Convert values
                 speed = round(float(speed_str), 3)
                 authority = int(authority_str)
-            
+                
             print(f"Updating display for block {block}: Speed={speed}, Auth={authority}")
             
             # DIRECT UPDATE - This is the key fix:
@@ -1068,9 +1071,10 @@ class UITestData:
             # Also update the block selector to show block 63
             if hasattr(right_panel, 'block_combo') and block:
                 right_panel.block_combo.set(block)
-            
-            add_to_message_log(f"CTC: Block {block} - Speed: {speed:.3f} mph, Authority: {authority} blocks")
 
+            add_to_message_log(f"CTC: Block {block} - Speed: {speed:.3f} mph, Authority: {authority} blocks")
+            # Add to message log in the format you want
+            message_logger.log(f"CTC SUGGESTION: Block {block} on {track} - Authority: {authority} blocks, Speed: {speed:.1f} mph", "INFO")
         except Exception as e:
             print(f"Error handling speed/auth update: {e}")
             add_to_message_log(f"ERROR processing CTC update: {e}")
@@ -1479,7 +1483,7 @@ def load_line_data(self, filename):
         
         if filename == "green_line.txt":
             # Update track data for green line
-            self.track_data = {
+            self.track_data["Green"] = {
                 "crossings": {
                     "Railway Crossing: 19": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
                 },
@@ -1502,7 +1506,7 @@ def load_line_data(self, filename):
             
         else:  # Red line
             # Update track data for Red Line
-            self.track_data = {
+            self.track_data["Red"] = {
                 "crossings": {
                     "Railway Crossing: 19": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
                 },
@@ -1968,12 +1972,24 @@ class LeftPanel(tk.Frame):
         # sendCrossing.pack(side=tk.BOTTOM)
 
     def update_crossing_options(self):
-        """Update combobox options based on current line"""
-        crossings = list(self.data.filtered_track_data.get("crossings", {}).keys())
+        """Update crossing dropdown based on current line"""
+        # Get crossings for current line
+        if self.data.current_line == "Green":
+            crossings = ["Railway Crossing: 19"]
+        else:  # Red line
+            crossings = ["Railway Crossing: 19"]  # Same for Red line
+    
         self.crossing_selector['values'] = crossings
         if crossings:
             self.crossing_selector.set(crossings[0])
             self.update_crossing_display()
+
+        # """Update combobox options based on current line"""
+        # crossings = list(self.data.filtered_track_data.get("crossings", {}).keys())
+        # self.crossing_selector['values'] = crossings
+        # if crossings:
+        #     self.crossing_selector.set(crossings[0])
+        #     self.update_crossing_display()
    
     def create_switch_section(self):
         switch_frame = tk.LabelFrame(self, text="Switch Details",
@@ -2016,7 +2032,22 @@ class LeftPanel(tk.Frame):
 
     def update_switch_options(self):
         """Update combobox options based on current line"""
-        switches = list(self.data.filtered_track_data.get("switches", {}).keys())
+        if self.data.current_line == "Green":
+        # Green Line switches
+            switches = [
+            "Switch 12-13",
+            "Switch 28-29", 
+            "Switch 57-Yard",
+            "Switch 62-Yard"
+        ]
+        else:  # Red line
+        # Red Line switches
+            switches = [
+            "Switch 12-13",
+            "Switch 1-13",
+            "Switch 28-29",
+            "Switch 150-28"
+            ]
         self.switch_selector['values'] = switches
         if switches:
             self.switch_selector.set(switches[0])
@@ -2272,7 +2303,22 @@ class LeftPanel(tk.Frame):
 
     def update_light_options(self):
         """Update combobox options based on current line"""
-        lights = list(self.data.filtered_track_data.get("lights", {}).keys())
+        if self.data.current_line == "Green":
+        # Green Line lights
+            lights = [
+            "Light 1",
+            "Light 13",
+            "Light 28", 
+            "Light 57",
+            "Light 19"
+            ]
+        else:  # Red line
+        # Red Line lights
+            lights = [
+            "Light 9",
+            "Light 15",
+            "Light 11"
+            ]
         self.light_selector['values'] = lights
         if lights:
             self.light_selector.set(lights[0])
@@ -2785,9 +2831,14 @@ class RightPanel(tk.Frame):
         self.auth_entry.insert(0, "2 blocks")  # Default value
         self.auth_entry.pack(side=tk.LEFT, padx=2)
    
-        auth_button = tk.Button(auth_frame, text="Send", width=5, command=self.update_authority)
-        auth_button.pack(side=tk.LEFT)
-   
+        # auth_button = tk.Button(auth_frame, text="Send", width=5, command=self.update_authority)
+        # auth_button.pack(side=tk.LEFT)
+
+        # Single "Send All" button for both speed and authority
+        send_all_button = tk.Button(auth_frame, text="Send All", width=8, 
+                               command=self.send_all_commanded_values)
+        send_all_button.pack(side=tk.LEFT, padx=5)
+
         # Speed section - YOUR ORIGINAL DESIGN
         speed_frame = tk.Frame(commanded_frame, bg='#cccccc')
         speed_frame.pack(fill=tk.X, padx=5, pady=2)
@@ -2797,40 +2848,117 @@ class RightPanel(tk.Frame):
         self.speed_entry.insert(0, "38 mph")  # Default value
         self.speed_entry.pack(side=tk.LEFT, padx=2)
    
-        speed_button = tk.Button(speed_frame, text="Send", width=5, command=self.update_speed)
-        speed_button.pack(side=tk.LEFT)
+        # speed_button = tk.Button(speed_frame, text="Send", width=5, command=self.update_speed)
+        # speed_button.pack(side=tk.LEFT)
 
+    def send_all_commanded_values(self):
+        """Send both speed and authority to Track Model"""
+    # Update local storage
+        self.update_authority()
+        self.update_speed()
+    
+    # Send combined to Track Model
+        # self.send_combined_to_track_model()
+
+    # Change it to this (add the send_commanded_to_track_model call):
     def update_authority(self):
-        """Update commanded authority and log the change"""
+        """Update commanded authority and send to Track Model"""
         new_authority = self.auth_entry.get()
         block = self.block_combo.get()
         current_line = self.data.current_line
-        
+    
+    # Extract just the number from "X blocks"
+        try:
+            authority_value = int(new_authority.split()[0])
+        except:
+            authority_value = 0
+
         if block and current_line:
             # Store in local storage
             self.commanded_authority[current_line][block] = new_authority
-            # Store in shared data if available
+        # Store in shared data if available
             if hasattr(self.data, 'commanded_authority'):
                 self.data.commanded_authority[current_line][block] = new_authority
         
+        # Send to Track Model immediately (like main_SW.txt does)
+            speed = self.speed_entry.get()
+            self.send_commanded_to_track_model(current_line, block, speed, new_authority)
+    
         add_to_message_log(f"Commanded Authority updated to: {new_authority}")
         self.update_commanded_display()
 
     def update_speed(self):
-        """Update commanded speed and log the change"""
+        """Update commanded speed and send to Track Model"""
         new_speed = self.speed_entry.get()
         block = self.block_combo.get()
         current_line = self.data.current_line
-        
+    
+    # Extract just the number from "X mph"
+        try:
+            speed_value = float(new_speed.split()[0])
+        except:
+            speed_value = 0.0
+
         if block and current_line:
-            # Store in local storage
+        # Store in local storage
             self.commanded_speed[current_line][block] = new_speed
-            # Store in shared data if available
-            if hasattr(self.data, 'commanded_speed'):
-                self.data.commanded_speed[current_line][block] = new_speed
+        # Store in shared data if available
+        if hasattr(self.data, 'commanded_speed'):
+            self.data.commanded_speed[current_line][block] = new_speed
         
+        # Send to Track Model immediately (like main_SW.txt does)
+        authority = self.auth_entry.get()
+        self.send_commanded_to_track_model(current_line, block, new_speed, authority)
+    
         add_to_message_log(f"Commanded Speed updated to: {new_speed}")
         self.update_commanded_display()
+
+    # Replace that entire function with this:
+    def send_commanded_to_track_model(self, track, block, speed, authority):
+        """Send commanded speed and authority to Track Model"""
+        try:
+            if not block or block == "":
+                add_to_message_log("ERROR: No block selected")
+                return
+        
+        # Parse speed value
+            try:
+                if "mph" in str(speed):
+                    speed_value = float(str(speed).replace("mph", "").strip())
+                else:
+                    speed_value = float(speed)
+            except:
+                speed_value = 0.0
+                add_to_message_log("WARNING: Invalid speed, using 0.0")
+        
+        # Parse authority value
+            try:
+                if "blocks" in str(authority):
+                    auth_value = int(str(authority).replace("blocks", "").strip())
+                else:
+                    auth_value = int(authority)
+            except:
+                auth_value = 0
+                add_to_message_log("WARNING: Invalid authority, using 0")
+        
+        # Create the exact message format Track Model expects
+            message = {
+            'command': 'Speed and Authority',
+            'block_number': int(block),
+            'commanded_speed': float(speed_value),
+            'commanded_authority': int(auth_value),
+            'track': track
+            }
+        
+        # Send to Track Model
+            if hasattr(self.data, 'server1') and self.data.server1:
+                self.data.server1.send_to_ui('Track Model', message)
+                add_to_message_log(f"COMMANDED: Block {block} - Speed: {speed_value:.1f} mph, Authority: {auth_value} blocks")
+            else:
+                add_to_message_log("ERROR: No server connection to Track Model")
+        
+        except Exception as e:
+            add_to_message_log(f"ERROR sending to Track Model: {e}")
 
     def update_commanded_display(self):
         """Update commanded values display"""

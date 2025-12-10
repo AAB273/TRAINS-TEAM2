@@ -1,9 +1,27 @@
 # Block Class
 
 class Block:
+    # Represents a single track block with physical and operational attributes.
+    
+    """
+    Attributes:
+        block_number: Unique identifier for the block
+        grade: Block gradient in percentage
+        elevation: Block elevation in meters
+        length: Block length in meters
+        speed_limit: Speed limit in km/hr
+        track_heater: 2-bit list [on/off, working/broken]
+        beacon: 128-bit list for train communication
+        switch_state: Boolean indicating switch position
+        crossing: Boolean indicating presence of railroad crossing
+        signal: Signal state for traffic control
+        occupancy: Train occupancy status (0=empty, 1=occupied)
+    """
+    
     def __init__(self, block_number, grade=0.0, elevation=0.0, length=0.0,
-                 speed_limit=0.0, track_heater=False, beacon=None,  # Change beacon default to None
+                 speed_limit=0.0, track_heater=False, beacon=None,
                  switch_state=False, crossing=False, signal=None, occupancy=0):
+        # Initializes a track block with all physical and operational parameters.
         self.block_number = block_number
         self.grade = grade
         self.elevation = elevation

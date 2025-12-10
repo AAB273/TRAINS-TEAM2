@@ -1,21 +1,15 @@
-import json    
-from pathlib import Path 
-
-def load_socket_config():
-    config_path = Path("config.json")
-    if config_path.exists():
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-    return config.get("modules", {})
-
+import json
+from pathlib import Path
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 import UI_Variables
 import tkinter.simpledialog as simpledialog
-import os, sys
+import os
+import sys
+import random
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-from Test_UI import TrackModelTestUI  # Test/debug UI
+from Test_UI import TrackModelTestUI
 from FileUploadManager import FileUploadManager
 from TrackDiagramDrawer import TrackDiagramDrawer
 from HeaterSystemManager import HeaterSystemManager
@@ -23,8 +17,32 @@ from TrainSocketServer import TrainSocketServer
 from MurphyTrackFailures import MurphyTrackFailures
 
 
+def load_socket_config():
+    # Loads socket configuration from config.json file.
+    config_path = Path("config.json")
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    return config.get("modules", {})
+
+
 class TrackModelUI(tk.Tk):
+    # The main user interface for the Track Model system.
+
+    """
+    Attributes:
+        data_manager: TrackDataManager instance managing all track data
+        server: TrainSocketServer instance for network communication
+        switch_blocks: Set of block numbers containing switches
+        switch_states: Dictionary tracking switch states for each block
+        file_manager: FileUploadManager for loading Excel track data
+        heater_manager: HeaterSystemManager for temperature control
+        diagram_drawer: TrackDiagramDrawer for track visualization
+        murphy_failures: MurphyTrackFailures for fault simulation
+    """
+
     def __init__(self, manager: UI_Variables.TrackDataManager):
+        # Initializes the Track Model UI with all necessary components and configurations.
         super().__init__()
         self.title("Track Model UI")
         self.geometry("1300x850")
@@ -40,73 +58,14 @@ class TrackModelUI(tk.Tk):
             port=config["port"],
             ui_id="Track Model"
         )
-        self.server.set_allowed_connections(["Track SW","Track HW", "Train Model", "CTC", "Train HW","Train SW"])
+        self.server.set_allowed_connections(["Track SW","Track HW", "Train Model", "CTC"])
         self.server.start_server(self._process_message)
         self.server.connect_to_ui('localhost', 12341, "CTC")
-        #self.server.connect_to_ui('localhost', 12346, "Train SW")
-        #self.server.connect_to_ui('localhost', 12347, "Train HW")
         self.server.connect_to_ui('localhost', 12345, "Train Model")
         self.server.connect_to_ui('localhost', 12342,  'Track SW')
         self.server.connect_to_ui('localhost', 12343,'Track HW')
 
-        self.switch_blocks = set()
-        self.switch_states = {}  # Dictionary to track switch states {block_num: direction}
         self.previous_beacon_states = {27: None, 38: None}  # Track previous beacon states to detect changes
-        
-        # Switch routing configuration for train path determination
-        # GREEN LINE SWITCHES
-        self.switch_routing_green = {
-            12: {"normal": 13, "reverse": 13},    # Switch housed at 12: (12-13; 1-13)
-            28: {"normal": 29, "reverse": 150},   # Switch housed at 28: (28-29; 150-28)
-            57: {"normal": 58, "reverse": 151},   # Switch at 58: controls 57→58 (normal) or 57→yard 151 (reverse)
-            62: {"normal": 63, "reverse": 63},    # Switch housed at 62: from main line or yard to 63
-            76: {"normal": 78, "reverse": 101},   # Switch housed at 76: controls junction at 77 (76-77-78 or 76-77-101)
-            85: {"normal": 86, "reverse": 100}    # Switch housed at 85: (85-86; 100-85)
-        }
-        
-        # RED LINE SWITCHES
-        # Based on Excel: Switch notation (X-Y; Z-W) means block can route to Y (normal) or W (reverse)
-        self.switch_routing_red = {
-            9: {"normal": 10, "reverse": 75},     # Yard: continue to 10 (normal) or to yard block 75 (reverse)
-            15: {"normal": 16, "reverse": 1},     # Loop switch: 15→16 (normal) or 15→1 (reverse, closes loop)
-            27: {"normal": 28, "reverse": 76},    # Branch: 27→28 (normal) or 27→76 (reverse, to end section)
-            32: {"normal": 33, "reverse": 72},    # Branch: 32→33 (normal) or 32→72 (reverse, backward jump)
-            38: {"normal": 39, "reverse": 71},    # Branch: 38→39 (normal) or 38→71 (reverse, backward jump)
-            43: {"normal": 44, "reverse": 67},    # Branch: 43→44 (normal) or 43→67 (reverse, backward jump)
-            52: {"normal": 53, "reverse": 66},    # Loop switch: 52→53 (normal) or 52→66 (reverse, forward jump)
-            # Bidirectional entries for loop switches (allows entering from either direction)
-            1: {"normal": 2, "reverse": 16},      # From block 1: go to 2 (normal) or to 16 via switch 15 (reverse)
-            16: {"normal": 17, "reverse": 15},    # From block 16: go to 17 (normal) or to 15 (reverse, can then go to 1)
-            53: {"normal": 54, "reverse": 52},    # From block 53: go to 54 (normal) or back to 52 via switch (reverse)
-            66: {"normal": 67, "reverse": 52},    # From block 66: go to 67 (normal) or back to 52 via switch (reverse)
-        }
-        
-        # Default to Green Line switches (will be updated based on selected line)
-        self.switch_routing = self.switch_routing_green
-        self.crossing_blocks = set()
-        # Traffic light blocks:
-        # Green Line: {1, 62, 76, 100, 150}
-        # Red Line: {1, 10, 15, 28, 32, 39, 43, 53, 66, 67, 71, 72, 76}
-        self.light_states = {1, 10, 15, 28, 32, 39, 43, 53, 62, 66, 67, 71, 72, 76, 100, 150}
-        self.station_blocks = set()
-
-        self.block_positions_occupancy = {
-            1: (125, 240), 
-            2: (190, 240), 
-            3: (250, 240), 
-            4: (330, 240), 
-            5: (410, 240),  
-            6: (480, 110), 
-            7: (540, 90), 
-            8: (600, 70),  
-            9: (660, 110),  
-            10: (720, 105),  
-            11: (480, 300), 
-            12: (550, 330), 
-            13: (640, 360), 
-            14: (720, 400),  
-            15: (820, 340),  
-        }
         self.terminals = []
 
         self.test_block_occupancy(4, 1)
@@ -118,11 +77,9 @@ class TrackModelUI(tk.Tk):
         self.track_system_sort_reverse = False
 
         # Initialize random FIRST
-        import random
         self.random = random
 
         # --- Auto-load Green Line data from Excel file FIRST ---
-        import os
         track_file = os.path.join(os.path.dirname(__file__), "Track Data.xlsx")
         if os.path.exists(track_file):
             loaded = self.data_manager.load_excel_data(track_file)
@@ -148,9 +105,12 @@ class TrackModelUI(tk.Tk):
             # print("[UI]  Green Line data could not be loaded automatically.")
 
         # --- POPULATE INFRASTRUCTURE SETS AFTER LOADING ---
-        self._populate_infrastructure_sets()
+        self.data_manager.populate_infrastructure_sets()
 
         self.diagram_drawer.draw_green_line_stations()
+        self.diagram_drawer.draw_red_line_stations()
+        self.diagram_drawer.draw_green_line_crossings()
+        self.diagram_drawer.draw_red_line_crossings()
 
         # Initialize traffic light states and occupancy for all blocks
         for b in self.data_manager.blocks:
@@ -170,9 +130,9 @@ class TrackModelUI(tk.Tk):
         self.heater_manager.initialize_all_temperatures()
 
         # NOW initialize ticket sales AFTER blocks are loaded
-        self._initialize_station_ticket_sales()
+        self.data_manager.initialize_station_ticket_sales()
 
-        self.update_station_boarding_data()
+        self.data_manager.update_station_boarding_data()
         
         # Track previous authority values to detect when it reaches 0
         self._previous_train_authority = {}
@@ -233,6 +193,7 @@ class TrackModelUI(tk.Tk):
 
     # ---------------- Helper ----------------
     def make_card(self, parent, title=None):
+        # Make card method.
         card = tk.Frame(parent, bg="white", bd=2, relief="ridge")
         if title:
             tk.Label(card, text=title, font=("Arial", 12, "bold"), bg="white").pack(anchor="w", padx=10, pady=5)
@@ -453,11 +414,11 @@ class TrackModelUI(tk.Tk):
                 
                 # Update switch routing based on selected line
                 if selected == "Red Line":
-                    self.switch_routing = self.switch_routing_red
-                    # print(f"[UI]  Switched to Red Line switch routing ({len(self.switch_routing_red)} switches)")
+                    self.switch_routing = self.data_manager.switch_routing_red
+                    # print(f"[UI]  Switched to Red Line switch routing ({len(self.data_manager.switch_routing_red)} switches)")
                 else:  # Green Line
-                    self.switch_routing = self.switch_routing_green
-                    # print(f"[UI]  Switched to Green Line switch routing ({len(self.switch_routing_green)} switches)")
+                    self.switch_routing = self.data_manager.switch_routing_green
+                    # print(f"[UI]  Switched to Green Line switch routing ({len(self.data_manager.switch_routing_green)} switches)")
                 
                 # Update the track diagram image
                 try:
@@ -471,10 +432,14 @@ class TrackModelUI(tk.Tk):
                     # print(f" Could not load {image_file}: {e}")
                 
                 # Repopulate infrastructure sets for the new line
-                self._populate_infrastructure_sets()
+                self.data_manager.populate_infrastructure_sets()
                 
                 # Reinitialize bidirectional directions for the new line
-                self._initialize_bidirectional_directions()
+                self.data_manager.initialize_bidirectional_directions(selected)
+                
+                # Update diagram positions for the new line
+                if hasattr(self, 'diagram_drawer'):
+                    self.diagram_drawer.set_line_positions(selected)
                 
                 # Rebuild the bidirectional controls UI
                 if hasattr(self, 'bidir_frame') and hasattr(self, 'bidir_controls'):
@@ -498,10 +463,10 @@ class TrackModelUI(tk.Tk):
                 self.refresh_track_system_table()
                 
                 # Update station boarding data
-                self.update_station_boarding_data()
+                self.data_manager.update_station_boarding_data()
                 
                 # Reinitialize station ticket sales
-                self._initialize_station_ticket_sales()
+                self.data_manager.initialize_station_ticket_sales()
                 
                 # Reinitialize station beacons with 128-bit arrays
                 # self.initialize_station_beacons()  # Not needed - beacons based on switch states
@@ -1059,8 +1024,8 @@ class TrackModelUI(tk.Tk):
                     # print(" Could not load Train_Right.png:", e)
                     self.train_icon = None
 
-            # Define block positions
-            self.block_positions_occupancy = {
+            # Define block positions and update diagram drawer
+            self.diagram_drawer.update_block_positions({
                 1: (335, 240), 
                 2: (400, 270), 
                 3: (480, 110), 
@@ -1076,7 +1041,7 @@ class TrackModelUI(tk.Tk):
                 13: (300, 400), 
                 14: (300, 400),  
                 15: (600, 400),  
-            }
+            })
 
             # Initialize train items
             self.train_items_block_canvas = []
@@ -1117,7 +1082,7 @@ class TrackModelUI(tk.Tk):
         trains_drawn = 0
         # Draw trains for occupied blocks
         for block_num in occupied_blocks:
-            coords = self.block_positions_occupancy.get(block_num)
+            coords = self.diagram_drawer.get_block_position(block_num)
             if coords:
                 x, y = coords
                 item = canvas.create_image(x, y, image=self.train_icon, anchor="center")
@@ -1493,54 +1458,6 @@ class TrackModelUI(tk.Tk):
                     return None
             return self.icon_images.get(key)
 
-    def _populate_infrastructure_sets(self):
-        """Populate switch_blocks, crossing_blocks, and station_blocks from loaded Excel data"""
-        # Clear existing sets
-        self.switch_blocks.clear()
-        self.crossing_blocks.clear()
-        self.station_blocks.clear()
-        
-        # Get infrastructure data from data manager
-        infra_map = getattr(self.data_manager, "infrastructure_data", {})
-        
-        # print("[UI] Populating infrastructure sets from Excel data...")
-        
-        for block_num, infrastructure in infra_map.items():
-            infrastructure_upper = str(infrastructure).upper()
-            
-            # Check for switches
-            if "SWITCH" in infrastructure_upper:
-                self.switch_blocks.add(block_num)
-                # print(f"   Found switch at block {block_num}")
-                
-                # Initialize switch direction for this block
-                if 1 <= block_num <= len(self.data_manager.blocks):
-                    block = self.data_manager.blocks[block_num - 1]
-                    if not hasattr(block, 'switch_direction'):
-                        # SPECIAL CASE: Block 62 must default to 'reverse' for yard spawning
-                        if block_num == 62:
-                            block.switch_direction = 'reverse'  # Yard→63 position
-                        else:
-                            block.switch_direction = 'normal'  # Default direction
-                    # Also initialize in switch_states dictionary
-                    self.switch_states[block_num] = getattr(block, 'switch_direction', 'normal')
-            
-            # Check for crossings
-            if "CROSSING" in infrastructure_upper:
-                self.crossing_blocks.add(block_num)
-                # print(f"   Found crossing at block {block_num}")
-            
-            # Check for stations
-            if "STATION" in infrastructure_upper:
-                self.station_blocks.add(block_num)
-                # print(f"  🚉 Found station at block {block_num}")
-        
-        # print(f"[UI] Infrastructure summary:")
-        # print(f"  Switches: {sorted(self.switch_blocks)}")
-        # print(f"  Crossings: {sorted(self.crossing_blocks)}")
-        # print(f"  Stations: {sorted(self.station_blocks)}")
-        # print(f"  Signals (hardcoded): {sorted(self.light_states)}")
-
     def start_temperature_update_loop(self):
         """Start periodic temperature updates (every 1 second)"""
         try:
@@ -1557,100 +1474,6 @@ class TrackModelUI(tk.Tk):
         
         # Schedule next update in 1000ms (1 second)
         self.after(1000, self.start_temperature_update_loop)
-
-    def _initialize_bidirectional_directions(self):
-        """Initialize bidirectional block directions based on the current line (Green or Red)."""
-        # Determine which line is currently selected
-        current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
-        
-        if current_line == "Red Line":
-            # Red Line bidirectional blocks
-            self.data_manager.bidirectional_directions = {
-                "Blocks 1-15": 0,
-                "Blocks 16-27": 0,
-                "Blocks 28-32": 0,
-                "Blocks 33-38": 0,
-                "Blocks 39-43": 0,
-                "Blocks 44-52": 0,
-                "Blocks 53-66": 0,
-                "Blocks 67-71": 0,
-                "Blocks 72-76": 0
-            }
-            # print("[UI] Initialized bidirectional directions for Red Line")
-        else:
-            # Green Line bidirectional blocks (default)
-            self.data_manager.bidirectional_directions = {
-                "Blocks 13-28": 0,
-                "Blocks 77-85": 0  # N section - bidirectional blocks
-            }
-            # print("[UI] Initialized bidirectional directions for Green Line")
-
-    def _initialize_station_ticket_sales(self):
-        """Initialize random ticket sales and boarding/disembarking for all stations."""
-        # print("🎫 === INITIALIZING STATION DATA ===")
-        
-        # Ensure arrays are the correct length
-        num_blocks = len(self.data_manager.blocks)
-        self.data_manager.ticket_sales = [0] * num_blocks
-        self.data_manager.passengers_boarding = [0] * num_blocks
-        self.data_manager.passengers_disembarking = [0] * num_blocks
-        
-        for block_num, station_name in self.data_manager.station_location:
-            idx = block_num - 1
-            if 0 <= idx < num_blocks:
-                # Generate random ticket sales between 0-70
-                ticket_count = self.random.randint(0, 70)
-                self.data_manager.ticket_sales[idx] = ticket_count
-                
-                # Generate random boarding count (0 to ticket_sales)
-                boarding_count = self.random.randint(0, ticket_count)
-                self.data_manager.passengers_boarding[idx] = boarding_count
-                
-                # print(f"   Station {station_name} (Block {block_num}): {ticket_count} tickets, {boarding_count} boarding")
-        
-        # print("   === STATION DATA INITIALIZATION COMPLETE ===\n")
-        
-        # Send initial ticket sales to CTC
-        for block_num, _ in self.data_manager.station_location:
-            self.send_station_data_to_ctc(block_num)
-
-
-    def update_station_ticket_sales(self):
-        """Update ticket sales for all stations - called during refresh"""
-        for block_num, station_name in self.data_manager.station_location:
-            idx = block_num - 1
-            if 0 <= idx < len(self.data_manager.ticket_sales):
-                current_tickets = self.data_manager.ticket_sales[idx]
-                
-                # Only increase if below max
-                if current_tickets < 50:
-                    # Generate random increase between 0 and 7
-                    new_tickets = self.random.randint(0, 7)
-                    
-                    # Add new tickets but don't exceed max of 50
-                    self.data_manager.ticket_sales[idx] = min(current_tickets + new_tickets, 50)
-                    
-                    if new_tickets > 0:
-                        pass
-                        # print(f"🎫 {station_name} (Block {block_num}): {current_tickets} → {self.data_manager.ticket_sales[idx]} (+{new_tickets})")
-
-    def update_station_boarding_data(self):
-        """Update boarding data for all stations - called during refresh"""
-        for block_num, station_name in self.data_manager.station_location:
-            idx = block_num - 1
-            if 0 <= idx < len(self.data_manager.ticket_sales):
-                current_tickets = self.data_manager.ticket_sales[idx]
-                current_boarding = self.data_manager.passengers_boarding[idx]
-                
-                # If no train is at the station, generate random boarding data
-                block = self.data_manager.blocks[idx]
-                if getattr(block, 'occupancy', 0) == 0:
-                    # Generate new boarding count based on current tickets
-                    if current_tickets > 0:
-                        new_boarding = self.random.randint(0, min(50, current_tickets))  # Max 50 boarding at once
-                        self.data_manager.passengers_boarding[idx] = new_boarding
-                    else:
-                        self.data_manager.passengers_boarding[idx] = 0
 
     def create_block_occupancy_panel(self, parent):
         """Create Block Occupancy display panel for center area."""
@@ -1758,13 +1581,13 @@ class TrackModelUI(tk.Tk):
         # Update switch status labels if they exist
         if hasattr(self, 'switch_status_labels'):
             for block_num, label in self.switch_status_labels.items():
-                if block_num in self.switch_states:
-                    direction = self.switch_states[block_num]
+                if block_num in self.data_manager.switch_states:
+                    direction = self.data_manager.switch_states[block_num]
                     label.config(text=f"Switch {block_num}: {direction}")
                     # print(f"[DEBUG] Updated switch display for block {block_num}: {direction}")
         
         # Update switch blocks in the data manager
-        for block_num in self.switch_blocks:
+        for block_num in self.data_manager.switch_blocks:
             if 1 <= block_num <= len(self.data_manager.blocks):
                 block = self.data_manager.blocks[block_num - 1]
                 if hasattr(block, 'switch_direction'):
@@ -1905,6 +1728,46 @@ class TrackModelUI(tk.Tk):
                     status_text = "Up and Right"
                 else:  # direction == 2
                     status_text = "--"
+            elif group_name == "Blocks 1-15":
+                # Red Line Blocks 1-15
+                if direction == 3:
+                    status_text = "Clockwise"
+                elif direction == 4:
+                    status_text = "Counterclockwise"
+                else:  # direction == 2
+                    status_text = "--"
+            elif group_name == "Blocks 16-27":
+                # Red Line Blocks 16-27
+                if direction == 0:
+                    status_text = "Left and Down"
+                elif direction == 1:
+                    status_text = "Up and Right"
+                else:  # direction == 2
+                    status_text = "--"
+            elif group_name in ["Blocks 28-32", "Blocks 33-37", "Blocks 38-43", "Blocks 67-71", "Blocks 72-76"]:
+                # Red Line sections with Up/Down logic
+                if direction == 5:
+                    status_text = "Up"
+                elif direction == 6:
+                    status_text = "Down"
+                else:  # direction == 2
+                    status_text = "--"
+            elif group_name == "Blocks 44-52":
+                # Red Line Blocks 44-52 with complex logic
+                if direction == 7:
+                    status_text = "Down and Left"
+                elif direction == 8:
+                    status_text = "Right and Up"
+                else:  # direction == 2
+                    status_text = "--"
+            elif group_name == "Blocks 53-66":
+                # Red Line Blocks 53-66
+                if direction == 3:
+                    status_text = "Clockwise"
+                elif direction == 4:
+                    status_text = "Counterclockwise"
+                else:  # direction == 2
+                    status_text = "--"
             else:
                 # Use standard text for other groups (e.g., Blocks 77-85)
                 if direction == 0:
@@ -1995,7 +1858,305 @@ class TrackModelUI(tk.Tk):
             else:
                 return 2  # Both not red (should not happen) -> "--"
         
-        # For any other groups (Red Line, etc.), default to Left
+        # Red Line logic
+        elif group_name == "Blocks 1-15":
+            # Blocks 1-15: Based on lights at blocks 1 and 15
+            light_1_state = 0
+            light_15_state = 0
+            
+            if len(self.data_manager.blocks) > 0:  # Block 1 at index 0
+                block_1 = self.data_manager.blocks[0]
+                if hasattr(block_1, 'traffic_light_state'):
+                    light_1_state = block_1.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 14:  # Block 15 at index 14
+                block_15 = self.data_manager.blocks[14]
+                if hasattr(block_15, 'traffic_light_state'):
+                    light_15_state = block_15.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_1_red = (light_1_state == 0)
+            light_1_green = (light_1_state == 1)
+            light_15_red = (light_15_state == 0)
+            light_15_green = (light_15_state == 1)
+            
+            # Apply logic
+            if (light_1_red and light_15_red) or (light_1_green and light_15_green):
+                return 2  # Both same -> "--"
+            elif light_1_green and light_15_red:
+                return 3  # Light 1 green, 15 red -> "Clockwise"
+            elif light_1_red and light_15_green:
+                return 4  # Light 1 red, 15 green -> "Counterclockwise"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 16-27":
+            # Blocks 16-27: Based on lights at blocks 1, 15, and 28
+            light_1_state = 0
+            light_15_state = 0
+            light_28_state = 0
+            
+            if len(self.data_manager.blocks) > 0:  # Block 1 at index 0
+                block_1 = self.data_manager.blocks[0]
+                if hasattr(block_1, 'traffic_light_state'):
+                    light_1_state = block_1.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 14:  # Block 15 at index 14
+                block_15 = self.data_manager.blocks[14]
+                if hasattr(block_15, 'traffic_light_state'):
+                    light_15_state = block_15.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 27:  # Block 28 at index 27
+                block_28 = self.data_manager.blocks[27]
+                if hasattr(block_28, 'traffic_light_state'):
+                    light_28_state = block_28.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_1_red = (light_1_state == 0)
+            light_1_green = (light_1_state == 1)
+            light_15_red = (light_15_state == 0)
+            light_15_green = (light_15_state == 1)
+            light_28_red = (light_28_state == 0)
+            light_28_green = (light_28_state == 1)
+            
+            # Apply logic
+            # If light 28 is red AND (light 1 OR 15 is green) -> "Left and Down"
+            if light_28_red and (light_1_green or light_15_green):
+                return 0  # "Left and Down"
+            # If light 28 is green AND (light 1 OR 15 is red) -> "Up and Right"
+            elif light_28_green and (light_1_red or light_15_red):
+                return 1  # "Up and Right"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 28-32":
+            # Blocks 28-32: Controlled by lights 28 and 32
+            light_28_state = 0
+            light_32_state = 0
+            
+            if len(self.data_manager.blocks) > 27:  # Block 28 at index 27
+                block_28 = self.data_manager.blocks[27]
+                if hasattr(block_28, 'traffic_light_state'):
+                    light_28_state = block_28.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 31:  # Block 32 at index 31
+                block_32 = self.data_manager.blocks[31]
+                if hasattr(block_32, 'traffic_light_state'):
+                    light_32_state = block_32.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_28_red = (light_28_state == 0)
+            light_28_green = (light_28_state == 1)
+            light_32_red = (light_32_state == 0)
+            light_32_green = (light_32_state == 1)
+            
+            # Apply logic
+            if (light_28_red and light_32_red) or (light_28_green and light_32_green):
+                return 2  # Both same -> "--"
+            elif light_28_green and light_32_red:
+                return 6  # Light 28 green, 32 red -> "Down"
+            elif light_28_red and light_32_green:
+                return 5  # Light 28 red, 32 green -> "Up"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 33-37":
+            # Blocks 33-37: Controlled by lights 32 and 38
+            light_32_state = 0
+            light_38_state = 0
+            
+            if len(self.data_manager.blocks) > 31:  # Block 32 at index 31
+                block_32 = self.data_manager.blocks[31]
+                if hasattr(block_32, 'traffic_light_state'):
+                    light_32_state = block_32.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 37:  # Block 38 at index 37
+                block_38 = self.data_manager.blocks[37]
+                if hasattr(block_38, 'traffic_light_state'):
+                    light_38_state = block_38.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_32_red = (light_32_state == 0)
+            light_32_green = (light_32_state == 1)
+            light_38_red = (light_38_state == 0)
+            light_38_green = (light_38_state == 1)
+            
+            # Apply logic
+            if (light_32_red and light_38_red) or (light_32_green and light_38_green):
+                return 2  # Both same -> "--"
+            elif light_32_green and light_38_red:
+                return 6  # Light 32 green, 38 red -> "Down"
+            elif light_32_red and light_38_green:
+                return 5  # Light 32 red, 38 green -> "Up"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 38-43":
+            # Blocks 38-43: Controlled by lights 38 and 43
+            light_38_state = 0
+            light_43_state = 0
+            
+            if len(self.data_manager.blocks) > 37:  # Block 38 at index 37
+                block_38 = self.data_manager.blocks[37]
+                if hasattr(block_38, 'traffic_light_state'):
+                    light_38_state = block_38.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 42:  # Block 43 at index 42
+                block_43 = self.data_manager.blocks[42]
+                if hasattr(block_43, 'traffic_light_state'):
+                    light_43_state = block_43.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_38_red = (light_38_state == 0)
+            light_38_green = (light_38_state == 1)
+            light_43_red = (light_43_state == 0)
+            light_43_green = (light_43_state == 1)
+            
+            # Apply logic
+            if (light_38_red and light_43_red) or (light_38_green and light_43_green):
+                return 2  # Both same -> "--"
+            elif light_38_green and light_43_red:
+                return 6  # Light 38 green, 43 red -> "Down"
+            elif light_38_red and light_43_green:
+                return 5  # Light 38 red, 43 green -> "Up"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 44-52":
+            # Blocks 44-52: Controlled by lights 43, 52, and 66
+            light_43_state = 0
+            light_52_state = 0
+            light_66_state = 0
+            
+            if len(self.data_manager.blocks) > 42:  # Block 43 at index 42
+                block_43 = self.data_manager.blocks[42]
+                if hasattr(block_43, 'traffic_light_state'):
+                    light_43_state = block_43.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 51:  # Block 52 at index 51
+                block_52 = self.data_manager.blocks[51]
+                if hasattr(block_52, 'traffic_light_state'):
+                    light_52_state = block_52.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 65:  # Block 66 at index 65
+                block_66 = self.data_manager.blocks[65]
+                if hasattr(block_66, 'traffic_light_state'):
+                    light_66_state = block_66.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_43_red = (light_43_state == 0)
+            light_43_green = (light_43_state == 1)
+            light_52_red = (light_52_state == 0)
+            light_52_green = (light_52_state == 1)
+            light_66_red = (light_66_state == 0)
+            light_66_green = (light_66_state == 1)
+            
+            # Apply logic
+            if light_43_red and light_52_red and light_66_red:
+                return 2  # Light 43 red, 52 and 66 both red -> "--"
+            elif light_43_green and (light_52_red or light_66_red):
+                return 7  # Light 43 green, either 52 or 66 red -> "Down and Left"
+            elif light_43_green and light_52_green and light_66_green:
+                return 2  # Light 43 green, 52 and 66 both green -> "--"
+            elif light_43_red and (light_52_green or light_66_green):
+                return 8  # Light 43 red, either 52 or 66 green -> "Right and Up"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 53-66":
+            # Blocks 53-66: Controlled by lights 52 and 66
+            light_52_state = 0
+            light_66_state = 0
+            
+            if len(self.data_manager.blocks) > 51:  # Block 52 at index 51
+                block_52 = self.data_manager.blocks[51]
+                if hasattr(block_52, 'traffic_light_state'):
+                    light_52_state = block_52.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 65:  # Block 66 at index 65
+                block_66 = self.data_manager.blocks[65]
+                if hasattr(block_66, 'traffic_light_state'):
+                    light_66_state = block_66.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_52_red = (light_52_state == 0)
+            light_52_green = (light_52_state == 1)
+            light_66_red = (light_66_state == 0)
+            light_66_green = (light_66_state == 1)
+            
+            # Apply logic
+            if (light_52_red and light_66_red) or (light_52_green and light_66_green):
+                return 2  # Both same -> "--"
+            elif light_52_green and light_66_red:
+                return 3  # Light 52 green, 66 red -> "Clockwise"
+            elif light_66_green and light_52_red:
+                return 4  # Light 66 green, 52 red -> "Counterclockwise"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 67-71":
+            # Blocks 67-71: Like 28-32, light 71 acts like 28, light 67 acts like 32
+            light_67_state = 0
+            light_71_state = 0
+            
+            if len(self.data_manager.blocks) > 66:  # Block 67 at index 66
+                block_67 = self.data_manager.blocks[66]
+                if hasattr(block_67, 'traffic_light_state'):
+                    light_67_state = block_67.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 70:  # Block 71 at index 70
+                block_71 = self.data_manager.blocks[70]
+                if hasattr(block_71, 'traffic_light_state'):
+                    light_71_state = block_71.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_67_red = (light_67_state == 0)
+            light_67_green = (light_67_state == 1)
+            light_71_red = (light_71_state == 0)
+            light_71_green = (light_71_state == 1)
+            
+            # Apply logic (71 acts like 28, 67 acts like 32)
+            if (light_71_red and light_67_red) or (light_71_green and light_67_green):
+                return 2  # Both same -> "--"
+            elif light_71_green and light_67_red:
+                return 6  # Light 71 green, 67 red -> "Down"
+            elif light_71_red and light_67_green:
+                return 5  # Light 71 red, 67 green -> "Up"
+            else:
+                return 2  # Default to "--"
+        
+        elif group_name == "Blocks 72-76":
+            # Blocks 72-76: Like 28-32, light 76 acts like 28, light 72 acts like 32
+            light_72_state = 0
+            light_76_state = 0
+            
+            if len(self.data_manager.blocks) > 71:  # Block 72 at index 71
+                block_72 = self.data_manager.blocks[71]
+                if hasattr(block_72, 'traffic_light_state'):
+                    light_72_state = block_72.traffic_light_state
+            
+            if len(self.data_manager.blocks) > 75:  # Block 76 at index 75
+                block_76 = self.data_manager.blocks[75]
+                if hasattr(block_76, 'traffic_light_state'):
+                    light_76_state = block_76.traffic_light_state
+            
+            # Check if lights are red (0) or green (1)
+            light_72_red = (light_72_state == 0)
+            light_72_green = (light_72_state == 1)
+            light_76_red = (light_76_state == 0)
+            light_76_green = (light_76_state == 1)
+            
+            # Apply logic (76 acts like 28, 72 acts like 32)
+            if (light_76_red and light_72_red) or (light_76_green and light_72_green):
+                return 2  # Both same -> "--"
+            elif light_76_green and light_72_red:
+                return 6  # Light 76 green, 72 red -> "Down"
+            elif light_76_red and light_72_green:
+                return 5  # Light 76 red, 72 green -> "Up"
+            else:
+                return 2  # Default to "--"
+        
+        # For any other groups (like Blocks 16-27), default to Left
         return 0
 
     def toggle_bidirectional_direction(self, group_name):
@@ -2621,7 +2782,7 @@ class TrackModelUI(tk.Tk):
                             self.log_to_terminal(f"[BLOCK 33 MODE CHECK] Train {train_id} mode = {current_mode}")
                         
                         # Check Red Line switch routing directly (not self.switch_routing which may be set to Green)
-                        has_switch_routing_red = hasattr(self, 'switch_routing_red')
+                        has_switch_routing_red = hasattr(self.data_manager, 'switch_routing_red')
                         switch_32_in_routing = 32 in self.switch_routing_red if has_switch_routing_red else False
                         self.log_to_terminal(f"[BLOCK 33 SWITCH CHECK] has_switch_routing_red = {has_switch_routing_red}")
                         self.log_to_terminal(f"[BLOCK 33 SWITCH CHECK] 32 in switch_routing_red = {switch_32_in_routing}")
@@ -2679,7 +2840,7 @@ class TrackModelUI(tk.Tk):
                             self.log_to_terminal(f"[BLOCK 44 MODE CHECK] Train {train_id} mode = {current_mode}")
                         
                         # Check Red Line switch routing directly (not self.switch_routing which may be set to Green)
-                        has_switch_routing_red = hasattr(self, 'switch_routing_red')
+                        has_switch_routing_red = hasattr(self.data_manager, 'switch_routing_red')
                         switch_43_in_routing = 43 in self.switch_routing_red if has_switch_routing_red else False
                         self.log_to_terminal(f"[BLOCK 44 SWITCH CHECK] has_switch_routing_red = {has_switch_routing_red}")
                         self.log_to_terminal(f"[BLOCK 44 SWITCH CHECK] 43 in switch_routing_red = {switch_43_in_routing}")
@@ -2748,7 +2909,7 @@ class TrackModelUI(tk.Tk):
                     self.log_to_terminal(f"[BLOCK 27 MODE CHECK] Train {train_id} mode = {current_mode}")
                 
                 # Check Red Line switch routing directly (not self.switch_routing which may be set to Green)
-                has_switch_routing_red = hasattr(self, 'switch_routing_red')
+                has_switch_routing_red = hasattr(self.data_manager, 'switch_routing_red')
                 switch_27_in_routing = 27 in self.switch_routing_red if has_switch_routing_red else False
                 self.log_to_terminal(f"[BLOCK 27 SWITCH CHECK] has_switch_routing_red = {has_switch_routing_red}")
                 self.log_to_terminal(f"[BLOCK 27 SWITCH CHECK] 27 in switch_routing_red = {switch_27_in_routing}")
@@ -2801,7 +2962,7 @@ class TrackModelUI(tk.Tk):
                     self.log_to_terminal(f"[BLOCK 38 MODE CHECK] Train {train_id} mode = {current_mode}")
                 
                 # Check Red Line switch routing directly (not self.switch_routing which may be set to Green)
-                has_switch_routing_red = hasattr(self, 'switch_routing_red')
+                has_switch_routing_red = hasattr(self.data_manager, 'switch_routing_red')
                 switch_38_in_routing = 38 in self.switch_routing_red if has_switch_routing_red else False
                 self.log_to_terminal(f"[BLOCK 38 SWITCH CHECK] has_switch_routing_red = {has_switch_routing_red}")
                 self.log_to_terminal(f"[BLOCK 38 SWITCH CHECK] 38 in switch_routing_red = {switch_38_in_routing}")
@@ -3033,8 +3194,9 @@ class TrackModelUI(tk.Tk):
             # Not in backward mode: normal forward progression
             # Check for any special routing at block 1
             if current_block == 1:
-                if hasattr(self, 'switch_routing') and 1 in self.switch_routing:
-                    switch_state = self.switch_states.get(1, "normal")
+                switch_routing = self.data_manager.get_current_switch_routing(self.selected_line.get())
+                if switch_routing and 1 in switch_routing:
+                    switch_state = self.data_manager.switch_states.get(1, "normal")
                     if switch_state == "normal":
                         return 2
                     else:  # reverse
@@ -3391,7 +3553,7 @@ class TrackModelUI(tk.Tk):
                             print(f"[BEACON DEBUG] Switch state sources:")
                             print(f"[BEACON DEBUG]   - switch_state: {switch_state_bool}")
                             print(f"[BEACON DEBUG]   - switch_direction: {switch_direction}")
-                            print(f"[BEACON DEBUG]   - switch_states dict: {self.switch_states.get(block_num, 'not set')}")
+                            print(f"[BEACON DEBUG]   - switch_states dict: {self.data_manager.switch_states.get(block_num, 'not set')}")
                             
                             beacon_value = False  # Default to normal
                             if switch_state_bool is not None and isinstance(switch_state_bool, bool):
@@ -3401,7 +3563,7 @@ class TrackModelUI(tk.Tk):
                                 beacon_value = (switch_direction == 'reverse')
                                 print(f"[BEACON DEBUG] Using switch_direction (Wayside): {switch_direction} → {beacon_value}")
                             else:
-                                switch_state_str = self.switch_states.get(block_num, 'normal')
+                                switch_state_str = self.data_manager.switch_states.get(block_num, 'normal')
                                 beacon_value = (switch_state_str == 'reverse')
                                 print(f"[BEACON DEBUG] Using switch_states dict: {switch_state_str} → {beacon_value}")
                             
@@ -3460,7 +3622,7 @@ class TrackModelUI(tk.Tk):
         path_description = f"from Block {from_block} to Block {to_block}"
         
         # Add more context if this is a known switch
-        if block_num in self.switch_blocks:
+        if block_num in self.data_manager.switch_blocks:
             if abs(to_block - from_block) == 1:
                 path_type = "main line"
             elif abs(to_block - from_block) > 10:
@@ -3605,7 +3767,7 @@ class TrackModelUI(tk.Tk):
             for block in active_beacons:
                 block_num = block.block_number
                 # Get switch state for this beacon
-                switch_state = self.switch_states.get(block_num, 'normal')
+                switch_state = self.data_manager.switch_states.get(block_num, 'normal')
                 beacon_value = (switch_state == 'reverse')
                 terminal.insert("end", f"Beacon{1 if block_num == 27 else 2} (Block {block_num}): {beacon_value} (switch: {switch_state})\n")
         else:
@@ -3630,6 +3792,7 @@ class TrackModelUI(tk.Tk):
         self.terminal.config(state="disabled")
 
     def PLCupload_file(self):
+        # Plcupload file method.
         from tkinter import filedialog
         filetypes = [
             ("Image files", "*.png *.jpg *.jpeg"),
@@ -3787,6 +3950,9 @@ class TrackModelUI(tk.Tk):
             # Redraw Green Line stations if applicable
             if hasattr(self, 'diagram_drawer'):
                 self.diagram_drawer.draw_green_line_stations()
+                self.diagram_drawer.draw_red_line_stations()
+                self.diagram_drawer.draw_green_line_crossings()
+                self.diagram_drawer.draw_red_line_crossings()
             # print(f"[UI]  Background image resized to {new_width}x{new_height}")
             # print(f"    Original: {original_width}x{original_height} (aspect: {original_aspect:.4f})")
             # print(f"    New aspect: {new_width/new_height:.4f} (difference: {abs(original_aspect - new_width/new_height):.6f})")
@@ -4367,7 +4533,7 @@ class TrackModelUI(tk.Tk):
         if self.train_icon:
             for idx, train_name in enumerate(self.data_manager.active_trains):
                 train_block = self.data_manager.train_locations[idx]
-                coords = self.block_positions_occupancy.get(train_block)
+                coords = self.diagram_drawer.get_block_position(train_block)
                 if coords:
                     x, y = coords
                     item = self.track_canvas.create_image(x, y, image=self.train_icon, anchor="center")
@@ -4674,9 +4840,12 @@ class TrackModelUI(tk.Tk):
         rows = []
         
         for b in self.data_manager.blocks:
-            has_switch = b.block_number in self.switch_blocks or getattr(b, "switch_state", False)
-            has_signal = b.block_number in self.light_states or getattr(b, "light_state", None) is not None
-            has_crossing = b.block_number in self.crossing_blocks or getattr(b, "crossing", False)
+            has_switch = b.block_number in self.data_manager.switch_blocks or getattr(b, "switch_state", False)
+            # Check which light set to use based on selected line
+            current_line = self.selected_line.get() if hasattr(self, "selected_line") else "Green Line"
+            light_set = self.data_manager.green_line_lights if "Green" in current_line else self.data_manager.red_line_lights
+            has_signal = b.block_number in light_set or getattr(b, "light_state", None) is not None
+            has_crossing = b.block_number in self.data_manager.crossing_blocks or getattr(b, "crossing", False)
             
             has_station = False
             infra = str(infra_map.get(b.block_number, "")).upper()
@@ -4763,19 +4932,6 @@ class TrackModelUI(tk.Tk):
         
         for row in rows:
             self.track_sys_tree.insert("", "end", values=row)
-
-
-    def _initialize_station_ticket_sales(self):
-        """Initialize random ticket sales for all stations (0-70)."""
-        for block_num, station_name in self.data_manager.station_location:
-            idx = block_num - 1
-            # Generate random ticket sales between 0-70
-            self.data_manager.ticket_sales[idx] = self.random.randint(0, 70)
-            # print(f"🎫 Station {station_name} (Block {block_num}): {self.data_manager.ticket_sales[idx]} tickets waiting")
-        
-        # Send initial ticket sales to CTC
-        for block_num, _ in self.data_manager.station_location:
-            self.send_station_data_to_ctc(block_num)
 
 
     def handle_train_arrival_at_station(self, block_num):
@@ -4899,7 +5055,7 @@ class TrackModelUI(tk.Tk):
                 return False
             
             # Get switch state for this beacon block
-            switch_state = self.switch_states.get(block_num, 'normal')
+            switch_state = self.data_manager.switch_states.get(block_num, 'normal')
             beacon_value = (switch_state == 'reverse')
             
             # Determine which beacon command to send
@@ -5510,7 +5666,7 @@ class TrackModelUI(tk.Tk):
         print(f"[BEACON DEBUG] Checking switch state sources:")
         print(f"[BEACON DEBUG]   1. block.switch_state (Test UI): {switch_state_bool} (type: {type(switch_state_bool).__name__})")
         print(f"[BEACON DEBUG]   2. block.switch_direction (Wayside): {switch_direction}")
-        print(f"[BEACON DEBUG]   3. switch_states dict: {self.switch_states.get(block_num, 'not set')}")
+        print(f"[BEACON DEBUG]   3. switch_states dict: {self.data_manager.switch_states.get(block_num, 'not set')}")
         
         current_beacon_value = False  # Default to normal
         source = "default"
@@ -5523,7 +5679,7 @@ class TrackModelUI(tk.Tk):
             source = "switch_direction (Wayside)"
             print(f"[BEACON DEBUG] ✓ Using switch_direction from Wayside: {switch_direction} → {current_beacon_value}")
         else:
-            switch_state_str = self.switch_states.get(block_num, 'normal')
+            switch_state_str = self.data_manager.switch_states.get(block_num, 'normal')
             current_beacon_value = (switch_state_str == 'reverse')
             source = "switch_states dictionary"
             print(f"[BEACON DEBUG] ✓ Using switch_states dictionary: {switch_state_str} → {current_beacon_value}")
@@ -5604,7 +5760,7 @@ class TrackModelUI(tk.Tk):
                     beacon1_value = (switch_direction == 'reverse')
                 else:
                     # Fallback to switch_states dictionary
-                    switch_state_str = self.switch_states.get(27, 'normal')
+                    switch_state_str = self.data_manager.switch_states.get(27, 'normal')
                     beacon1_value = (switch_state_str == 'reverse')
                 
                 self.server.send_to_ui("Train Model", {
@@ -5630,7 +5786,7 @@ class TrackModelUI(tk.Tk):
                     beacon2_value = (switch_direction == 'reverse')
                 else:
                     # Fallback to switch_states dictionary
-                    switch_state_str = self.switch_states.get(38, 'normal')
+                    switch_state_str = self.data_manager.switch_states.get(38, 'normal')
                     beacon2_value = (switch_state_str == 'reverse')
                 
                 self.server.send_to_ui("Train Model", {
@@ -5666,8 +5822,12 @@ class TrackModelUI(tk.Tk):
 
     def send_light_states_to_train_controller(self):
         """Send traffic light states to Train Controller as two-bit boolean arrays."""
+        # Get the appropriate light set based on selected line
+        current_line = self.selected_line.get() if hasattr(self, 'selected_line') else "Green Line"
+        light_set = self.data_manager.green_line_lights if "Green" in current_line else self.data_manager.red_line_lights
+        
         light_data = {}
-        for block_num in self.light_states:
+        for block_num in light_set:
             if block_num <= len(self.data_manager.blocks):
                 block = self.data_manager.blocks[block_num - 1]
                 # Check if block has power
@@ -5783,8 +5943,8 @@ class TrackModelUI(tk.Tk):
                                 pass
                         else:
                             # If no switch direction set, check switch_states dictionary
-                            if hasattr(self, 'switch_states') and 62 in self.switch_states:
-                                switch_direction = self.switch_states[62]
+                            if hasattr(self.data_manager, 'switch_states') and 62 in self.data_manager.switch_states:
+                                switch_direction = self.data_manager.switch_states[62]
                                 if switch_direction == "reverse":
                                     switch_allows_yard_entry = True
                                     # print(f" Switch at block 62 (from dict) is in REVERSE - allowing train spawn")
@@ -5991,9 +6151,9 @@ class TrackModelUI(tk.Tk):
                     
                     # Get the switch blocks for the current line
                     if line_indicator == 0:  # Green Line
-                        switch_blocks = sorted(self.switch_routing_green.keys())
+                        switch_blocks = sorted(self.data_manager.switch_routing_green.keys())
                     elif line_indicator == 1:  # Red Line
-                        switch_blocks = sorted([k for k in self.switch_routing_red.keys() if k not in [1, 16]])  # Exclude bidirectional entries
+                        switch_blocks = sorted([k for k in self.data_manager.switch_routing_red.keys() if k not in [1, 16]])  # Exclude bidirectional entries
                     else:
                         # print(f" Unknown line indicator: {line_indicator}")
                         switch_blocks = []
@@ -6013,11 +6173,11 @@ class TrackModelUI(tk.Tk):
                                 # print(f"   Updated switch at block {block_num}: {direction}")
                                 
                                 # Log the switch routing if available
-                                if line_indicator == 0 and block_num in self.switch_routing_green:
-                                    next_block = self.switch_routing_green[block_num][direction]
+                                if line_indicator == 0 and block_num in self.data_manager.switch_routing_green:
+                                    next_block = self.data_manager.switch_routing_green[block_num][direction]
                                     # print(f"   Switch {block_num}: {direction} → routes to block {next_block}")
-                                elif line_indicator == 1 and block_num in self.switch_routing_red:
-                                    next_block = self.switch_routing_red[block_num][direction]
+                                elif line_indicator == 1 and block_num in self.data_manager.switch_routing_red:
+                                    next_block = self.data_manager.switch_routing_red[block_num][direction]
                                     # print(f"   Switch {block_num}: {direction} → routes to block {next_block}")
                     
                     # Refresh UI to show switch updates
@@ -6044,8 +6204,8 @@ class TrackModelUI(tk.Tk):
                     # Get all blocks with crossings for the current line
                     # You'll need to determine which blocks have crossings
                     # For now, using crossing_blocks set if it exists
-                    if hasattr(self, 'crossing_blocks') and self.crossing_blocks:
-                        crossing_block_list = sorted(list(self.crossing_blocks))
+                    if hasattr(self, 'crossing_blocks') and self.data_manager.crossing_blocks:
+                        crossing_block_list = sorted(list(self.data_manager.crossing_blocks))
                     else:
                         # If no crossing_blocks set, you may need to define them
                         # Green Line example blocks with crossings (adjust as needed)
@@ -6099,10 +6259,10 @@ class TrackModelUI(tk.Tk):
                     
                     # Determine which blocks have lights based on current line
                     if "Green" in current_line:
-                        light_blocks = sorted(self.light_states)  # Green Line: {1, 62, 76, 100, 150}
+                        light_blocks = sorted(self.data_manager.green_line_lights)  # Green Line: {1, 62, 76, 100, 150}
                     else:
-                        # Red Line would have different light blocks - adjust as needed
-                        light_blocks = sorted(self.light_states)  # Use all light blocks
+                        # Red Line: {1, 10, 15, 28, 32, 39, 43, 53, 66, 67, 71, 72, 76}
+                        light_blocks = sorted(self.data_manager.red_line_lights)
                     
                     # Filter light blocks based on which controller sent the message
                     filtered_light_blocks = self.get_blocks_for_controller(source_ui_id, light_blocks)
@@ -6196,7 +6356,7 @@ class TrackModelUI(tk.Tk):
         
 
             # ============================================================            
-            # # PASSENGERS DISEMBARKING - From Train Model (Passenger_UI)            # Command format from Passenger_UI: {'command': 'Passenger Disembarking', 'value': disembarking}            # ============================================================            elif command == 'Passenger Disembarking' or command == 'Passengers Disembarking':                disembarking = value                                # Handle block_number if provided (legacy format)                if block_number is not None:                    idx = block_number - 1                    if 0 <= idx < len(self.data_manager.passengers_disembarking):                        if isinstance(disembarking, str):                            try:                                disembarking = int(disembarking)                            except (ValueError, TypeError):                                disembarking = 0                                                self.data_manager.passengers_disembarking[idx] = disembarking                        print(f" Passengers disembarking at block {block_number}: {disembarking}")                                                if block_number in self.station_blocks:                            self.send_station_data_to_ctc(block_number)                                                if hasattr(self, 'view_mode') and self.view_mode.get() == "station":                            self.populate_station_view()                else:                    # Passenger_UI doesn't send block_number, determine from train location                    if isinstance(disembarking, str):                        try:                            disembarking = int(disembarking)                        except (ValueError, TypeError):                            disembarking = 0                                        # Try to find the train                    train_id = message.get('train_id')                    if not train_id and self.data_manager.active_trains:                        train_id = self.data_manager.active_trains[-1]  # Most recent train                        print(f" No train_id, using {train_id}")                                        # Find train's current block                    if train_id and train_id in self.data_manager.active_trains:                        idx = self.data_manager.active_trains.index(train_id)                        if idx < len(self.data_manager.train_locations):                            block_num = self.data_manager.train_locations[idx]                            block_idx = block_num - 1                                                        if 0 <= block_idx < len(self.data_manager.passengers_disembarking):                                self.data_manager.passengers_disembarking[block_idx] = disembarking                                print(f" Passengers disembarking at block {block_num} (train {train_id}): {disembarking}")                                                                if block_num in self.station_blocks:                                    self.send_station_data_to_ctc(block_num)                                                                if hasattr(self, 'view_mode') and self.view_mode.get() == "station":                                    self.populate_station_view()                    else:                        print(f" Could not determine location for {disembarking} disembarking passengers")            
+            # # PASSENGERS DISEMBARKING - From Train Model (Passenger_UI)            # Command format from Passenger_UI: {'command': 'Passenger Disembarking', 'value': disembarking}            # ============================================================            elif command == 'Passenger Disembarking' or command == 'Passengers Disembarking':                disembarking = value                                # Handle block_number if provided (legacy format)                if block_number is not None:                    idx = block_number - 1                    if 0 <= idx < len(self.data_manager.passengers_disembarking):                        if isinstance(disembarking, str):                            try:                                disembarking = int(disembarking)                            except (ValueError, TypeError):                                disembarking = 0                                                self.data_manager.passengers_disembarking[idx] = disembarking                        print(f" Passengers disembarking at block {block_number}: {disembarking}")                                                if block_number in self.data_manager.station_blocks:                            self.send_station_data_to_ctc(block_number)                                                if hasattr(self, 'view_mode') and self.view_mode.get() == "station":                            self.populate_station_view()                else:                    # Passenger_UI doesn't send block_number, determine from train location                    if isinstance(disembarking, str):                        try:                            disembarking = int(disembarking)                        except (ValueError, TypeError):                            disembarking = 0                                        # Try to find the train                    train_id = message.get('train_id')                    if not train_id and self.data_manager.active_trains:                        train_id = self.data_manager.active_trains[-1]  # Most recent train                        print(f" No train_id, using {train_id}")                                        # Find train's current block                    if train_id and train_id in self.data_manager.active_trains:                        idx = self.data_manager.active_trains.index(train_id)                        if idx < len(self.data_manager.train_locations):                            block_num = self.data_manager.train_locations[idx]                            block_idx = block_num - 1                                                        if 0 <= block_idx < len(self.data_manager.passengers_disembarking):                                self.data_manager.passengers_disembarking[block_idx] = disembarking                                print(f" Passengers disembarking at block {block_num} (train {train_id}): {disembarking}")                                                                if block_num in self.data_manager.station_blocks:                                    self.send_station_data_to_ctc(block_num)                                                                if hasattr(self, 'view_mode') and self.view_mode.get() == "station":                                    self.populate_station_view()                    else:                        print(f" Could not determine location for {disembarking} disembarking passengers")            
             # ============================================================
             elif command in ['Passengers Disembarking', 'Passenger Disembarking']:
                 train_id = message.get('train_id')
@@ -6364,16 +6524,17 @@ class TrackModelUI(tk.Tk):
                                         self.log_to_terminal(f"[SWITCH UPDATE]   Normalized direction: {direction}")
                                     
                                     # Show routing path if configured
-                                    if hasattr(self, "switch_routing") and block_num in self.switch_routing:
-                                        next_block = self.switch_routing[block_num][direction]
+                                    switch_routing = self.data_manager.get_current_switch_routing(self.selected_line.get())
+                                    if switch_routing and block_num in switch_routing:
+                                        next_block = switch_routing[block_num][direction]
                                         # print(f"   Switch {block_num}: {direction} → routes to block {next_block} (from {source_ui_id})")
                                     # Store switch direction in block
                                     block.switch_direction = direction
                                     
                                     # Update switch states dictionary
-                                    if not hasattr(self, 'switch_states'):
-                                        self.switch_states = {}
-                                    self.switch_states[block_num] = direction
+                                    if not hasattr(self.data_manager, 'switch_states'):
+                                        self.data_manager.switch_states = {}
+                                    self.data_manager.switch_states[block_num] = direction
                                     
                                     # DEBUG: Confirm storage
                                     if block_num in [27, 32, 38, 43]:
@@ -6389,7 +6550,7 @@ class TrackModelUI(tk.Tk):
                                     # print(f"   Updated switch at block {block_num}: {direction} (from {source_ui_id})")
                                     
                                     # Mark block as having a switch
-                                    self.switch_blocks.add(block_num)
+                                    self.data_manager.switch_blocks.add(block_num)
                     
                     # Refresh relevant UI components
                     self.refresh_track_data_table()
@@ -6427,9 +6588,9 @@ class TrackModelUI(tk.Tk):
                         block_obj.switch_direction = direction
                         
                         # Update switch states dictionary
-                        if not hasattr(self, 'switch_states'):
-                            self.switch_states = {}
-                        self.switch_states[block] = direction
+                        if not hasattr(self.data_manager, 'switch_states'):
+                            self.data_manager.switch_states = {}
+                        self.data_manager.switch_states[block] = direction
                         
                         # DEBUG: Confirm storage
                         if block in [27, 32, 38, 43]:
@@ -6443,7 +6604,7 @@ class TrackModelUI(tk.Tk):
                             self.send_beacon_for_switch_change(block)
                         
                         # Mark block as having a switch
-                        self.switch_blocks.add(block)
+                        self.data_manager.switch_blocks.add(block)
                         
                         # print(f" Updated switch at block {block}: {direction} (from {source_ui_id})")
                         
