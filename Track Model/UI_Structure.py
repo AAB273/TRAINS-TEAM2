@@ -58,11 +58,9 @@ class TrackModelUI(tk.Tk):
             port=config["port"],
             ui_id="Track Model"
         )
-        self.server.set_allowed_connections(["Track SW","Track HW", "Train Model", "CTC", "Train HW","Train SW"])
+        self.server.set_allowed_connections(["Track SW","Track HW", "Train Model", "CTC"])
         self.server.start_server(self._process_message)
         self.server.connect_to_ui('localhost', 12341, "CTC")
-        #self.server.connect_to_ui('localhost', 12346, "Train SW")
-        #self.server.connect_to_ui('localhost', 12347, "Train HW")
         self.server.connect_to_ui('localhost', 12345, "Train Model")
         self.server.connect_to_ui('localhost', 12342,  'Track SW')
         self.server.connect_to_ui('localhost', 12343,'Track HW')
