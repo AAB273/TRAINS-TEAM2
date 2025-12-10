@@ -318,7 +318,7 @@ class TestUI:
         except ValueError:
             self.status_label.config(text="Invalid block number")
     
-    def send_beacon(self, beacon_name, state):
+    def send_beacon(self, beacon_name, state): #lucas
         """Send beacon signal (Beacon1 or Beacon2)"""
         # Beacons are sent without train_id since they're track-level signals
         message = {

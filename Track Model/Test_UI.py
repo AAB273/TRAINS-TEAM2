@@ -107,7 +107,7 @@ class TrackModelTestUI(tk.Toplevel):
         
         state_str = "Activated" if state else "Deactivated"
         if success:
-            print(f"[BEACON] ✓ {beacon_name} {state_str} - sent to Train Model")
+            print(f"[BEACON] ✓ {beacon_name} {state_str} - sent to Train Model") #lucas
             self.status_label.config(text=f"✅ {beacon_name} {state_str}", fg="green")
         else:
             print(f"[BEACON] ✗ Failed to send {beacon_name}")
