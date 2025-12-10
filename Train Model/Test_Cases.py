@@ -260,15 +260,15 @@ class Testing(unittest.TestCase):
         except AssertionError:
             print("Test failed:", message['command'], "not set correctly")
             raise
-    
-    def test_moving_socket_message(self):
+
+    def test_e_brake_socket_message(self):
         """
         Test that when a 'Service Brake' command is received through the socket, the train correctly sets its service brake bool.
         """
         # Simulate the socket message
         message = {
-            'command': 'Power Command',
-            'value': 100,
+            'command': 'Emergency Brake',
+            'value': True,
             'train_id': 1
         }
         
@@ -279,29 +279,44 @@ class Testing(unittest.TestCase):
         
         train = self.train_manager.getTrain(train_id)
         
-        if command == 'Power Command':
-            train.setPowerCommand(value)
+        if command == 'Emergency Brake':
+            train.setEmergencyBrake(value)
         
-        message = {
-            'command': 'Commanded Authority',
-            'value': 100,
-            'train_id': 1
-        }
-        
-        command = message.get('command')
-        value = message.get('value')
-        train_id = message.get('train_id')
-
-        if command == 'Commanded Authority':
-            train.setAuthority(value)
         # Verify the train has the correct commanded speed
-        i=0
-        for i in range(5):
-            print("Train Speed",train.speed)
-            i =+ 1
-
-        print("Test passed: Train Is moving!")
-
+        print("\nTesting message",message['command'])
+        try:
+            self.assertEqual(train.emergencyBrakeActive, True)
+            print("Test passed:", message['command'], "set correctly")
+        except AssertionError:
+            print("Test failed:", message['command'], "not set correctly")
+            raise
+    
+    
+    def test_ui_100ms_updates(self):
+        """Test exactly what happens with 100ms UI updates."""
+        # Enable movement
+        self.train.powerCommand = 50000
+        self.train.serviceBrakeActive = False
+        
+        # Store initial values
+        initial_speed = self.train.speed
+        initial_distance = self.train.distanceLeft
+        
+        print("\n=== Testing 100ms UI Updates ===")
+        
+        # Simulate 1 second of UI updates (10 x 100ms)
+        for i in range(10):
+            self.train.calculateForceSpeedAccelerationDistance(dt=0.1)
+            print(f"After {i+1} updates: Speed={self.train.speed:.2f} m/s")
+        
+        # Assertions
+        self.assertGreater(self.train.speed, initial_speed,
+                          "Train should accelerate with power applied")
+        
+        print(f"\nResults:")
+        print(f"  Speed increased from {initial_speed:.1f} to {self.train.speed:.1f} m/s")
+        
+        return True
 
 if __name__ == '__main__':
     unittest.main()
