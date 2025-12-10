@@ -426,8 +426,8 @@ class TrainModelPassengerGUI:
 		elif self.failureTrainEngineVar.get() == 0:
 			self.currentTrain.setEngineFailure(False)
 			print(f"Train Engine Failure Deactivated")
-			self.server.send_to_ui("Train SW", {"Train Engine Failure", 0})
-			self.server.send_to_ui("Train HW", {"Train Engine Failure", 0})
+			self.server.send_to_ui("Train SW", {'command': "Train Engine Failure", 'value': 0})
+			self.server.send_to_ui("Train HW", {'command': "Train Engine Failure", 'value': 0})
 
 	def updateFailureSignal(self):
 		# Updates signal pickup failure state when checkbox changes.
