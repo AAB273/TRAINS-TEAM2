@@ -47,13 +47,10 @@ def launch_four_guis():
         print("🛠️ Launching Wayside HW UI...")
         processes[2] = subprocess.Popen([sys.executable, WAYSIDE_HW_UI_PATH])
         
-<<<<<<< HEAD
         #Launch Track Model UI
         print("🛤️ Launching Track Model UI...")
-=======
         # Launch Track Model UI
         # print("🛤️ Launching Track Model UI...")
->>>>>>> b179c488e27482255f1adbf7f093cdb8c1f3413b
         processes[3] = subprocess.Popen([sys.executable, TRACK_MODEL_UI_PATH])
         
         print("\n✅ All 4 GUIs launched successfully!")

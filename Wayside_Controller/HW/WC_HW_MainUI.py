@@ -482,11 +482,11 @@ def handle_ctc_suggested_speed(speed_data):
             formatted_speed = round(suggested_speed, 3)
             add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.2f} mph")
             # Message log
-            message_logger.log(add_to_message_log, "INFO")
+            # message_logger.log(add_to_message_log, "INFO")
             
             # Update display
             update_suggested_speed_display(formatted_speed)
-            update_suggested_speed_display(formatted_speed)
+            
             return formatted_speed
         else:
             add_to_message_log("ERROR: Could not extract speed from CTC message")
@@ -495,58 +495,7 @@ def handle_ctc_suggested_speed(speed_data):
         add_to_message_log(f"ERROR: Processing CTC speed message - {e}")
 
     return None
-    # def handle_ctc_suggested_speed(speed_data):
-    #     """
-    #     Handle CTC suggested speed messages and convert to float with 3 decimal places
-    #     Expected formats:
-    #     - String: "track HW", {"Suggested_speed", "float: new_speed"}
-    #     - Dictionary: {'Suggested_speed': 'float: 45.5'}
-    #     - Direct string: "float: 45.5"
-    #     """
-    #     try:
-    #         suggested_speed = None
-        
-    #         # Handle different input formats
-    #         if isinstance(speed_data, str):
-    #             # Extract float value from string format
-    #             if "float:" in speed_data:
-    #                 # Find the float value in the string
-    #                 import re
-    #                 float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_data)
-    #                 if float_match:
-    #                     speed_str = float_match.group(1)
-    #                     suggested_speed = float(speed_str)
-    #             else:
-    #                 # Try direct conversion if it's just a number string
-    #                 suggested_speed = float(speed_data)
-                
-    #         elif isinstance(speed_data, dict):
-    #             # Handle dictionary format
-    #             if 'Suggested_speed' in speed_data:
-    #                 speed_value = speed_data['Suggested_speed']
-    #                 if isinstance(speed_value, str) and "float:" in speed_value:
-    #                     speed_str = speed_value.split("float:")[1].strip()
-    #                     suggested_speed = float(speed_str)
-    #                 else:
-    #                     suggested_speed = float(speed_value)
-    #             elif 'value' in speed_data:
-    #                 # Alternative dictionary format
-    #                 suggested_speed = float(speed_data['value'])
-        
-    #         # Format to 3 decimal places if conversion was successful
-    #         if suggested_speed is not None:
-    #             formatted_speed = round(suggested_speed, 3)
-    #             add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.2f} mph")
-    #             return formatted_speed
-    #         else:
-    #             add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
-            
-    #     except ValueError as e:
-    #         add_to_message_log(f"ERROR: Invalid speed format - {e}", "ERROR")
-    #     except Exception as e:
-    #         add_to_message_log(f"ERROR: Processing CTC speed message - {e}", "ERROR")
     
-    # return None
 
 ##############################################################################################################################
 ###############################################################################################################################
