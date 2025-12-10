@@ -1574,6 +1574,98 @@ class TrackModelUI(tk.Tk):
             terminal.see("end")
             terminal.config(state="disabled")
     
+    def _update_single_switch(self, block_num, direction, source_ui_id):
+        """
+        Helper method to update a single switch state.
+        Handles all switch update logic in one place.
+        
+        Args:
+            block_num: Block number containing the switch
+            direction: Switch direction (0/1 for switch 76 and 85, or string direction)
+            source_ui_id: Source of the update ("Track SW" or "Track HW")
+        """
+        # Only process switches that belong to this controller
+        if source_ui_id == "Track SW" and not self.is_track_sw_block(block_num):
+            print(f"[SWITCH] Ignoring block {block_num} - belongs to Track HW")
+            return
+        elif source_ui_id == "Track HW" and self.is_track_sw_block(block_num):
+            print(f"[SWITCH] Ignoring block {block_num} - belongs to Track SW")
+            return
+        
+        if 1 <= block_num <= len(self.data_manager.blocks):
+            block = self.data_manager.blocks[block_num - 1]
+            
+            print(f"[SWITCH] Block {block_num}: Raw direction = {repr(direction)}")
+            
+            # Special handling for switches 76 and 85 with specific direction strings
+            if block_num == 76:
+                # Switch 76: 0 = "76-77" (M->N), 1 = "77-101" (N->R)
+                if direction in [0, "0", False, "normal"]:
+                    normalized_direction = "76-77"
+                elif direction in [1, "1", True, "reverse"]:
+                    normalized_direction = "77-101"
+                elif isinstance(direction, str) and '-' in direction:
+                    normalized_direction = direction
+                else:
+                    normalized_direction = "76-77"  # Default
+            
+            elif block_num == 85:
+                # Switch 85: 0 = "85-86" (N->O), 1 = "100-85" (Q->N)
+                if direction in [0, "0", False, "normal"]:
+                    normalized_direction = "85-86"
+                elif direction in [1, "1", True, "reverse"]:
+                    normalized_direction = "100-85"
+                elif isinstance(direction, str) and '-' in direction:
+                    normalized_direction = direction
+                else:
+                    normalized_direction = "85-86"  # Default
+            
+            else:
+                # For other switches, use standard normalization
+                if isinstance(direction, str):
+                    # If it's already in "XX-YY" format, keep it
+                    if '-' in direction:
+                        normalized_direction = direction
+                    elif direction in ["normal", "0"]:
+                        normalized_direction = "normal"
+                    elif direction in ["reverse", "1"]:
+                        normalized_direction = "reverse"
+                    else:
+                        normalized_direction = "normal"
+                elif direction in [False, 0, "0"]:
+                    normalized_direction = "normal"
+                elif direction in [True, 1, "1"]:
+                    normalized_direction = "reverse"
+                else:
+                    normalized_direction = "normal"
+            
+            print(f"[SWITCH] Block {block_num}: Normalized direction = {normalized_direction}")
+            
+            # Store switch direction in block
+            block.switch_direction = normalized_direction
+            
+            # Update switch states dictionary
+            if not hasattr(self.data_manager, 'switch_states'):
+                self.data_manager.switch_states = {}
+            self.data_manager.switch_states[block_num] = normalized_direction
+            
+            # Show routing path if configured
+            switch_routing = self.data_manager.get_current_switch_routing(self.selected_line.get())
+            if switch_routing and block_num in switch_routing:
+                if normalized_direction in switch_routing[block_num]:
+                    next_block = switch_routing[block_num][normalized_direction]
+                    print(f"[SWITCH] Block {block_num}: {normalized_direction} → routes to block {next_block}")
+            
+            # Send beacon if this is a beacon block (27 or 38) and occupied
+            if block_num in [27, 38]:
+                print(f"[BEACON] Switch {block_num} updated, checking for beacon transmission")
+                self.send_beacon_for_switch_change(block_num)
+            
+            # Mark block as having a switch
+            self.data_manager.switch_blocks.add(block_num)
+            
+            print(f"[SWITCH] Block {block_num}: Update complete ✓")
+
     def update_switch_display(self):
         """Update the display of switch states in the UI."""
         # print(f"[DEBUG] update_switch_display called")
@@ -3491,11 +3583,17 @@ class TrackModelUI(tk.Tk):
         try:
             update = {block_num: occupancy}
             
-            # Send to Train Model (keep existing format for Train Model)
-            self.server.send_to_ui("Train Model", {
+            # Send to Train Model with train ID included
+            occupancy_message = {
                 "command": "block_occupancy",
                 "value": update
-            })
+            }
+            
+            # Include train_id if block is occupied
+            if occupancy != 0:
+                occupancy_message["train_id"] = str(occupancy)
+            
+            self.server.send_to_ui("Train Model", occupancy_message)
             
             # Send to Track SW (Wayside Controller) in the exact format required
             # Flat structure with track, block, occupied fields
@@ -4051,7 +4149,7 @@ class TrackModelUI(tk.Tk):
         
         # Clear existing markers
         for block_num in list(self.block_markers.keys()):
-            if self.block_markers[block_num]:
+            if block_num in self.block_markers and self.block_markers[block_num]:
                 self.track_canvas.delete(self.block_markers[block_num])
         
         self.block_markers = {}
@@ -6142,8 +6240,12 @@ class TrackModelUI(tk.Tk):
             # Example: [0, 1, 0, 1, 1, 1, 1] for Green Line switches
             # ============================================================
             elif command == 'switch_states':
-                if isinstance(value, list) and len(value) >= 1:
-                    # First element is line indicator
+                # Check if this is the NEW simple format (2-element array for switches 76 and 85)
+                if isinstance(value, list) and len(value) == 2:
+                    # Skip this - let the new handler below process it
+                    pass
+                elif isinstance(value, list) and len(value) >= 1:
+                    # OLD FORMAT: First element is line indicator
                     line_indicator = value[0]
                     line_name = "Green Line" if line_indicator == 0 else "Red Line" if line_indicator == 1 else "Unknown"
                     
@@ -6182,7 +6284,8 @@ class TrackModelUI(tk.Tk):
                     
                     # Refresh UI to show switch updates
                     self.refresh_bidirectional_controls()
-                    self.refresh_ui()
+                    self.refresh_track_data_table()
+                    self.refresh_track_system_table()
                     # print(f"[DEBUG] update_switch_display called")
                 else:
                     pass
@@ -6462,100 +6565,33 @@ class TrackModelUI(tk.Tk):
                 switches = message.get('switches', value)
                 
                 if switches:
-                    # print(f" Received switch states from {source_ui_id}")
+                    print(f"\n[SWITCH STATES] Received from {source_ui_id}")
+                    print(f"[SWITCH STATES] Raw data: {switches}")
                     
-                    # Handle array of switch states
-                    if isinstance(switches, list):
-                        # Determine which line we're on
-                        current_line = getattr(self, 'selected_line', None)
-                        is_red_line = current_line and current_line.get() == "Red Line"
+                    # SIMPLE FORMAT: 2-element boolean array for switches 76 and 85
+                    # Format: [switch_76_state, switch_85_state]
+                    # 0 = normal position, 1 = reverse position
+                    # Example: [0, 1] means switch 76 in normal, switch 85 in reverse
+                    
+                    if isinstance(switches, list) and len(switches) == 2:
+                        print(f"[SWITCH STATES] Format: 2-element array (switches 76 and 85)")
                         
-                        # Define switch block mapping based on current line
-                        if is_red_line:
-                            # Red Line switch mapping
-                            switch_block_mapping = {
-                                0: 9,    # Yard switch
-                                1: 15,   # Loop switch (1-15-16)
-                                2: 27,   # Branch switch
-                                3: 32,   # Branch switch
-                                4: 38,   # Branch switch
-                                5: 43,   # Branch switch
-                                6: 52,   # Loop switch (52-53-66)
-                            }
-                        else:
-                            # Green Line switch mapping
-                            switch_block_mapping = {
-                                0: 13,   # Switch at block 13 (actually housed at 12)
-                                1: 29,   # Switch at block 29 (actually housed at 28)
-                                2: 57,   # Switch at block 57 (actually housed at 58)
-                                3: 63,   # Switch at block 63 (actually housed at 62)
-                                4: 77,   # Switch at block 77 (actually housed at 76)
-                                5: 85,   # Switch at block 85
-                            }
+                        # Index 0 = Switch 76
+                        switch_76_state = switches[0]
+                        self._update_single_switch(76, switch_76_state, source_ui_id)
                         
-                        for idx, direction in enumerate(switches):
-                            if idx in switch_block_mapping:
-                                block_num = switch_block_mapping[idx]
-                                
-                                # Only process switches that belong to this controller
-                                if source_ui_id == "Track SW" and not self.is_track_sw_block(block_num):
-                                    continue  # Skip - this switch belongs to Track HW
-                                elif source_ui_id == "Track HW" and self.is_track_sw_block(block_num):
-                                    continue  # Skip - this switch belongs to Track SW
-                                
-                                if 1 <= block_num <= len(self.data_manager.blocks):
-                                    block = self.data_manager.blocks[block_num - 1]
-                                    
-                                    # DEBUG: Log what we received for Red Line switches
-                                    if block_num in [27, 32, 38, 43]:
-                                        self.log_to_terminal(f"[SWITCH UPDATE] Received update for block {block_num}")
-                                        self.log_to_terminal(f"[SWITCH UPDATE]   Raw direction: {repr(direction)}")
-                                    
-                                    # Normalize direction for consistency
-                                    if direction in ["normal", False, 0, "0"]:
-                                        direction = "normal"
-                                    elif direction in ["reverse", True, 1, "1"]:
-                                        direction = "reverse"
-                                    else:
-                                        direction = "normal"
-                                    
-                                    # DEBUG: Log normalized direction
-                                    if block_num in [27, 32, 38, 43]:
-                                        self.log_to_terminal(f"[SWITCH UPDATE]   Normalized direction: {direction}")
-                                    
-                                    # Show routing path if configured
-                                    switch_routing = self.data_manager.get_current_switch_routing(self.selected_line.get())
-                                    if switch_routing and block_num in switch_routing:
-                                        next_block = switch_routing[block_num][direction]
-                                        # print(f"   Switch {block_num}: {direction} → routes to block {next_block} (from {source_ui_id})")
-                                    # Store switch direction in block
-                                    block.switch_direction = direction
-                                    
-                                    # Update switch states dictionary
-                                    if not hasattr(self.data_manager, 'switch_states'):
-                                        self.data_manager.switch_states = {}
-                                    self.data_manager.switch_states[block_num] = direction
-                                    
-                                    # DEBUG: Confirm storage
-                                    if block_num in [27, 32, 38, 43]:
-                                        self.log_to_terminal(f"[SWITCH UPDATE]   Stored in switch_states[{block_num}] = '{direction}'")
-                                    
-                                    # Send beacon if this is a beacon block (27 or 38) and occupied
-                                    if block_num in [27, 38]:
-                                        print(f"\n[BEACON DEBUG] Switch update received for beacon block {block_num}")
-                                        print(f"[BEACON DEBUG] New direction: {direction}")
-                                        print(f"[BEACON DEBUG] Calling send_beacon_for_switch_change({block_num})...")
-                                        self.send_beacon_for_switch_change(block_num)
-                                    
-                                    # print(f"   Updated switch at block {block_num}: {direction} (from {source_ui_id})")
-                                    
-                                    # Mark block as having a switch
-                                    self.data_manager.switch_blocks.add(block_num)
+                        # Index 1 = Switch 85
+                        switch_85_state = switches[1]
+                        self._update_single_switch(85, switch_85_state, source_ui_id)
+                    
+                    else:
+                        print(f"[SWITCH STATES] Warning: Expected 2-element array, got {len(switches) if isinstance(switches, list) else 'non-list'}")
                     
                     # Refresh relevant UI components
                     self.refresh_track_data_table()
                     self.refresh_track_system_table()
                     self.update_switch_display()
+                    print(f"[SWITCH STATES] Processing complete\n")
             
             elif command == 'update_switch':
                 # Handle individual switch updates
