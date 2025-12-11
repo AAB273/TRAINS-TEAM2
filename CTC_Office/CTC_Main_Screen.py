@@ -76,7 +76,9 @@ class MainScreen:
         self.server.connect_to_ui('localhost', 12342, "Track SW")
         self.server.connect_to_ui('localhost', 12343, "Track HW")
         self.server.connect_to_ui('localhost', 12344, "Track Model")
-        self.server.connect_to_ui('localhost', 12345, "CTC_Test_UI")
+        self.server.connect_to_ui('localhost', 12345, "Train Model")
+        self.server.connect_to_ui('localhost', 12346, "Train SW")
+        self.server.connect_to_ui('localhost', 12347, "Train HW")
 
         self.createTopRow()
         #print the logo, reference map button, time
@@ -98,7 +100,8 @@ class MainScreen:
         if success:
             print(f"Sent {data["command"]} to {target_ui}")
         else:
-            print(f"Failed to send {data["command"]} to {target_ui}")
+            if (not data["command"] == "TIME"):
+                print(f"Failed to send {data["command"]} to {target_ui}")
 
         return success
     
