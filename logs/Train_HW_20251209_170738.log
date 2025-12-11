@@ -1,0 +1,51 @@
+=== Train HW ===
+Start time: 2025-12-09 17:07:38
+Python: /bin/python3
+Script: /mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2/HW_Train_Controller/TC_HW_MainUI.py
+Directory: /mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2
+==================================================
+
+============================================================
+Train Control System - Windows Hardware Controller
+============================================================
+
+[ERROR] Line selection is required to proceed!
+
+[ERROR] Line selection is required to proceed!
+
+[ERROR] Line selection is required to proceed!
+
+[ERROR] Line selection is required to proceed!
+
+[ERROR] Line selection is required to proceed!
+
+[LINE SELECTION] RED LINE Selected
+[INIT] RED LINE - Underground lighting system loaded: 33 underground blocks
+[INIT] RED LINE - Station door system loaded: 8 stations configured
+[INIT] RED LINE - Complete route with switch logic for beacons
+[INIT] Starting at block 8 (Underground: False)
+Connecting to GPIO Server at 10.6.9.132:12348
+============================================================
+UI Train HW can communicate with: {'Train SW', 'Train Model'}
+Train GUI Server Train HW listening on port 12347
+✓ Train Controller HW server started on port 12347
+✓ Connected to GPIO Server at 10.6.9.132:12348
+✓ Power Engineer Panel initialized (Kp=15.0, Ki=3.0, MaxPower=120kW)
+Failed to connect to Train Model: [Errno 111] Connection refused
+✓ Connected to Train Model
+Position tracking initialized
+Starting segment: YARD → SHADYSIDE
+Initial distance to station: 37.5m
+[DIAGNOSTIC 1] commandedSpeed: 0 MPH, currentSpeed: 0 m/s, drivetrainManualMode: False, autoModeEnabled: True
+[DIAGNOSTIC 2] commandedSpeed: 0 MPH, currentSpeed: 0 m/s, drivetrainManualMode: False, autoModeEnabled: True
+[DIAGNOSTIC 3] commandedSpeed: 0 MPH, currentSpeed: 0 m/s, drivetrainManualMode: False, autoModeEnabled: True
+[DIAGNOSTIC 4] commandedSpeed: 0 MPH, currentSpeed: 0 m/s, drivetrainManualMode: False, autoModeEnabled: True
+[DIAGNOSTIC 5] commandedSpeed: 0 MPH, currentSpeed: 0 m/s, drivetrainManualMode: False, autoModeEnabled: True
+Decelerating for SHADYSIDE: 37.5m, target 0.0 MPH
+
+[INIT] Sending Service Brake: False to Train Model
+[INIT] Service brake command sent
+
+
+Closing application...
+Socket server Train HW stopped
