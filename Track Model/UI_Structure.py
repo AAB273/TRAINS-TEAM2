@@ -155,9 +155,9 @@ def _immediate_boarding_test(app):
             result = app.send_passengers_boarding_to_train_model(block_num, "1")
             
             if result:
-                print("✓ TEST SCHEDULED - Boarding data will be sent in 15 seconds!\n")
+                print("✓ TEST PASSED - Boarding data sent successfully!\n")
             else:
-                print("✗ TEST FAILED - Could not schedule boarding data\n")
+                print("✗ TEST FAILED - Could not send boarding data\n")
         else:
             print("⚠️  No stations found for testing\n")
     else:
@@ -5083,15 +5083,18 @@ class TrackModelUI(tk.Tk):
 
     def handle_train_arrival_at_station(self, block_num, train_id=None):
         """
-        Handle when a train arrives at a station.
+        Handle when a train stops at a station (authority reaches 0).
         - Generates random passengers boarding (0 to ticket_sales)
-        - Sends boarding count to Train Model (after 15 second delay)
+        - Sends boarding count to Train Model immediately
         - Resets ticket sales to new random value (0-70)
         - Sends updated station data to CTC
         
+        This is ONLY called when a train's authority reaches 0 at a station,
+        not when a train simply enters the station block.
+        
         Args:
-            block_num (int): Block number where train arrived
-            train_id (str): ID of the train that arrived (optional)
+            block_num (int): Block number where train stopped
+            train_id (str): ID of the train that stopped (optional)
         """
         # Check if this block is a station
         station_info = next((s for s in self.data_manager.station_location if s[0] == block_num), None)
@@ -5145,7 +5148,6 @@ class TrackModelUI(tk.Tk):
         """
         Send passengers boarding for a specific station block to Train Model.
         Called when a train stops at a station (authority reaches 0).
-        Waits 15 seconds before sending to allow doors to open.
         
         Args:
             block_num (int): Block number of the station
@@ -5173,7 +5175,7 @@ class TrackModelUI(tk.Tk):
                         break
             
             # Prepare message for Train Model
-            # Convert train_id to int (train IDs are stored as strings like "1", "2", "3")
+            # Convert train_id to int (train IDs are now stored as integers)
             train_id_int = int(train_id) if train_id else None
             
             boarding_message = {
@@ -5182,16 +5184,10 @@ class TrackModelUI(tk.Tk):
                 'train_id': train_id_int
             }
             
-            # Schedule sending after 15 second delay (15000 milliseconds)
-            def send_after_delay():
-                self.server.send_to_ui("Train Model", boarding_message)
-                print(f"Sent passengers boarding to Train Model:")
-                print(f"   Train {train_id_int}: {passenger_count} passengers")
-            
-            # Use tkinter's after() to delay by 15 seconds
-            self.after(15000, send_after_delay)
-            
-            print(f"Scheduled boarding message for Train {train_id_int} (sending in 15 seconds)...")
+            # Send immediately (no delay)
+            self.server.send_to_ui("Train Model", boarding_message)
+            print(f"Sent passengers boarding to Train Model:")
+            print(f"   Train {train_id_int}: {passenger_count} passengers")
             
             return True
             
@@ -5246,8 +5242,9 @@ class TrackModelUI(tk.Tk):
 
     def monitor_station_occupancy(self):
         """
-        Monitor block occupancy at stations.
-        When a train arrives (occupancy changes from 0 to non-zero), handle boarding.
+        Monitor block occupancy at stations for tracking purposes.
+        Note: Passenger boarding is handled separately in monitor_train_authority_for_boarding()
+        when a train's authority reaches 0 at a station.
         """
         # Initialize previous occupancy tracking if not exists
         if not hasattr(self, '_previous_station_occupancy'):
@@ -5275,9 +5272,12 @@ class TrackModelUI(tk.Tk):
                 
                 # Detect train arrival (occupancy changed from 0 to non-zero)
                 if previous_occupancy == 0 and current_occupancy != 0:
+                    # Train entered the station block
+                    # Note: Passenger boarding is handled separately when authority reaches 0
+                    # in monitor_train_authority_for_boarding()
+                    pass
                     # print(f"\n === TRAIN ARRIVAL DETECTED ===")
                     # print(f"   Train {current_occupancy} arrived at {station_name} (Block {block_num})")
-                    self.handle_train_arrival_at_station(block_num)
                     # print(f"   === TRAIN ARRIVAL HANDLED ===\n")
                 
                 # Update previous occupancy
@@ -6495,15 +6495,6 @@ class TrackModelUI(tk.Tk):
                         self.update_occupied_blocks_display()
                     
                     print(f"INFO: Auto-created train with ID {new_train_id}")
-
-                # ---------------------------
-                # 3. Convert mph → m/s
-                # ---------------------------
-                try:
-                    speed_ms = float(speed) * 0.44704
-                except:
-                    print(f"ERROR: Invalid speed value received: {speed}")
-                    return
 
                 # ---------------------------
                 # 4. Store the ACTUAL speed
