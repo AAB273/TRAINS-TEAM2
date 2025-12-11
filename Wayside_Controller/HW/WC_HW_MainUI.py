@@ -517,7 +517,10 @@ def _process_message(data, connection=None, server_instance=None):
         
         elif command == 'update_crossing' or command == 'crossing_state':
             handle_track_model_crossing(value)
-        
+
+        elif command == 'failure_modes':
+            handle_track_failures(value)
+
         elif command == 'block_occupancy' or command == 'Block Occpancy':
             handle_block_occupancy(value)
         
@@ -3800,45 +3803,6 @@ class RightPanel(tk.Frame):
             #     self.block_combo.set(blocks[0])
             # self.update_current_block_info()
 
-    def update_block_errors_display(track_circuit, broken_rail, power):
-        """
-        Update the Block Errors display in the left panel.
-        Shows current active failures grouped by type.
-        """
-        if not hasattr(right_panel, 'block_errors_text'):
-            return
-    
-        try:
-            # Clear existing display
-            right_panel.block_errors_text.config(state='normal')
-            right_panel.block_errors_text.delete('1.0', 'end')
-        
-        # Display failures by type
-            if track_circuit:
-                right_panel.block_errors_text.insert('end', "Track Circuit Failures:\n", 'error_header')
-                for block in track_circuit:
-                    right_panel.block_errors_text.insert('end', f"  • Block {block}\n", 'error_detail')
-                right_panel.block_errors_text.insert('end', "\n")
-        
-            if broken_rail:
-                right_panel.block_errors_text.insert('end', "Broken Rail Failures:\n", 'error_header')
-                for block in broken_rail:
-                    right_panel.block_errors_text.insert('end', f"  • Block {block}\n", 'error_detail')
-                right_panel.block_errors_text.insert('end', "\n")
-        
-            if power:
-                right_panel.block_errors_text.insert('end', "Power Failures:\n", 'error_header')
-                for block in power:
-                    right_panel.block_errors_text.insert('end', f"  • Block {block}\n", 'error_detail')
-                right_panel.block_errors_text.insert('end', "\n")
-        
-            if not (track_circuit or broken_rail or power):
-                right_panel.block_errors_text.insert('end', "✓ No active failures\n", 'normal')
-        
-            right_panel.block_errors_text.config(state='disabled')
-        
-        except Exception as e:
-            print(f"Error updating block errors display: {e}")
 
     def on_block_selected(self, event):
         """When a block is selected from dropdown"""
@@ -4442,7 +4406,7 @@ class RightPanel(tk.Frame):
         
         for block_num in blocks_outbound:
             self.commanded_authority[current_line][str(block_num)] = f"{authority} blocks"
-            self.commanded_speed[current_line][str(block_num)] = "31 mph" if authority > 0 else "0 mph"
+            self.commanded_speed[current_line][str(block_num)] = "25 mph" if authority > 0 else "0 mph"
             authority -= 1
         
         # Return: Station (96) back to Yard (57)
@@ -4451,7 +4415,7 @@ class RightPanel(tk.Frame):
         
         for block_num in blocks_return:
             self.commanded_authority[current_line][str(block_num)] = f"{authority} blocks"
-            self.commanded_speed[current_line][str(block_num)] = "31 mph" if authority > 0 else "0 mph"
+            self.commanded_speed[current_line][str(block_num)] = "25 mph" if authority > 0 else "0 mph"
             authority -= 1
         
         # Final destinations
