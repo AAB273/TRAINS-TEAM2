@@ -97,8 +97,9 @@ def _enable_debug_mode(app):
         pass
     
     print("\n" + "🔧"*35)
-    print("PASSENGER BOARDING DEBUG MODE ENABLED")
+    print("PASSENGER BOARDING DEBUG MODE ENABLED (Logging Only)")
     print(f"All messages to Train Model will be logged to: {_DEBUG_LOG_FILE}")
+    print("Immediate tests disabled - trains will stop at stations naturally")
     print("🔧"*35 + "\n")
     
     # Wrap the send method
@@ -107,8 +108,8 @@ def _enable_debug_mode(app):
         app.server.send_to_ui = lambda ui_name, msg: _wrapped_send_to_ui(app.server, ui_name, msg)
         print("✓ Wrapped server.send_to_ui() method\n")
     
-    # Immediate test
-    _immediate_boarding_test(app)
+    # Immediate test - DISABLED (trains should only stop at stations naturally)
+    # _immediate_boarding_test(app)
 
 def _immediate_boarding_test(app):
     """Immediately send a test boarding message"""
@@ -5144,6 +5145,22 @@ class TrackModelUI(tk.Tk):
         self.send_station_data_to_ctc(block_num)
 
 
+    def get_station_name_from_block(self, block_num):
+        """
+        Get the station name for a given block number.
+        
+        Args:
+            block_num (int): Block number
+            
+        Returns:
+            str: Station name if found, or "Unknown Station" if not found
+        """
+        if hasattr(self.data_manager, 'station_location'):
+            for blk_num, station_name in self.data_manager.station_location:
+                if blk_num == block_num:
+                    return station_name
+        return "Unknown Station"
+
     def send_passengers_boarding_to_train_model(self, block_num, train_id=None):
         """
         Send passengers boarding for a specific station block to Train Model.
@@ -5188,6 +5205,10 @@ class TrackModelUI(tk.Tk):
             self.server.send_to_ui("Train Model", boarding_message)
             print(f"Sent passengers boarding to Train Model:")
             print(f"   Train {train_id_int}: {passenger_count} passengers")
+            
+            # Log to Event Log
+            station_name = self.get_station_name_from_block(block_num)
+            self.log_to_terminal(f"🚉 Train {train_id_int} stopped at {station_name} (Block {block_num}) - {passenger_count} passengers boarding")
             
             return True
             
@@ -5447,14 +5468,14 @@ class TrackModelUI(tk.Tk):
         # Update UI elements if they exist
         if hasattr(self, 'train_combo'):
             self.train_combo["values"] = self.data_manager.active_trains
-            self.train_combo.set(train_name)
+            self.train_combo.set(train_id)
         
         # Send creation notification to other modules
         try:
             # Send new train notification (without speed/authority)
             self.server.send_to_ui("Train Model", {
                 "command": "new_train",
-                "train_id": train_name,
+                "train_id": train_id,
                 "block_number": 63
             })
             
@@ -5462,19 +5483,19 @@ class TrackModelUI(tk.Tk):
             self.server.send_to_ui("Train Model", {
                 "command": "Commanded Speed",
                 "value": speed,
-                "train_id": train_name
+                "train_id": train_id
             })
             
             # Send commanded authority separately
             self.server.send_to_ui("Train Model", {
                 "command": "Commanded Authority",
                 "value": authority,
-                "train_id": train_name
+                "train_id": train_id
             })
             
             self.server.send_to_ui("CTC", {
                 "command": "train_dispatched",
-                "train_id": train_name,
+                "train_id": train_id,
                 "from": "Yard/Block63",
                 "entry_block": 63
             })
@@ -5493,7 +5514,7 @@ class TrackModelUI(tk.Tk):
         except Exception as e:
             print(f" Error during send_outputs: {e}")
         
-        return train_name
+        return train_id
 
 
     def prompt_and_activate_broken_rail(self):
@@ -6556,6 +6577,10 @@ class TrackModelUI(tk.Tk):
                         # print(f"   Block: {block_number}")
                         # print(f"   Passengers: {disembarking}")
                         
+                        # Log to Event Log
+                        station_name = self.get_station_name_from_block(block_number)
+                        self.log_to_terminal(f"🚉 Train {train_id if train_id else 'Unknown'} at {station_name} (Block {block_number}) - {disembarking} passengers disembarking")
+                        
                         # Forward to CTC immediately (sends both ticket sales and disembarking)
                         self.send_station_data_to_ctc(block_number)
                         print(f"Forwarded disembarking data to CTC")
@@ -6878,7 +6903,7 @@ if __name__ == "__main__":
     # TEMPORARILY COMMENTED OUT - Test UI disabled
     # app.tester_reference = tester
 
-    # Enable passenger boarding debug mode
+    # Enable passenger boarding debug mode (logs messages only, no immediate tests)
     _enable_debug_mode(app)
 
     # Start periodic output updates after a delay

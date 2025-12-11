@@ -1,7 +1,5 @@
 from datetime import datetime
 
-from datetime import datetime
-
 def run_plc_cycle(data, log_callback):
     """
     PLC with CTC override logic
@@ -52,9 +50,9 @@ def run_plc_cycle(data, log_callback):
                 break
     
     current_line = data.current_line
-    print(f"\nPLC CYCLE for {current_line} line")
-    print(f"Occupied blocks: {occupied_blocks}")
-    print(f"Section N occupied: {section_N_occupied}")
+    #print(f"\nPLC CYCLE for {current_line} line")
+    #print(f"Occupied blocks: {occupied_blocks}")
+    #print(f"Section N occupied: {section_N_occupied}")
     
     # ==============================================
     # NEW: Find blocks where CTC suggests authority 3
@@ -97,6 +95,15 @@ def run_plc_cycle(data, log_callback):
     if current_line not in data.commanded_authority:
         data.commanded_authority[current_line] = {}
     
+    # ==============================================
+    # NEW: Clear user-set authorities when train passes over them
+    # This should be BEFORE processing blocks so we know which overrides are active
+    # ==============================================
+    apply_commanded_authority_overrides(data, log_callback)
+    
+    # Create a list to track blocks with user overrides
+    user_override_blocks = []
+    
     # Process each block
     for block_key, block_info in data.filtered_blocks.items():
         block_num = block_info["number"]
@@ -111,6 +118,41 @@ def run_plc_cycle(data, log_callback):
         default_speed = 25
         final_authority = default_authority
 
+        # ==============================================
+        # MODIFIED: Check for user-set commanded authority override FIRST
+        # ==============================================
+        user_override_auth = None
+        if hasattr(data, 'user_commanded_authority'):
+            if current_line in data.user_commanded_authority:
+                if block_num in data.user_commanded_authority[current_line]:
+                    user_override_auth = data.user_commanded_authority[current_line][block_num]
+                    #print(f"  User Authority Override: Block {block_num} -> {user_override_auth}")
+        
+        # ==============================================
+        # MODIFIED: Apply user authority override (takes ABSOLUTE precedence)
+        # ==============================================
+        if user_override_auth is not None:
+            try:
+                user_auth_int = int(user_override_auth)
+                final_authority = user_auth_int
+                #print(f"  User Authority APPLIED: Block {block_num} = {final_authority}")
+                
+                # Update data with user authority
+                data.update_block_in_track_data(block_num, "authority", final_authority)
+                data.commanded_authority[current_line][block_num] = str(final_authority)
+                
+                # Track this as a user override block
+                user_override_blocks.append(block_num)
+                
+                # Continue to next block - SKIP all PLC calculations
+                continue  # Skip the rest of the PLC calculations for this block
+            except ValueError:
+                pass  # If invalid, fall through to PLC calculations
+            
+        # ==============================================
+        # ONLY RUN PLC LOGIC IF NO USER OVERRIDE
+        # ==============================================
+        
         # Check if block itself is occupied
         is_block_occupied = block_num_int in occupied_blocks
         
@@ -145,7 +187,7 @@ def run_plc_cycle(data, log_callback):
             )
             # Update the list for consistency
             ctc_override_blocks = updated_ctc_override_blocks
-                    
+        
         # ==============================================
         # FIX: Apply Section N authorities AFTER CTC logic
         # ==============================================
@@ -170,7 +212,7 @@ def run_plc_cycle(data, log_callback):
                     # Use the smaller (more restrictive) authority
                     old_auth = final_authority
                     final_authority = min(final_authority, section_N_fixed_auth)
-                    print(f"  Section N Fixed: Block {block_num} auth = min({old_auth}, {section_N_fixed_auth}) = {final_authority}")
+                    #print(f"  Section N Fixed: Block {block_num} auth = min({old_auth}, {section_N_fixed_auth}) = {final_authority}")
         
         # ==============================================
         # IMPORTANT: Set default speed here before speed overrides
@@ -186,7 +228,7 @@ def run_plc_cycle(data, log_callback):
     # ==============================================
     # FIX: Apply CTC and Commanded Speed Overrides AFTER all blocks processed
     # ==============================================
-    #print("\n[SPEED OVERRIDES]")
+    ##print("\n[SPEED OVERRIDES]")
     # Apply CTC speed overrides first
     apply_ctc_speed_overrides(data, log_callback)
     
@@ -194,6 +236,7 @@ def run_plc_cycle(data, log_callback):
     apply_commanded_speed_overrides(data, log_callback)
     
     # Now set default speed for any blocks that don't have a speed yet
+    # INCLUDING blocks with user authority overrides
     for block_key, block_info in data.filtered_blocks.items():
         block_num = block_info["number"]
         block_num_str = str(block_num)
@@ -205,8 +248,9 @@ def run_plc_cycle(data, log_callback):
             
     # ==============================================
     # Now send updated commanded values to track model for occupied blocks
+    # INCLUDING blocks with user authority overrides
     # ==============================================
-    print("\n[SENDING TO TRACK MODEL]")
+    #print("\n[SENDING TO TRACK MODEL]")
     for block_key, block_info in data.filtered_blocks.items():
         block_num = block_info["number"]
         block_num_str = str(block_num)
@@ -214,6 +258,8 @@ def run_plc_cycle(data, log_callback):
         # Check if block is occupied
         if block_info.get("occupied", False):
             # Get current commanded values
+            # For user override blocks, use the user authority
+            # For others, use the PLC-calculated authority
             cmd_speed = data.commanded_speed[current_line].get(block_num_str, "25")
             cmd_auth = data.commanded_authority[current_line].get(block_num_str, "3")
             
@@ -223,7 +269,7 @@ def run_plc_cycle(data, log_callback):
                     data.app.send_commanded_to_track_model(
                         current_line, block_num_str, cmd_speed, cmd_auth
                     )
-                    print(f"  Block {block_num}: Speed={cmd_speed} mph, Authority={cmd_auth}")
+                    #print(f"  Block {block_num}: Speed={cmd_speed} mph, Authority={cmd_auth}")
                 except Exception as e:
                     print(f"  Error sending block {block_num} to track model: {e}")
     
@@ -241,7 +287,8 @@ def run_plc_cycle(data, log_callback):
             occupied_str = ", ".join(str(b) for b in sorted(occupied_blocks))
             log_callback(f"{current_time} PLC: Occupied blocks: {occupied_str}")
     
-    print("PLC cycle complete\n")
+    #print("PLC cycle complete\n")
+
 
 def control_switches_automatically(data, log_callback):
     """
@@ -454,13 +501,14 @@ def apply_section_n_authority_logic(data, log_callback):
                 if block_ahead_str in [str(b) for b in blocks_in_section_N]:
                     if block_ahead_str not in authority_updates:
                         authority_updates[block_ahead_str] = auth_value
-                        print(f"[DEBUG]     Block {block_ahead} (pos {ahead_pos}, {i} ahead): auth={auth_value}")
+                        #print(f"[DEBUG]     Block {block_ahead} (pos {ahead_pos}, {i} ahead): auth={auth_value}")
                     else:
                         # Keep the most restrictive (lowest) authority
                         old_auth = authority_updates[block_ahead_str]
                         authority_updates[block_ahead_str] = min(authority_updates[block_ahead_str], auth_value)
-                        if old_auth != authority_updates[block_ahead_str]:
-                            print(f"[DEBUG]     Block {block_ahead}: Updated from {old_auth} to {auth_value}")
+                        
+                        #if old_auth != authority_updates[block_ahead_str]:
+                        #    print(f"[DEBUG]     Block {block_ahead}: Updated from {old_auth} to {auth_value}")
     
     #print(f"[DEBUG] Section N authority updates calculated: {authority_updates}")
     return authority_updates
@@ -500,9 +548,9 @@ def apply_ctc_speed_overrides(data, log_callback):
                     # Cap at maximum speed of 43.5 mph
                     if ctc_speed_mph > 43.5:
                         ctc_speed_mph = 43.5
-                        print(f"  CTC Speed Capped: Section {block_section} speed capped to 43.5 mph")
+                        #print(f"  CTC Speed Capped: Section {block_section} speed capped to 43.5 mph")
                     
-                    print(f"  CTC Speed Override: Block {block_num} in Section {block_section} -> {ctc_speed_mph:.1f} mph")
+                    #print(f"  CTC Speed Override: Block {block_num} in Section {block_section} -> {ctc_speed_mph:.1f} mph")
                     
                     # Find all blocks in this section
                     blocks_in_section = data.get_blocks_in_section(current_line, block_section)
@@ -518,7 +566,7 @@ def apply_ctc_speed_overrides(data, log_callback):
                             # Set commanded speed for this block
                             data.commanded_speed[current_line][section_block_str] = str(ctc_speed_mph)
                             data.update_block_in_track_data(section_block, "speed", ctc_speed_mph)
-                            print(f"    -> Block {section_block}: Speed set to {ctc_speed_mph:.1f} mph")
+                            #print(f"    -> Block {section_block}: Speed set to {ctc_speed_mph:.1f} mph")
                         
                         # Send to Track Model if this block is occupied
                         block_key = f"Block {section_block}"
@@ -531,7 +579,7 @@ def apply_ctc_speed_overrides(data, log_callback):
                                         current_line, section_block_str, 
                                         str(ctc_speed_mph), commanded_auth
                                     )
-                                    print(f"    -> Sent to Track Model (occupied)")
+                                    #print(f"    -> Sent to Track Model (occupied)")
                 
             except (ValueError, TypeError) as e:
                 print(f"  Error processing CTC speed for block {block_str}: {e}")
@@ -598,7 +646,7 @@ def apply_ctc_speed_overrides(data, log_callback):
         for block_str in suggested_speeds_to_clear:
             if block_str in data.suggested_speed[current_line]:
                 del data.suggested_speed[current_line][block_str]
-                print(f"  CTC Speed CLEARED: Removed suggested speed for block {block_str}")
+                #print(f"  CTC Speed CLEARED: Removed suggested speed for block {block_str}")
 
 def apply_ctc_override_logic(data, current_line, block_num_int, final_authority, occupied_blocks, ctc_override_blocks):
     """
@@ -616,11 +664,11 @@ def apply_ctc_override_logic(data, current_line, block_num_int, final_authority,
         if ctc_block == 80:
             # SPECIAL CASE: Backward movement for block 80
             stopping_block = ctc_block - 3  # 80-3 = 77
-            print(f"  CTC Block 80: Using BACKWARD pattern (stopping at {stopping_block})")
+            #print(f"  CTC Block 80: Using BACKWARD pattern (stopping at {stopping_block})")
         else:
             # NORMAL: Forward movement for all other blocks
             stopping_block = ctc_block + 3  # X+3
-            print(f"  CTC Block {ctc_block}: Using FORWARD pattern (stopping at {stopping_block})")
+            #print(f"  CTC Block {ctc_block}: Using FORWARD pattern (stopping at {stopping_block})")
         
         # Check if stopping block is occupied
         stopping_key = f"Block {stopping_block}"
@@ -628,7 +676,7 @@ def apply_ctc_override_logic(data, current_line, block_num_int, final_authority,
             if data.filtered_blocks[stopping_key].get("occupied", False):
                 # Train has reached destination! Clear this CTC override
                 ctc_overrides_to_clear.append(ctc_block)
-                print(f"  CTC AUTO-CLEAR: Block {ctc_block} (train at stopping block {stopping_block})")
+                #print(f"  CTC AUTO-CLEAR: Block {ctc_block} (train at stopping block {stopping_block})")
     
     # Actually delete from suggested_authority
     if ctc_overrides_to_clear and current_line in data.suggested_authority:
@@ -636,7 +684,7 @@ def apply_ctc_override_logic(data, current_line, block_num_int, final_authority,
             block_str = str(ctc_block)
             if block_str in data.suggested_authority[current_line]:
                 del data.suggested_authority[current_line][block_str]
-                print(f"  CTC OVERRIDE DELETED: Removed block {ctc_block}")
+                #print(f"  CTC OVERRIDE DELETED: Removed block {ctc_block}")
     
     # Filter active CTC blocks
     if current_line in data.suggested_authority:
@@ -665,19 +713,15 @@ def apply_ctc_override_logic(data, current_line, block_num_int, final_authority,
             if distance == 0:  # Block 80 itself
                 ctc_auth = 3
                 final_authority = min(final_authority, ctc_auth)
-                print(f"  CTC Override BACKWARD: Block {block_num_int} (CTC block) auth = min({final_authority}, {ctc_auth})")
             elif distance == 1:  # Block 79 (80-1)
                 ctc_auth = 2
                 final_authority = min(final_authority, ctc_auth)
-                print(f"  CTC Override BACKWARD: Block {block_num_int} (X-1) auth = min({final_authority}, {ctc_auth})")
             elif distance == 2:  # Block 78 (80-2)
                 ctc_auth = 1
                 final_authority = min(final_authority, ctc_auth)
-                print(f"  CTC Override BACKWARD: Block {block_num_int} (X-2) auth = min({final_authority}, {ctc_auth})")
             elif distance == 3:  # Block 77 (80-3)
                 ctc_auth = 0
                 final_authority = min(final_authority, ctc_auth)
-                print(f"  CTC Override BACKWARD: Block {block_num_int} (X-3) auth = min({final_authority}, {ctc_auth})")
         else:
             # FORWARD pattern for all others: X=3, X+1=2, X+2=1, X+3=0
             distance = block_num_int - ctc_block  # Positive if block is ahead of CTC
@@ -685,19 +729,15 @@ def apply_ctc_override_logic(data, current_line, block_num_int, final_authority,
             if distance == 0:  # CTC block itself
                 ctc_auth = 3
                 final_authority = min(final_authority, ctc_auth)
-                print(f"  CTC Override FORWARD: Block {block_num_int} (CTC block) auth = min({final_authority}, {ctc_auth})")
             elif distance == 1:  # Block X+1
                 ctc_auth = 2
                 final_authority = min(final_authority, ctc_auth)
-                print(f"  CTC Override FORWARD: Block {block_num_int} (X+1) auth = min({final_authority}, {ctc_auth})")
             elif distance == 2:  # Block X+2
                 ctc_auth = 1
                 final_authority = min(final_authority, ctc_auth)
-                print(f"  CTC Override FORWARD: Block {block_num_int} (X+2) auth = min({final_authority}, {ctc_auth})")
             elif distance == 3:  # Block X+3
                 ctc_auth = 0
                 final_authority = min(final_authority, ctc_auth)
-                print(f"  CTC Override FORWARD: Block {block_num_int} (X+3) auth = min({final_authority}, {ctc_auth})")
     
     return final_authority, ctc_override_blocks
 
@@ -767,7 +807,6 @@ def apply_ctc_speed_overrides(data, log_callback):
                                 break
                     
                     if user_has_set_speed:
-                        print(f"  CTC Speed SKIPPED: Section {block_section} has user-set speed -> keeping user speed")
                         continue  # Skip CTC override for this section
                     
                     # ============ APPLY CTC SPEED ============
@@ -777,9 +816,7 @@ def apply_ctc_speed_overrides(data, log_callback):
                     # Cap at maximum speed of 43.5 mph
                     if ctc_speed_mph > 43.5:
                         ctc_speed_mph = 43.5
-                        print(f"  CTC Speed Capped: Section {block_section} speed capped to 43.5 mph")
                     
-                    print(f"  CTC Speed Override: Block {block_num} in Section {block_section} -> {ctc_speed_mph:.1f} mph")
                     
                     # Apply CTC speed to ALL blocks in this section
                     for section_block in blocks_in_section:
@@ -791,7 +828,6 @@ def apply_ctc_speed_overrides(data, log_callback):
                             # Set commanded speed for this block
                             data.commanded_speed[current_line][section_block_str] = str(ctc_speed_mph)
                             data.update_block_in_track_data(section_block, "speed", ctc_speed_mph)
-                            print(f"    -> Block {section_block}: Speed set to {ctc_speed_mph:.1f} mph")
                         
                         # Send to Track Model if this block is occupied
                         block_key = f"Block {section_block}"
@@ -804,11 +840,12 @@ def apply_ctc_speed_overrides(data, log_callback):
                                         current_line, section_block_str, 
                                         str(ctc_speed_mph), commanded_auth
                                     )
-                                    print(f"    -> Sent to Track Model (occupied)")
                     # ============ END APPLY CTC SPEED ============
                 
             except (ValueError, TypeError) as e:
-                print(f"  Error processing CTC speed for block {block_str}: {e}")
+                #print(f"  Error processing CTC speed for block {block_str}: {e}")
+                print(f" ")
+
 
     # Reset sections to default speed when conditions are met
     # ONLY for PLC sections K-Y
@@ -872,7 +909,7 @@ def apply_ctc_speed_overrides(data, log_callback):
         for block_str in suggested_speeds_to_clear:
             if block_str in data.suggested_speed[current_line]:
                 del data.suggested_speed[current_line][block_str]
-                print(f"  CTC Speed CLEARED: Removed suggested speed for block {block_str}")
+                #print(f"  CTC Speed CLEARED: Removed suggested speed for block {block_str}")
 
 def apply_commanded_speed_overrides(data, log_callback):
     """
@@ -911,7 +948,7 @@ def apply_commanded_speed_overrides(data, log_callback):
         
         # If CTC has set speed for this section, skip resetting
         if ctc_has_speed_for_section:
-            print(f"  Commanded Speed: Section {section} has CTC speed - skipping reset")
+            #print(f"  Commanded Speed: Section {section} has CTC speed - skipping reset")
             continue
         
         # Check if section should be reset to default speed
@@ -977,7 +1014,7 @@ def apply_commanded_speed_overrides(data, log_callback):
                         data.app.send_commanded_to_track_model(
                             current_line, block_str, default_speed, commanded_auth
                         )
-                        print(f"    -> Block {block_num}: Reset to default speed {default_speed} mph")
+                        #print(f"    -> Block {block_num}: Reset to default speed {default_speed} mph")
     
     # For sections NOT being cleared, we need to ensure commanded speeds are applied correctly
     # This is tricky because we don't track which speeds were user-set vs PLC-calculated
@@ -1012,10 +1049,10 @@ def apply_commanded_speed_overrides(data, log_callback):
                     if speed_float > 43.5:
                         speed_float = 43.5
                         cmd_speed = "43.5"
-                        print(f"  Commanded Speed Capped: Section {section} speed capped to 43.5 mph")
+                        #print(f"  Commanded Speed Capped: Section {section} speed capped to 43.5 mph")
                     
                     user_set_speed = cmd_speed
-                    print(f"  Commanded Speed Override: Found user-set speed {cmd_speed} mph in Section {section}")
+                    #print(f"  Commanded Speed Override: Found user-set speed {cmd_speed} mph in Section {section}")
                     break
                 except (ValueError, TypeError):
                     continue
@@ -1040,7 +1077,7 @@ def apply_commanded_speed_overrides(data, log_callback):
                                 current_line, block_str, 
                                 user_set_speed, commanded_auth
                             )
-                            print(f"    -> Block {block_num}: Applied commanded speed {user_set_speed} mph")
+                            #print(f"    -> Block {block_num}: Applied commanded speed {user_set_speed} mph")
 
 def control_lights_automatically(data, log_callback):
     """
@@ -1224,3 +1261,144 @@ def control_railway_crossings(data, log_callback):
     data.update_track_data("railway_crossings", crossing_name, "lights", lights_state)
     data.update_track_data("railway_crossings", crossing_name, "bar", bar_state)
     data.update_track_data("railway_crossings", crossing_name, "condition", condition_text)
+
+def apply_commanded_authority_overrides(data, log_callback):
+    """
+    Apply user-set commanded authority overrides:
+    1. When user sets commanded authority, it overrides PLC calculations
+    2. The override persists until train passes over the block
+    3. When block becomes occupied then unoccupied, clear the override
+    """
+    current_line = data.current_line
+    
+    # Initialize user_commanded_authority if it doesn't exist
+    if not hasattr(data, 'user_commanded_authority'):
+        data.user_commanded_authority = {}
+    
+    if current_line not in data.user_commanded_authority:
+        data.user_commanded_authority[current_line] = {}
+    
+    # Initialize block_override_occupancy_tracker if it doesn't exist
+    if not hasattr(data, 'block_override_occupancy_tracker'):
+        data.block_override_occupancy_tracker = {}
+    
+    if current_line not in data.block_override_occupancy_tracker:
+        data.block_override_occupancy_tracker[current_line] = {}
+    
+    # Get current occupancy
+    occupied_blocks = []
+    for block_key, block_info in data.filtered_blocks.items():
+        if block_info.get("occupied", False):
+            try:
+                block_num = block_info.get("number", "0")
+                block_num_int = int(block_num)
+                occupied_blocks.append(block_num_int)
+            except ValueError:
+                pass
+    
+    # Track occupancy changes and clear overrides when train passes
+    blocks_to_clear = []
+    
+    for block_num_str in list(data.user_commanded_authority[current_line].keys()):
+        try:
+            block_num_int = int(block_num_str)
+            block_key = f"Block {block_num_str}"
+            
+            # Get current occupancy state
+            is_occupied = block_num_int in occupied_blocks
+            
+            # Initialize tracking if not exists
+            if block_num_str not in data.block_override_occupancy_tracker[current_line]:
+                data.block_override_occupancy_tracker[current_line][block_num_str] = {
+                    'was_occupied': is_occupied,
+                    'has_been_occupied': is_occupied
+                }
+            else:
+                tracker = data.block_override_occupancy_tracker[current_line][block_num_str]
+                previous_occupied = tracker['was_occupied']
+                
+                # Update tracker
+                tracker['was_occupied'] = is_occupied
+                if is_occupied:
+                    tracker['has_been_occupied'] = True
+                
+                # Clear override if: block was occupied and is now unoccupied
+                # This means train has passed over the block
+                if previous_occupied and not is_occupied:
+                    blocks_to_clear.append(block_num_str)
+                    #print(f"  Authority Override CLEARED: Block {block_num_str} - train has passed")
+                    
+                    # Also send default authority to track model if block is in PLC section
+                    # Get the section for this block
+                    section = data.get_section_for_block(current_line, block_num_str)
+                    plc_sections = ['K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y']
+                    
+                    if section in plc_sections and is_occupied:
+                        # Send default authority (3) to track model
+                        default_speed = data.commanded_speed[current_line].get(block_num_str, "25")
+                        if hasattr(data, 'app') and data.app:
+                            data.app.send_commanded_to_track_model(
+                                current_line, block_num_str, default_speed, "3"
+                            )
+                            #print(f"    -> Sent default authority 3 to Track Model")
+        
+        except (ValueError, TypeError) as e:
+            print(f"  Error processing authority override for block {block_num_str}: {e}")
+    
+    # Clear the overrides
+    for block_num_str in blocks_to_clear:
+        if block_num_str in data.user_commanded_authority[current_line]:
+            del data.user_commanded_authority[current_line][block_num_str]
+        
+        if block_num_str in data.block_override_occupancy_tracker[current_line]:
+            del data.block_override_occupancy_tracker[current_line][block_num_str]
+
+def set_commanded_authority_override(data, track, block, authority):
+    """
+    Set a user-commanded authority override for a specific block.
+    This will persist until the train passes over the block.
+    
+    Call this function when user sets authority from the UI.
+    """
+    # Initialize data structures if needed
+    if not hasattr(data, 'user_commanded_authority'):
+        data.user_commanded_authority = {}
+    
+    if track not in data.user_commanded_authority:
+        data.user_commanded_authority[track] = {}
+    
+    if not hasattr(data, 'block_override_occupancy_tracker'):
+        data.block_override_occupancy_tracker = {}
+    
+    if track not in data.block_override_occupancy_tracker:
+        data.block_override_occupancy_tracker[track] = {}
+    
+    # Validate authority value
+    try:
+        auth_int = int(authority)
+        if auth_int < 0 or auth_int > 3:
+            print(f"Error: Authority must be between 0 and 3, got {authority}")
+            return False
+    except ValueError:
+        print(f"Error: Invalid authority value '{authority}' - must be integer")
+        return False
+    
+    # Set the override
+    data.user_commanded_authority[track][block] = authority
+    
+    # Initialize occupancy tracker for this block
+    data.block_override_occupancy_tracker[track][block] = {
+        'was_occupied': False,
+        'has_been_occupied': False
+    }
+    
+    #print(f"User authority override set: {track} Block {block} = {authority}")
+    
+    # Immediately update the UI if possible
+    if hasattr(data, 'command_authority_override_callback'):
+        try:
+            data.command_authority_override_callback(track, block, authority)
+        except Exception as e:
+            print(f"Warning: Could not update UI callback: {e}")
+    
+    return True

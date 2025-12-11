@@ -68,26 +68,47 @@ class CenterPanel(tk.Frame):
 
     def update_track_image(self):
         """Change track image based on selected line"""
-        image_files = "Red and Green Line.png"
+        image_files = {
+            "Green": "Red and Green Line.png",
+            "Red": "Red and Green Line.png", 
+        }
         
-        img = tk.PhotoImage(file=image_files)
-        img = img.subsample(2, 2)
-        self.track_image = img
-        self._draw_centered_image()
-       
+        try:
+            image_path = image_files.get(self.data.current_line)
+            if image_path:
+                img = tk.PhotoImage(file=image_path)
+                img = img.subsample(2, 2)
+                self.track_image = img
+                self._draw_centered_image()
+        except Exception as e:
+            print(f"Could not load track image for {self.data.current_line}: {e}")
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            if self.log_callback:
+                self.log_callback(f"{current_time} ERROR: Could not load track image for {self.data.current_line}")
 
     def track_layout(self):
         """Load the initial track image based on current line"""
+        image_files = {
+            "Green": "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/GreenRedTrack.png",
+            "Red": "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/GreenRedTrack.png", 
+            "Blue": "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/BlueTrack.png"
+        }
         
-        image_files = "Red and Green Line.png"
-        
-        img = tk.PhotoImage(file=image_files)
-        img = img.subsample(2, 2)
-        self.track_image = img
-        self._draw_centered_image()
+        try:
+            image_path = image_files.get(self.data.current_line, 
+                                       "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/GreenRedTrack.png")
+            img = tk.PhotoImage(file=image_path)
+            img = img.subsample(2, 2)
+            self.track_image = img
 
-        self.canvas.bind("<Configure>", lambda e: self._draw_centered_image())
-        self._draw_centered_image()
+            # Draw centered image
+            self.canvas.bind("<Configure>", lambda e: self._draw_centered_image())
+            self._draw_centered_image()
+        except Exception as e:
+            print(f"Could not load track image: {e}")
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            if self.log_callback:
+                self.log_callback(f"{current_time} ERROR: Could not load track image")
     
     def _draw_centered_image(self):
         """Helper to center the track image on the canvas"""

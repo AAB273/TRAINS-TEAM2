@@ -1,5 +1,11 @@
 === Train Model Message Debug Log ===
 <<<<<<< HEAD
+Started: 2025-12-11 10:56:08
+=======
+<<<<<<< HEAD
+Started: 2025-12-11 10:51:00
+=======
+<<<<<<< HEAD
 Started: 2025-12-11 10:42:37
 =======
 <<<<<<< HEAD
@@ -16,6 +22,8 @@ Started: 2025-12-11 01:59:51
 >>>>>>> fce02446869b4cad029311703f4ee7b8bf483511
 >>>>>>> 55ac78e713ddf569080636251cac84416d3f4a75
 >>>>>>> a9cad482f355d3f0e8ef1d72e62b173fd5616b44
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
+>>>>>>> 9b6803459cf7ec92ea1e39aceabd2a162a038617
 
 
 ======================================================================
@@ -24,6 +32,12 @@ MESSAGE #1 TO TRAIN MODEL
 {
   "command": "Passengers Boarding",
 <<<<<<< HEAD
+  "value": 6,
+=======
+<<<<<<< HEAD
+  "value": 39,
+=======
+<<<<<<< HEAD
 =======
 <<<<<<< HEAD
   "value": 14,
@@ -31,6 +45,8 @@ MESSAGE #1 TO TRAIN MODEL
 <<<<<<< HEAD
 >>>>>>> a9cad482f355d3f0e8ef1d72e62b173fd5616b44
   "value": 33,
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
+>>>>>>> 9b6803459cf7ec92ea1e39aceabd2a162a038617
   "train_id": 1
 }
 ======================================================================
@@ -40,7 +56,13 @@ MESSAGE #1 TO TRAIN MODEL
 MESSAGE #2 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  "command": "block_occupancy",
+=======
   "command": "Block Occupancy",
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "value": 63,
   "train_id": 1
 }
@@ -51,6 +73,7 @@ MESSAGE #2 TO TRAIN MODEL
 MESSAGE #3 TO TRAIN MODEL
 ======================================================================
 {
+>>>>>>> 9b6803459cf7ec92ea1e39aceabd2a162a038617
   "command": "Commanded Speed",
   "value": 25.0,
   "train_id": 1
@@ -59,7 +82,7 @@ MESSAGE #3 TO TRAIN MODEL
 
 
 ======================================================================
-MESSAGE #4 TO TRAIN MODEL
+MESSAGE #3 TO TRAIN MODEL
 ======================================================================
 {
   "command": "Commanded Authority",
@@ -70,11 +93,31 @@ MESSAGE #4 TO TRAIN MODEL
 
 
 ======================================================================
+MESSAGE #4 TO TRAIN MODEL
+======================================================================
+{
+  "command": "Commanded Speed",
+  "value": 25.0,
+  "train_id": 1
+}
+======================================================================
+
+
+======================================================================
 MESSAGE #5 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "Commanded Authority",
+  "value": 3,
+=======
+<<<<<<< HEAD
+  "command": "block_occupancy",
+=======
   "command": "Block Occupancy",
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "value": 63,
+>>>>>>> 9b6803459cf7ec92ea1e39aceabd2a162a038617
   "train_id": 1
 }
 ======================================================================
@@ -101,12 +144,18 @@ MESSAGE #7 TO TRAIN MODEL
 }
 ======================================================================
 
+<<<<<<< HEAD
+=======
 
 ======================================================================
 MESSAGE #8 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "block_occupancy",
+=======
   "command": "Block Occupancy",
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "value": 63,
   "train_id": 1
 }
@@ -139,7 +188,7 @@ MESSAGE #10 TO TRAIN MODEL
 MESSAGE #11 TO TRAIN MODEL
 ======================================================================
 {
-  "command": "Block Occupancy",
+  "command": "block_occupancy",
   "value": 63,
   "train_id": 1
 }
@@ -172,7 +221,11 @@ MESSAGE #13 TO TRAIN MODEL
 MESSAGE #14 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "block_occupancy",
+=======
   "command": "Block Occupancy",
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "value": 63,
   "train_id": 1
 }
@@ -205,7 +258,7 @@ MESSAGE #16 TO TRAIN MODEL
 MESSAGE #17 TO TRAIN MODEL
 ======================================================================
 {
-  "command": "Block Occupancy",
+  "command": "block_occupancy",
   "value": 63,
   "train_id": 1
 }
@@ -238,7 +291,11 @@ MESSAGE #19 TO TRAIN MODEL
 MESSAGE #20 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "block_occupancy",
+=======
   "command": "Block Occupancy",
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "value": 63,
   "train_id": 1
 }
@@ -271,7 +328,11 @@ MESSAGE #22 TO TRAIN MODEL
 MESSAGE #23 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "block_occupancy",
+=======
   "command": "Block Occupancy",
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "value": 63,
   "train_id": 1
 }
@@ -304,7 +365,11 @@ MESSAGE #25 TO TRAIN MODEL
 MESSAGE #26 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "block_occupancy",
+=======
   "command": "Block Occupancy",
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "value": 63,
   "train_id": 1
 }
@@ -337,7 +402,11 @@ MESSAGE #28 TO TRAIN MODEL
 MESSAGE #29 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "block_occupancy",
+=======
   "command": "Block Occupancy",
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "value": 63,
   "train_id": 1
 }
@@ -370,7 +439,11 @@ MESSAGE #31 TO TRAIN MODEL
 MESSAGE #32 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "block_occupancy",
+=======
   "command": "Block Occupancy",
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "value": 63,
   "train_id": 1
 }
@@ -403,7 +476,11 @@ MESSAGE #34 TO TRAIN MODEL
 MESSAGE #35 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "block_occupancy",
+=======
   "command": "Block Occupancy",
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "value": 63,
   "train_id": 1
 }
@@ -436,7 +513,11 @@ MESSAGE #37 TO TRAIN MODEL
 MESSAGE #38 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "block_occupancy",
+=======
   "command": "Block Occupancy",
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "value": 63,
   "train_id": 1
 }
@@ -469,10 +550,16 @@ MESSAGE #40 TO TRAIN MODEL
 MESSAGE #41 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "block_occupancy",
+  "value": 63,
+  "train_id": 1
+=======
   "command": "Block Occupancy",
   "value": {
     "63": 0
   }
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
 }
 ======================================================================
 
@@ -481,10 +568,16 @@ MESSAGE #41 TO TRAIN MODEL
 MESSAGE #42 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "Commanded Speed",
+  "value": 25.0,
+  "train_id": 1
+=======
   "command": "Block Occupancy",
   "value": {
     "64": 1
   }
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
 }
 ======================================================================
 
@@ -493,12 +586,18 @@ MESSAGE #42 TO TRAIN MODEL
 MESSAGE #43 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "Commanded Authority",
+  "value": 3,
+  "train_id": 1
+=======
   "command": "block_info",
   "train_id": "1",
   "block_number": 64,
   "block_length": 100.0,
   "speed_limit": 70.0,
   "grade": 0.0
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
 }
 ======================================================================
 
@@ -507,8 +606,13 @@ MESSAGE #43 TO TRAIN MODEL
 MESSAGE #44 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "block_occupancy",
+  "value": 63,
+=======
   "command": "Block Occupancy",
   "value": 64,
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "train_id": 1
 }
 ======================================================================
@@ -540,8 +644,13 @@ MESSAGE #46 TO TRAIN MODEL
 MESSAGE #47 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "block_occupancy",
+  "value": 63,
+=======
   "command": "Block Occupancy",
   "value": 64,
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "train_id": 1
 }
 ======================================================================
@@ -573,8 +682,13 @@ MESSAGE #49 TO TRAIN MODEL
 MESSAGE #50 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "block_occupancy",
+  "value": 63,
+=======
   "command": "Commanded Speed",
   "value": 25.0,
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "train_id": 1
 }
 ======================================================================
@@ -584,8 +698,13 @@ MESSAGE #50 TO TRAIN MODEL
 MESSAGE #51 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "Commanded Speed",
+  "value": 25.0,
+=======
   "command": "Commanded Authority",
   "value": 3,
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "train_id": 1
 }
 ======================================================================
@@ -595,6 +714,10 @@ MESSAGE #51 TO TRAIN MODEL
 MESSAGE #52 TO TRAIN MODEL
 ======================================================================
 {
+<<<<<<< HEAD
+  "command": "Commanded Authority",
+  "value": 3,
+=======
   "command": "Commanded Speed",
   "value": 25.0,
   "train_id": 1
@@ -4865,7 +4988,9 @@ MESSAGE #439 TO TRAIN MODEL
   "command": "Commanded Authority",
   "value": 3,
 >>>>>>> 55ac78e713ddf569080636251cac84416d3f4a75
+>>>>>>> f1e8ebc30bbbdf557e0f861855e703008b487e0b
   "train_id": 1
 }
 ======================================================================
 
+>>>>>>> 9b6803459cf7ec92ea1e39aceabd2a162a038617
