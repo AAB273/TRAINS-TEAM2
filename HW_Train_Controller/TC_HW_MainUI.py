@@ -32,7 +32,7 @@ from TC_HW_SystemLogUI import SystemLogViewer
 from TrainSocketServer import TrainSocketServer
 
 # CONFIGURATION - SET YOUR PI'S IP ADDRESS HERE
-PI_HOST = '172.20.10.4'  # ← CHANGE THIS to your Pi's IP address
+PI_HOST = '10.6.14.128'  # ← CHANGE THIS to your Pi's IP address
 PI_GPIO_PORT = 12348
 
 def load_socket_config():
@@ -445,11 +445,7 @@ lastUndergroundState = False  # Track if we were underground last update
 # Automatic mode control parameters
 DECELERATION_DISTANCE = 200.0  # Start decelerating 200m before station (meters)
 STATION_STOP_THRESHOLD = 5.0  # Consider "at station" when within 5m
-<<<<<<< HEAD
 STATION_DWELL_TIME = 30.0  # Time to wait at station (seconds) - will be adjusted by mult_value
-=======
-STATION_DWELL_TIME = 30.0  # Time to wait at station (seconds)
->>>>>>> dc9277d8ef58475a2d8f4beccb77158b5bb99d37
 stationDwellStartTime = None  # Track when we arrived at station
 isAtStation = False  # Flag to track if we're stopped at a station
 
