@@ -521,11 +521,12 @@ class Main_Window:
         train_model_config = module_config.get("Train SW", {"port": 12346})
         self.server = TrainSocketServer(port=train_model_config["port"], ui_id="Train SW")
         
-        self.server.set_allowed_connections(["Train Model", "Track Model", "Train HW"])
+        self.server.set_allowed_connections(["Train Model", "Track Model", "Train HW", "CTC"])
         self.server.start_server(self._process_message)
         self.server.connect_to_ui('localhost', 12345, "Train Model")
         self.server.connect_to_ui('localhost', 12344, "Track Model")
         self.server.connect_to_ui('localhost', 12347, "Train HW")
+        self.server.connect_to_ui('localhost', 12341, "CTC")
         
         main_container = tk.Frame(self.root, bg="white", relief=tk.RAISED, bd=5)
         main_container.place(relx=0.02, rely=0.08, relwidth=0.96, relheight=0.9)
