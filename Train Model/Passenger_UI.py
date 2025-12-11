@@ -59,12 +59,13 @@ class TrainModelPassengerGUI:
 		trainSwConfig = moduleConfig.get("Train SW", {"port": 12346})
 		trainHwConfig = moduleConfig.get("Train HW", {"port": 12347})
 		trackModelConfig = moduleConfig.get("Track Model", {"port": 12344})
-
-		#pygame.mixer.init()
+		CTCModelConfig = moduleConfig.get("CTC", {"port": 12341})
+		pygame.mixer.init()
 
 		self.server.connect_to_ui('localhost', trainSwConfig["port"], "Train SW")
 		self.server.connect_to_ui('localhost', trainHwConfig["port"], "Train HW")
 		self.server.connect_to_ui('localhost', trackModelConfig["port"], "Track Model")
+		self.server.connect_to_ui('localhost', CTCModelConfig["port"], "Track Model")
 		self.server.connect_to_ui('localhost', 12349, "Test_UI")
 		
 		self.uiLabels = {}
@@ -75,7 +76,7 @@ class TrainModelPassengerGUI:
 		self.failureActivationInProgress = False
 		self.previousActiveTrains = set()
 		self.clockMultiplier = 1
-		self.clockSpeed = 1000
+		self.clockSpeed = 1
 
 		self.setupGUI()
 		
@@ -367,7 +368,7 @@ class TrainModelPassengerGUI:
 			if train and train.deployed and train.active:
 				# If calculateForceSpeedAccelerationDistance needs to be called individually:
 				oldSpeed = train.speed
-				train.calculateForceSpeedAccelerationDistance()
+				train.calculateForceSpeedAccelerationDistance(self.clockSpeed)
 				newSpeed = train.speed
 				
 				if oldSpeed != newSpeed:
@@ -396,10 +397,7 @@ class TrainModelPassengerGUI:
 		self.root.after(100, self.continuousPhysicsUpdate)
 
 	def updateClockSpeed(self, clockMultiplier):
-		if clockMultiplier == 1:
-			self.clockSpeed = 1000
-		elif clockMultiplier == 10:
-			self.clockSpeed = 100
+		self.clockSpeed = clockMultiplier/10
 
 	def emergencyBrakeActivated(self, train=None):
 		# Activates the emergency brake and notifies other modules.
@@ -468,6 +466,9 @@ class TrainModelPassengerGUI:
 	def deactivateSignalFailure(self):
 		# Deactivates signal pickup failure mode.
 		print(f"Signal Pickup Failure Deactivated")
+		self.currentTrain.setSpeedLimit(self.currentTrain.prevSpeedLimit)
+		self.currentTrain.setGrade(self.currentTrain.prevSpeedLimit)
+		self.currentTrain.setElevation(self.currentTrain.prevSpeedLimit)
 		self.server.send_to_ui("Train SW", {'command': "Signal Pickup Failure", 'value': False})
 		self.server.send_to_ui("Train HW", {'command': "Signal Pickup Failure", 'value': False})
 
@@ -1007,7 +1008,7 @@ class TrainModelPassengerGUI:
 		# Initialize the train selector dropdown
 		self.root.after(100, self.refreshTrainSelector)
 
-		self.root.after(self.clockSpeed, self.continuousPhysicsUpdate) # 100ms  = 10x,  1000ms = 1x
+		self.root.after(100, self.continuousPhysicsUpdate) # 100ms  = 10x,  1000ms = 1x
 
 		self.root.after(5000, self.cycleThroughAds)
 
