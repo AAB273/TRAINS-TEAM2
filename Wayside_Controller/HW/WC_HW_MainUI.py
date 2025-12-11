@@ -225,11 +225,57 @@ def _process_message(self, data, connection=None, server_instance=None):
         # =====================================================================
         # HANDLE CTC MESSAGES
         # =====================================================================        
-        elif command == 'ctc_suggestion':
-            # Handle speed suggestion
-            print(f"\n[{timestamp}] CTC Suggestion Received")
-            add_to_message_log(f"CTC Update: Speed={speed_str}, Authority={authority_str}")
-            handle_ctc_suggested_speed(value)
+        elif command == 'update_speed_auth' or command == 'ctc_suggestion':
+            # Extract values from the message
+            if isinstance(value, dict):
+                track = value.get('track', '').strip()
+                block = value.get('block', '').strip()
+                speed_str = value.get('speed', '0').strip()
+                authority_str = value.get('authority', '0').strip()
+            print(f"DEBUG: Processing CTC update - Track: {track}, Block: {block}, Speed: {speed_str}, Authority: {authority_str}")
+                
+                # Only process if for current line
+            if track.lower() != test_data.current_line.lower():
+                print(f"Ignoring update for different line: {track} (we're on {test_data.current_line})")
+                return
+                
+                # Convert values
+            try:
+                speed = round(float(speed_str), 3)
+            except:
+                speed = 0.0
+                
+            try:
+                authority = int(authority_str)
+            except:
+                authority = 0
+                
+            print(f"DEBUG: Converted values - Speed: {speed}, Authority: {authority}")
+                
+                # UPDATE THE UI - THIS IS WHAT'S MISSING
+            if hasattr(right_panel, 'update_suggested_speed'):
+                right_panel.update_suggested_speed(speed)
+                print(f"Called update_suggested_speed({speed})")
+                
+            if hasattr(right_panel, 'update_suggested_authority'):
+                right_panel.update_suggested_authority(authority)
+                print(f"Called update_suggested_authority({authority})")
+                
+                # Set the block dropdown to the correct block
+            if hasattr(right_panel, 'block_combo') and block:
+                right_panel.block_combo.set(str(block))
+                print(f"Selected block {block} in dropdown")
+                
+                # Force update of current block info
+            if hasattr(right_panel, 'update_current_block_info'):
+                right_panel.update_current_block_info()
+                
+                # Add to message log
+            add_to_message_log(f"CTC: Block {block} - Speed: {speed:.3f} mph, Authority: {authority} blocks")
+                
+                # If you have a message logger, also log there
+            if 'message_logger' in globals():
+                message_logger.log(f"CTC SUGGESTION: Block {block} - Speed: {speed:.1f} mph, Authority: {authority} blocks", "INFO")
 
         elif command == 'set_block_occupancy':
             pass  # Add handling if needed
@@ -249,6 +295,7 @@ def _process_message(self, data, connection=None, server_instance=None):
         elif command == "SW":
             # Handle switch command from CTC - FOR TRACK HW
             print(f"CTC SWITCH COMMAND received: {value}")
+            
         # =====================================================================
         # HANDLE TRACK MODEL INCOMING MESSAGES
         # =====================================================================
