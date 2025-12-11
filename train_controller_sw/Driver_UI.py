@@ -513,34 +513,20 @@ class Main_Window:
         self.root = root
         self.selected_line = selected_line
         self.root.title("Train Controller - Monitor Display")
+        #add zoomed command to make screen fit 
+        #self.root.attributes('-zoomed', True)  # On macOS/Linux
         self.root.configure(bg="navy")
+        #self.root.attributes('-zoomed', True)  # On macOS/Linux
+        #self.root.attributes('-zoomed', True)  # On macOS/Linux
+        #self.root.state('zoomed') for windows
+
+        # Make fullscreen
+        self.screen_width = self.root.winfo_screenwidth()-50
+        self.screen_height = self.root.winfo_screenheight()-50
+        self.root.geometry(f"{self.screen_width}x{self.screen_height}+0+0")
         
-        # Get screen dimensions
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
-        
-        # Calculate window size (90% of screen, but with minimum size)
-        min_width = 1200  # Minimum width for proper display
-        min_height = 700  # Minimum height for proper display
-        
-        window_width = max(min_width, int(screen_width * 0.9))
-        window_height = max(min_height, int(screen_height * 0.9))
-        
-        # Center window on screen
-        x_position = (screen_width - window_width) // 2
-        y_position = (screen_height - window_height) // 2
-        
-        self.root.geometry(f"{window_width}x{window_height}+{x_position}+{y_position}")
-        
-        # Set minimum window size to prevent widgets from overlapping
-        self.root.minsize(min_width, min_height)
-        
-        # Make resizable
+        #make resizable
         self.root.resizable(True, True)
-        
-        # Store dimensions for responsive scaling
-        self.screen_width = window_width
-        self.screen_height = window_height
 
         # Select line at startup
         
@@ -567,10 +553,10 @@ class Main_Window:
         self.server.connect_to_ui('localhost', 12341, "CTC")
         
         main_container = tk.Frame(self.root, bg="white", relief=tk.RAISED, bd=5)
-        main_container.place(relx=0.02, rely=0.08, relwidth=0.96, relheight=0.90)
+        main_container.place(relx=0.02, rely=0.08, relwidth=0.96, relheight=0.9)
         
         title_frame = tk.Frame(self.root, bg="white", relief=tk.RAISED, bd=2)
-        title_frame.place(relx=0.35, rely=0.01, relwidth=0.3, relheight=0.05)
+        title_frame.place(relx=0.4, rely=0.01, relwidth=0.2, relheight=0.05)
         tk.Label(title_frame, text="Monitor Display", font=("Arial", 18, "bold"), 
                 bg="white").pack(pady=5)
         
@@ -579,7 +565,7 @@ class Main_Window:
         track_btn = tk.Button(self.root, text="Track Info", font=("Arial", 12, "bold"),
                               bg="lightblue", fg="black", relief=tk.RAISED, bd=2,
                               command=self.open_track_info)
-        track_btn.place(relx=0.67, rely=0.015, relwidth=0.1, relheight=0.045)
+        track_btn.place(relx=0.63, rely=0.015, relwidth=0.08, relheight=0.045)
 
         # Status Log Frame (Simple version for now)
         self.status_log_frame = tk.Frame(main_container, bg="black", relief=tk.SUNKEN, bd=2)
@@ -588,8 +574,8 @@ class Main_Window:
         tk.Label(self.status_log_frame, text="STATUS LOG", font=("Arial", 12, "bold"), 
                 bg="black", fg="white").pack(pady=2)
         
-        self.status_log = tk.Text(self.status_log_frame, height=8, 
-                                 font=("Courier", 10), bg="black", fg="lime", 
+        self.status_log = tk.Text(self.status_log_frame, height=6, width=50, 
+                                 font=("Courier", 9), bg="black", fg="lime", 
                                  state=tk.DISABLED, wrap=tk.WORD)
         scrollbar = tk.Scrollbar(self.status_log_frame, command=self.status_log.yview)
         self.status_log.config(yscrollcommand=scrollbar.set)
@@ -620,7 +606,7 @@ class Main_Window:
         
         # Commanded Speed Frame
         self.commanded_speed_frame = tk.Frame(main_container, bg="grey", relief=tk.RAISED, bd=2)
-        self.commanded_speed_frame.place(relx=0.32, rely=0.69, relwidth=0.36, relheight=0.33)
+        self.commanded_speed_frame.place(relx=0.32, rely=0.69, relwidth=0.36, relheight=0.27)
         
         self.commanded_speed_frame.columnconfigure(0, weight=1)
         
@@ -660,7 +646,7 @@ class Main_Window:
         
         # AC Frame
         self.ac_frame = tk.Frame(main_container, bg="grey", relief=tk.RAISED, bd=2)
-        self.ac_frame.place(relx=0.02, rely=0.25, relwidth=0.18, relheight=0.42)
+        self.ac_frame.place(relx=0.02, rely=0.25, relwidth=0.18, relheight=0.35)
 
         self.ac_frame.columnconfigure(0, weight=1)
 
@@ -777,7 +763,7 @@ class Main_Window:
         
         # Control Buttons Grid
         self.button_grid_frame = tk.Frame(main_container, bg="grey", relief=tk.RAISED, bd=2)
-        self.button_grid_frame.place(relx=0.75, rely=0.68, relwidth=0.22, relheight=0.33)
+        self.button_grid_frame.place(relx=0.75, rely=0.68, relwidth=0.22, relheight=0.28)
         
         try:
             self.bulb_logo = tk.PhotoImage(file="train_controller_sw/bulb.png").subsample(9, 9)
@@ -878,9 +864,9 @@ class Main_Window:
         self.station_window = StationAnnouncementWindow(self.root, 
                                                        callback=self.on_station_announce)
         
-        # Clock frame
+        # Clock frame with ClockDisplay widget
         self.clock_frame = tk.Label(self.root, bg="lightblue")
-        self.clock_frame.place(relx=.3, rely=0.15)
+        self.clock_frame.place(relx=0.2, rely=0.01)  # Top-left to avoid overlap
         self.clock = ClockDisplay(self.clock_frame)
         self.clock.pack(padx=5, pady=5)
 
@@ -889,7 +875,7 @@ class Main_Window:
                                 font=("Arial", 12, "bold"),
                                 bg="orange", fg="black", relief=tk.RAISED, bd=2,
                                 command=self.toggle_engineer_ui)
-        engineer_btn.place(relx=0.77, rely=0.015, relwidth=0.1, relheight=0.045)
+        engineer_btn.place(relx=0.72, rely=0.015, relwidth=0.1, relheight=0.045)
 
         # In the __init__ method of Main_Window class, add these flags:
         self.has_received_commanded_speed = False
@@ -1177,53 +1163,45 @@ class Main_Window:
             elif command == "Light States":
                 self.add_to_status_log(f"Lights: {value}")
             
-            # ========== TIME (CLOCK DISPLAY) - FROM CTC ==========
+            # ========== TIME (CLOCK DISPLAY) ==========
+            # Receives time string from CTC/Track Model and displays it
+            # This updates the ClockDisplay widget via set_time() method
             elif command == 'TIME':
-                # Update clock display with time from CTC
                 time_str = str(value)
                 
-                # Update the ClockDisplay widget (your existing clock)
+                # Update ClockDisplay widget
                 if hasattr(self, 'clock') and self.clock:
-                    # ClockDisplay widget - update its time
-                    # Assuming it has a method to set time or a label to update
-                    if hasattr(self.clock, 'update_time'):
-                        self.clock.update_time(time_str)
-                    elif hasattr(self.clock, 'time_label'):
-                        self.clock.time_label.config(text=time_str)
-                    elif hasattr(self.clock, 'set_time'):
-                        self.clock.set_time(time_str)
-                    else:
-                        # Fallback: try to find and update any label in the clock widget
-                        for widget in self.clock.winfo_children():
-                            if isinstance(widget, tk.Label):
-                                widget.config(text=time_str)
-                                break
-                
+                    self.clock.set_time(time_str)
+                    
                 # Update station window clock if it exists
                 if hasattr(self, 'station_window') and hasattr(self.station_window, 'clock_display'):
                     self.station_window.clock_display.config(text=time_str)
-                # Don't log every time update to avoid spam
+                
+                # Note: We don't log every time update to avoid console spam
             
-            # ========== MULT (TIME MULTIPLIER) - FROM CTC ==========
+            # ========== MULT (TIME MULTIPLIER) ==========
+            # Receives speed multiplier from CTC (1x or 10x)
+            # This controls how fast the simulation runs
+            # Updates: position_tracker.TIME_SCALE and clock.speed_multiplier
             elif command == "MULT":
-                # Update time multiplier (1x or 10x speed) from CTC
-                multiplier = int(value)
-                if multiplier in [1, 10]:
-                    self.time_multiplier = multiplier
-                    if hasattr(self, 'position_tracker'):
-                        self.position_tracker.TIME_SCALE = float(multiplier)
+                try:
+                    multiplier = int(value)
                     
-                    # Update ClockDisplay speed if it has a speed setting
-                    if hasattr(self, 'clock') and self.clock:
-                        if hasattr(self.clock, 'set_speed_multiplier'):
-                            self.clock.set_speed_multiplier(multiplier)
-                        elif hasattr(self.clock, 'speed_multiplier'):
-                            self.clock.speed_multiplier = multiplier
-                    
-                    print(f"[TIME MULTIPLIER] System speed set to {multiplier}x (from CTC)")
-                    self.add_to_status_log(f"Time multiplier: {multiplier}x")
-                else:
-                    print(f"[TIME MULTIPLIER] Invalid value: {multiplier} (expected 1 or 10)")
+                    # Validate multiplier is 1 or 10
+                    if multiplier not in [1, 10]:
+                        print(f"[MULT] Invalid value: {multiplier} (must be 1 or 10)")
+                        self.add_to_status_log(f"Invalid MULT value: {multiplier}")
+                    else:
+                        # Call set_speed_mult to update position tracker and clock
+                        self.set_speed_mult(multiplier)
+                        print(f"[MULT] Received and processed: {multiplier}x speed")
+                        
+                except ValueError as e:
+                    print(f"[MULT] ValueError: {value} is not a valid integer - {e}")
+                    self.add_to_status_log(f"Invalid MULT format: {value}")
+                except Exception as e:
+                    print(f"[MULT] Error processing MULT command: {e}")
+                    self.add_to_status_log(f"Error processing MULT: {str(e)}")
             
             else:
                 print(f"Unknown command: {command}")
@@ -1447,7 +1425,6 @@ class Main_Window:
                 pass
         
         self.root.destroy()
-
     
     def add_to_status_log(self, message):
         """Add timestamped message to status log"""
@@ -1460,6 +1437,65 @@ class Main_Window:
             self.status_log.delete(1.0, f"{len(lines)-100}.0")
         self.status_log.see(tk.END)
         self.status_log.config(state=tk.DISABLED)
+    
+    def set_speed_mult(self, multiplier):
+        """
+        Set the speed multiplier for the entire system
+        Updates position tracker and clock display
+        
+        Args:
+            multiplier (int): Speed multiplier (1 or 10)
+        """
+        if multiplier not in [1, 10]:
+            print(f"[SPEED MULT] Invalid multiplier: {multiplier} (must be 1 or 10)")
+            return
+        
+        print(f"[SPEED MULT] Setting speed multiplier to {multiplier}x")
+        
+        # Update time multiplier
+        self.time_multiplier = multiplier
+        
+        # Update position tracker TIME_SCALE
+        if hasattr(self, 'position_tracker') and self.position_tracker:
+            self.position_tracker.TIME_SCALE = float(multiplier)
+            print(f"[SPEED MULT] Position tracker TIME_SCALE updated to {multiplier}")
+        
+        # Update ClockDisplay - try each possible interface once
+        if hasattr(self, 'clock') and self.clock:
+            clock_updated = False
+            try:
+                # Try method 1: set_speed_multiplier()
+                if hasattr(self.clock, 'set_speed_multiplier'):
+                    self.clock.set_speed_multiplier(multiplier)
+                    print(f"[SPEED MULT] Clock updated via set_speed_multiplier()")
+                    clock_updated = True
+                # Try method 2: set_mult()
+                elif hasattr(self.clock, 'set_mult'):
+                    self.clock.set_mult(multiplier)
+                    print(f"[SPEED MULT] Clock updated via set_mult()")
+                    clock_updated = True
+                # Try method 3: speed_multiplier attribute
+                elif hasattr(self.clock, 'speed_multiplier'):
+                    self.clock.speed_multiplier = multiplier
+                    print(f"[SPEED MULT] Clock updated via speed_multiplier attribute")
+                    clock_updated = True
+                # Try method 4: mult attribute
+                elif hasattr(self.clock, 'mult'):
+                    self.clock.mult = multiplier
+                    print(f"[SPEED MULT] Clock updated via mult attribute")
+                    clock_updated = True
+                
+                if not clock_updated:
+                    print(f"[SPEED MULT] Warning: ClockDisplay has no recognized speed multiplier interface")
+                    print(f"[SPEED MULT] Available ClockDisplay methods: {[m for m in dir(self.clock) if not m.startswith('_')]}")
+                    
+            except AttributeError as e:
+                print(f"[SPEED MULT] AttributeError updating clock: {e}")
+            except Exception as e:
+                print(f"[SPEED MULT] Unexpected error updating clock: {e}")
+        
+        print(f"[SPEED MULT] System speed multiplier successfully set to {multiplier}x")
+        self.add_to_status_log(f"Speed multiplier: {multiplier}x")
 
     def handle_failure_mode(self, failure_type, is_active):
         """Handle failure mode activation/deactivation"""
@@ -2136,8 +2172,6 @@ if __name__ == "__main__":
     dialog.title("Train Line Selection")
     dialog.geometry("400x250")
     dialog.configure(bg='#1e3c72')
-    dialog.grab_set()   # Make modal
-    dialog.focus_set()
 
     tk.Label(dialog, text="SELECT TRAIN LINE SW", font=("Arial", 20, "bold"),
              bg='#1e3c72', fg='white', pady=20).pack()
@@ -2158,6 +2192,11 @@ if __name__ == "__main__":
     tk.Button(frame, text="RED LINE", font=("Arial", 16, "bold"),
               bg="#e74c3c", fg="white", width=12, height=2,
               command=lambda: choose("RED")).pack(side="left", padx=10)
+
+    # Make sure window is visible before grabbing
+    dialog.update_idletasks()  # Force window to render
+    dialog.grab_set()   # Make modal - AFTER window is rendered
+    dialog.focus_set()
 
     # Wait for dialog result
     root.wait_window(dialog)
