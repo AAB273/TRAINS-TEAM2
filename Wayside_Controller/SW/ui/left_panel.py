@@ -197,7 +197,7 @@ class LeftPanel(tk.Frame):
             self.crossing_condition.config(state='normal')
             self.crossing_condition.delete(0, tk.END)
             self.crossing_condition.config(state='readonly')
-            self.crossing_status.set(text="")
+            self.crossing_status.set("")
 
 
     def set_crossing(self):

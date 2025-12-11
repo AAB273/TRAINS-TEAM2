@@ -1766,7 +1766,7 @@ class UITestData:
                         test_data.block_data[i][0] = "No"  # Mark as unavailable
                     
                         if old_value != "No":
-                            print(f"  ⚠️  Block {block_num}: Marked UNAVAILABLE (failure)")
+                            print(f" Block {block_num}: Marked UNAVAILABLE (failure)")
                             add_to_message_log(f"Block {block_num}: FAILURE - Unavailable")
                         break
         
@@ -4457,7 +4457,7 @@ def run_terminal_tests():
     import time
     
     print("\n" + "="*80)
-    print("🧪 TRACK HW TERMINAL TEST SUITE")
+    print(" TRACK HW TERMINAL TEST SUITE")
     print("="*80)
     print("Testing all Track HW functionality with visible terminal output")
     print("="*80 + "\n")
@@ -4470,7 +4470,7 @@ def run_terminal_tests():
     print("="*80)
     print("TEST 1: CTC SUGGESTED SPEED")
     print("="*80)
-    print("📤 Simulating CTC sending suggested speed to Track HW...")
+    print(" Simulating CTC sending suggested speed to Track HW...")
     
     test_ctc_speed = {
         'track': 'Green',
@@ -4488,11 +4488,11 @@ def run_terminal_tests():
     if hasattr(right_panel, 'suggested_speed'):
         speed_mph = float(test_ctc_speed['speed']) * 2.23694
         right_panel.suggested_speed['Green']['70'] = f"{speed_mph:.2f}"
-        print(f"\n✅ RESULT: CTC suggested speed received and stored")
+        print(f"\n RESULT: CTC suggested speed received and stored")
         print(f"  • Stored as: {speed_mph:.2f} mph in suggested_speed['Green']['70']")
         print(f"  • PLC will apply this speed to section on next cycle")
     else:
-        print(f"\n⚠️  suggested_speed not found - test skipped")
+        print(f"\n  suggested_speed not found - test skipped")
     
     time.sleep(2)
     
@@ -4502,7 +4502,7 @@ def run_terminal_tests():
     print("\n" + "="*80)
     print("TEST 2: BLOCK OCCUPANCY RECEIVED FROM TRACK MODEL")
     print("="*80)
-    print("📤 Simulating Track Model sending occupancy updates...")
+    print(" Simulating Track Model sending occupancy updates...")
     
     test_occupancy = {
         70: 1,   # Train 1 on block 70
@@ -4529,7 +4529,7 @@ def run_terminal_tests():
     if hasattr(plc_manager, 'controller') and hasattr(plc_manager.controller, 'update_occupancy_from_track_model'):
         plc_manager.controller.update_occupancy_from_track_model(test_occupancy)
     
-    print(f"\n✅ RESULT: Occupancy data received and processed")
+    print(f"\nRESULT: Occupancy data received and processed")
     print(f"  • Updated test_data.block_data with occupancy states")
     print(f"  • PLC controller cache updated")
     print(f"  • Data ready to forward to CTC")
@@ -4542,7 +4542,7 @@ def run_terminal_tests():
     print("\n" + "="*80)
     print("TEST 3: SENDING COMMANDED SPEED AND AUTHORITY")
     print("="*80)
-    print("📤 Track HW sending commanded speed/authority to Track Model...")
+    print(" Track HW sending commanded speed/authority to Track Model...")
     
     # Set commanded values
     if hasattr(right_panel, 'commanded_speed') and hasattr(right_panel, 'commanded_authority'):
@@ -4561,18 +4561,18 @@ def run_terminal_tests():
             'authority': right_panel.commanded_authority['Green']['70']
         }
         
-        print("\n📨 Message prepared for Track Model:")
+        print("\n Message prepared for Track Model:")
         print(f"  • Command: {commanded_message['command']}")
         print(f"  • Track: {commanded_message['track']}")
         print(f"  • Block: {commanded_message['block']}")
         print(f"  • Speed: {commanded_message['speed']} mph")
         print(f"  • Authority: {commanded_message['authority']} blocks")
         
-        print(f"\n✅ RESULT: Commanded values ready to send to Track Model")
+        print(f"\nRESULT: Commanded values ready to send to Track Model")
         print(f"  • Train will receive speed limit: {commanded_message['speed']} mph")
         print(f"  • Train will receive authority: {commanded_message['authority']} blocks")
     else:
-        print(f"\n⚠️  commanded_speed/authority not found - test skipped")
+        print(f"\n  commanded_speed/authority not found - test skipped")
     
     time.sleep(2)
     
@@ -4599,7 +4599,7 @@ def run_terminal_tests():
     # Directly store in right_panel
     if hasattr(right_panel, 'suggested_authority'):
         right_panel.suggested_authority['Green']['80'] = '5'
-        print(f"\n✅ RESULT: CTC suggested authority received and stored")
+        print(f"\nRESULT: CTC suggested authority received and stored")
         print(f"  • Stored in suggested_authority['Green']['80']")
         print(f"  • PLC will create special authority pattern:")
         print(f"    - Block 80: auth=3")
@@ -4607,7 +4607,7 @@ def run_terminal_tests():
         print(f"    - Block 78: auth=1")
         print(f"    - Block 77: auth=0 (stopping point)")
     else:
-        print(f"\n⚠️  suggested_authority not found - test skipped")
+        print(f"\nsuggested_authority not found - test skipped")
     
     time.sleep(2)
     
@@ -4625,7 +4625,7 @@ def run_terminal_tests():
         'power_failures': [35, 40]
     }
     
-    print("\n🔴 Failures detected:")
+    print("\nFailures detected:")
     print(f"  • Track Circuit Failures: {test_failures['track_circuit_failures']}")
     print(f"  • Broken Rail Failures: {test_failures['broken_rail_failures']}")
     print(f"  • Power Failures: {test_failures['power_failures']}")
@@ -4657,7 +4657,7 @@ def run_terminal_tests():
     if hasattr(plc_manager, 'controller'):
         plc_manager.controller.active_failures = test_data.active_failures
     
-    print(f"\n✅ RESULT: Track failures received and processed")
+    print(f"\nRESULT: Track failures received and processed")
     print(f"  • Failed blocks marked as 'No' (unavailable)")
     print(f"  • Stored in test_data.active_failures")
     print(f"  • PLC controller updated with failure list")
@@ -4936,7 +4936,6 @@ def delayed_tests():
     import time
     time.sleep(3)
     run_terminal_tests()
-
 
 # ============================================================================
 # TO ENABLE TESTS: Uncomment the 3 lines below
