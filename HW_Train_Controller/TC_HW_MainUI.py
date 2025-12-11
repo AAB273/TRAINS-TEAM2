@@ -2688,12 +2688,15 @@ class TrainSpeedDisplayUI:
                 # Convert kW to Watts for Train Model
                 powerWatts = powerKW * 1000.0
                 
-                # Time-based throttling: only send every 3 seconds
+                # Time-based throttling: scale with mult_value for faster response at high speeds
+                # At 1x speed: send every 0.5s, at 10x: send every 0.05s, at 50x: send every 0.01s
+                send_interval = 0.5 / mult_value
+                
                 current_time = time.time()
                 if not hasattr(self, '_last_power_send_time'):
                     self._last_power_send_time = 0
                 
-                # Send if: (1) 3 seconds elapsed OR (2) power changed significantly AND at least 0.5s passed
+                # Send if: (1) interval elapsed OR (2) power changed significantly
                 time_since_last_send = current_time - self._last_power_send_time
                 power_changed = lastSentPower is None or abs(powerWatts - lastSentPower) > 100
                 
@@ -2709,7 +2712,7 @@ class TrainSpeedDisplayUI:
                         lastSentPower = 0
                         self._last_power_send_time = current_time
                         print("⚠️  Service brake active - power command set to ZERO")
-                elif time_since_last_send >= 3.0 or (power_changed and time_since_last_send >= 0.5):
+                elif time_since_last_send >= send_interval or power_changed:
                     self.server.send_to_ui("Train Model", {
                         'command': 'Power Command',
                         'value': powerWatts,
