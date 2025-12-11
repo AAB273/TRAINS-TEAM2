@@ -424,7 +424,7 @@ class RailwayControlSystem:
                     print(f"CTC sent suggested values for block 63 - forwarding to Track Model as commanded")
                     
                     # Use suggested values or defaults
-                    set_speed = "32"
+                    set_speed = "25"
                     set_authority = "3"
                     
                     # Send to Track Model as commanded values

@@ -65,7 +65,7 @@ class TrainModelPassengerGUI:
 		self.server.connect_to_ui('localhost', trainSwConfig["port"], "Train SW")
 		self.server.connect_to_ui('localhost', trainHwConfig["port"], "Train HW")
 		self.server.connect_to_ui('localhost', trackModelConfig["port"], "Track Model")
-		self.server.connect_to_ui('localhost', CTCModelConfig["port"], "Track Model")
+		self.server.connect_to_ui('localhost', CTCModelConfig["port"], "CTC")
 		self.server.connect_to_ui('localhost', 12349, "Test_UI")
 		
 		self.uiLabels = {}
@@ -123,7 +123,10 @@ class TrainModelPassengerGUI:
 	def _processMessage(self, message: dict, sourceUiId: str):
 		# Processes incoming messages from socket server and updates train state accordingly.
 		try:
-			print(f"Received message from {sourceUiId}: {message}")
+			if message.get('command') == 'TIME':
+				pass
+			else:
+				print(f"Received message from {sourceUiId}: {message}")
 
 			command = message.get('command')
 			
@@ -131,7 +134,7 @@ class TrainModelPassengerGUI:
 			# 	self.Clock = message.get('value')
 			value = message.get('value')
 			trainId = message.get('train_id')
-			
+
 			if command == 'Beacon1' or command == 'Beacon2':
 				self.server.send_to_ui("Train SW", {
 					'command': command,
@@ -289,31 +292,35 @@ class TrainModelPassengerGUI:
 			elif command == 'Commanded Authority':
 				wasActive = train.active if train else False
 				train.setAuthority(value)
-				self.server.send_to_ui("Train SW", {
+				if train.trainId == 1:
+					self.server.send_to_ui("Train HW", {
+						'command': "Commanded Authority",
+						'value': value,
+						'train_id': trainId if trainId else train.trainId
+					})
+				else:
+					self.server.send_to_ui("Train SW", {
 					'command': "Commanded Authority",
 					'value': value,
 					'train_id': trainId if trainId else train.trainId
-				})
-				self.server.send_to_ui("Train HW", {
-					'command': "Commanded Authority",
-					'value': value,
-					'train_id': trainId if trainId else train.trainId
-				})
+					})
 				if not wasActive and train.active:
 					print(f"Train {train.trainId} activated - refreshing selector")
 					self.refreshTrainSelectorIfNeeded() 
 			elif command == 'Commanded Speed':
 				train.setCommandedSpeed(value)
-				self.server.send_to_ui("Train SW", {
+				if train.trainId == 1:
+					self.server.send_to_ui("Train HW", {
+						'command': "Commanded Speed",
+						'value': value,
+						'train_id': trainId if trainId else train.trainId
+					})
+				else:
+					self.server.send_to_ui("Train SW", {
 					'command': "Commanded Speed",
 					'value': value,
 					'train_id': trainId if trainId else train.trainId
-				})
-				self.server.send_to_ui("Train HW", {
-					'command': "Commanded Speed",
-					'value': value,
-					'train_id': trainId if trainId else train.trainId
-				})
+					})
 			elif command == 'Block Occupancy':
 				train.setBlock(value)
 				if train.line == 'green':
@@ -373,16 +380,18 @@ class TrainModelPassengerGUI:
 				
 				if oldSpeed != newSpeed:
 					# Send updates for this train
-					self.server.send_to_ui("Train HW", {
-						'command': "Current Speed",
-						'value': train.speed,
-						'train_id': train.trainId
-					})
-					self.server.send_to_ui("Train SW", {
-						'command': "Current Speed",
-						'value': train.speed,
-						'train_id': train.trainId
-					})
+					if train.trainId == 1:
+						self.server.send_to_ui("Train HW", {
+							'command': "Current Speed",
+							'value': train.speed,
+							'train_id': train.trainId
+						})
+					else:
+						self.server.send_to_ui("Train SW", {
+							'command': "Current Speed",
+							'value': train.speed,
+							'train_id': train.trainId
+						})
 					self.server.send_to_ui("Track Model", {
 						'command': 'Current Speed',
 						'value': train.speed,
@@ -601,10 +610,10 @@ class TrainModelPassengerGUI:
 		if self.currentTrain.emergencyBrakeActive:
 			self.uiLabels['announcement'].config(text=f"EMERGENCY")
 		else:
-			if "Arrived" in train.announcement:
-				self.uiLabels['announcement'].config(text={train.announcement})
+			if "Arrived" in train.announcement or "Yard" in train.announcement:
+				self.uiLabels['announcement'].config(text=f"{train.announcement}")
 			else:
-				self.uiLabels['announcement'].config(text=f"{train.announcement} in {train.timeToStation} mins")
+				self.uiLabels['announcement'].config(text=(f"{train.announcement} in {train.timeToStation} mins"))
 
 		# Update power command and commanded values
 		self.uiLabels['power_command'].config(text=f"{train.powerCommand:.0f} Watts")

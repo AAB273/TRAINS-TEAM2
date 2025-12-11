@@ -450,8 +450,9 @@ class PLCController:
         Update authority values based on block occupancy
         Reset speed to 25 mph for unoccupied blocks
         """
-        if not self.test_data:
-            return
+        if not hasattr(self, 'block_authority'):
+            self.block_authority = {}
+        print("[PLC] Authority update placeholder called")
     
     # Reset authority array
         self.track_model_authority_array = []
@@ -507,6 +508,7 @@ class PLCController:
         """
         if not self.test_data or not hasattr(self.test_data, 'send_to_track_model'):
             return
+        print("[PLC] Send to Track Model placeholder called")
     
     # Ensure we have updated authority data
         self.update_authority_for_occupancy()

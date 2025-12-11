@@ -3356,11 +3356,11 @@ class RightPanel(tk.Frame):
         current_block_frame.pack(fill=tk.X, pady=5)
         
         # # Occupied status display
-        # tk.Label(current_block_frame, text="Occupancy:", bg='#cccccc',
-        #         width=8).grid(row=1, column=2, padx=2, pady=2, sticky='w')
-        # self.occupied_label = tk.Label(current_block_frame, text="", bg='white',
-        #                               width=8, relief=tk.SUNKEN)
-        # self.occupied_label.grid(row=1, column=1, padx=2, pady=2, sticky='w')
+        tk.Label(current_block_frame, text="Occupancy:", bg='#cccccc',
+                width=8).grid(row=1, column=2, padx=2, pady=2, sticky='w')
+        self.occupied_label = tk.Label(current_block_frame, text="", bg='white',
+                                      width=8, relief=tk.SUNKEN)
+        self.occupied_label.grid(row=1, column=1, padx=2, pady=2, sticky='w')
 
         # # Line
         # tk.Label(current_block_frame, text="Line:", bg='#cccccc', width=10).grid(row=0, column=2, padx=2, pady=2, sticky='w')
@@ -3394,18 +3394,17 @@ class RightPanel(tk.Frame):
                     
                     # Update labels (only 4 columns now)
                     self.block_num_label.config(text=row[2])
-                    
-                    # # Line with color
-                    # line_color = '#66cc66' if row[1] == "Green" else '#ff6666'
-                    # self.line_label.config(text=row[1], bg=line_color)
                 
                 # Section (now in column 3 instead of 4)
                     self.section_label.config(text=row[3] if len(row) > 3 else "")
 
-                    # Color coding for occupancy
-                    occupied_text = row[0] if len(row) > 0 else "No"
-                    occupied_color = '#ffcccc' if occupied_text == "Yes" else '#ccffcc'
-                    self.occupied_label.config(text=occupied_text, bg=occupied_color)
+                    # FIX: Check if occupied_label exists before using it
+                    if hasattr(self, 'occupied_label') and self.occupied_label is not None:
+                        occupied_text = row[0] if len(row) > 0 else "No"
+                        occupied_color = '#ffcccc' if occupied_text == "Yes" else '#ccffcc'
+                        self.occupied_label.config(text=occupied_text, bg=occupied_color)
+                    else:
+                        print("WARNING: occupied_label not initialized yet")
 
                     found = True
                     break #exits the loop once finding matching new row
