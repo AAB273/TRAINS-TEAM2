@@ -396,9 +396,9 @@ class TrainModelPassengerGUI:
 		self.root.after(100, self.continuousPhysicsUpdate)
 
 	def updateClockSpeed(self, clockMultiplier):
-		if clockMultiplier == '1':
+		if clockMultiplier == 1:
 			self.clockSpeed = 1000
-		elif clockMultiplier == '10':
+		elif clockMultiplier == 10:
 			self.clockSpeed = 100
 
 	def emergencyBrakeActivated(self, train=None):
