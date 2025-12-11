@@ -5737,17 +5737,21 @@ class TrackModelUI(tk.Tk):
         # print(f" Sent bulk occupancy data to Track SW: {len(occupancy_data)} blocks")
 
     def send_block_occupancy_to_train_model(self):
-        """Send block occupancy to Train Model - only occupied blocks."""
-        occupied_blocks = []
-        for block in self.data_manager.blocks:
-            if block.occupancy != 0:  # Only include occupied blocks
-                occupied_blocks.append(block.block_number)
-        
-        self.server.send_to_ui("Train Model", {
-            'command': 'block_occupancy',
-            'value': occupied_blocks
-        })
-        # print(f" Sent occupied blocks to Train Model: {occupied_blocks}")
+        """Send block occupancy to Train Model - one message per train with block location and train ID."""
+        # Send occupancy for each active train separately
+        for train_idx, train_id in enumerate(self.data_manager.active_trains):
+            # Get the block location for this train
+            if train_idx < len(self.data_manager.train_locations):
+                block_location = self.data_manager.train_locations[train_idx]
+                
+                # Only send if train is on the track (block_location != 0)
+                if block_location != 0:
+                    self.server.send_to_ui("Train Model", {
+                        'command': 'block_occupancy',
+                        'value': block_location,
+                        'train_id': int(train_id)
+                    })
+                    # print(f" Sent block occupancy to Train Model: Train {train_id} at block {block_location}")
 
     def send_commanded_speed_to_train_model(self):
         """Send commanded speed to Train Model - individual message per train."""
