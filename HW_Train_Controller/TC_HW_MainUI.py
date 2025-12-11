@@ -444,7 +444,7 @@ lastUndergroundState = False  # Track if we were underground last update
 # Automatic mode control parameters
 DECELERATION_DISTANCE = 200.0  # Start decelerating 200m before station (meters)
 STATION_STOP_THRESHOLD = 5.0  # Consider "at station" when within 5m
-STATION_DWELL_TIME = 3.0  # Time to wait at station (seconds)
+STATION_DWELL_TIME = 30.0  # Time to wait at station (seconds)
 stationDwellStartTime = None  # Track when we arrived at station
 isAtStation = False  # Flag to track if we're stopped at a station
 
@@ -1046,7 +1046,7 @@ def updatePositionTracking():
     lastPositionUpdateTime = currentTime
     
     # TIME ACCELERATION: 10x speed for faster simulation
-    TIME_SCALE = 10.0
+    TIME_SCALE = 1.0
     dt = dt * TIME_SCALE
     
     # If we're at a station, don't update position
