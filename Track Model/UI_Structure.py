@@ -3638,7 +3638,7 @@ class TrackModelUI(tk.Tk):
             
             # Send to Train Model (keep existing format for Train Model)
             self.server.send_to_ui("Train Model", {
-                "command": "block_occupancy",
+                "command": "Block Occupancy",
                 "value": update
             })
             
@@ -5743,7 +5743,7 @@ class TrackModelUI(tk.Tk):
                 # Only send if train is on the track (block_location != 0)
                 if block_location != 0:
                     self.server.send_to_ui("Train Model", {
-                        'command': 'block_occupancy',
+                        'command': 'Block Occupancy',
                         'value': int(block_location),
                         'train_id': int(train_id)
                     })
