@@ -131,7 +131,8 @@ class TrainModelPassengerGUI:
 			# 	self.Clock = message.get('value')
 			value = message.get('value')
 			trainId = message.get('train_id')
-			
+			trainId = int(trainId)
+
 			if command == 'Beacon1' or command == 'Beacon2':
 				self.server.send_to_ui("Train SW", {
 					'command': command,
@@ -605,10 +606,10 @@ class TrainModelPassengerGUI:
 		if self.currentTrain.emergencyBrakeActive:
 			self.uiLabels['announcement'].config(text=f"EMERGENCY")
 		else:
-			if "Arrived" in train.announcement:
-				self.uiLabels['announcement'].config(text= train.announcement)
+			if "Arrived" in train.announcement or "Yard" in train.announcement:
+				self.uiLabels['announcement'].config(text=train.announcement)
 			else:
-				self.uiLabels['announcement'].config(text=f"{train.announcement} in {train.timeToStation} mins")
+				self.uiLabels['announcement'].config(text=(train.announcement, " in " ,train.timeToStation, " mins"))
 
 		# Update power command and commanded values
 		self.uiLabels['power_command'].config(text=f"{train.powerCommand:.0f} Watts")
