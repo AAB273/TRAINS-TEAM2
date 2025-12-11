@@ -289,7 +289,7 @@ class TrainModelPassengerGUI:
 			elif command == 'Commanded Authority':
 				wasActive = train.active if train else False
 				train.setAuthority(value)
-				if trainId == 1:
+				if train.trainId == 1:
 					self.server.send_to_ui("Train HW", {
 						'command': "Commanded Authority",
 						'value': value,
@@ -306,7 +306,7 @@ class TrainModelPassengerGUI:
 					self.refreshTrainSelectorIfNeeded() 
 			elif command == 'Commanded Speed':
 				train.setCommandedSpeed(value)
-				if trainId == 1:
+				if train.trainId == 1:
 					self.server.send_to_ui("Train HW", {
 						'command': "Commanded Speed",
 						'value': value,
@@ -606,7 +606,7 @@ class TrainModelPassengerGUI:
 			self.uiLabels['announcement'].config(text=f"EMERGENCY")
 		else:
 			if "Arrived" in train.announcement:
-				self.uiLabels['announcement'].config(text={train.announcement})
+				self.uiLabels['announcement'].config(text= train.announcement)
 			else:
 				self.uiLabels['announcement'].config(text=f"{train.announcement} in {train.timeToStation} mins")
 
