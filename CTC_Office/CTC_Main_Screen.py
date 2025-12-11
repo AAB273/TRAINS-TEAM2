@@ -527,6 +527,7 @@ class MainScreen:
                 self.clockSpeed = 10
 
                 self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
+                self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
                 self.send_to_ui("Train SW", {"command": "MULT", "value": float(self.clockSpeed)})
                 self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
                 #send time multiplier down the line
