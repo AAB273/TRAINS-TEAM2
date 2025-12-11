@@ -2056,12 +2056,12 @@ class LeftPanel(tk.Frame):
         self.crossing_condition.pack()
        
         tk.Label(crossing_frame, text="State:", bg='#cccccc').pack()
-        self.crossing_lights = ttk.Combobox(crossing_frame, width=18,
-                                           values=["Active", "Off"], state='readonly')
-        self.setcrossingState.pack()
+        self.crossing_state = ttk.Combobox(crossing_frame, width=18,
+                                   values=["Active", "Inactive"], state='readonly')  # CHANGED FROM "Active", "Off"
+        self.crossing_state.pack()  # CHANGED FROM self.setcrossingState
 
         set_crossing_btn = tk.Button(crossing_frame, text="Set Crossing", width=10,
-                               command=self.setCrossingState)
+                               command=self.set_crossing_state)
         set_crossing_btn.pack(pady=5)
 
     def update_crossing_options(self):
@@ -2106,7 +2106,7 @@ class LeftPanel(tk.Frame):
         self.switch_direction.bind('<<ComboboxSelected>>', self.update_switch_direction)
 
         set_switch_btn = tk.Button(switch_frame, text="Set Switch", width=10,
-                             command=self.set_switch_state)
+                             command=self.update_switch_direction)
         set_switch_btn.pack(pady=5)
 
         # Initialize with current line data
@@ -2172,7 +2172,7 @@ class LeftPanel(tk.Frame):
         self.light_signal.bind('<<ComboboxSelected>>', self.update_light_signal)
 
         set_light_btn = tk.Button(light_frame, text="Set Light", width=10,
-                            command=self.set_light_state)
+                            command=self.update_light_signal)
         set_light_btn.pack(pady=5)
         # sendLights = tk.Button(light_frame, text="Send", width=5, command=self.update_light_signal)
         # sendLights.pack(side=tk.BOTTOM)
@@ -2446,25 +2446,30 @@ class LeftPanel(tk.Frame):
     def update_crossing_display(self, event=None):
         selected = self.crossing_selector.get()
         crossings = self.data.filtered_track_data.get("crossings", {})
+    
+    # Set default values first
+        self.crossing_condition.config(state='normal')
+        self.crossing_condition.delete(0, tk.END)
+        self.crossing_condition.insert(0, "Normal")  # Default condition
+        self.crossing_condition.config(state='readonly')
+        self.crossing_state.set("Inactive")  # Default state
+    
+    # If selected crossing exists in data, update with real values
         if selected in crossings:
             data = crossings[selected]
             self.crossing_condition.config(state='normal')
             self.crossing_condition.delete(0, tk.END)
-            self.crossing_condition.insert(0, data["condition"])
+            self.crossing_condition.insert(0, data.get("condition", "Normal"))
             self.crossing_condition.config(state='readonly')
-            
+        
         # Determine state based on lights and bar
-        if data.get("lights") == "On" or data.get("bar") == "Closed":
-            self.crossing_state.set("Active")
-        else:
-            self.crossing_state.set("Inactive")
-    # def update_crossing_lights(self, event=None):
-    #     selected = self.crossing_selector.get()
-    #     if selected in self.data.track_data["crossings"]:
-    #         old_value = self.data.track_data["crossings"][selected]["lights"]
-    #         new_value = self.crossing_lights.get()
-    #         self.data.track_data["crossings"][selected]["lights"] = self.crossing_lights.get()
-    #         message_logger.log(f"Crossing {selected}: Lights changed from {old_value} to {new_value}")
+            lights = data.get("lights", "Off")
+            bar = data.get("bar", "Open")
+        
+            if lights == "On" or bar == "Closed":
+                self.crossing_state.set("Active")
+            else:
+                self.crossing_state.set("Inactive")
 
     def update_switch_display(self, event=None):
         selected = self.switch_selector.get()
@@ -2688,29 +2693,29 @@ class LeftPanel(tk.Frame):
                 self.data.send_switch_to_track_model(self.data.current_line, block, new_value)
                 add_to_message_log(f"Switch {block}: Direction {new_value} sent to Track Model")
    
-    def setCrossingState(self):
+    def set_crossing_state(self):  # CHANGED FROM setCrossingState
         """Set the selected crossing to Active/Inactive"""
         selected = self.crossing_selector.get()
         if selected:
             state = self.crossing_state.get()  # "Active" or "Inactive"
-        
-        # Update both lights and bar based on state
+    
+    # Update both lights and bar based on state
             if state == "Active":
                 lights = "On"
                 bar = "Closed"
             else:  # "Inactive"
                 lights = "Off"
                 bar = "Open"
-        
-        # Update the data
+    
+    # Update the data
             if selected in self.data.track_data["crossings"]:
                 self.data.track_data["crossings"][selected]["lights"] = lights
                 self.data.track_data["crossings"][selected]["bar"] = bar
-        
-        # Log the action
+    
+    # Log the action
             add_to_message_log(f"Set {selected} to {state} (Lights={lights}, Bar={bar})")
-        
-        # Extract block number and send to CTC/Track Model
+    
+    # Extract block number and send to CTC/Track Model
             import re
             block_match = re.search(r'\d+', selected)
             if block_match:
@@ -2727,7 +2732,7 @@ class LeftPanel(tk.Frame):
 
 test_data = UITestData()
 # Create the left panel with mock data
-left_panel = LeftPanel(main_frame, test_data, test_data.server1)
+left_panel = LeftPanel(main_frame, test_data)
 left_panel.pack(side="left", fill="y", padx=5, pady=5)
 
 #######################################################################################
