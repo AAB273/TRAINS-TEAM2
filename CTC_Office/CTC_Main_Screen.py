@@ -509,6 +509,7 @@ class MainScreen:
         #self.send_to_ui("Train Model", self.clock)
         self.clockText.configure(text = time)
         self.send_to_ui("Train Model", {"command": "TIME", "value": time})
+        self.send_to_ui("Train SW", {"command": "TIME", "value": time})
         self.clockTimer = self.root.after(100, self.updateTime)
 
 ###############################################################################################################################################################
