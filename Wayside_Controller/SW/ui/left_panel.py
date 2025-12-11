@@ -314,6 +314,10 @@ class LeftPanel(tk.Frame):
             
             # Update UI with section-based display
             self.switch_direction['values'] = display_options
+            
+            # Set current selection
+            current_display_dir = self.convert_to_section_display(current_raw_dir)
+            self.switch_direction.set(current_display_dir)
 
     def convert_to_section_display(self, raw_direction):
         """Convert raw block direction to section-based display name"""

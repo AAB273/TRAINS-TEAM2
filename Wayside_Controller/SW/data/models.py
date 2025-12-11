@@ -7,7 +7,6 @@ class RailwayData:
         self.maintenance_mode = False
         self.current_line = "Green"  # Default line
         self.app = None
-        self.manual_switches = set() 
         
         
         # Callbacks for UI updates
@@ -511,39 +510,23 @@ class RailwayData:
             )
         }
         
-        # CRITICAL FIX: Also check filtered_railway_crossings for dynamic crossings
-        self.filtered_railway_crossings = {}
-        
-        # First, add crossings from main data
-        for k, v in self.railway_crossings.items():
+        self.filtered_railway_crossings = {
+            k: v for k, v in self.railway_crossings.items() 
             if v.get("line") == line and (
                 not self.plc_filter_active or 
                 v.get("section", "Unknown") in self.plc_filter_sections
-            ):
-                self.filtered_railway_crossings[k] = v
-        
-        # Also, check if PLC has already added to filtered_railway_crossings
-        # (This happens when PLC creates crossings dynamically)
-        for k, v in self.filtered_railway_crossings.copy().items():
-            if v.get("line") == line and k not in self.filtered_railway_crossings:
-                self.filtered_railway_crossings[k] = v
+            )
+        }
         
         # Reinitialize blocks for the new line
         self.initialize_track_blocks()
-        print(f"Data filtered for {line} line - {len(self.block_data)} blocks")
+        #print(f"Data filtered for {line} line - {len(self.block_data)} blocks")
 
     def set_maintenance_mode(self, mode):
         """Set maintenance mode and notify all UI components"""
         self.maintenance_mode = mode
-
-        # Clear manual switch markings when exiting maintenance mode
-        if not mode and hasattr(self, 'manual_switches'):
-            print(f"[SYSTEM] Exiting maintenance mode - resetting {len(self.manual_switches)} manual switches")
-            self.manual_switches.clear()
-            
         mode_text = "activated" if mode else "deactivated"
-        print(f"Maintenance mode {mode_text}")
-
+        #print(f"Maintenance mode {mode_text}")
         for callback in self.on_maintenance_mode_change:
             callback()
     
@@ -663,4 +646,4 @@ class RailwayData:
         # Sync with main block_data for display
         self.block_data = filtered_rows.copy()
         
-        print(f"PLC filter applied: {len(filtered_rows)} blocks shown")
+        #print(f"PLC filter applied: {len(filtered_rows)} blocks shown")

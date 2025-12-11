@@ -98,7 +98,7 @@ class RailwayControlSystem:
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             log_message = f"{current_time} CTC: Maintenance Request Received"
             
-            print(f"CTC maintenance request received")
+            #print(f"CTC maintenance request received")
             
             # Send to UI log via callback
             if hasattr(self, 'center_panel') and hasattr(self.center_panel, 'log_callback'):
@@ -122,7 +122,7 @@ class RailwayControlSystem:
                 block = str(data[0])
                 track = str(data[1])
                 
-                print(f"CTC wants to switch: Block {block} on {track} track")
+                #print(f"CTC wants to switch: Block {block} on {track} track")
                 
                 # Just log to UI, don't update the switch
                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -134,11 +134,11 @@ class RailwayControlSystem:
                 if hasattr(self, 'center_panel') and hasattr(self.center_panel, 'log_callback'):
                     self.center_panel.log_callback(log_message)
                 
-                print(f"✓ CTC switch request logged: {log_message}")
+                #print(f"✓ CTC switch request logged: {log_message}")
                 
             else:
                 error_msg = f"Invalid CTC switch data format: {data}"
-                print(f"✗ {error_msg}")
+                #print(f"✗ {error_msg}")
                 
                 # Still log the error
                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -172,8 +172,8 @@ class RailwayControlSystem:
         switch_list = []
         
         # Add track identifier as first element (0 for Green, 1 for Red)
-        #track_id = 0 if track == "Green" else 1 if track == "Red" else 2
-        #switch_list.append(track_id)
+        track_id = 0 if track == "Green" else 1 if track == "Red" else 2
+        switch_list.append(track_id)
         
         # Get all switches for the current track in PLC sections
         switches = []
@@ -183,7 +183,7 @@ class RailwayControlSystem:
         if hasattr(self.data, 'plc_filter_active') and self.data.plc_filter_active:
             plc_sections = getattr(self.data, 'plc_filter_sections', [])
         
-        print(f"PLC sections for switch filtering: {plc_sections}")
+        #print(f"PLC sections for switch filtering: {plc_sections}")
         
         for switch_name, switch_data in self.data.switch_positions.items():
             if switch_data.get("line") == track:
@@ -197,7 +197,7 @@ class RailwayControlSystem:
                 if section in plc_sections:
                     # Extract block number and convert to integer for sorting
                     switches.append((switch_block_num, switch_data.get("numeric_position", 1) - 1))
-                    print(f"  Including switch {switch_block_num}: section={section} in PLC sections")
+                    #print(f"  Including switch {switch_block_num}: section={section} in PLC sections")
         
         # Sort by block number (smallest first)
         switches.sort(key=lambda x: x[0])
@@ -211,9 +211,9 @@ class RailwayControlSystem:
             "value": switch_list  # This will be [track_id, pos1, pos2, ...] for PLC switches only
         }
         
-        print(f"Sending PLC switches to track model: {switch_message}")
-        print(f"  Number of switches included: {len(switches)}")
-        print(f"  Switch blocks: {[s[0] for s in switches]}")
+        #print(f"Sending PLC switches to track model: {switch_message}")
+        #print(f"  Number of switches included: {len(switches)}")
+        #print(f"  Switch blocks: {[s[0] for s in switches]}")
         
         return self.send_to_track_model(switch_message)
 
@@ -232,7 +232,7 @@ class RailwayControlSystem:
         direction = data.get('direction')
         
         if track and block and direction:
-            print(f"Processing switch update: {track} Block {block} -> {direction}")
+            #print(f"Processing switch update: {track} Block {block} -> {direction}")
             
             switch_name = f"Switch {block}"
             self.data.update_track_data("switch_positions", switch_name, "direction", direction)
@@ -249,7 +249,7 @@ class RailwayControlSystem:
         color = data.get('color')
         
         if track and block and color:
-            print(f"Processing light update: {track} Block {block} -> {color}")
+            #print(f"Processing light update: {track} Block {block} -> {color}")
             
             light_name = f"Light {block}"
             self.data.update_track_data("light_states", light_name, "signal", color)
@@ -368,7 +368,7 @@ class RailwayControlSystem:
             "value": rc_list  # This will be [state1, state2, ...] in block order
         }
         
-        print(f"Sending all railway crossings to track model: {rc_message}")
+        #print(f"Sending all railway crossings to track model: {rc_message}")
         return self.send_to_track_model(rc_message)
 
 
@@ -380,7 +380,7 @@ class RailwayControlSystem:
         crossbar = data.get('crossbar')
         
         if track and block and lights and crossbar:
-            print(f"Processing crossing update: {track} Block {block} -> Lights:{lights}, Bar:{crossbar}")
+            #print(f"Processing crossing update: {track} Block {block} -> Lights:{lights}, Bar:{crossbar}")
             
             crossing_name = f"Railway {block}"
             self.data.update_track_data("railway_crossings", crossing_name, "lights", lights)
@@ -394,20 +394,10 @@ class RailwayControlSystem:
         speed = data.get('speed')
         authority = data.get('authority')
         value_type = data.get('value_type')  # 'commanded' or 'suggested'
-        print(f"Processing {value_type} update: {track} Block {block} -> Speed:{speed}, Auth:{authority}")
+        #print(f"Processing {value_type} update: {track} Block {block} -> Speed:{speed}, Auth:{authority}")
 
         if track and block and value_type:
-            speed_mph = None
-            if speed is not None:
-                try:
-                    # Convert m/s to mph
-                    speed_mph = str(float(speed) * 2.23694)
-                    print(f"  Converted speed: {speed} m/s → {speed_mph} mph")
-                except (ValueError, TypeError) as e:
-                    print(f"  Error converting speed {speed}: {e}")
-                    speed_mph = speed  # Keep original if conversion fails
-
-            print(f"Processing {value_type} update: {track} Block {block} -> Speed:{speed_mph}, Auth:{authority}")
+            #print(f"Processing {value_type} update: {track} Block {block} -> Speed:{speed}, Auth:{authority}")
             
             if value_type == 'commanded':
                 if speed is not None:
@@ -417,25 +407,15 @@ class RailwayControlSystem:
                         
             elif value_type == 'suggested':
                 if speed is not None:
-                    self.data.suggested_speed[track][block] = speed_mph
+                    self.data.suggested_speed[track][block] = speed
                 if authority is not None:
                     self.data.suggested_authority[track][block] = authority
-                if block == "63":  # ONLY for block 63!
-                    print(f"CTC sent suggested values for block 63 - forwarding to Track Model as commanded")
-                    
-                    # Use suggested values or defaults
-                    set_speed = "32"
-                    set_authority = "3"
-                    
-                    # Send to Track Model as commanded values
-                    self.send_commanded_to_track_model(track, block, set_speed, set_authority)
-                
             
             # ALWAYS UPDATE RIGHT PANEL
             if hasattr(self, 'right_panel'):
                 self.right_panel.update_commanded_display()
                 self.right_panel.update_suggested_display()
-                print(f"Right panel refreshed for {value_type} values")
+                #print(f"Right panel refreshed for {value_type} values")
 
 
     def handle_occupancy_update(self, data):
@@ -445,7 +425,7 @@ class RailwayControlSystem:
         occupied = data.get('occupied')
         
         if track and block and occupied is not None:
-            print(f"Processing occupancy update: {track} Block {block} -> {occupied}")
+            #print(f"Processing occupancy update: {track} Block {block} -> {occupied}")
             
             # Find the block in the original data and update it
             found = False
@@ -469,7 +449,7 @@ class RailwayControlSystem:
             # Get section for this block
             section = self.data.get_section_for_block(track, block)
             
-            print(f"Block {block} on {track}: section={section}, in PLC sections={section in plc_sections}")
+            #print(f"Block {block} on {track}: section={section}, in PLC sections={section in plc_sections}")
             
             # Send speed and authority to Track Model when:
             # 1. Block becomes occupied AND
@@ -479,17 +459,14 @@ class RailwayControlSystem:
                 commanded_speed = self.data.commanded_speed[track].get(block, 0)
                 commanded_authority = self.data.commanded_authority[track].get(block, 0)
                 
-                print(f"Sending commanded values for occupied PLC block {block}: speed={commanded_speed}, authority={commanded_authority}")
+                #print(f"Sending commanded values for occupied PLC block {block}: speed={commanded_speed}, authority={commanded_authority}")
                 self.send_commanded_to_track_model(track, block, commanded_speed, commanded_authority)
-            elif occupied:
-                print(f"Block {block} is occupied but not in PLC section ({section}), not sending to Track Model")
-            else:
-                print(f"Block {block} is not occupied, not sending to Track Model")
+
 
             # Force refresh the center panel table
             if hasattr(self, 'center_panel') and hasattr(self.center_panel, 'refresh_table'):
                 self.center_panel.refresh_table()
-                print(f"Center panel refreshed for occupancy update")
+                #print(f"Center panel refreshed for occupancy update")
             
             # Also trigger data update callbacks
             if hasattr(self.data, 'trigger_data_update'):

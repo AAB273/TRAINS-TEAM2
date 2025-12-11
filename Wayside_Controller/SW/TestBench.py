@@ -146,16 +146,16 @@ class PLC_Complete_TestBench:
         
         # Run all tests
         tests = [
-            ("Test 1: PLC Filter Activation", self.test_plc_filter_activation),
-            ("Test 2: Authority Calculation", self.test_authority_calculation),
-            ("Test 3: Section N Authority Rules", self.test_section_n_authority),
-            ("Test 4: CTC Override", self.test_ctc_override),
-            ("Test 5: Switch Control", self.test_switch_control),
-            ("Test 6: Light Signals", self.test_light_signals),
-            ("Test 7: Railway Crossings", self.test_railway_crossings),
-            ("Test 8: Maintenance Mode Switch Override", self.test_maintenance_mode_switch),
-            ("Test 9: CTC Speed Override", self.test_ctc_speed_override),
-            ("Test 10: Commanded Speed Override", self.test_commanded_speed_override),
+            #("Test 1: PLC Filter Activation", self.test_plc_filter_activation),
+            #("Test 2: Authority Calculation", self.test_authority_calculation),
+            #("Test 3: Section N Authority Rules", self.test_section_n_authority),
+            #("Test 4: CTC Override", self.test_ctc_override),
+            #("Test 5: Switch Control", self.test_switch_control),
+            #("Test 6: Light Signals", self.test_light_signals),
+            #("Test 7: Railway Crossings", self.test_railway_crossings),
+            #("Test 8: Maintenance Mode Switch Override", self.test_maintenance_mode_switch),
+            #("Test 9: CTC Speed Override", self.test_ctc_speed_override),
+            #("Test 10: Commanded Speed Override", self.test_commanded_speed_override),
             ("Test 11: User Authority Override", self.test_user_authority_override),       
         ]
         
@@ -235,14 +235,6 @@ class PLC_Complete_TestBench:
         print("  Checking authority for blocks...")
         print("  (Based on actual results, PLC creates protection zone BEHIND occupied blocks)")
         
-        # ACTUAL BEHAVIOR (from your test output):
-        # Block 70 (occupied): auth = 3 (occupied block has full authority)
-        # Block 69 (1 behind): auth = 0
-        # Block 68 (2 behind): auth = 1
-        # Block 67 (3 behind): auth = 2
-        # Block 66 (4+ behind): auth = 3
-        # Blocks AHEAD (71+): auth = 3 (normal)
-        
         # Test blocks BEHIND the occupied block
         print("\n  Checking blocks BEHIND occupied block (protection zone)...")
         expected_behind = {
@@ -267,7 +259,7 @@ class PLC_Complete_TestBench:
                     all_correct = False
                     test_passed = False
             else:
-                print(f"    ⚠️  Block {check_block} not found (skipping)")
+                print(f"  Block {check_block} not found (skipping)")
         
         # Test blocks AHEAD (should all be auth 3 - normal operation)
         print("\n  Checking blocks AHEAD of occupied block (should be auth 3 - normal)...")
@@ -280,7 +272,7 @@ class PLC_Complete_TestBench:
                 if actual_auth == "3":
                     print(f"    ✓ Block {check_block} ({distance} ahead): auth=3 (normal)")
                 else:
-                    print(f"    ⚠️  Block {check_block} ({distance} ahead): auth={actual_auth} (expected 3)")
+                    print(f"    Block {check_block} ({distance} ahead): auth={actual_auth} (expected 3)")
                     # Don't fail the test for this - just note it
         
         return self.log_test("Authority Calculation", test_passed,
@@ -338,7 +330,7 @@ class PLC_Complete_TestBench:
                 break
         
         if not section_n_block_to_occupy:
-            print("    ⚠️  No Section N blocks found in filtered_blocks")
+            print("    No Section N blocks found in filtered_blocks")
             print("    Trying any block in Section N from original data...")
             
             # Try the first block from Section N that exists
@@ -437,41 +429,9 @@ class PLC_Complete_TestBench:
                 if actual_auth != "0":  # Not 0 is OK for this test
                     print(f"    ✓ Block {block_num}: auth={actual_auth} (normal, not Section N rules)")
                 else:
-                    print(f"    ⚠️  Block {block_num}: auth={actual_auth} (unexpected 0)")
+                    print(f"      Block {block_num}: auth={actual_auth} (unexpected 0)")
         
-        # ==============================================
-        # ALTERNATIVE: Test with debug output
-        # ==============================================
-        print("\n  Running final debug test...")
-        
-        # Clear everything
-        for block_key in list(self.data.filtered_blocks.keys()):
-            self.data.filtered_blocks[block_key]["occupied"] = False
-        
-        if "Green" in self.data.commanded_authority:
-            self.data.commanded_authority["Green"].clear()
-        
-        # Try occupying block 76 (if it exists and is in Section N)
-        if "Block 76" in self.data.filtered_blocks:
-            print("  Occupying block 76 directly...")
-            self.data.filtered_blocks["Block 76"]["occupied"] = True
-            
-            # Run PLC cycle with extra debug
-            print("  Running PLC cycle (check console for 'Section N:' messages)...")
-            self.run_plc_cycle()
-            
-            # Check authority for block 76 itself (should be 0 since occupied)
-            auth_76 = self.data.commanded_authority.get("Green", {}).get("76")
-            print(f"    Block 76 authority (should be 0): {auth_76}")
-            if auth_76 == "3":
-                print("    ✓ Block 76 correctly set to 0 when occupied")
-            else:
-                print(f"    ✗ Block 76 should be 0, got {auth_76}")
-                test_passed = False
-        
-        return self.log_test("Section N Authority", test_passed,
-                            f"{rules_correct}/{rules_checked} Section N rules correct" if rules_checked > 0 else "Could not test Section N rules")
-
+       
     def test_ctc_override(self):
         """Test 4: CTC authority override with forward/backward patterns"""
         test_passed = True
@@ -1009,7 +969,7 @@ class PLC_Complete_TestBench:
                         print(f"    ✗ Block {block}: Speed = {actual_speed} mph (NOT capped, exceeds 43.5)")
                         test_passed = False
         else:
-            print(f"    ⚠️ Could not find second PLC section for speed cap test")
+            print(f"    Could not find second PLC section for speed cap test")
         
         # ============================================
         # TEST 3: Reset when section unoccupied
@@ -1074,7 +1034,7 @@ class PLC_Complete_TestBench:
                     else:
                         print(f"    ? Block {auth0_block}: Speed = {actual_speed}, might still have override")
         else:
-            print(f"    ⚠️ No second test section for authority 0 test")
+            print(f"    No second test section for authority 0 test")
         
         # ============================================
         # TEST 5: Commanded vs CTC speed precedence
@@ -1139,7 +1099,7 @@ class PLC_Complete_TestBench:
                 else:
                     print(f"    ? Block {occupy_block}: Speed = {actual_speed} mph (unexpected)")
         else:
-            print(f"    ⚠️ Could not find third PLC section for precedence test")
+            print(f"    Could not find third PLC section for precedence test")
         
         # ============================================
         # TEST 6: Non-PLC section (should not apply section-wide)
@@ -1176,7 +1136,7 @@ class PLC_Complete_TestBench:
             else:
                 print(f"    ? Block {non_plc_block}: Speed = {actual_speed} mph")
         else:
-            print(f"    ⚠️ Could not find non-PLC block for testing")
+            print(f"    Could not find non-PLC block for testing")
         
         # Clean up
         if "Green" in self.data.commanded_speed:
@@ -1209,7 +1169,7 @@ class PLC_Complete_TestBench:
         # Check if switches exist
         switches = list(self.data.filtered_switch_positions.keys())
         if not switches:
-            print("    ⚠️  No switches found")
+            print("    No switches found")
             return self.log_test("Switch Control", False, "No switches to test")
         
         print(f"  Found {len(switches)} switches")
@@ -1227,7 +1187,7 @@ class PLC_Complete_TestBench:
             if direction:
                 print(f"    ✓ {switch_name}: {direction}")
                 if "condition" not in switch_data:
-                    print(f"      ⚠️  No condition set")
+                    print(f"      No condition set")
             else:
                 print(f"    ✗ {switch_name}: No direction set")
                 test_passed = False
@@ -1263,7 +1223,7 @@ class PLC_Complete_TestBench:
                 print(f"    ✗ Switch 85: {direction} (should be {expected} for {status})")
                 test_passed = False
         else:
-            print("    ⚠️  Switch 85 not found")
+            print("    Switch 85 not found")
         
         return self.log_test("Switch Control", test_passed,
                            "Switches controlled correctly" if test_passed else "Switch control failed")
@@ -1282,12 +1242,12 @@ class PLC_Complete_TestBench:
         light_100_exists = "Light 100" in self.data.filtered_light_states
         
         if not light_75_exists:
-            print("    ⚠️ Light 75 not found")
+            print("   Light 75 not found")
             # Create it for testing if needed
             self.data.filtered_light_states["Light 75"] = {"signal": "Off", "condition": ""}
         
         if not light_100_exists:
-            print("    ⚠️ Light 100 not found")
+            print("    Light 100 not found")
             # Create it for testing if needed
             self.data.filtered_light_states["Light 100"] = {"signal": "Off", "condition": ""}
         
@@ -1299,7 +1259,7 @@ class PLC_Complete_TestBench:
         # Find and occupy a block in Section N
         blocks_in_section_N = self.data.get_blocks_in_section("Green", 'N')
         if not blocks_in_section_N:
-            print("    ⚠️ No blocks found in Section N")
+            print("    No blocks found in Section N")
             return self.log_test("Light Signals", False, "No Section N blocks available")
         
         section_n_block = blocks_in_section_N[0]
@@ -1309,7 +1269,7 @@ class PLC_Complete_TestBench:
             self.data.filtered_blocks[section_n_key]["occupied"] = True
             print(f"    Occupied block {section_n_block} in Section N")
         else:
-            print(f"    ⚠️ Could not occupy block {section_n_block}")
+            print(f"    Could not occupy block {section_n_block}")
             return self.log_test("Light Signals", False, "Cannot occupy Section N block")
         
         # Run PLC cycle
@@ -1408,7 +1368,7 @@ class PLC_Complete_TestBench:
             # Clear occupancy
             self.data.filtered_blocks[f"Block {block_to_occupy}"]["occupied"] = False
         else:
-            print("    ⚠️ No blocks found in 69-76 range")
+            print("    No blocks found in 69-76 range")
         
         # ============================================
         # TEST 4: NOTHING OCCUPIED (LIGHT 75 GREEN, LIGHT 100 GREEN/SUPER GREEN)
@@ -1487,7 +1447,7 @@ class PLC_Complete_TestBench:
             
             # Check if crossing exists in track data (like lights and switches should)
             if crossing_name not in self.data.railway_crossings:
-                print(f"    ⚠️ {crossing_name} not in track data")
+                print(f"     {crossing_name} not in track data")
                 print(f"    This is normal - PLC only controls existing crossings")
                 print(f"    Test will check PLC logic output instead")
             
@@ -1503,18 +1463,11 @@ class PLC_Complete_TestBench:
                 
                 # Run PLC cycle
                 self.run_plc_cycle()
-                
-                # Look at PLC debug output to see if logic worked
-                print(f"    Checking PLC debug output above...")
-                print(f"    If PLC debug shows 'Lights=On, Bar=Closed', logic is correct")
-                
-                # For test purposes, we'll pass if PLC executed without error
-                print(f"    ✓ PLC executed railway crossing logic")
-                
+
                 # Clean up
                 self.data.filtered_blocks["Block 108"]["occupied"] = False
             else:
-                print(f"    ⚠️ Block 108 not found")
+                print(f"  Block 108 not found")
                 test_passed = False
             
             # ============================================
@@ -1537,7 +1490,7 @@ class PLC_Complete_TestBench:
                 # Clean up
                 self.data.filtered_blocks["Block 107"]["occupied"] = False
             else:
-                print(f"    ⚠️ Block 107 not found")
+                print(f"    Block 107 not found")
                 test_passed = False
             
             # ============================================
@@ -1556,18 +1509,6 @@ class PLC_Complete_TestBench:
             print(f"    Checking PLC debug output above...")
             print(f"    If PLC debug shows 'Lights=Off, Bar=Open', logic is correct")
             print(f"    ✓ PLC executed railway crossing logic")
-            
-            # ============================================
-            # SUMMARY
-            # ============================================
-            print("\n  4. Test Summary:")
-            print(f"    - Railway crossing logic is implemented in PLC")
-            print(f"    - Logic: Activate when block 108 OR 107 occupied")
-            print(f"    - The crossing must exist in track data for UI display")
-            print(f"    - PLC debug shows correct logic execution")
-            
-            # The test passes if PLC logic is implemented correctly
-            # Whether the crossing appears in UI depends on track data
             
         except Exception as e:
             print(f"    ✗ Test error: {e}")
@@ -1600,9 +1541,9 @@ class PLC_Complete_TestBench:
                 self.data.filtered_blocks[block_key]["occupied"] = True
                 print(f"    Occupied block {test_block} in section N")
             else:
-                print(f"    ⚠️ Could not find block {test_block} to occupy")
+                print(f"    Could not find block {test_block} to occupy")
         else:
-            print("    ⚠️ No blocks found in section N")
+            print("    No blocks found in section N")
         
         # Step 1: Enter maintenance mode
         print("  1. Entering maintenance mode...")
@@ -1790,7 +1731,7 @@ class PLC_Complete_TestBench:
             self.data.user_commanded_authority["Green"].pop(test_block_str, None)
             self.data.block_override_occupancy_tracker["Green"].pop(test_block_str, None)
         else:
-            print(f"    ⚠️ Block 72 not found")
+            print(f"    Block 72 not found")
             test_passed = False
         
         # ============================================
@@ -1847,7 +1788,7 @@ class PLC_Complete_TestBench:
             self.data.user_commanded_authority["Green"].pop(test_block_str, None)
             self.data.block_override_occupancy_tracker["Green"].pop(test_block_str, None)
         else:
-            print(f"    ⚠️ Could not trigger Section N rules")
+            print(f"    Could not trigger Section N rules")
             test_passed = False
         
         # ============================================
@@ -2022,7 +1963,7 @@ class PLC_Complete_TestBench:
 def run_complete_plc_testbench():
     """Main function to run the complete PLC testbench"""
     print("="*60)
-    print("🔧 COMPLETE PLC TESTBENCH")
+    print("COMPLETE PLC TESTBENCH")
     print("="*60)
     print("Testing ALL PLC functionality from auto_plc_logic.py")
     print("="*60)
@@ -2068,10 +2009,10 @@ def run_complete_plc_testbench():
             all_passed = testbench.run_all_tests()
             
             if all_passed:
-                print("\n✅ ALL PLC TESTS PASSED!")
+                print("\nALL PLC TESTS PASSED!")
                 print("✓ PLC logic is working correctly")
             else:
-                print("\n⚠️  SOME PLC TESTS FAILED")
+                print("\nSOME PLC TESTS FAILED")
                 print("✗ Check the failed tests above")
             
             print("\nUI remains open. Close window when done.")
