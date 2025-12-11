@@ -85,8 +85,6 @@ lastUpdateTime = None
 sampleTime = 0.1  # 100ms update rate
 lastSentPower = None  # Track last power sent to avoid duplicates
 
-# Time scale multiplier (received from CTC)
-time_scale = 1.0  # Default: real-time (1x speed)
 # PRELOADED TRACK INFORMATION
 # Complete route starting from block 63 (YARD):
 # 63→150 (forward), then 28→1 (backward through F to A), then 13→62 (forward through D back to yard)
@@ -1860,7 +1858,6 @@ class TrainSpeedDisplayUI:
         global preloadedTrackInformation, distanceToNextStation
         global beacon1, beacon2, emergencyBrakeEngaged, returningToYard
         
-        global time_scale
         try:
             command = message.get('command')
             
@@ -1869,20 +1866,6 @@ class TrainSpeedDisplayUI:
                 print(f"[DEBUG] Received {command} from {source_ui_id}: {message}")
             
             # Silently process routine messages
-            # Allow MULT command from CTC, all other commands must be from Train Model
-            if command == 'MULT':
-                # MULT command from CTC - process time scale update
-                if source_ui_id == "CTC":
-                    value = message.get('value')
-                    if value is not None:
-                        time_scale = float(value)
-                        print(f"✓ [CTC] Time scale updated to {time_scale}x")
-                    return
-                else:
-                    print(f"[DEBUG] MULT rejected - source is '{source_ui_id}', expected 'CTC'")
-                    return
-            
-            # All other commands must be from Train Model
             
             if source_ui_id != "Train Model":
                 if command in ['Beacon1', 'Beacon2']:
@@ -2308,31 +2291,6 @@ class TrainSpeedDisplayUI:
         )
         self.modeValue.pack(padx=10, pady=(0, 10))
         
-        # Time Scale Display (from CTC)
-        timeScaleBox = tk.Frame(modeFrame, bg='#8e44ad', relief='raised', bd=4)
-        timeScaleBox.pack(side='left', fill='both', expand=True, padx=5)
-        
-        tk.Label(
-            timeScaleBox,
-            text="TIME SCALE (CTC)",
-            font=('Arial', 12, 'bold'),
-            bg='#8e44ad',
-            fg='white',
-            pady=5
-        ).pack()
-        
-        self.timeScaleValue = tk.Label(
-            timeScaleBox,
-            text="1.0x",
-            font=('Arial', 20, 'bold'),
-            bg='#1a1a2e',
-            fg='#00ff00',
-            pady=12,
-            relief='sunken',
-            bd=3
-        )
-        self.timeScaleValue.pack(padx=10, pady=(0, 10))
-        
         # Manual Setpoint
         manualBox = tk.Frame(modeFrame, bg='#e67e22', relief='raised', bd=4)
         manualBox.pack(side='right', fill='both', expand=True, padx=(5, 0))
@@ -2578,11 +2536,6 @@ class TrainSpeedDisplayUI:
             if cache['manualSetpoint'] is not None:
                 self.manualSetpointValue.config(text="-- MPH", fg='#666666')
                 cache['manualSetpoint'] = None
-        
-        # Update time scale display
-        if 'timeScale' not in cache or cache['timeScale'] != time_scale:
-            self.timeScaleValue.config(text=f"{time_scale:.1f}x")
-            cache['timeScale'] = time_scale
         
         # Update station information (show in both manual and automatic modes)
         if autoModeEnabled:
