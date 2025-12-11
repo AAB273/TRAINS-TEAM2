@@ -60,9 +60,9 @@ class Train:
 		self.crewCount = 2
 		self.powerCommand = 0.0
 		self.cabinTemp = 72.0
-		self.grade = 0
-		self.elevation = 0
-		self.speedLimit = 40
+		self.grade = 2
+		self.elevation = 1
+		self.speedLimit = 70
 		self.speedLimitMps = self.speedLimit / 3.6
 		self.commandedSpeed = 0
 		self.commandedAuthority = 0
@@ -192,7 +192,7 @@ class Train:
 		self.atStation = False
 		
 		# Reset station info
-		self.setAnnouncement("")
+		self.setAnnouncement("Awaiting Deployment")
 		self.setTimeToStation(0)
 		
 		# Reset activation flags
