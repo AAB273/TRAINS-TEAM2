@@ -1196,7 +1196,7 @@ class TrackModelUI(tk.Tk):
         self.draw_trains(canvas=self.block_canvas, items_list=self.train_items_block_canvas)
 
     def draw_trains(self, canvas, items_list):
-        """Draw trains on the given canvas using block occupancy data."""
+        """Draw trains on the given canvas using active train locations only."""
         if not self.train_icon:
             # print(" No train icon available")
             return
@@ -1212,32 +1212,30 @@ class TrackModelUI(tk.Tk):
             canvas.delete(item)
         items_list.clear()
 
-        # # print("🔍 === Checking Block Occupancy ===")
-        occupied_blocks = []
-        
-        # Check all blocks for occupancy
-        for i, block in enumerate(self.data_manager.blocks):
-            block_num = i + 1
-            occupancy_value = getattr(block, 'occupancy', 0)
-            if occupancy_value != 0:
-                occupied_blocks.append(block_num)
-                # # print(f"   Block {block_num}: OCCUPIED (value: {occupancy_value})")
-        
-        # # print(f"   Found {len(occupied_blocks)} occupied blocks: {occupied_blocks}")
-        
+        # # print("🔍 === Drawing Active Trains ===")
         trains_drawn = 0
-        # Draw trains for occupied blocks
-        for block_num in occupied_blocks:
+        
+        # Draw trains ONLY for active trains at their current locations
+        # This prevents ghost trains from appearing at stations or other occupied blocks
+        for train_idx, train_id in enumerate(self.data_manager.active_trains):
+            if train_idx >= len(self.data_manager.train_locations):
+                continue
+            
+            block_num = self.data_manager.train_locations[train_idx]
+            if block_num == 0:  # Train not on track
+                continue
+            
+            # Get coordinates for this block
             coords = self.diagram_drawer.get_block_position(block_num)
             if coords:
                 x, y = coords
                 item = canvas.create_image(x, y, image=self.train_icon, anchor="center")
                 items_list.append(item)
                 trains_drawn += 1
-                # # print(f"    Drawing train at block {block_num}, coordinates: {coords}")
+                # # print(f"    Drawing train {train_id} at block {block_num}, coordinates: {coords}")
             else:
                 pass
-                # print(f"    Block {block_num} occupied but no coordinates available")
+                # print(f"    Train {train_id} at block {block_num} but no coordinates available")
 
         # # print(f" Total trains drawn: {trains_drawn}")
         # # print("=====================================")
@@ -1666,6 +1664,36 @@ class TrackModelUI(tk.Tk):
         if not hasattr(self, 'data_manager') or not hasattr(self.data_manager, 'blocks'):
             # print("[DEBUG] data_manager or blocks not available")
             return
+        
+        # ==============================================
+        # CRITICAL FIX: Clean up ghost trains at blocks 65 and 66 every display update
+        # This provides continuous monitoring and cleanup
+        # ==============================================
+        for critical_block_num in [65, 66]:
+            if critical_block_num <= len(self.data_manager.blocks):
+                block = self.data_manager.blocks[critical_block_num - 1]
+                if hasattr(block, 'occupancy') and block.occupancy != 0:
+                    train_num = block.occupancy
+                    train_id = str(train_num)
+                    
+                    # Verify this train should actually be here
+                    should_clear = False
+                    
+                    if train_id not in self.data_manager.active_trains:
+                        # Train doesn't exist
+                        should_clear = True
+                    else:
+                        # Check if train's location matches
+                        train_idx = self.data_manager.active_trains.index(train_id)
+                        if train_idx < len(self.data_manager.train_locations):
+                            actual_location = self.data_manager.train_locations[train_idx]
+                            if actual_location != critical_block_num:
+                                should_clear = True
+                    
+                    if should_clear:
+                        block.occupancy = 0
+                        # Only print if we actually cleared something
+                        # print(f"[DISPLAY GHOST CLEANUP] Cleared ghost at block {critical_block_num}")
         
         # print(f"[DEBUG] Checking {len(self.data_manager.blocks)} blocks for occupancy")
         occupied = []
@@ -2325,6 +2353,32 @@ class TrackModelUI(tk.Tk):
         import time
         current_time = time.time()
         
+        # ==============================================
+        # CRITICAL FIX: Clean up ghost trains at blocks 65 and 66
+        # Ensure only one train occupies each block
+        # ==============================================
+        for critical_block in [65, 66]:
+            if critical_block <= len(self.data_manager.blocks):
+                block = self.data_manager.blocks[critical_block - 1]
+                if hasattr(block, 'occupancy') and block.occupancy != 0:
+                    # Check if this train is actually supposed to be here
+                    train_num = block.occupancy
+                    train_id = str(train_num)
+                    
+                    if train_id in self.data_manager.active_trains:
+                        train_idx = self.data_manager.active_trains.index(train_id)
+                        if train_idx < len(self.data_manager.train_locations):
+                            actual_location = self.data_manager.train_locations[train_idx]
+                            
+                            # If train's actual location doesn't match this block, clear ghost
+                            if actual_location != critical_block:
+                                block.occupancy = 0
+                                print(f"[BLOCK {critical_block} GHOST FIX] Cleared ghost train {train_num}, actual location is block {actual_location}")
+                    else:
+                        # Train doesn't exist anymore, clear the ghost
+                        block.occupancy = 0
+                        print(f"[BLOCK {critical_block} GHOST FIX] Cleared ghost train {train_num}, train no longer active")
+        
         # Process each active train
         for train_idx, train_id in enumerate(self.data_manager.active_trains):
             if train_idx >= len(self.data_manager.train_locations):
@@ -2336,6 +2390,9 @@ class TrackModelUI(tk.Tk):
             
             # Get actual speed for this train (m/s)
             actual_speed = self.train_actual_speeds.get(train_id, 0)
+            
+            # Train moves ONLY based on current speed - no commanded authority/speed checks
+            
             if actual_speed <= 0:
                 continue  # Train not moving
             
@@ -2402,6 +2459,28 @@ class TrackModelUI(tk.Tk):
                 next_block = self.get_next_block(current_block_num, train_idx)
                 
                 if next_block and next_block <= len(self.data_manager.blocks):
+                    # ==============================================
+                    # CRITICAL FIX: Extra cleanup for blocks 65 and 66
+                    # Ensure clean transition from these problem blocks
+                    # ==============================================
+                    if current_block_num in [65, 66]:
+                        print(f"[BLOCK {current_block_num} TRANSITION] Train {train_id} leaving block {current_block_num} → {next_block}")
+                        
+                        # Force clear ALL occupancy at current block
+                        if current_block_num <= len(self.data_manager.blocks):
+                            critical_block = self.data_manager.blocks[current_block_num - 1]
+                            critical_block.occupancy = 0
+                            
+                            # Double-check no other trains claim this block
+                            for other_train_id in self.data_manager.active_trains:
+                                if other_train_id != train_id:
+                                    other_idx = self.data_manager.active_trains.index(other_train_id)
+                                    if other_idx < len(self.data_manager.train_locations):
+                                        if self.data_manager.train_locations[other_idx] == current_block_num:
+                                            print(f"[BLOCK {current_block_num} CONFLICT] WARNING: Train {other_train_id} also claims block {current_block_num}!")
+                                            # Force the other train to move too
+                                            self.data_manager.train_locations[other_idx] = 0
+                    
                     # Clear current block occupancy
                     if current_block_num <= len(self.data_manager.blocks):
                         current_block = self.data_manager.blocks[current_block_num - 1]
@@ -2472,26 +2551,8 @@ class TrackModelUI(tk.Tk):
             self.log_to_terminal(f"[SWITCH DEBUG]   Current line={line_name}")
             self.log_to_terminal(f"{'='*60}\n")
         
-        # Check commanded authority
-        if train_idx < len(self.data_manager.commanded_authority):
-            authority = self.data_manager.commanded_authority[train_idx]
-            
-            # Calculate how many blocks the train has traveled from its starting point
-            # For now, use a simple counter (can be enhanced with actual tracking)
-            if not hasattr(self, 'train_blocks_traveled'):
-                self.train_blocks_traveled = {}
-            
-            train_id = self.data_manager.active_trains[train_idx]
-            if train_id not in self.train_blocks_traveled:
-                self.train_blocks_traveled[train_id] = 0
-            
-            # Check if we've reached authority limit
-            if self.train_blocks_traveled[train_id] >= authority:
-                # print(f"[AUTHORITY] {train_id} has reached authority limit ({authority} blocks)")
-                return None  # Stop at authority limit
-            
-            # Increment blocks traveled
-            self.train_blocks_traveled[train_id] += 1
+        # Train moves regardless of commanded authority - authority checks removed
+        
         
         # ============================================================
         # SPECIAL ROUTING RULES - BIDIRECTIONAL AND SWITCHES
@@ -4214,13 +4275,16 @@ class TrackModelUI(tk.Tk):
             x = base_x + x_offset + x_correction
             y = base_y + y_offset + y_correction
             
-            # Check if block is occupied
-            is_occupied = False
-            if block_num <= len(self.data_manager.blocks):
-                block = self.data_manager.blocks[block_num - 1]
-                is_occupied = hasattr(block, 'occupancy') and block.occupancy != 0
+            # Check if an active train is actually at this block location
+            # Only draw train icon if the train's location in train_locations matches this block
+            is_train_here = False
+            for train_idx, train_id in enumerate(self.data_manager.active_trains):
+                if train_idx < len(self.data_manager.train_locations):
+                    if self.data_manager.train_locations[train_idx] == block_num:
+                        is_train_here = True
+                        break
             
-            if is_occupied and hasattr(self, 'train_icon') and self.train_icon:
+            if is_train_here and hasattr(self, 'train_icon') and self.train_icon:
                 # Draw train icon
                 marker = self.track_canvas.create_image(x, y, image=self.train_icon, anchor="center")
             else:
@@ -4296,16 +4360,19 @@ class TrackModelUI(tk.Tk):
         if block_num in self.block_markers and self.block_markers[block_num]:
             self.track_canvas.delete(self.block_markers[block_num])
         
-        # Check if block is occupied
-        is_occupied = False
-        if block_num <= len(self.data_manager.blocks):
-            block = self.data_manager.blocks[block_num - 1]
-            is_occupied = hasattr(block, 'occupancy') and block.occupancy != 0
+        # Check if an active train is actually at this block location
+        # Only draw train icon if the train's location in train_locations matches this block
+        is_train_here = False
+        for train_idx, train_id in enumerate(self.data_manager.active_trains):
+            if train_idx < len(self.data_manager.train_locations):
+                if self.data_manager.train_locations[train_idx] == block_num:
+                    is_train_here = True
+                    break
         
-        if is_occupied and hasattr(self, 'train_icon') and self.train_icon:
+        if is_train_here and hasattr(self, 'train_icon') and self.train_icon:
             # Draw train icon
             marker = self.track_canvas.create_image(x, y, image=self.train_icon, anchor="center")
-            log_msg = f"[MARKER] Block {block_num} now shows train icon (occupied)"
+            log_msg = f"[MARKER] Block {block_num} now shows train icon (active train present)"
             
             # DIAGNOSTIC: Enhanced logging for Red Line blocks 57-60
             if 57 <= block_num <= 60 and hasattr(self, 'selected_line'):
@@ -5775,6 +5842,23 @@ class TrackModelUI(tk.Tk):
         for i, train_id in enumerate(self.data_manager.active_trains):
             if i < len(self.data_manager.commanded_speed):
                 speed = self.data_manager.commanded_speed[i]
+                
+                # ==============================================
+                # AUTO-CORRECTION: If authority > 0 but speed is 0, auto-correct to 25
+                # ==============================================
+                if i < len(self.data_manager.commanded_authority):
+                    authority = self.data_manager.commanded_authority[i]
+                    try:
+                        auth_int = int(authority)
+                        speed_float = float(speed)
+                        
+                        if auth_int > 0 and speed_float == 0:
+                            speed = 25.0  # Auto-correct to default
+                            self.data_manager.commanded_speed[i] = speed  # Update stored value
+                            print(f"[AUTO-CORRECT] Train {train_id}: Authority={auth_int}, Speed=0 → Corrected to {speed}")
+                    except (ValueError, TypeError):
+                        pass
+                
                 self.server.send_to_ui("Train Model", {
                     'command': 'Commanded Speed',
                     'value': speed,
@@ -6270,6 +6354,51 @@ class TrackModelUI(tk.Tk):
                     # Update commanded speed and authority for the specific train (if it exists)
                     if train_id in self.data_manager.active_trains:
                         idx = self.data_manager.active_trains.index(train_id)
+                        
+                        # ==============================================
+                        # FIX: Auto-correct commanded speed when authority allows movement
+                        # If authority > 0 (train allowed to move) but speed is 0,
+                        # automatically set speed to a reasonable default (25 mph)
+                        # This ensures trains can always depart stations even if Track SW
+                        # forgot to restore commanded speed
+                        # ==============================================
+                        if commanded_authority is not None and commanded_speed is not None:
+                            try:
+                                auth_int = int(commanded_authority)
+                                speed_float = float(commanded_speed)
+                                
+                                # If authority > 0 (allowed to move) but speed is 0 (stopped)
+                                if auth_int > 0 and speed_float == 0:
+                                    # Check if train was previously stopped (speed was 0)
+                                    previous_speed = self.data_manager.commanded_speed[idx] if idx < len(self.data_manager.commanded_speed) else 0
+                                    
+                                    # Auto-correct to default speed
+                                    commanded_speed = 25.0  # Default: 25 mph
+                                    print(f"[TRACK MODEL AUTO-CORRECT] Train {train_id}: Authority={auth_int} but Speed=0")
+                                    print(f"                           → Auto-correcting Speed to {commanded_speed} mph")
+                                
+                                # SPECIFIC FIX: Ensure trains can always move past blocks 65 and 66
+                                # These blocks have had issues with trains getting stuck
+                                if block_num in [65, 66]:
+                                    if auth_int > 0 and speed_float == 0:
+                                        commanded_speed = 25.0
+                                        print(f"[BLOCK 65/66 FIX] Train {train_id} at block {block_num}: Forcing Speed=25 mph")
+                                    
+                                    # Also check if train location matches this block
+                                    if idx < len(self.data_manager.train_locations):
+                                        train_location = self.data_manager.train_locations[idx]
+                                        if train_location == block_num:
+                                            # Clear any ghost occupancy at this block
+                                            if block_num <= len(self.data_manager.blocks):
+                                                actual_block = self.data_manager.blocks[block_num - 1]
+                                                train_num = int(train_id)
+                                                if hasattr(actual_block, 'occupancy'):
+                                                    if actual_block.occupancy != train_num and actual_block.occupancy != 0:
+                                                        print(f"[BLOCK {block_num} CLEANUP] Clearing ghost occupancy {actual_block.occupancy}")
+                                                        actual_block.occupancy = train_num
+                            except (ValueError, TypeError):
+                                pass  # If conversion fails, use original values
+                        
                         self.data_manager.commanded_speed[idx] = commanded_speed
                         self.data_manager.commanded_authority[idx] = commanded_authority
                         # print(f" Updated commanded values for {train_id}: Speed={commanded_speed}, Authority={commanded_authority}")
@@ -6530,6 +6659,40 @@ class TrackModelUI(tk.Tk):
                 # 4. Store the ACTUAL speed
                 # ---------------------------
                 self.train_actual_speeds[train_id] = speed_ms
+                
+                # ==============================================
+                # FIX: Clean up ghost trains and sync position
+                # ==============================================
+                # When actual speed is received, ensure train occupancy is correct
+                # and clear any duplicate/ghost occupancies
+                if train_id in self.data_manager.active_trains:
+                    train_idx = self.data_manager.active_trains.index(train_id)
+                    if train_idx < len(self.data_manager.train_locations):
+                        current_block = self.data_manager.train_locations[train_idx]
+                        train_num = int(train_id)
+                        
+                        # Clear any other blocks that might have this train's occupancy (ghost trains)
+                        for block_idx, block in enumerate(self.data_manager.blocks):
+                            block_num = block_idx + 1
+                            if hasattr(block, 'occupancy') and block.occupancy == train_num:
+                                if block_num != current_block:
+                                    # This is a ghost - clear it
+                                    block.occupancy = 0
+                                    print(f"[GHOST CLEANUP] Cleared ghost train {train_id} from block {block_num}")
+                        
+                        # Ensure current block has correct occupancy
+                        if current_block > 0 and current_block <= len(self.data_manager.blocks):
+                            actual_block = self.data_manager.blocks[current_block - 1]
+                            if hasattr(actual_block, 'occupancy'):
+                                if actual_block.occupancy != train_num:
+                                    actual_block.occupancy = train_num
+                                    print(f"[POSITION SYNC] Set train {train_id} occupancy at block {current_block}")
+                        
+                        # If speed is 0 (stopped), reset position tracking to start of block
+                        # This prevents position drift when train is stopped
+                        if speed_ms == 0 and train_id in self.train_positions_in_block:
+                            self.train_positions_in_block[train_id] = 0
+                            # print(f"[POSITION SYNC] Reset position for stopped train {train_id} at block {current_block}")
 
                 # ---------------------------
                 # 5. Do one immediate movement update
