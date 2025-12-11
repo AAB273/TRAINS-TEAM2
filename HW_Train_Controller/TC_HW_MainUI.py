@@ -32,7 +32,7 @@ from TC_HW_SystemLogUI import SystemLogViewer
 from TrainSocketServer import TrainSocketServer
 
 # CONFIGURATION - SET YOUR PI'S IP ADDRESS HERE
-PI_HOST = '10.6.14.128'  # ← CHANGE THIS to your Pi's IP address
+PI_HOST = '172.20.10.4'  # ← CHANGE THIS to your Pi's IP address
 PI_GPIO_PORT = 12348
 
 def load_socket_config():
@@ -1763,6 +1763,7 @@ class TrainSpeedDisplayUI:
         prev_right_door = rightDoorOpen
         prev_headlights = headlightsOn
         prev_interior_lights = interiorLightsOn
+        prev_train_horn = trainHornActive
         
         # Update local state
         leftDoorOpen = state.get('leftDoorOpen', False)
@@ -1836,6 +1837,14 @@ class TrainSpeedDisplayUI:
                     self.server.send_to_ui("Train Model", {
                         'command': 'Cabin Lights',
                         'value': interiorLightsOn,
+                        'train_id': 1
+                    })
+                
+                # Send train horn state changes
+                if trainHornActive != prev_train_horn:
+                    self.server.send_to_ui("Train Model", {
+                        'command': 'Train Horn',
+                        'value': trainHornActive,
                         'train_id': 1
                     })
             except Exception as e:
@@ -2679,12 +2688,15 @@ class TrainSpeedDisplayUI:
                 # Convert kW to Watts for Train Model
                 powerWatts = powerKW * 1000.0
                 
-                # Time-based throttling: only send every 3 seconds
+                # Time-based throttling: scale with mult_value for faster response at high speeds
+                # At 1x speed: send every 0.5s, at 10x: send every 0.05s, at 50x: send every 0.01s
+                send_interval = 0.5 / mult_value
+                
                 current_time = time.time()
                 if not hasattr(self, '_last_power_send_time'):
                     self._last_power_send_time = 0
                 
-                # Send if: (1) 3 seconds elapsed OR (2) power changed significantly AND at least 0.5s passed
+                # Send if: (1) interval elapsed OR (2) power changed significantly
                 time_since_last_send = current_time - self._last_power_send_time
                 power_changed = lastSentPower is None or abs(powerWatts - lastSentPower) > 100
                 
@@ -2700,7 +2712,7 @@ class TrainSpeedDisplayUI:
                         lastSentPower = 0
                         self._last_power_send_time = current_time
                         print("⚠️  Service brake active - power command set to ZERO")
-                elif time_since_last_send >= 3.0 or (power_changed and time_since_last_send >= 0.5):
+                elif time_since_last_send >= send_interval or power_changed:
                     self.server.send_to_ui("Train Model", {
                         'command': 'Power Command',
                         'value': powerWatts,
