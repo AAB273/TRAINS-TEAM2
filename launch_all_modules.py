@@ -47,7 +47,7 @@ def launch_all():
         ("Train SW", "train_controller_sw/Driver_UI.py"),
         ("Train HW","HW_Train_Controller/TC_HW_MainUI.py"),
         
-        # ("Test UI","Train Model/Test_UI.py")
+        #("Test UI","Train Model/Test_UI.py")
     ]
     
     # Set PYTHONPATH to include exe_dir so imports work
