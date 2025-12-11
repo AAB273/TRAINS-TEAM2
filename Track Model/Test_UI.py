@@ -578,6 +578,74 @@ class TrackModelTestUI(tk.Toplevel):
         tk.Button(beacon2_frame, text="OFF", bg="red", fg="white", font=("Arial", 9, "bold"),
                  command=lambda: self.send_beacon('Beacon2', False), width=8).pack(side="left", padx=2)
 
+        # ---------------- Current Speed Toggler Section ----------------
+        tk.Label(frame, text="Current Speed Control", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=(20, 5))
+        
+        speed_frame = tk.Frame(frame, bg="lightblue", relief="ridge", bd=2)
+        speed_frame.pack(fill="x", padx=10, pady=5)
+        
+        # Train selector
+        train_select_frame = tk.Frame(speed_frame, bg="lightblue")
+        train_select_frame.pack(fill="x", padx=10, pady=5)
+        
+        tk.Label(train_select_frame, text="Select Train:", bg="lightblue", font=("Arial", 10, "bold")).pack(side="left", padx=5)
+        
+        self.selected_train_var = tk.StringVar()
+        self.train_selector = ttk.Combobox(train_select_frame, textvariable=self.selected_train_var, 
+                                          state="readonly", width=15)
+        self.train_selector.pack(side="left", padx=5)
+        self.update_train_selector()  # Initialize with current trains
+        
+        # Speed display
+        speed_display_frame = tk.Frame(speed_frame, bg="lightblue")
+        speed_display_frame.pack(fill="x", padx=10, pady=5)
+        
+        tk.Label(speed_display_frame, text="Current Speed:", bg="lightblue", font=("Arial", 11, "bold")).pack(side="left", padx=5)
+        
+        self.current_speed_var = tk.StringVar(value="0")
+        self.speed_display_label = tk.Label(speed_display_frame, textvariable=self.current_speed_var, 
+                                            bg="white", fg="darkblue", font=("Arial", 16, "bold"), 
+                                            width=6, relief="sunken", bd=2)
+        self.speed_display_label.pack(side="left", padx=5)
+        tk.Label(speed_display_frame, text="m/s", bg="lightblue", font=("Arial", 11)).pack(side="left")
+        
+        # Speed slider
+        slider_frame = tk.Frame(speed_frame, bg="lightblue")
+        slider_frame.pack(fill="x", padx=10, pady=5)
+        
+        tk.Label(slider_frame, text="Set Speed:", bg="lightblue", font=("Arial", 10)).pack(side="left", padx=5)
+        
+        self.speed_slider = tk.Scale(slider_frame, from_=0, to=10000, orient="horizontal", 
+                                     command=self.update_speed_display, length=250, bg="lightblue")
+        self.speed_slider.set(0)
+        self.speed_slider.pack(side="left", padx=5, fill="x", expand=True)
+        
+        # Quick speed buttons
+        quick_button_frame = tk.Frame(speed_frame, bg="lightblue")
+        quick_button_frame.pack(fill="x", padx=10, pady=5)
+        
+        tk.Label(quick_button_frame, text="Quick Set:", bg="lightblue", font=("Arial", 10)).pack(side="left", padx=5)
+        
+        quick_speeds = [0, 1000, 2500, 5000, 7500, 10000]
+        for speed in quick_speeds:
+            tk.Button(quick_button_frame, text=f"{speed}", 
+                     command=lambda s=speed: self.set_quick_speed(s),
+                     width=6, font=("Arial", 9)).pack(side="left", padx=2)
+        
+        # Action buttons
+        action_frame = tk.Frame(speed_frame, bg="lightblue")
+        action_frame.pack(fill="x", padx=10, pady=10)
+        
+        tk.Button(action_frame, text="✓ Apply Speed to Train Model", 
+                 command=self.apply_speed_to_train,
+                 bg="green", fg="white", font=("Arial", 10, "bold"),
+                 width=25).pack(side="left", padx=5)
+        
+        tk.Button(action_frame, text="■ Emergency Stop", 
+                 command=self.emergency_stop,
+                 bg="darkred", fg="white", font=("Arial", 10, "bold"),
+                 width=15).pack(side="left", padx=5)
+
     def on_train_select(self, event):
         selected = self.tree_trains.selection()
         self.btn_remove_train.config(state="normal" if selected else "disabled")
@@ -952,6 +1020,131 @@ class TrackModelTestUI(tk.Toplevel):
                     print(f"  ✓ Train drawn at block {block_num}")
 
     # ---------------- Periodic refresh ----------------
+
+    # ---------------- Speed Toggler Methods ----------------
+    def update_train_selector(self):
+        """Update the train selector dropdown with current active trains"""
+        if hasattr(self, 'train_selector'):
+            self.train_selector['values'] = self.manager.active_trains if self.manager.active_trains else ['No trains']
+            if self.manager.active_trains and not self.selected_train_var.get():
+                self.selected_train_var.set(self.manager.active_trains[0])
+            elif not self.manager.active_trains:
+                self.selected_train_var.set('No trains')
+    
+    def get_selected_train(self):
+        """Get the currently selected train ID and index"""
+        selected = self.selected_train_var.get()
+        if not selected or selected == 'No trains' or selected not in self.manager.active_trains:
+            return None, None
+        train_id = selected
+        train_idx = self.manager.active_trains.index(train_id)
+        return train_id, train_idx
+    
+    def update_speed_display(self, value):
+        """Update the speed display when slider moves"""
+        speed = int(float(value))
+        self.current_speed_var.set(str(speed))
+    
+    def set_quick_speed(self, speed):
+        """Set speed to a preset value"""
+        self.speed_slider.set(speed)
+        self.current_speed_var.set(str(speed))
+        self.status_label.config(text=f"Speed set to {speed} m/s", fg="blue")
+    
+    def apply_speed_to_train(self):
+        """Apply the current speed setting by directly updating Track Model's train_actual_speeds"""
+        speed_ms = int(float(self.speed_slider.get()))  # Speed in m/s
+        
+        # Get selected train
+        train_id, train_idx = self.get_selected_train()
+        if train_id is None:
+            self.status_label.config(text="❌ No train selected or no active trains", fg="red")
+            messagebox.showwarning("No Train Selected", "Please deploy a train first using the 'Deploy Train' button, then select it from the dropdown.")
+            return
+        
+        print(f"\n{'='*60}")
+        print(f"[TEST UI SPEED CONTROL] Setting speed for train {train_id}")
+        print(f"{'='*60}")
+        
+        # DIRECT VARIABLE ACCESS: Update train_actual_speeds directly in Track Model
+        if hasattr(self.master, 'train_actual_speeds'):
+            self.master.train_actual_speeds[train_id] = speed_ms
+            print(f"✓ DIRECT UPDATE: train_actual_speeds['{train_id}'] = {speed_ms} m/s")
+            success = True
+        else:
+            print(f"✗ ERROR: master.train_actual_speeds not found!")
+            self.status_label.config(text="❌ Track Model not accessible", fg="red")
+            return
+        
+        # Update commanded speed in data manager
+        if train_idx < len(self.manager.commanded_speed):
+            self.manager.commanded_speed[train_idx] = speed_ms
+            print(f"✓ Updated commanded_speed[{train_idx}] = {speed_ms} m/s")
+        
+        # Initialize movement tracking if needed
+        if hasattr(self.master, 'train_positions_in_block'):
+            if train_id not in self.master.train_positions_in_block:
+                self.master.train_positions_in_block[train_id] = 0
+                print(f"✓ Initialized train_positions_in_block['{train_id}'] = 0")
+        
+        if hasattr(self.master, 'last_movement_update'):
+            import time
+            if train_id not in self.master.last_movement_update:
+                self.master.last_movement_update[train_id] = time.time()
+                print(f"✓ Initialized last_movement_update['{train_id}']")
+        
+        if success:
+            self.status_label.config(text=f"✅ Speed {speed_ms} m/s applied to Train {train_id}", fg="green")
+            print(f"✓ Train {train_id} will now move at {speed_ms} m/s")
+            print(f"  Track Model's update_train_movements() will handle movement")
+        
+        print(f"{'='*60}\n")
+        
+        # Refresh tables to show updated commanded speed
+        self.refresh_train_table()
+
+    
+    def emergency_stop(self):
+        """Emergency stop - set speed to 0 immediately by directly updating Track Model variable"""
+        self.speed_slider.set(0)
+        self.current_speed_var.set("0")
+        
+        # Get selected train
+        train_id, train_idx = self.get_selected_train()
+        if train_id is None:
+            self.status_label.config(text="❌ No train selected", fg="red")
+            return
+        
+        print(f"\n{'='*60}")
+        print(f"[EMERGENCY STOP] Stopping train {train_id}")
+        print(f"{'='*60}")
+        
+        # DIRECT VARIABLE ACCESS: Set train_actual_speeds to 0
+        if hasattr(self.master, 'train_actual_speeds'):
+            self.master.train_actual_speeds[train_id] = 0
+            print(f"⚠️ DIRECT UPDATE: train_actual_speeds['{train_id}'] = 0 m/s")
+            success = True
+        else:
+            print(f"✗ ERROR: master.train_actual_speeds not found!")
+            self.status_label.config(text="❌ Track Model not accessible", fg="red")
+            return
+        
+        # Update commanded speed
+        if train_idx < len(self.manager.commanded_speed):
+            self.manager.commanded_speed[train_idx] = 0
+            print(f"✓ Updated commanded_speed[{train_idx}] = 0 m/s")
+        
+        if success:
+            self.status_label.config(text=f"⚠️ EMERGENCY STOP - Train {train_id} stopped", fg="red")
+            print(f"⚠️ Train {train_id} STOPPED - speed set to 0 m/s")
+        
+        print(f"{'='*60}\n")
+        
+        # Refresh to show updated speed
+        self.refresh_train_table()
+
+
+
     def refresh_ui(self):
         """Periodic refresh - similar to main UI refresh pattern"""
         self.sync_with_main_ui()  # Sync data first
@@ -962,6 +1155,7 @@ class TrackModelTestUI(tk.Toplevel):
         self.refresh_train_table()
         self.refresh_diagram_table()
         self.refresh_bidirectional_controls()  # Use the new method
+        self.update_train_selector()  # Update train selector dropdown
         
         # Continue periodic refresh
         self.after(1000, self.refresh_ui)

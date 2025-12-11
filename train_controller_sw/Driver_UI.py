@@ -560,13 +560,6 @@ class Main_Window:
         tk.Label(title_frame, text="Monitor Display", font=("Arial", 18, "bold"), 
                 bg="white").pack(pady=5)
         
-        # Clock Display (top-right corner)
-        clock_frame = tk.Frame(self.root, bg="navy", relief=tk.RAISED, bd=2)
-        clock_frame.place(relx=0.75, rely=0.01, relwidth=0.12, relheight=0.05)
-        self.clock_display = tk.Label(clock_frame, text="00:00:00", font=("Arial", 16, "bold"), 
-                                      bg="black", fg="lime")
-        self.clock_display.pack(fill=tk.BOTH, expand=True)
-        
         # Track Info Button
         
         track_btn = tk.Button(self.root, text="Track Info", font=("Arial", 12, "bold"),
@@ -871,9 +864,9 @@ class Main_Window:
         self.station_window = StationAnnouncementWindow(self.root, 
                                                        callback=self.on_station_announce)
         
-        # Clock frame
+        # Clock frame with ClockDisplay widget
         self.clock_frame = tk.Label(self.root, bg="lightblue")
-        self.clock_frame.place(relx=.3, rely=0.15)
+        self.clock_frame.place(relx=0.2, rely=0.01)  # Top-left to avoid overlap
         self.clock = ClockDisplay(self.clock_frame)
         self.clock.pack(padx=5, pady=5)
 
@@ -924,13 +917,16 @@ class Main_Window:
         # Time multiplier for simulation speed (1x or 10x)
         self.time_multiplier = 1  # Default to normal speed
         
-        # Brake for speed reduction after authority/commanded speed changes
-        self._brake_for_speed_reduction = False
-        self._target_speed_after_brake = None
+        # HW-STYLE POWER CALCULATION VARIABLES
+        self._integral_error = 0.0
+        self._prev_error = 0.0
+        self._speed_reduction_brake_time = 0.0
+        self._last_brake_check_time = time.time()
+        self._previous_commanded_speed_mph = 0.0
         
-        # Brake time tracking for speed reduction
-        self.speed_reduction_brake_time = 0.0
-        self.last_brake_check_time = time.time()
+        # Track speed limit variables
+        self.track_speed_limit_mph = 0.0  # Raw speed limit from track (before authority adjustment)
+        self.manual_setpoint_speed = 0.0  # Manual mode setpoint in MPH
 
         #create engineer UI
         self.engineer_ui = EngineerUI(self, callback=self._onPIDParametersApplied)
@@ -986,45 +982,30 @@ class Main_Window:
             # ========== COMMANDED SPEED ==========
             if command == 'Commanded Speed':
                 self.has_received_commanded_speed = True
-                # Track previous commanded speed for reduction detection
-                self.previous_commanded_speed_ms = self.commanded_speed_ms
                 
-                # Input: mph from train model
-                speed_mph = float(value)
+                # Store RAW speed limit for manual mode enforcement
+                self.track_speed_limit_mph = float(value)
                 
-                print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                print(f"[COMMANDED SPEED] RECEIVED from Train Model: {speed_mph:.1f} mph")
-                
-                # Store RAW commanded speed (before authority adjustment)
-                self.display_commanded_speed_mph = speed_mph
-                
-                # Apply authority-based limiting to internal commanded speed (TC_HW style)
+                # Apply authority adjustment for automatic mode
                 if self.commanded_authority == 0:
                     self.commanded_speed_mph = 0.0
-                    print(f"[COMMANDED SPEED] Authority=0 → Adjusted to: 0.0 mph")
+                elif self.commanded_authority == 4:
+                    self.commanded_speed_mph = self.track_speed_limit_mph  # Full speed
                 elif self.commanded_authority == 1:
-                    self.commanded_speed_mph = speed_mph * 0.5  # 50%
-                    print(f"[COMMANDED SPEED] Authority=1 (50%) → Adjusted to: {self.commanded_speed_mph:.1f} mph")
-                elif self.commanded_authority == 2:
-                    self.commanded_speed_mph = speed_mph * 0.75  # 75%
-                    print(f"[COMMANDED SPEED] Authority=2 (75%) → Adjusted to: {self.commanded_speed_mph:.1f} mph")
-                elif self.commanded_authority == 3:
-                    self.commanded_speed_mph = speed_mph  # 100%
-                    print(f"[COMMANDED SPEED] Authority=3 (100%) → Adjusted to: {self.commanded_speed_mph:.1f} mph")
+                    self.commanded_speed_mph = 0.0  # Stop
                 else:
-                    self.commanded_speed_mph = speed_mph  # Default 100%
-                    print(f"[COMMANDED SPEED] Authority={self.commanded_authority} → Adjusted to: {self.commanded_speed_mph:.1f} mph")
+                    self.commanded_speed_mph = self.track_speed_limit_mph  # Normal
                 
                 self.commanded_speed_ms = self.commanded_speed_mph * MPH_TO_METERS_PER_SEC
-                print(f"[COMMANDED SPEED] Converted to m/s: {self.commanded_speed_ms:.2f} m/s")
-                print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                 
+                # Update display
                 self.set_commanded_speed(round(self.commanded_speed_mph, 1))
                 
-                # DO NOT reset integral error - let PI controller handle the change smoothly
+                print(f"[COMMANDED SPEED] Track limit: {self.track_speed_limit_mph:.1f} MPH, "
+                      f"Authority: {self.commanded_authority}, Effective: {self.commanded_speed_mph:.1f} MPH")
                 
-                self.add_to_status_log(f"Commanded: {self.commanded_speed_mph:.1f} mph (raw: {speed_mph:.1f})")
-    
+                self.add_to_status_log(f"Speed limit: {self.track_speed_limit_mph:.1f} mph")
+                
                 # Release initial service brake once we have both speed and authority
                 self._check_initial_conditions()
             
@@ -1032,80 +1013,37 @@ class Main_Window:
             elif command == 'Commanded Authority':
                 self.has_received_authority = True
                 prev_authority = self.commanded_authority
-                blocks = int(value)
-                self.commanded_authority = blocks
+                self.commanded_authority = int(value)
                 
-                print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                print(f"[AUTHORITY] RECEIVED from Train Model: {blocks} blocks (was {prev_authority})")
+                print(f"[AUTHORITY] Changed from {prev_authority} to {self.commanded_authority}")
                 
-                # CRITICAL: Recalculate commanded speed based on NEW authority (TC_HW style)
-                if hasattr(self, 'display_commanded_speed_mph'):
-                    raw_speed = self.display_commanded_speed_mph
-                    old_commanded = self.commanded_speed_mph
-                    print(f"[AUTHORITY] Raw commanded speed: {raw_speed:.1f} mph")
-                    print(f"[AUTHORITY] OLD authority-adjusted speed: {old_commanded:.1f} mph")
-                    
-                    if self.commanded_authority == 0:
-                        # Authority 0: Emergency stop
-                        if not self.position_tracker.is_at_station:
-                            self.commanded_speed_mph = 0.0
-                            print(f"[AUTHORITY] Authority=0 (NOT at station) → Speed set to: 0.0 mph")
-                            self.service_brake_active = True
-                            self.send_service_brake(True)
-                            print(f"AUTHORITY 0 - SERVICE BRAKE ENGAGED")
-                        else:
-                            print(f"[AUTHORITY] Authority=0 (at station) → Ignoring, station logic handles stop")
-                            self.commanded_speed_mph = 0.0
-                    elif self.commanded_authority == 1:
-                        self.commanded_speed_mph = self.display_commanded_speed_mph * 0.5
-                        print(f"[AUTHORITY] Authority=1 (50%) → Speed set to: {self.commanded_speed_mph:.1f} mph")
-                    elif self.commanded_authority == 2:
-                        self.commanded_speed_mph = self.display_commanded_speed_mph * 0.75
-                        print(f"[AUTHORITY] Authority=2 (75%) → Speed set to: {self.commanded_speed_mph:.1f} mph")
-                    elif self.commanded_authority == 3:
-                        self.commanded_speed_mph = self.display_commanded_speed_mph
-                        print(f"[AUTHORITY] Authority=3 (100%) → Speed set to: {self.commanded_speed_mph:.1f} mph")
-                    else:
-                        self.commanded_speed_mph = self.display_commanded_speed_mph
-                        print(f"[AUTHORITY] Authority={self.commanded_authority} → Speed set to: {self.commanded_speed_mph:.1f} mph")
-                    
-                    self.commanded_speed_ms = self.commanded_speed_mph * MPH_TO_METERS_PER_SEC
-                    print(f"[AUTHORITY] NEW authority-adjusted m/s: {self.commanded_speed_ms:.2f} m/s")
-                    print(f"[AUTHORITY] Current speed: {self.current_speed_ms:.2f} m/s ({self.current_speed_ms*2.237:.1f} mph)")
-                    
-                    # CRITICAL NEW LOGIC: If new speed < current speed, APPLY BRAKE
-                    speed_reduction_mph = old_commanded - self.commanded_speed_mph
-                    if speed_reduction_mph > 2.0:  # Significant decrease (>2 mph)
-                        print(f"SPEED DECREASE DETECTED: {old_commanded:.1f} → {self.commanded_speed_mph:.1f} mph (Δ={speed_reduction_mph:.1f} mph)")
-                        
-                        # Only apply brake if we're currently going faster than new target
-                        if self.current_speed_ms > self.commanded_speed_ms + 1.0:  # >1 m/s faster
-                            print(f"APPLYING SERVICE BRAKE to decelerate from {self.current_speed_ms*2.237:.1f} mph to {self.commanded_speed_mph:.1f} mph")
-                            self.service_brake_active = True
-                            self.send_service_brake(True)
-                            
-                            # Set flag to release brake when target reached
-                            self._brake_for_speed_reduction = True
-                            self._target_speed_after_brake = self.commanded_speed_ms
-                        else:
-                            print(f" Already near target speed, no brake needed")
-                    
-                    print(f"[AUTHORITY] Error will be: {self.commanded_speed_ms - self.current_speed_ms:.2f} m/s")
-                    
-                    self.set_commanded_speed(round(self.commanded_speed_mph, 1))
-                    
-                    # Release service brake if transitioning from authority 0 to non-zero
-                    if prev_authority == 0 and self.commanded_authority > 0 and self.service_brake_active and not self.position_tracker.is_at_station:
-                        print(f"AUTHORITY {self.commanded_authority} - Releasing emergency stop brake")
+                # Update commanded speed based on new authority
+                if self.commanded_authority == 0:
+                    self.commanded_speed_mph = 0.0
+                elif self.commanded_authority == 4:
+                    self.commanded_speed_mph = self.track_speed_limit_mph
+                elif self.commanded_authority == 1:
+                    self.commanded_speed_mph = 0.0  # Stop
+                else:
+                    # Normal authority - use track speed limit
+                    self.commanded_speed_mph = self.track_speed_limit_mph
+                
+                self.commanded_speed_ms = self.commanded_speed_mph * MPH_TO_METERS_PER_SEC
+                
+                # Update displays
+                self.set_authority(self.commanded_authority)
+                self.set_commanded_speed(round(self.commanded_speed_mph, 1))
+                
+                print(f"[AUTHORITY] Commanded speed now: {self.commanded_speed_mph:.1f} MPH")
+                
+                # Release service brake if authority increased from 0
+                if prev_authority == 0 and self.commanded_authority > 0:
+                    if self.service_brake_active and not self.position_tracker.is_at_station:
                         self.service_brake_active = False
                         self.send_service_brake(False)
+                        print(f"🟢 AUTHORITY {self.commanded_authority} - Service brake released")
                 
-                print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                
-                # DO NOT reset integral error - let PI controller handle the change smoothly
-                
-                self.set_authority(blocks)
-                self.add_to_status_log(f"Authority: {blocks} blocks")
+                self.add_to_status_log(f"Authority: {self.commanded_authority} blocks")
                 
                 # Release initial service brake once we have both speed and authority
                 self._check_initial_conditions()
@@ -1171,27 +1109,44 @@ class Main_Window:
                 self.add_to_status_log(f"Lights: {value}")
             
             # ========== TIME (CLOCK DISPLAY) ==========
+            # Receives time string from CTC/Track Model and displays it
+            # This updates the ClockDisplay widget via set_time() method
             elif command == 'TIME':
-                # Update clock display with time from Track Model
                 time_str = str(value)
-                if hasattr(self, 'clock_display'):
-                    self.clock_display.config(text=time_str)
+                
+                # Update ClockDisplay widget
+                if hasattr(self, 'clock') and self.clock:
+                    self.clock.set_time(time_str)
+                    
+                # Update station window clock if it exists
                 if hasattr(self, 'station_window') and hasattr(self.station_window, 'clock_display'):
                     self.station_window.clock_display.config(text=time_str)
-                # Don't log every time update to avoid spam
+                
+                # Note: We don't log every time update to avoid console spam
             
             # ========== MULT (TIME MULTIPLIER) ==========
+            # Receives speed multiplier from CTC (1x or 10x)
+            # This controls how fast the simulation runs
+            # Updates: position_tracker.TIME_SCALE and clock.speed_multiplier
             elif command == "MULT":
-                # Update time multiplier (1x or 10x speed)
-                multiplier = int(value)
-                if multiplier in [1, 10]:
-                    self.time_multiplier = multiplier
-                    if hasattr(self, 'position_tracker'):
-                        self.position_tracker.TIME_SCALE = float(multiplier)
-                    print(f"[TIME MULTIPLIER] System speed set to {multiplier}x")
-                    self.add_to_status_log(f"Time multiplier: {multiplier}x")
-                else:
-                    print(f"[TIME MULTIPLIER] Invalid value: {multiplier} (expected 1 or 10)")
+                try:
+                    multiplier = int(value)
+                    
+                    # Validate multiplier is 1 or 10
+                    if multiplier not in [1, 10]:
+                        print(f"[MULT] Invalid value: {multiplier} (must be 1 or 10)")
+                        self.add_to_status_log(f"Invalid MULT value: {multiplier}")
+                    else:
+                        # Call set_speed_mult to update position tracker and clock
+                        self.set_speed_mult(multiplier)
+                        print(f"[MULT] Received and processed: {multiplier}x speed")
+                        
+                except ValueError as e:
+                    print(f"[MULT] ValueError: {value} is not a valid integer - {e}")
+                    self.add_to_status_log(f"Invalid MULT format: {value}")
+                except Exception as e:
+                    print(f"[MULT] Error processing MULT command: {e}")
+                    self.add_to_status_log(f"Error processing MULT: {str(e)}")
             
             else:
                 print(f"Unknown command: {command}")
@@ -1258,145 +1213,157 @@ class Main_Window:
     
     def calculate_power_command(self):
         """
-        Calculate power using PI controller - TC_HW STYLE
+        Calculate power using PI controller - COMPLETE HW STYLE
         
-        Key differences from old implementation:
-        1. Updates position FIRST (synchronized)
-        2. Checks service brake and returns 0 power if active
-        3. Simple station deceleration logic
-        4. Auto-engages/releases service brake at stations
+        Critical order:
+        1. Update position tracking FIRST
+        2. Determine commanded speed (manual vs auto, station logic)
+        3. Handle service brake for speed reductions  
+        4. Calculate PI controller output
+        5. Override power if brakes active or authority zero
         """
-        # Don't output power until we have control authority
-        # UNLESS we're already moving (recovery from stuck state)
-        if not self.has_control_authority:
-            # If we have speed and authority but lost control authority flag, restore it
-            if self.has_received_commanded_speed and self.has_received_authority:
-                self.has_control_authority = True
-                print("[RECOVERY] Restoring control authority")
-            else:
-                return 0.0
-        
-        # CRITICAL: Update position tracking FIRST
-        self.position_tracker.update(self.current_speed_ms, self)
-        
         # Conversion constants
-        MPH_TO_MS = 0.44704  # 1 mph = 0.44704 m/s
-        MS_TO_MPH = 2.23694  # 1 m/s = 2.23694 mph
+        MPH_TO_MS = 0.44704
+        MS_TO_MPH = 2.23694
         
-        # Get commanded speed based on mode
-        if self.is_auto_mode:
-            commanded_speed_mph = self.commanded_speed_mph  # Already authority-adjusted
+        # ===== STEP 1: UPDATE POSITION TRACKING =====
+        if hasattr(self, 'position_tracker'):
+            self.position_tracker.update(self.current_speed_ms, self)
+        
+        # Get current speed
+        current_speed_ms = self.current_speed_ms
+        current_speed_mph = current_speed_ms * MS_TO_MPH
+        
+        # ===== STEP 2: DETERMINE COMMANDED SPEED =====
+        if not self.is_auto_mode:
+            # MANUAL MODE
+            commanded_speed_mph = self.manual_setpoint_speed if hasattr(self, 'manual_setpoint_speed') else float(self.set_speed)
+            
+            # Manual mode speed limit enforcement (unless authority=4)
+            if self.commanded_authority != 4 and self.track_speed_limit_mph > 0:
+                if commanded_speed_mph > self.track_speed_limit_mph:
+                    commanded_speed_mph = self.track_speed_limit_mph
+                    print(f"[MANUAL] Speed limited to {self.track_speed_limit_mph:.1f} MPH")
+            
             commanded_speed_ms = commanded_speed_mph * MPH_TO_MS
         else:
-            # Manual mode
-            commanded_speed_mph = float(self.set_speed)
+            # AUTOMATIC MODE
+            commanded_speed_mph = self.commanded_speed_mph
             commanded_speed_ms = commanded_speed_mph * MPH_TO_MS
-        
-        # Apply speed limit
-        speed_limit_mph = self.position_tracker.get_current_speed_limit()
-        speed_limit_ms = speed_limit_mph * MPH_TO_MS
-        commanded_speed_ms = min(commanded_speed_ms, speed_limit_ms)
-        
-        # ===== STATION HANDLING (TC_HW STYLE) =====
-        if self.is_auto_mode:
-            if self.position_tracker.is_at_station:
-                # Force stop at station
-                commanded_speed_ms = 0.0
-                
-                # Ensure service brake is active
-                if not self.service_brake_active:
-                    self.service_brake_active = True
-                    self.send_service_brake(True)
-                    station_name = self.position_tracker.get_current_station_name()
-                    self.add_to_status_log(f"At station {station_name} - Service brake holding")
-                    print(f"[POWER] Service brake ENGAGED at {station_name}")
-                
-                # Unlock doors when stopped
-                self.unlock_doors()
-                
-                # DO NOT return early - continue to power calculation
-                # Brake check in update_displays will send 0 power
-                
-            elif self.position_tracker.should_decelerate_for_station():
-                # Calculate deceleration profile for smooth stop
-                dist_to_station = self.position_tracker.get_distance_to_next_station()
-                
-                # Target deceleration: v² = v₀² + 2a·d
-                # v = sqrt(2 * decel * distance)
-                DECEL_RATE = 1.0  # m/s² - comfortable deceleration
-                
-                if dist_to_station > 0:
-                    target_speed = (2 * DECEL_RATE * dist_to_station) ** 0.5
-                    # Limit to current commanded speed (don't accelerate)
-                    commanded_speed_ms = min(commanded_speed_ms, target_speed)
-                    
-                    # Apply service brake when very close (within 20m)
-                    if dist_to_station < 20.0:
-                        if not self.service_brake_active:
-                            self.service_brake_active = True
-                            self.send_service_brake(True)
-                            self.add_to_status_log("Approaching station - Service brake applied")
-                else:
+            
+            # STATION LOGIC (auto mode only)
+            if not self.emergency_brake_active:
+                if hasattr(self, 'position_tracker') and self.position_tracker.is_at_station:
+                    # FORCE STOP AT STATION
                     commanded_speed_ms = 0.0
+                    commanded_speed_mph = 0.0
+                    
+                    # Ensure service brake active
+                    if not self.service_brake_active:
+                        self.service_brake_active = True
+                        self.send_service_brake(True)
+                        station = self.position_tracker.get_current_station_name()
+                        print(f"[STATION] Service brake ENGAGED at {station}")
+                        self.add_to_status_log(f"Holding at {station}")
+                    
+                    # Unlock doors when stopped
+                    self.unlock_doors()
+                        
+                elif hasattr(self, 'position_tracker') and self.position_tracker.should_decelerate_for_station():
+                    # DECELERATION PROFILE
+                    dist_to_station = self.position_tracker.get_distance_to_next_station()
+                    DECEL_RATE = 1.0  # m/s²
+                    
+                    if dist_to_station > 0:
+                        target_speed = (2 * DECEL_RATE * dist_to_station) ** 0.5
+                        commanded_speed_ms = min(commanded_speed_ms, target_speed)
+                        commanded_speed_mph = commanded_speed_ms * MS_TO_MPH
+                    else:
+                        commanded_speed_ms = 0.0
+                        commanded_speed_mph = 0.0
         
-        # ===== PI CONTROLLER CALCULATION (TC_HW TRAPEZOIDAL STYLE) =====
-        current_speed_ms = self.current_speed_ms
-        velocity_error = commanded_speed_ms - current_speed_ms
+        # ===== STEP 3: SPEED REDUCTION DETECTION =====
+        SPEED_REDUCTION_THRESHOLD = 5.0  # MPH
+        SERVICE_BRAKE_DURATION = 0.5  # seconds
         
-        # CRITICAL: Check if we're braking for speed reduction and have reached target
-        if hasattr(self, '_brake_for_speed_reduction') and self._brake_for_speed_reduction:
-            if hasattr(self, '_target_speed_after_brake'):
-                # Check if we've slowed down to near the target (within 1 m/s = 2.2 mph)
-                if current_speed_ms <= self._target_speed_after_brake + 1.0:
-                    print(f"✓ TARGET SPEED REACHED: {current_speed_ms*2.237:.1f} mph ≤ {self._target_speed_after_brake*2.237:.1f} mph")
-                    print(f"RELEASING SERVICE BRAKE - PI controller taking over")
+        current_time = time.time()
+        dt_check = current_time - self._last_brake_check_time
+        self._last_brake_check_time = current_time
+        
+        # Detect significant speed reduction in auto mode
+        if self.is_auto_mode and not self.emergency_brake_active:
+            if hasattr(self, 'position_tracker') and not self.position_tracker.is_at_station:
+                speed_reduction = self._previous_commanded_speed_mph - commanded_speed_mph
+                
+                if speed_reduction > SPEED_REDUCTION_THRESHOLD and current_speed_mph > commanded_speed_mph + 3.0:
+                    if self._speed_reduction_brake_time <= 0:
+                        self._speed_reduction_brake_time = SERVICE_BRAKE_DURATION
+                        print(f"⚠️  Speed drop {self._previous_commanded_speed_mph:.1f}→{commanded_speed_mph:.1f} MPH - Service brake")
+                        self.service_brake_active = True
+                        self.send_service_brake(True)
+        
+        # Count down brake timer
+        if self._speed_reduction_brake_time > 0:
+            self._speed_reduction_brake_time -= dt_check
+            if self._speed_reduction_brake_time <= 0:
+                self._speed_reduction_brake_time = 0.0
+                if hasattr(self, 'position_tracker') and not self.position_tracker.is_at_station:
                     self.service_brake_active = False
                     self.send_service_brake(False)
-                    self._brake_for_speed_reduction = False
-                    self._target_speed_after_brake = None
+                    print(f"🟢 Service brake released")
         
-        # Get PI gains
-        kp = self.kp
-        ki = self.ki
-        max_power = self.max_power_kw
+        self._previous_commanded_speed_mph = commanded_speed_mph
         
-        # Debug output every 20 calls
-        if not hasattr(self, '_power_debug_counter'):
-            self._power_debug_counter = 0
-        self._power_debug_counter += 1
+        # ===== STEP 4: PI CONTROLLER =====
+        velocity_error = commanded_speed_ms - current_speed_ms
         
-        # Calculate P term
+        # Get gains
+        kp = self.kp if hasattr(self, 'kp') else 10.0
+        ki = self.ki if hasattr(self, 'ki') else 2.0
+        max_power = self.max_power_kw if hasattr(self, 'max_power_kw') else 120.0
+        sample_time = 0.1  # seconds
+        
+        # Initialize if needed
+        if not hasattr(self, 'integral_error'):
+            self.integral_error = 0.0
+        if not hasattr(self, 'prev_error'):
+            self.prev_error = 0.0
+        
+        # P term
         p_term = kp * velocity_error
         power_without_integral = p_term
         
-        # TRAPEZOIDAL INTEGRATION with ANTI-WINDUP (TC_HW style)
-        # Only integrate if P^cmd < P^max
+        # Anti-windup: only integrate if not saturated
         if power_without_integral < max_power:
-            # u_k = u_{k-1} + (T/2)(e_k + e_{k-1})
-            self.integral_error += (self.sample_time / 2.0) * (velocity_error + self.prev_error)
-        # else: at power limit - don't integrate (anti-windup)
+            # Trapezoidal integration
+            self.integral_error += (sample_time / 2.0) * (velocity_error + self.prev_error)
         
-        # Store current error for next iteration
         self.prev_error = velocity_error
         
-        # Calculate I term
+        # PI output
         i_term = ki * self.integral_error
+        power = p_term + i_term
         
-        # Total power: P^cmd = Kp * e_k + Ki * u_k
-        power_kw = p_term + i_term
-        power_kw = max(0.0, min(max_power, power_kw))
+        # Clamp
+        power = max(0.0, min(max_power, power))
+        
+        # ===== STEP 5: BRAKE AND AUTHORITY OVERRIDES =====
+        if self.service_brake_active or self.emergency_brake_active:
+            power = 0.0
+        
+        if self.commanded_authority == 0:
+            power = 0.0
         
         # Debug output
-        if self._power_debug_counter % 5 == 0:  # Every 0.5 seconds
-            print(f"[POWER CALC] Cmd={commanded_speed_ms:.2f}m/s ({commanded_speed_ms*2.237:.1f}mph), "
-                  f"Curr={current_speed_ms:.2f}m/s ({current_speed_ms*2.237:.1f}mph), "
-                  f"Err={velocity_error:.2f}m/s, P={p_term:.1f}kW, I={i_term:.1f}kW, "
-                  f"→ TOTAL={power_kw:.1f}kW")
+        if not hasattr(self, '_power_debug_counter'):
+            self._power_debug_counter = 0
+        self._power_debug_counter += 1
+        if self._power_debug_counter % 10 == 0:
+            print(f"[POWER] Cmd={commanded_speed_mph:.1f}mph, Curr={current_speed_mph:.1f}mph, "
+                  f"Err={velocity_error:.2f}m/s, Power={power:.1f}kW, "
+                  f"Brake={'ON' if self.service_brake_active else 'OFF'}")
         
-        # Update previous commanded speed for tracking
-        self.previous_commanded_speed_ms = commanded_speed_ms
-        
-        return power_kw
+        return power
 
     def on_closing(self):
         """Handle application closing"""
@@ -1415,7 +1382,6 @@ class Main_Window:
                 pass
         
         self.root.destroy()
-
     
     def add_to_status_log(self, message):
         """Add timestamped message to status log"""
@@ -1428,6 +1394,65 @@ class Main_Window:
             self.status_log.delete(1.0, f"{len(lines)-100}.0")
         self.status_log.see(tk.END)
         self.status_log.config(state=tk.DISABLED)
+    
+    def set_speed_mult(self, multiplier):
+        """
+        Set the speed multiplier for the entire system
+        Updates position tracker and clock display
+        
+        Args:
+            multiplier (int): Speed multiplier (1 or 10)
+        """
+        if multiplier not in [1, 10]:
+            print(f"[SPEED MULT] Invalid multiplier: {multiplier} (must be 1 or 10)")
+            return
+        
+        print(f"[SPEED MULT] Setting speed multiplier to {multiplier}x")
+        
+        # Update time multiplier
+        self.time_multiplier = multiplier
+        
+        # Update position tracker TIME_SCALE
+        if hasattr(self, 'position_tracker') and self.position_tracker:
+            self.position_tracker.TIME_SCALE = float(multiplier)
+            print(f"[SPEED MULT] Position tracker TIME_SCALE updated to {multiplier}")
+        
+        # Update ClockDisplay - try each possible interface once
+        if hasattr(self, 'clock') and self.clock:
+            clock_updated = False
+            try:
+                # Try method 1: set_speed_multiplier()
+                if hasattr(self.clock, 'set_speed_multiplier'):
+                    self.clock.set_speed_multiplier(multiplier)
+                    print(f"[SPEED MULT] Clock updated via set_speed_multiplier()")
+                    clock_updated = True
+                # Try method 2: set_mult()
+                elif hasattr(self.clock, 'set_mult'):
+                    self.clock.set_mult(multiplier)
+                    print(f"[SPEED MULT] Clock updated via set_mult()")
+                    clock_updated = True
+                # Try method 3: speed_multiplier attribute
+                elif hasattr(self.clock, 'speed_multiplier'):
+                    self.clock.speed_multiplier = multiplier
+                    print(f"[SPEED MULT] Clock updated via speed_multiplier attribute")
+                    clock_updated = True
+                # Try method 4: mult attribute
+                elif hasattr(self.clock, 'mult'):
+                    self.clock.mult = multiplier
+                    print(f"[SPEED MULT] Clock updated via mult attribute")
+                    clock_updated = True
+                
+                if not clock_updated:
+                    print(f"[SPEED MULT] Warning: ClockDisplay has no recognized speed multiplier interface")
+                    print(f"[SPEED MULT] Available ClockDisplay methods: {[m for m in dir(self.clock) if not m.startswith('_')]}")
+                    
+            except AttributeError as e:
+                print(f"[SPEED MULT] AttributeError updating clock: {e}")
+            except Exception as e:
+                print(f"[SPEED MULT] Unexpected error updating clock: {e}")
+        
+        print(f"[SPEED MULT] System speed multiplier successfully set to {multiplier}x")
+        self.add_to_status_log(f"Speed multiplier: {multiplier}x")
 
     def handle_failure_mode(self, failure_type, is_active):
         """Handle failure mode activation/deactivation"""
@@ -2104,8 +2129,6 @@ if __name__ == "__main__":
     dialog.title("Train Line Selection")
     dialog.geometry("400x250")
     dialog.configure(bg='#1e3c72')
-    dialog.grab_set()   # Make modal
-    dialog.focus_set()
 
     tk.Label(dialog, text="SELECT TRAIN LINE SW", font=("Arial", 20, "bold"),
              bg='#1e3c72', fg='white', pady=20).pack()
@@ -2126,6 +2149,11 @@ if __name__ == "__main__":
     tk.Button(frame, text="RED LINE", font=("Arial", 16, "bold"),
               bg="#e74c3c", fg="white", width=12, height=2,
               command=lambda: choose("RED")).pack(side="left", padx=10)
+
+    # Make sure window is visible before grabbing
+    dialog.update_idletasks()  # Force window to render
+    dialog.grab_set()   # Make modal - AFTER window is rendered
+    dialog.focus_set()
 
     # Wait for dialog result
     root.wait_window(dialog)

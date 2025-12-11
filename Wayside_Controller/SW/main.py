@@ -72,7 +72,7 @@ class RailwayControlSystem:
                 if command == "SW":
                     self.handle_ctc_switch(data)
                 elif command == "MAINT":  # Maintenance request from CTC
-                    self.handle_ctc_maintenance(data)
+                    self.handle_ctc_maintenance()
                 elif command == 'update_speed_auth':
                     self.handle_speed_auth_update(data)
                 return  # Stop processing here
@@ -87,11 +87,47 @@ class RailwayControlSystem:
                 self.handle_speed_auth_update(data)
             elif command == 'update_occupancy':
                 self.handle_occupancy_update(data)
+            elif command == 'failure_modes':
+                handle_track_failures(value)
             
                 
         except Exception as e:
             print(f"Error processing message: {e}")
     
+    def handle_track_failures(value):
+        """ Handle track failure notifications from Track Model.
+        Forwards failures to CTC in the expected format.
+    
+        Expected format from Track Model:
+        {
+            'track_circuit_failures': [block_nums],
+            'broken_rail_failures': [block_nums],
+            'power_failures': [block_nums]
+        }
+        """
+        # Extract failure arrays
+        track_circuit_failures = value.get('track_circuit_failures', [])
+        broken_rail_failures = value.get('broken_rail_failures', [])
+        power_failures = value.get('power_failures', [])
+        #  Combine all failures into one list
+        all_failed_blocks = set(track_circuit_failures + broken_rail_failures + power_failures)
+        # Log to terminal
+        print(f"\n{'='*60}")
+        print(f" TRACK FAILURES RECEIVED FROM TRACK MODEL")
+        print(f"{'='*60}")
+    
+        if track_circuit_failures:
+            print(f" Track Circuit Failures: {track_circuit_failures}")
+        if broken_rail_failures:
+            print(f" Broken Rail Failures: {broken_rail_failures}")
+        if power_failures:
+            print(f" Power Failures: {power_failures}")
+    
+        if not (track_circuit_failures or broken_rail_failures or power_failures):
+            print(f" All failures cleared")
+    
+        print(f"{'='*60}\n")
+        
     def handle_ctc_maintenance(self):
         """Handle maintenance mode request from CTC"""
         try:
@@ -410,8 +446,6 @@ class RailwayControlSystem:
                     self.data.suggested_speed[track][block] = speed
                 if authority is not None:
                     self.data.suggested_authority[track][block] = authority
-<<<<<<< HEAD
-=======
                 if block == "63":  # ONLY for block 63!
                     print(f"CTC sent suggested values for block 63 - forwarding to Track Model as commanded")
                     
@@ -422,7 +456,6 @@ class RailwayControlSystem:
                     # Send to Track Model as commanded values
                     self.send_commanded_to_track_model(track, block, set_speed, set_authority)
                 
->>>>>>> 65de30f8a3fe9626c6983f0caa63d76dee914acd
             
             # ALWAYS UPDATE RIGHT PANEL
             if hasattr(self, 'right_panel'):
