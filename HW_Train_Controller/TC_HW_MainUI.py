@@ -32,7 +32,7 @@ from TC_HW_SystemLogUI import SystemLogViewer
 from TrainSocketServer import TrainSocketServer
 
 # CONFIGURATION - SET YOUR PI'S IP ADDRESS HERE
-PI_HOST = '10.6.14.128'  # ← CHANGE THIS to your Pi's IP address
+PI_HOST = '172.20.10.4'  # ← CHANGE THIS to your Pi's IP address
 PI_GPIO_PORT = 12348
 
 def load_socket_config():
@@ -1763,6 +1763,7 @@ class TrainSpeedDisplayUI:
         prev_right_door = rightDoorOpen
         prev_headlights = headlightsOn
         prev_interior_lights = interiorLightsOn
+        prev_train_horn = trainHornActive
         
         # Update local state
         leftDoorOpen = state.get('leftDoorOpen', False)
@@ -1836,6 +1837,14 @@ class TrainSpeedDisplayUI:
                     self.server.send_to_ui("Train Model", {
                         'command': 'Cabin Lights',
                         'value': interiorLightsOn,
+                        'train_id': 1
+                    })
+                
+                # Send train horn state changes
+                if trainHornActive != prev_train_horn:
+                    self.server.send_to_ui("Train Model", {
+                        'command': 'Train Horn',
+                        'value': trainHornActive,
                         'train_id': 1
                     })
             except Exception as e:
