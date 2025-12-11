@@ -26,6 +26,148 @@ def load_socket_config():
     return config.get("modules", {})
 
 
+
+# ============================================================================
+# PASSENGER BOARDING DEBUG CODE - For Testing Train Model Communication
+# ============================================================================
+
+from datetime import datetime
+
+_ORIGINAL_SEND_TO_UI = None
+_DEBUG_LOG_FILE = "train_model_messages_debug.log"
+_MESSAGE_COUNT = 0
+
+def _debug_log(message):
+    """Log debug message to console and file"""
+    timestamp = datetime.now().strftime('%H:%M:%S.%f')[:-3]
+    log_msg = f"[{timestamp}] {message}\n"
+    print(log_msg, end='')
+    try:
+        with open(_DEBUG_LOG_FILE, 'a') as f:
+            f.write(log_msg)
+    except:
+        pass
+
+def _wrapped_send_to_ui(self, ui_name, message):
+    """Wrapped version of send_to_ui that logs all messages to Train Model"""
+    global _MESSAGE_COUNT
+    
+    # Log messages sent to Train Model
+    if ui_name == "Train Model":
+        _MESSAGE_COUNT += 1
+        
+        print("\n" + "="*70)
+        print(f"📤 MESSAGE #{_MESSAGE_COUNT} TO TRAIN MODEL")
+        print("="*70)
+        print(f"Command: {message.get('command', 'N/A')}")
+        print(f"Value: {message.get('value', 'N/A')}")
+        
+        if 'train_id' in message:
+            print(f"Train ID: {message['train_id']}")
+        
+        print(f"\nFull Message:")
+        print(json.dumps(message, indent=2))
+        print("="*70 + "\n")
+        
+        # Also log to file
+        try:
+            with open(_DEBUG_LOG_FILE, 'a') as f:
+                f.write(f"\n{'='*70}\n")
+                f.write(f"MESSAGE #{_MESSAGE_COUNT} TO TRAIN MODEL\n")
+                f.write(f"{'='*70}\n")
+                f.write(json.dumps(message, indent=2))
+                f.write(f"\n{'='*70}\n\n")
+        except:
+            pass
+    
+    # Call original method - DON'T pass self again (it's already bound)
+    return _ORIGINAL_SEND_TO_UI(ui_name, message)
+
+def _enable_debug_mode(app):
+    """Enable debug mode - wraps send_to_ui method"""
+    global _ORIGINAL_SEND_TO_UI
+    
+    # Clear log file
+    try:
+        with open(_DEBUG_LOG_FILE, 'w') as f:
+            f.write(f"=== Train Model Message Debug Log ===\n")
+            f.write(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+    except:
+        pass
+    
+    print("\n" + "🔧"*35)
+    print("PASSENGER BOARDING DEBUG MODE ENABLED")
+    print(f"All messages to Train Model will be logged to: {_DEBUG_LOG_FILE}")
+    print("🔧"*35 + "\n")
+    
+    # Wrap the send method
+    if hasattr(app, 'server'):
+        _ORIGINAL_SEND_TO_UI = app.server.send_to_ui
+        app.server.send_to_ui = lambda ui_name, msg: _wrapped_send_to_ui(app.server, ui_name, msg)
+        print("✓ Wrapped server.send_to_ui() method\n")
+    
+    # Immediate test
+    _immediate_boarding_test(app)
+
+def _immediate_boarding_test(app):
+    """Immediately send a test boarding message"""
+    print("\n" + "🧪"*35)
+    print("IMMEDIATE PASSENGER BOARDING TEST")
+    print("🧪"*35 + "\n")
+    
+    # Find a station with passengers or create test data
+    if hasattr(app, 'data_manager') and app.data_manager.station_location:
+        station_found = False
+        
+        # Try to find a station with passengers
+        for block_num, station_name in app.data_manager.station_location:
+            idx = block_num - 1
+            if (0 <= idx < len(app.data_manager.passengers_boarding) and 
+                app.data_manager.passengers_boarding[idx] > 0):
+                
+                passengers = int(app.data_manager.passengers_boarding[idx])
+                station_found = True
+                break
+        
+        # If no passengers, create test data
+        if not station_found and app.data_manager.station_location:
+            block_num, station_name = app.data_manager.station_location[0]
+            idx = block_num - 1
+            
+            if idx < len(app.data_manager.passengers_boarding):
+                passengers = 30  # Test with 30 passengers
+                app.data_manager.passengers_boarding[idx] = passengers
+                app.data_manager.tickets_waiting[idx] = passengers
+                
+                print(f"Created test scenario:")
+                print(f"  Station: {station_name} (Block {block_num})")
+                print(f"  Passengers: {passengers}\n")
+                station_found = True
+        
+        if station_found:
+            print(f"Sending boarding data for:")
+            print(f"  Station: {station_name} (Block {block_num})")
+            print(f"  Passengers boarding: {passengers}")
+            print(f"  Test train ID: 1\n")
+            
+            # Send the boarding message with test train ID as string (will be converted to int)
+            result = app.send_passengers_boarding_to_train_model(block_num, "1")
+            
+            if result:
+                print("✓ TEST SCHEDULED - Boarding data will be sent in 15 seconds!\n")
+            else:
+                print("✗ TEST FAILED - Could not schedule boarding data\n")
+        else:
+            print("⚠️  No stations found for testing\n")
+    else:
+        print("⚠️  Data manager or stations not initialized\n")
+    
+    print("🧪"*35 + "\n")
+
+# ============================================================================
+# END DEBUG CODE
+# ============================================================================
+
 class TrackModelUI(tk.Tk):
     # The main user interface for the Track Model system.
 
@@ -4938,16 +5080,17 @@ class TrackModelUI(tk.Tk):
             self.track_sys_tree.insert("", "end", values=row)
 
 
-    def handle_train_arrival_at_station(self, block_num):
+    def handle_train_arrival_at_station(self, block_num, train_id=None):
         """
         Handle when a train arrives at a station.
         - Generates random passengers boarding (0 to ticket_sales)
-        - Sends boarding count to Train Model
+        - Sends boarding count to Train Model (after 15 second delay)
         - Resets ticket sales to new random value (0-70)
         - Sends updated station data to CTC
         
         Args:
             block_num (int): Block number where train arrived
+            train_id (str): ID of the train that arrived (optional)
         """
         # Check if this block is a station
         station_info = next((s for s in self.data_manager.station_location if s[0] == block_num), None)
@@ -4980,8 +5123,8 @@ class TrackModelUI(tk.Tk):
         # print(f"      Passengers waiting: {tickets_waiting}")
         # print(f"      Passengers boarding: {passengers_boarding}")
         
-        # Send passengers boarding to Train Model
-        self.send_passengers_boarding_to_train_model(block_num)
+        # Send passengers boarding to Train Model (with train_id)
+        self.send_passengers_boarding_to_train_model(block_num, train_id)
         
         # Generate new random ticket sales for next train (0-70)
         new_tickets = self.random.randint(0, 70)
@@ -4997,13 +5140,15 @@ class TrackModelUI(tk.Tk):
         self.send_station_data_to_ctc(block_num)
 
 
-    def send_passengers_boarding_to_train_model(self, block_num):
+    def send_passengers_boarding_to_train_model(self, block_num, train_id=None):
         """
         Send passengers boarding for a specific station block to Train Model.
         Called when a train stops at a station (authority reaches 0).
+        Waits 15 seconds before sending to allow doors to open.
         
         Args:
             block_num (int): Block number of the station
+            train_id (str): ID of the train that's boarding passengers
         
         Returns:
             bool: True if boarding data was sent successfully, False otherwise
@@ -5018,18 +5163,34 @@ class TrackModelUI(tk.Tk):
             # Get passenger count
             passenger_count = int(self.data_manager.passengers_boarding[idx])
             
+            # If train_id not provided, try to find it from the block location
+            if train_id is None:
+                # Find which train is at this block
+                for i, location in enumerate(self.data_manager.train_locations):
+                    if location == block_num and i < len(self.data_manager.active_trains):
+                        train_id = self.data_manager.active_trains[i]
+                        break
+            
             # Prepare message for Train Model
+            # Convert train_id to int (train IDs are stored as strings like "1", "2", "3")
+            train_id_int = int(train_id) if train_id else None
+            
             boarding_message = {
                 'command': 'Passengers Boarding',
                 'value': passenger_count,
-                'block_number': block_num
+                'train_id': train_id_int
             }
             
-            # Send to Train Model
-            self.server.send_to_ui("Train Model", boarding_message)
+            # Schedule sending after 15 second delay (15000 milliseconds)
+            def send_after_delay():
+                self.server.send_to_ui("Train Model", boarding_message)
+                print(f"Sent passengers boarding to Train Model:")
+                print(f"   Train {train_id_int}: {passenger_count} passengers")
             
-            print(f"Sent passengers boarding to Train Model:")
-            # print(f"   Block {block_num}: {passenger_count} passengers")
+            # Use tkinter's after() to delay by 15 seconds
+            self.after(15000, send_after_delay)
+            
+            print(f"Scheduled boarding message for Train {train_id_int} (sending in 15 seconds)...")
             
             return True
             
@@ -5162,8 +5323,8 @@ class TrackModelUI(tk.Tk):
                                 # Record that this train is stopped at this station
                                 self._trains_stopped_at_station[train_id] = block_num
                                 
-                                # Handle passenger boarding
-                                self.handle_train_arrival_at_station(block_num)
+                                # Handle passenger boarding (pass train_id)
+                                self.handle_train_arrival_at_station(block_num, train_id)
                     
                     # DEPARTURE: Check if authority increased from 0 (train departing)
                     elif previous_authority == 0 and current_authority > 0:
@@ -5798,31 +5959,6 @@ class TrackModelUI(tk.Tk):
                     'value': beacon2_value
                 })
                 # print(f"Sent Beacon2 to Train Model: {beacon2_value}")
-
-    def send_passengers_boarding_to_train_model(self):
-        """
-        [DEPRECATED - DO NOT USE]
-        This method sends ALL passengers boarding data for ALL stations.
-        
-        Use send_passengers_boarding_to_train_model(block_num) instead, which is called
-        automatically when a train's authority reaches 0 at a station.
-        
-        Keeping this method for backwards compatibility but it should NOT be called
-        from send_all_outputs or any periodic refresh function.
-        """
-        boarding_data = {}
-        for block_num, station_name in self.data_manager.station_location:
-            idx = block_num - 1
-            boarding_data[block_num] = {
-                'station_name': station_name,
-                'passengers_boarding': int(self.data_manager.passengers_boarding[idx])
-            }
-        
-        self.server.send_to_ui("Train Model", {
-            'command': 'Passengers Boarding',
-            'data': boarding_data
-        })
-        print(f" Sent passengers boarding to Train Model")
 
     def send_light_states_to_train_controller(self):
         """Send traffic light states to Train Controller as two-bit boolean arrays."""
@@ -6718,6 +6854,9 @@ if __name__ == "__main__":
     
     # Store reference to test UI for refreshing
     app.tester_reference = tester
+
+    # Enable passenger boarding debug mode
+    _enable_debug_mode(app)
 
     # Start periodic output updates after a delay
     app.after(3000, app.start_output_updates)
