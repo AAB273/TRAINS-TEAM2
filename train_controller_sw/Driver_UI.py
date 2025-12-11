@@ -302,7 +302,7 @@ class PositionTracker:
                     if ui_callback:
                         ui_callback.service_brake_active = False
                         ui_callback.send_service_brake(False)
-                        print(f"🟢 Service brake RELEASED for departure from {station_name}")
+                        print(f" Service brake RELEASED for departure from {station_name}")
                     
                     # CLOSE DOORS before departure
                     if ui_callback:
@@ -1027,7 +1027,7 @@ class Main_Window:
                             print(f"[AUTHORITY] Authority=0 (NOT at station) → Speed set to: 0.0 mph")
                             self.service_brake_active = True
                             self.send_service_brake(True)
-                            print(f"⚠️ AUTHORITY 0 - SERVICE BRAKE ENGAGED")
+                            print(f"AUTHORITY 0 - SERVICE BRAKE ENGAGED")
                         else:
                             print(f"[AUTHORITY] Authority=0 (at station) → Ignoring, station logic handles stop")
                             self.commanded_speed_mph = 0.0
@@ -1051,11 +1051,11 @@ class Main_Window:
                     # CRITICAL NEW LOGIC: If new speed < current speed, APPLY BRAKE
                     speed_reduction_mph = old_commanded - self.commanded_speed_mph
                     if speed_reduction_mph > 2.0:  # Significant decrease (>2 mph)
-                        print(f"⚠️ SPEED DECREASE DETECTED: {old_commanded:.1f} → {self.commanded_speed_mph:.1f} mph (Δ={speed_reduction_mph:.1f} mph)")
+                        print(f"SPEED DECREASE DETECTED: {old_commanded:.1f} → {self.commanded_speed_mph:.1f} mph (Δ={speed_reduction_mph:.1f} mph)")
                         
                         # Only apply brake if we're currently going faster than new target
                         if self.current_speed_ms > self.commanded_speed_ms + 1.0:  # >1 m/s faster
-                            print(f"🛑 APPLYING SERVICE BRAKE to decelerate from {self.current_speed_ms*2.237:.1f} mph to {self.commanded_speed_mph:.1f} mph")
+                            print(f"APPLYING SERVICE BRAKE to decelerate from {self.current_speed_ms*2.237:.1f} mph to {self.commanded_speed_mph:.1f} mph")
                             self.service_brake_active = True
                             self.send_service_brake(True)
                             
@@ -1063,7 +1063,7 @@ class Main_Window:
                             self._brake_for_speed_reduction = True
                             self._target_speed_after_brake = self.commanded_speed_ms
                         else:
-                            print(f"ℹ️ Already near target speed, no brake needed")
+                            print(f" Already near target speed, no brake needed")
                     
                     print(f"[AUTHORITY] Error will be: {self.commanded_speed_ms - self.current_speed_ms:.2f} m/s")
                     
@@ -1071,7 +1071,7 @@ class Main_Window:
                     
                     # Release service brake if transitioning from authority 0 to non-zero
                     if prev_authority == 0 and self.commanded_authority > 0 and self.service_brake_active and not self.position_tracker.is_at_station:
-                        print(f"🟢 AUTHORITY {self.commanded_authority} - Releasing emergency stop brake")
+                        print(f"AUTHORITY {self.commanded_authority} - Releasing emergency stop brake")
                         self.service_brake_active = False
                         self.send_service_brake(False)
                 
@@ -1324,7 +1324,7 @@ class Main_Window:
                 # Check if we've slowed down to near the target (within 1 m/s = 2.2 mph)
                 if current_speed_ms <= self._target_speed_after_brake + 1.0:
                     print(f"✓ TARGET SPEED REACHED: {current_speed_ms*2.237:.1f} mph ≤ {self._target_speed_after_brake*2.237:.1f} mph")
-                    print(f"🟢 RELEASING SERVICE BRAKE - PI controller taking over")
+                    print(f"RELEASING SERVICE BRAKE - PI controller taking over")
                     self.service_brake_active = False
                     self.send_service_brake(False)
                     self._brake_for_speed_reduction = False
@@ -1487,7 +1487,7 @@ class Main_Window:
                 if self.last_power_sent != 0:
                     self.send_setpoint_power(0.0)
                     self.last_power_sent = 0
-                    print(f"⚠️  Brake active - power command set to ZERO")
+                    print(f"Brake active - power command set to ZERO")
             else:
                 # No brake - ALWAYS send power (don't throttle by 100W)
                 # This ensures authority/speed changes update immediately
@@ -1891,7 +1891,7 @@ class Main_Window:
                 'train_id' : 2
             })
         except Exception as e:
-            print(f"❌ ERROR sending power: {e}")
+            print(f"ERROR sending power: {e}")
             self.add_to_status_log("Failed to send power command")
 
 
