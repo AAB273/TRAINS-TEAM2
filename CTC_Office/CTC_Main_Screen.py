@@ -37,6 +37,8 @@ class MainScreen:
     self.numberOfTrains: integer for the number of trains on the blue line
     self.clockText: a ttk.Label() that holds the current time
     self.clockTimer: contains the call to updateTime, allowing the program to cancel the timer when switching tabs
+    self.clockDec: a ttk.Button() that controls when the simulation speed is decreased
+    self.clockInc: a ttk.Button() that controls when the simulation speed is increased 
 
     self.tlArea: a ttk.Treeview() object that holds information about the train locations
     self.tsArea: a ttk.Treeview() object that holds information about the track state
@@ -310,7 +312,7 @@ class MainScreen:
         mapButton.pack(pady = 5, anchor = "n")
 
         '''
-        create a label for the time
+        create a label for the time with the buttons to control clock speed
         '''
         clockStyle = ttk.Style()
         clockStyle.configure("clock.TButton", font = ("Arial", 15), width = 5)
@@ -506,7 +508,6 @@ class MainScreen:
     #continuously recall itself every second to update the time variable 
         
         time = clock.getTime()
-        #self.send_to_ui("Train Model", self.clock)
         self.clockText.configure(text = time)
         self.send_to_ui("Train Model", {"command": "TIME", "value": time})
         self.send_to_ui("Train SW", {"command": "TIME", "value": time})
@@ -515,6 +516,8 @@ class MainScreen:
 ###############################################################################################################################################################
     
     def controlClockSpeed(self, change):
+    #handle what happens when the user wants to change the simulation speed
+
         if (change == "inc"):
             if (self.clockSpeed == 1):
                 clock.tenTimesSpeed()
@@ -523,9 +526,11 @@ class MainScreen:
                 self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
                 self.send_to_ui("Train SW", {"command": "MULT", "value": float(self.clockSpeed)})
                 self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
+                #send time multiplier down the line
 
                 self.clockDec.configure(text = "<<")
                 self.clockInc.configure(text = ">>")
+                #configure the button text to show what speed the simulation is running at
 
             elif (self.clockSpeed == 10):
                 clock.fiftyTimesSpeed()
@@ -534,9 +539,11 @@ class MainScreen:
                 self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
                 self.send_to_ui("Train SW", {"command": "MULT", "value": float(self.clockSpeed)})
                 self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
+                #send time multiplier down the line
 
                 self.clockDec.configure(text = "<<<")
                 self.clockInc.configure(text = ">>>")
+                #configure the button text to show what speed the simulation is running at
 
         else:
             if (self.clockSpeed == 50):
@@ -546,9 +553,11 @@ class MainScreen:
                 self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
                 self.send_to_ui("Train SW", {"command": "MULT", "value": float(self.clockSpeed)})
                 self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
+                #send time multiplier down the line
 
                 self.clockDec.configure(text = "<<")
                 self.clockInc.configure(text = ">>")
+                #configure the button text to show what speed the simulation is running at
 
             elif (self.clockSpeed == 10):
                 clock.fiftyTimesSpeed()
@@ -557,9 +566,11 @@ class MainScreen:
                 self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
                 self.send_to_ui("Train SW", {"command": "MULT", "value": float(self.clockSpeed)})
                 self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
+                #send time multiplier down the line
 
                 self.clockDec.configure(text = "<")
                 self.clockInc.configure(text = ">")
+                #configure the button text to show what speed the simulation is running at
     
 ###############################################################################################################################################################
     

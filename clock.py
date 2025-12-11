@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 class Clock:
     def __init__(self):
-        self._fastTime = datetime.now()
+        self._fastTime = datetime(year = 2025, month = 12, day = 11, hour = 7)
         self._incTimer = Timer(1, self._incTime)
         self._speed = 1
         self._incTimer.start()
