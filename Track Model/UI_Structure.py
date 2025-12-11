@@ -5144,6 +5144,22 @@ class TrackModelUI(tk.Tk):
         self.send_station_data_to_ctc(block_num)
 
 
+    def get_station_name_from_block(self, block_num):
+        """
+        Get the station name for a given block number.
+        
+        Args:
+            block_num (int): Block number
+            
+        Returns:
+            str: Station name if found, or "Unknown Station" if not found
+        """
+        if hasattr(self.data_manager, 'station_location'):
+            for blk_num, station_name in self.data_manager.station_location:
+                if blk_num == block_num:
+                    return station_name
+        return "Unknown Station"
+
     def send_passengers_boarding_to_train_model(self, block_num, train_id=None):
         """
         Send passengers boarding for a specific station block to Train Model.
@@ -5188,6 +5204,10 @@ class TrackModelUI(tk.Tk):
             self.server.send_to_ui("Train Model", boarding_message)
             print(f"Sent passengers boarding to Train Model:")
             print(f"   Train {train_id_int}: {passenger_count} passengers")
+            
+            # Log to Event Log
+            station_name = self.get_station_name_from_block(block_num)
+            self.log_to_terminal(f"🚉 Train {train_id_int} stopped at {station_name} (Block {block_num}) - {passenger_count} passengers boarding")
             
             return True
             
@@ -6555,6 +6575,10 @@ class TrackModelUI(tk.Tk):
                         # print(f"   Train: {train_id if train_id else 'Unknown'}")
                         # print(f"   Block: {block_number}")
                         # print(f"   Passengers: {disembarking}")
+                        
+                        # Log to Event Log
+                        station_name = self.get_station_name_from_block(block_number)
+                        self.log_to_terminal(f"🚉 Train {train_id if train_id else 'Unknown'} at {station_name} (Block {block_number}) - {disembarking} passengers disembarking")
                         
                         # Forward to CTC immediately (sends both ticket sales and disembarking)
                         self.send_station_data_to_ctc(block_number)

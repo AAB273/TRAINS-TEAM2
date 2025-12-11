@@ -564,7 +564,7 @@ class MainScreen:
                 #configure the button text to show what speed the simulation is running at
 
             elif (self.clockSpeed == 10):
-                clock.normalSpeed()
+                clock.fiftyTimesSpeed()
                 self.clockSpeed = 1
 
                 self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})

@@ -358,7 +358,12 @@ class TrainModelPassengerGUI:
 			elif command == 'TIME':
 				self.uiLabels['time'].config(text=value)
 			elif command == 'MULT':
-				self.clockSpeed == 1/value
+				if  value == 1:
+					self.clockSpeed = 1
+				elif value == 10:
+					self.clockSpeed = .1
+				elif value == 50:
+					self.clockSpeed = .05
 			
 			# Update UI if this is the currently selected train
 			if train == self.currentTrain:
