@@ -1046,7 +1046,7 @@ def updatePositionTracking():
     lastPositionUpdateTime = currentTime
     
     # TIME ACCELERATION: 10x speed for faster simulation
-    TIME_SCALE = 1.0
+    TIME_SCALE = 10.0
     dt = dt * TIME_SCALE
     
     # If we're at a station, don't update position
