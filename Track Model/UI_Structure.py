@@ -9,7 +9,8 @@ import os
 import sys
 import random
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-from Test_UI import TrackModelTestUI
+# TEMPORARILY COMMENTED OUT - Test UI disabled
+# from Test_UI import TrackModelTestUI
 from FileUploadManager import FileUploadManager
 from TrackDiagramDrawer import TrackDiagramDrawer
 from HeaterSystemManager import HeaterSystemManager
@@ -249,13 +250,13 @@ class TrackModelUI(tk.Tk):
         # --- POPULATE INFRASTRUCTURE SETS AFTER LOADING ---
         self.data_manager.populate_infrastructure_sets()
 
-        self.diagram_drawer.draw_green_line_stations()
-        self.diagram_drawer.draw_red_line_stations()
-        self.diagram_drawer.draw_green_line_crossings()
-        self.diagram_drawer.draw_red_line_crossings()
-        self.diagram_drawer.draw_green_line_traffic_lights()
-        self.diagram_drawer.draw_red_line_traffic_lights()
-
+        # TEMPORARILY COMMENTED OUT - Dynamic Icons (Stations, Crossings, Traffic Lights)
+        # self.diagram_drawer.draw_green_line_stations()
+        # self.diagram_drawer.draw_red_line_stations()
+        # self.diagram_drawer.draw_green_line_crossings()
+        # self.diagram_drawer.draw_red_line_crossings()
+        # self.diagram_drawer.draw_green_line_traffic_lights()
+        # self.diagram_drawer.draw_red_line_traffic_lights()
         # Initialize traffic light states and occupancy for all blocks
         for b in self.data_manager.blocks:
             if not hasattr(b, "traffic_light_state"):
@@ -4092,13 +4093,13 @@ class TrackModelUI(tk.Tk):
             
             
             # Redraw Green Line stations if applicable
-            if hasattr(self, 'diagram_drawer'):
-                self.diagram_drawer.draw_green_line_stations()
-                self.diagram_drawer.draw_red_line_stations()
-                self.diagram_drawer.draw_green_line_crossings()
-                self.diagram_drawer.draw_red_line_crossings()
-                self.diagram_drawer.draw_green_line_traffic_lights()
-                self.diagram_drawer.draw_red_line_traffic_lights()
+                # TEMPORARILY COMMENTED OUT - Dynamic Icons
+                # self.diagram_drawer.draw_green_line_stations()
+                # self.diagram_drawer.draw_red_line_stations()
+                # self.diagram_drawer.draw_green_line_crossings()
+                # self.diagram_drawer.draw_red_line_crossings()
+                # self.diagram_drawer.draw_green_line_traffic_lights()
+                # self.diagram_drawer.draw_red_line_traffic_lights()
             # print(f"[UI]  Background image resized to {new_width}x{new_height}")
             # print(f"    Original: {original_width}x{original_height} (aspect: {original_aspect:.4f})")
             # print(f"    New aspect: {new_width/new_height:.4f} (difference: {abs(original_aspect - new_width/new_height):.6f})")
@@ -6850,10 +6851,12 @@ class TrackModelUI(tk.Tk):
 if __name__ == "__main__":
     manager = UI_Variables.TrackDataManager()
     app = TrackModelUI(manager)
-    tester = TrackModelTestUI(app, manager)
+    # TEMPORARILY COMMENTED OUT - Test UI disabled
+    # tester = TrackModelTestUI(app, manager)
     
     # Store reference to test UI for refreshing
-    app.tester_reference = tester
+    # TEMPORARILY COMMENTED OUT - Test UI disabled
+    # app.tester_reference = tester
 
     # Enable passenger boarding debug mode
     _enable_debug_mode(app)
@@ -6878,5 +6881,6 @@ if __name__ == "__main__":
     # # print(" Testing data transmission...")
     # app.send_all_outputs()
     
-    tester.lift()
+    # TEMPORARILY COMMENTED OUT - Test UI disabled
+    # tester.lift()
     app.mainloop()
