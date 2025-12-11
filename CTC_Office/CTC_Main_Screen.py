@@ -509,6 +509,7 @@ class MainScreen:
         #self.send_to_ui("Train Model", self.clock)
         self.clockText.configure(text = time)
         self.send_to_ui("Train Model", {"command": "TIME", "value": time})
+        self.send_to_ui("Train SW", {"command": "TIME", "value": time})
         self.clockTimer = self.root.after(100, self.updateTime)
 
 ###############################################################################################################################################################
@@ -519,7 +520,7 @@ class MainScreen:
             self.clockSpeed = 10
 
             self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
-            self.send_to_ui("Train SW", {"command": "MULT", "value": self.clockSpeed})
+            self.send_to_ui("Train SW", {"command": "MULT", "value": float(self.clockSpeed)})
             self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
 
 
@@ -527,7 +528,7 @@ class MainScreen:
             clock.normalSpeed()
             self.clockSpeed = 1
             self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
-            self.send_to_ui("Train SW", {"command": "MULT", "value": self.clockSpeed})
+            self.send_to_ui("Train SW", {"command": "MULT", "value": float(self.clockSpeed)})
             self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
     
 ###############################################################################################################################################################
