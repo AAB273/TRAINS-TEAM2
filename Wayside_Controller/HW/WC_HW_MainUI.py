@@ -1913,13 +1913,16 @@ class EmbeddedPLCController:
             19: {'name': 'Railway Crossing: 19', 'section': 'E'}
         }
         
-        self.log("PLC Controller initialized (embedded)")
+        # Terminal output for init
+        print("[PLC] Controller initialized for Green Line Sections A-K, Z")
+        print(f"[PLC] Monitoring {len(self.all_blocks)} blocks")
 
  # -------------------------------------------------------------------------
     # INPUT READERS
     # -------------------------------------------------------------------------
     def get_block_occupancy(self, block):
         if not self.test_data:
+            print(f"[PLC DEBUG] get_block_occupancy: test_data is None")
             return False
         for row in self.test_data.block_data:
             if str(row[2]) == str(block) and row[1] == self.track:
@@ -1928,6 +1931,7 @@ class EmbeddedPLCController:
     
     def get_block_fault(self, block):
         if not self.test_data:
+            print(f"[PLC DEBUG] get_block_fault: test_data is None")
             return False
         track_data = self.test_data.track_data
         
@@ -1980,6 +1984,7 @@ class EmbeddedPLCController:
     # -------------------------------------------------------------------------
     def set_light_state(self, block, state):
         if not self.test_data or block not in self.light_info:
+            print(f"[PLC DEBUG] set_light_state: invalid block {block} or no test_data")
             return
         light_name = self.light_info[block]['name']
         track_data = self.test_data.track_data
@@ -1996,9 +2001,13 @@ class EmbeddedPLCController:
             self.log(f"Light {block}: {old_state} -> {state}")
         
         if hasattr(self.test_data, 'send_light_state'):
+            print(f"[PLC] Sending light state: Block {block} = {state}")
             self.test_data.send_light_state(self.track, str(block), state)
+        else:
+            print(f"[PLC DEBUG] test_data missing send_light_state method")
     
     def set_switch_position(self, block, position):
+        print(f"[PLC DEBUG] set_switch_position: invalid block {block} or no test_data")
         if not self.test_data or block not in self.switch_info:
             return False
         if not self.check_switch_safety(block):
@@ -2023,12 +2032,17 @@ class EmbeddedPLCController:
         if old_position != position:
             self.log(f"Switch {block}: {old_direction} -> {direction}")
         
+        # Check hasattr and send - debug to terminal
         if hasattr(self.test_data, 'send_switch_to_track_model'):
+            print(f"[PLC] Sending switch state: Block {block} = {direction}")
             self.test_data.send_switch_to_track_model(self.track, str(block), direction)
+        else:
+            print(f"[PLC DEBUG] test_data missing send_switch_to_track_model method")
         return True
     
     def set_crossing_state(self, block, state):
         if not self.test_data or block not in self.crossing_info:
+            print(f"[PLC DEBUG] set_crossing_state: invalid block {block} or no test_data")
             return
         crossing_name = self.crossing_info[block]['name']
         bar = 'Closed' if state == 'Active' else 'Open'
@@ -2047,8 +2061,12 @@ class EmbeddedPLCController:
         if old_bar != bar:
             self.log(f"Railway Crossing {block}: Bar {bar.upper()}")
         
+        # Check hasattr and send - debug to terminal
         if hasattr(self.test_data, 'send_railway_state'):
+            print(f"[PLC] Sending crossing state: Block {block} = Bar {bar}")
             self.test_data.send_railway_state(self.track, str(block), bar)
+        else:
+            print(f"[PLC DEBUG] test_data missing send_railway_state method")
 
     # -------------------------------------------------------------------------
     # SAFETY LOGIC
