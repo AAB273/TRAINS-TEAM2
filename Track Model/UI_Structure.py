@@ -5384,28 +5384,27 @@ class TrackModelUI(tk.Tk):
         if not hasattr(self.data_manager, "next_train_id"):
             self.data_manager.next_train_id = 1
 
-        # Assign new train ID (simple number)
+        # Assign new train ID (as integer)
         train_id = self.data_manager.next_train_id
         self.data_manager.next_train_id += 1
 
-        # Use just the number as the train identifier
-        train_name = str(train_id)
-        self.data_manager.active_trains.append(train_name)
+        # Store train ID as integer
+        self.data_manager.active_trains.append(train_id)
         self.data_manager.commanded_speed.append(speed)
         self.data_manager.commanded_authority.append(authority)
         self.data_manager.train_occupancy.append(0)
         
         # Initialize train actual speed to 0 (will be updated by Train Model)
-        self.train_actual_speeds[train_name] = 0
-        self.train_positions_in_block[train_name] = 0
+        self.train_actual_speeds[train_id] = 0
+        self.train_positions_in_block[train_id] = 0
         import time
-        self.last_movement_update[train_name] = time.time()
+        self.last_movement_update[train_id] = time.time()
 
         # print(f"[TRAIN CREATED] ID={train_id}, Speed={speed} m/s, Authority={authority} blocks")
 
         # Refresh dropdowns and terminals
         self.train_combo["values"] = self.data_manager.active_trains
-        self.train_combo.set(train_name)
+        self.train_combo.set(train_id)
         self.send_outputs()
     
     def _create_train_from_yard(self, speed, authority):
@@ -5414,15 +5413,12 @@ class TrackModelUI(tk.Tk):
         if not hasattr(self.data_manager, "next_train_id"):
             self.data_manager.next_train_id = 1
 
-        # Assign new train ID (simple number)
+        # Assign new train ID (as integer)
         train_id = self.data_manager.next_train_id
         self.data_manager.next_train_id += 1
-        
-        # Use just the number as the train identifier
-        train_name = str(train_id)
 
-        # Register new train in data manager
-        self.data_manager.active_trains.append(train_name)
+        # Register new train in data manager (as integer)
+        self.data_manager.active_trains.append(train_id)
         
         # Ensure train_locations list exists and is properly sized
         if not hasattr(self.data_manager, 'train_locations'):
@@ -5737,17 +5733,21 @@ class TrackModelUI(tk.Tk):
         # print(f" Sent bulk occupancy data to Track SW: {len(occupancy_data)} blocks")
 
     def send_block_occupancy_to_train_model(self):
-        """Send block occupancy to Train Model - only occupied blocks."""
-        occupied_blocks = []
-        for block in self.data_manager.blocks:
-            if block.occupancy != 0:  # Only include occupied blocks
-                occupied_blocks.append(block.block_number)
-        
-        self.server.send_to_ui("Train Model", {
-            'command': 'block_occupancy',
-            'value': occupied_blocks
-        })
-        # print(f" Sent occupied blocks to Train Model: {occupied_blocks}")
+        """Send block occupancy to Train Model - one message per train with block location and train ID."""
+        # Send occupancy for each active train separately
+        for train_idx, train_id in enumerate(self.data_manager.active_trains):
+            # Get the block location for this train
+            if train_idx < len(self.data_manager.train_locations):
+                block_location = self.data_manager.train_locations[train_idx]
+                
+                # Only send if train is on the track (block_location != 0)
+                if block_location != 0:
+                    self.server.send_to_ui("Train Model", {
+                        'command': 'block_occupancy',
+                        'value': int(block_location),
+                        'train_id': int(train_id)
+                    })
+                    # print(f" Sent block occupancy to Train Model: Train {train_id} at block {block_location}")
 
     def send_commanded_speed_to_train_model(self):
         """Send commanded speed to Train Model - individual message per train."""
@@ -6453,9 +6453,14 @@ class TrackModelUI(tk.Tk):
 
                 # ---------------------------
                 
-                # Convert train_id to string if it's an integer (Passenger_UI sends as int)
-                if train_id is not None and isinstance(train_id, int):
-                    train_id = str(train_id)
+                # Convert train_id to integer if it's a string
+                if train_id is not None and isinstance(train_id, str):
+                    try:
+                        train_id = int(train_id)
+                    except ValueError:
+                        print(f"ERROR: Invalid train_id received: {train_id}")
+                        return
+                
                 # 1. Require a train_id
                 # ---------------------------
                 if not train_id:
@@ -6467,14 +6472,29 @@ class TrackModelUI(tk.Tk):
                 # ---------------------------
                 if train_id not in self.data_manager.active_trains:
                     print(f"WARNING: Current Speed received for unregistered train {train_id}. Auto-creating train.")
-                    self.data_manager.active_trains.append(train_id)
-                    self.train_positions_in_block[train_id] = 0
-                    self.last_movement_update[train_id] = time.time()
+                    
+                    # Initialize next_train_id if not set
+                    if not hasattr(self.data_manager, "next_train_id"):
+                        self.data_manager.next_train_id = 1
+                    
+                    # Use the next available train ID from the counter
+                    new_train_id = self.data_manager.next_train_id
+                    self.data_manager.next_train_id += 1
+                    
+                    # Add the new train with the proper ID
+                    self.data_manager.active_trains.append(new_train_id)
+                    self.train_positions_in_block[new_train_id] = 0
+                    self.last_movement_update[new_train_id] = time.time()
+                    
+                    # Update train_id to the newly assigned ID
+                    train_id = new_train_id
 
                     # Mark block 63 as occupied (spawn block)
                     if 63 in self.data_manager.blocks:
                         self.data_manager.blocks[63].occupancy = train_id
                         self.update_occupied_blocks_display()
+                    
+                    print(f"INFO: Auto-created train with ID {new_train_id}")
 
                 # ---------------------------
                 # 3. Convert mph → m/s

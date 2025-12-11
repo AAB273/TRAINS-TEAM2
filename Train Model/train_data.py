@@ -311,7 +311,7 @@ class Train:
 				self.active = True
 				#print(f"Train {self.trainId} received first authority - AUTO ACTIVATING")
 				self.serviceBrakeActive = False
-				self.announcement = "Deployed From Yard"
+				self.announcement = "Traveling From Yard"
 			
 			# Notify observers
 			self._notifyObservers()
