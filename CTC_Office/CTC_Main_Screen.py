@@ -515,21 +515,41 @@ class MainScreen:
 ###############################################################################################################################################################
     
     def controlClockSpeed(self, change):
-        if (change == "inc" and self.clockSpeed == 1):
-            clock.tenTimesSpeed()
-            self.clockSpeed = 10
+        if (change == "inc"):
+            if (self.clockSpeed == 1):
+                clock.tenTimesSpeed()
+                self.clockSpeed = 10
 
-            self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
-            self.send_to_ui("Train SW", {"command": "MULT", "value": float(self.clockSpeed)})
-            self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
+                self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
+                self.send_to_ui("Train SW", {"command": "MULT", "value": float(self.clockSpeed)})
+                self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
+
+            elif (self.clockSpeed == 10):
+                clock.fiftyTimesSpeed()
+                self.clockSpeed = 50
+
+                self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
+                self.send_to_ui("Train SW", {"command": "MULT", "value": float(self.clockSpeed)})
+                self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
 
 
-        elif (change == "dec" and self.clockSpeed == 10):
-            clock.normalSpeed()
-            self.clockSpeed = 1
-            self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
-            self.send_to_ui("Train SW", {"command": "MULT", "value": float(self.clockSpeed)})
-            self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
+
+        else:
+            if (self.clockSpeed == 50):
+                clock.tenTimesSpeed()
+                self.clockSpeed = 10
+
+                self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
+                self.send_to_ui("Train SW", {"command": "MULT", "value": float(self.clockSpeed)})
+                self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
+
+            elif (self.clockSpeed == 10):
+                clock.fiftyTimesSpeed()
+                self.clockSpeed = 1
+
+                self.send_to_ui("Train Model", {"command": "MULT", "value": self.clockSpeed})
+                self.send_to_ui("Train SW", {"command": "MULT", "value": float(self.clockSpeed)})
+                self.send_to_ui("Train HW", {"command": "MULT", "value": self.clockSpeed})
     
 ###############################################################################################################################################################
     

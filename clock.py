@@ -27,6 +27,11 @@ class Clock:
         if (self._incTimer.is_alive()):
             self._incTimer.cancel()
         self._incTime(0.1)
+
+    def fiftyTimesSpeed(self):
+        if (self._incTimer.is_alive()):
+            self._incTimer.cancel()
+        self._incTime(0.02)
     
 
     def getTime(self):
