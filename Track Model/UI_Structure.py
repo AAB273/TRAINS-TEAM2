@@ -97,8 +97,9 @@ def _enable_debug_mode(app):
         pass
     
     print("\n" + "🔧"*35)
-    print("PASSENGER BOARDING DEBUG MODE ENABLED")
+    print("PASSENGER BOARDING DEBUG MODE ENABLED (Logging Only)")
     print(f"All messages to Train Model will be logged to: {_DEBUG_LOG_FILE}")
+    print("Immediate tests disabled - trains will stop at stations naturally")
     print("🔧"*35 + "\n")
     
     # Wrap the send method
@@ -107,8 +108,8 @@ def _enable_debug_mode(app):
         app.server.send_to_ui = lambda ui_name, msg: _wrapped_send_to_ui(app.server, ui_name, msg)
         print("✓ Wrapped server.send_to_ui() method\n")
     
-    # Immediate test
-    _immediate_boarding_test(app)
+    # Immediate test - DISABLED (trains should only stop at stations naturally)
+    # _immediate_boarding_test(app)
 
 def _immediate_boarding_test(app):
     """Immediately send a test boarding message"""
@@ -6902,7 +6903,7 @@ if __name__ == "__main__":
     # TEMPORARILY COMMENTED OUT - Test UI disabled
     # app.tester_reference = tester
 
-    # Enable passenger boarding debug mode
+    # Enable passenger boarding debug mode (logs messages only, no immediate tests)
     _enable_debug_mode(app)
 
     # Start periodic output updates after a delay
