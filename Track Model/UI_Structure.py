@@ -3638,7 +3638,7 @@ class TrackModelUI(tk.Tk):
             
             # Send to Train Model (keep existing format for Train Model)
             self.server.send_to_ui("Train Model", {
-                "command": "Block Occupancy",
+                "command": "block_occupancy",
                 "value": update
             })
             
@@ -5743,7 +5743,7 @@ class TrackModelUI(tk.Tk):
                 # Only send if train is on the track (block_location != 0)
                 if block_location != 0:
                     self.server.send_to_ui("Train Model", {
-                        'command': 'Block Occupancy',
+                        'command': 'block_occupancy',
                         'value': int(block_location),
                         'train_id': int(train_id)
                     })
@@ -6495,6 +6495,15 @@ class TrackModelUI(tk.Tk):
                         self.update_occupied_blocks_display()
                     
                     print(f"INFO: Auto-created train with ID {new_train_id}")
+
+                # ---------------------------
+                # 3. Convert m/s → m/s
+                # ---------------------------
+                try:
+                    speed_ms = float(speed) 
+                except:
+                    print(f"ERROR: Invalid speed value received: {speed}")
+                    return
 
                 # ---------------------------
                 # 4. Store the ACTUAL speed
