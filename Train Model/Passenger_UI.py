@@ -488,8 +488,10 @@ class TrainModelPassengerGUI:
 		self.currentTrain.setSpeedLimit(self.currentTrain.prevSpeedLimit)
 		self.currentTrain.setGrade(self.currentTrain.prevSpeedLimit)
 		self.currentTrain.setElevation(self.currentTrain.prevSpeedLimit)
-		self.server.send_to_ui("Train SW", {'command': "Signal Pickup Failure", 'value': False})
-		self.server.send_to_ui("Train HW", {'command': "Signal Pickup Failure", 'value': False})
+		if self.currentTrain.trainId == 1:
+			self.server.send_to_ui("Train HW", {'command': "Signal Pickup Failure", 'value': False})
+		else:
+			self.server.send_to_ui("Train SW", {'command': "Signal Pickup Failure", 'value': False, 'train_id' : self.currentTrain.trainId})
 
 	def activateSignalFailure(self):
 		# Activates signal pickup failure mode and resets track parameters.
@@ -500,8 +502,10 @@ class TrainModelPassengerGUI:
 		self.currentTrain.grade = 0
 		self.currentTrain.elevation = 0
 		
-		self.server.send_to_ui("Train SW", {'command': "Signal Pickup Failure", 'value': True})
-		self.server.send_to_ui("Train HW", {'command': "Signal Pickup Failure", 'value': True})
+		if self.currentTrain.trainId == 1:
+			self.server.send_to_ui("Train HW", {'command': "Signal Pickup Failure", 'value': True})
+		else:
+			self.server.send_to_ui("Train SW", {'command': "Signal Pickup Failure", 'value': True, 'train_id' : self.currentTrain.trainId})
 		
 		self.failureActivationInProgress = False
 			
