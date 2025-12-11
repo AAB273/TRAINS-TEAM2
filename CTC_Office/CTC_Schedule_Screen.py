@@ -423,7 +423,10 @@ class ScheduleScreen:
                 else:
                 #red line
                     '''statements to move the train'''
-                    if ((self.trainRoutes[key][0] + 1) == int(location) and self.trainRoutes[key][2] == "forward"):
+                    if (self.trainRoutes[key][0] == int(location) and self.trainRoutes[key][0] == 63):
+                        updated = True
+                        
+                    elif ((self.trainRoutes[key][0] + 1) == int(location) and self.trainRoutes[key][2] == "forward"):
                         self.updateTrainInManualEdit(key, location)
                         updated = True
 

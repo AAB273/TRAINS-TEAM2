@@ -32,7 +32,7 @@ from TC_HW_SystemLogUI import SystemLogViewer
 from TrainSocketServer import TrainSocketServer
 
 # CONFIGURATION - SET YOUR PI'S IP ADDRESS HERE
-PI_HOST = '10.6.14.128'  # ← CHANGE THIS to your Pi's IP address
+PI_HOST = '172.20.10.4'  # ← CHANGE THIS to your Pi's IP address
 PI_GPIO_PORT = 12348
 
 def load_socket_config():
