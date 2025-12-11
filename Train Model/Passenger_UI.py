@@ -52,7 +52,7 @@ class TrainModelPassengerGUI:
 		moduleConfig = loadSocketConfig()
 		trainModelConfig = moduleConfig.get("Train Model", {"port": 12345})
 		self.server = TrainSocketServer(port=trainModelConfig["port"], ui_id="Train Model")
-		self.server.set_allowed_connections(["Train SW", "Train HW", "Track Model", "Test_UI"])
+		self.server.set_allowed_connections(["Train SW", "Train HW", "Track Model", "Test_UI", "CTC"])
 		self.server.start_server(self._processMessage)
 		
 		# Connect using ports from config
