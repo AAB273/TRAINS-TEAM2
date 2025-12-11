@@ -250,7 +250,8 @@ class RailwayControlSystem:
         #print(f"Sending PLC switches to track model: {switch_message}")
         #print(f"  Number of switches included: {len(switches)}")
         #print(f"  Switch blocks: {[s[0] for s in switches]}")
-        
+
+        self.send_to_ctc(switch_message)
         return self.send_to_track_model(switch_message)
 
     def send_to_track_model(self, message):
@@ -443,7 +444,7 @@ class RailwayControlSystem:
                         
             elif value_type == 'suggested':
                 if speed is not None:
-                    self.data.suggested_speed[track][block] = speed
+                    self.data.suggested_speed[track][block] = speed* 2.23694
                 if authority is not None:
                     self.data.suggested_authority[track][block] = authority
                 if block == "63":  # ONLY for block 63!

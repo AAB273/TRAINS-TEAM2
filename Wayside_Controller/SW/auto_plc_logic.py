@@ -543,7 +543,7 @@ def apply_ctc_speed_overrides(data, log_callback):
                 if block_section and block_section in plc_sections:
                     
                     # Convert CTC speed from m/s to mph (if needed) and cap at 43.5 mph
-                    ctc_speed_mph = float(ctc_speed_str) * 2.23694  # Convert m/s to mph
+                    ctc_speed_mph = float(ctc_speed_str)  # Convert m/s to mph
                     
                     # Cap at maximum speed of 43.5 mph
                     if ctc_speed_mph > 43.5:
