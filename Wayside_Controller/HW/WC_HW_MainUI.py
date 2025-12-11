@@ -295,7 +295,7 @@ def _process_message(self, data, connection=None, server_instance=None):
         elif command == "SW":
             # Handle switch command from CTC - FOR TRACK HW
             print(f"CTC SWITCH COMMAND received: {value}")
-            
+
         # =====================================================================
         # HANDLE TRACK MODEL INCOMING MESSAGES
         # =====================================================================
@@ -692,7 +692,14 @@ class UITestData:
             red_sections = self.red_sections # use class attribute
 
             # Combine sections for lookup
-            all_sections = {**green_sections, **red_sections}
+            # all_sections = {**green_sections, **red_sections}
+            # Determine which sections to use based on filename
+            if "green" in filename.lower():
+                section_map = self.green_sections
+                current_line = "Green"
+            else:  # Red line
+                section_map = self.red_sections
+                current_line = "Red"
 
             # print(f"SUCCESS: Read {len(lines)} lines from {filename}")
             start_line = 0
@@ -801,9 +808,18 @@ class UITestData:
                 emergency_data.append([occupied, "Green", block_num, section])
     
         else:  # Red line
-            # Red Line: Sections J-N and Yard to F
+            # Red Line: Full sections from Yard to N
             sections = {
-            # J-N sections
+            # Yard to F sections (1-23)
+            "1": "Yard", "2": "Yard", "3": "Yard",
+            "4": "A", "5": "A", "6": "A",
+            "7": "B", "8": "B", "9": "B",
+            "10": "C", "11": "C", "12": "C",
+            "13": "D", "14": "D", "15": "D",
+            "16": "E", "17": "E", "18": "E", "19": "E", "20": "E",
+            "21": "F", "22": "F", "23": "F",
+            
+            # J-N sections (74-149)
             "74": "M", "75": "M", "76": "M",
             "77": "N", "78": "N", "79": "N", "80": "N", "81": "N", "82": "N", "83": "N", "84": "N", "85": "N",
             "86": "O", "87": "O", "88": "O",
@@ -818,20 +834,13 @@ class UITestData:
             "129": "W", "130": "W", "131": "W", "132": "W", "133": "W", "134": "W", "135": "W",
             "136": "W", "137": "W", "138": "W", "139": "W", "140": "W", "141": "W", "142": "W", "143": "W",
             "144": "X", "145": "X", "146": "X",
-            "147": "Y", "148": "Y", "149": "Y",
-            # Yard to F sections
-            "1": "Yard", "2": "Yard", "3": "Yard",
-            "4": "A", "5": "A", "6": "A",
-            "7": "B", "8": "B", "9": "B",
-            "10": "C", "11": "C", "12": "C",
-            "13": "D", "14": "D", "15": "D",
-            "16": "E", "17": "E", "18": "E", "19": "E", "20": "E",
-            "21": "F", "22": "F", "23": "F"
-            }
+            "147": "Y", "148": "Y", "149": "Y"
+        }
         
-            for block_num, section in sections.items():
-                occupied = "Yes" if int(block_num) % 4 == 0 else "No"
-                emergency_data.append([occupied, "Red", block_num, section])
+        for block_num, section in sections.items():
+            occupied = "Yes" if int(block_num) % 4 == 0 else "No"
+            emergency_data.append([occupied, "Red", block_num, section])
+    
         print(f"Created {len(emergency_data)} emergency rows")
         return emergency_data
 
@@ -1676,10 +1685,13 @@ def load_line_data(self, filename):
                     "Railway Crossing: 19": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
                 },
                 "switches": {
-                    "Switch 12-13": {"condition": "Normal", "direction": "Blocks 12-13 (C-D)"},
-                    "Switch 1-13": {"condition": "Normal", "direction": "Blocks 1-13 (D-A)"},
-                    "Switch 28-29": {"condition": "Normal", "direction": "Blocks 28-29(F-G)"},
-                    "Switch 150-28": {"condition": "Normal", "direction": "Blocks 150-28(F-Z)"}
+                    "Switch 9-10": {"condition": "Normal", "direction": "Blocks 9-10"},
+                    "Switch 15-16": {"condition": "Normal", "direction": "Blocks 15-16"},
+                    "Switch 27-28": {"condition": "Normal", "direction": "Blocks 27-28"},
+                    "Switch 32-33": {"condition": "Normal", "direction": "Blocks 32-33"},
+                    "Switch 38-39": {"condition": "Normal", "direction": "Blocks 38-39"},
+                    "Switch 43-44": {"condition": "Normal", "direction": "Blocks 43-44"},
+                    "Switch 52-53": {"condition": "Normal", "direction": "Blocks 52-53"}
                 },
                 "lights": {
                     "Light 9": {"condition": "Normal", "signal": "Green"},
@@ -3633,10 +3645,13 @@ class RightPanel(tk.Frame):
         print(f"DEBUG: update_suggested_speed called with {speed_value}")
     
     # Store the value for future use
+        selected_block = self.block_combo.get()
+        current_line = self.data.current_line
     # For now, just update the display directly
-        if speed_value is not None:
-            self.suggested_speed_label.config(text=f"{speed_value:.3f} mph")
-            add_to_message_log(f"Suggested Speed updated: {speed_value:.3f} mph")
+        if selected_block and current_line and speed_value is not None:
+            self.suggested_speed[current_line][selected_block] = speed_value
+            self.suggested_speed_label.config(text=f"{speed_value:.2f} mph")
+            add_to_message_log(f"Suggested Speed updated: {speed_value:.3f} mph for block {selected_block}")
         # if selected_block and current_line and speed_value is not None:
         #     self.suggested_speed[current_line][selected_block] = speed_value
         #     self.suggested_speed_label.config(text=f"{speed_value:.3f} mph")
@@ -3645,9 +3660,12 @@ class RightPanel(tk.Frame):
     def update_suggested_authority(self, authority_value):
         """Update suggested authority from external source"""
         print(f"DEBUG: update_suggested_authority called with {authority_value}")
-    
         # For now, just update the display directly
-        if authority_value is not None:
+        selected_block = self.block_combo.get()
+        current_line = self.data.current_line
+        if selected_block and current_line and authority_value is not None:
+            # Store in local storage
+            self.suggested_authority[current_line][selected_block] = authority_value
             self.suggested_auth_label.config(text=f"{authority_value} blocks")
             add_to_message_log(f"Suggested Authority updated: {authority_value} blocks")
         # """Update suggested authority from external source"""
@@ -3670,7 +3688,11 @@ class RightPanel(tk.Frame):
         block_search.pack(side=tk.LEFT, padx=5)
         tk.Label(search_frame, text="Search", bg='#1a1a4d', fg='white', font=('Arial', 9)).pack(side=tk.LEFT)
         
-        allowed_sections = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'Z'}
+        # For Red Line: Yard, A-F, and M-Y
+        if self.data.current_line == "Green":
+            allowed_sections = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'Z'}
+        else:  # Red Line
+            allowed_sections = {'Yard', 'A', 'B', 'C', 'D', 'E', 'F', 'J', 'K', 'L', 'M', 'N'}
         display_data = [row for row in self.data.block_data 
           if row[1] == self.data.current_line and row[3] in allowed_sections]
         
