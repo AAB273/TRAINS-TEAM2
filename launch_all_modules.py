@@ -43,11 +43,19 @@ def launch_all():
         ("Track SW", "Wayside_Controller/SW/main.py"),
         ("Track HW", "Wayside_Controller/HW/WC_HW_MainUI.py"),
         ("Track Model", "Track Model/UI_Structure.py"),
+<<<<<<< HEAD
         # ("Train Model", "Train Model/Passenger_UI.py"),
         # ("Train SW", "train_controller_sw/Driver_UI.py"),
         # ("Train HW","HW_Train_Controller/TC_HW_MainUI.py"),
         # ("Test UI","Train Model/Test_UI.py")
         # ("Test UI","Track Model/Test_UI.py")
+=======
+        ("Train Model", "Train Model/Passenger_UI.py"),
+        ("Train SW", "train_controller_sw/Driver_UI.py"),
+        ("Train HW","HW_Train_Controller/TC_HW_MainUI.py"),
+        
+        #("Test UI","Train Model/Test_UI.py")
+>>>>>>> fce02446869b4cad029311703f4ee7b8bf483511
     ]
     
     # Set PYTHONPATH to include exe_dir so imports work
