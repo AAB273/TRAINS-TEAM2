@@ -547,7 +547,7 @@ class TrainModelPassengerGUI:
 		self.server.send_to_ui("Track Model", {
 			'command': 'Train Occupancy',
 			'value': train.passengerCount,
-			'train_id': train.train_id
+			'train_id': train.trainId
 		})  
 
 
@@ -992,12 +992,6 @@ class TrainModelPassengerGUI:
 		
 		# Schedule next ad change (6000ms = 6 seconds)
 		self.root.after(6000, self.cycleThroughAds)  
-
-	# def updateTime(self):
-	# 	# Continuously updates the time display every second.
-	# 	localTime = clock.getTime()
-	# 	self.uiLabels['time'].config(text=localTime)
-	# 	self.root.after(100, self.updateTime)
 
 	def onClosing(self):
 		# Handles application closing and cleanup.
