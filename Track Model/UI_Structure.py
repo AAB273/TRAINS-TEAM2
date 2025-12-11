@@ -10,7 +10,7 @@ import sys
 import random
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 # TEMPORARILY COMMENTED OUT - Test UI disabled
-# from Test_UI import TrackModelTestUI
+from Test_UI import TrackModelTestUI
 from FileUploadManager import FileUploadManager
 from TrackDiagramDrawer import TrackDiagramDrawer
 from HeaterSystemManager import HeaterSystemManager
@@ -2354,9 +2354,10 @@ class TrackModelUI(tk.Tk):
         current_time = time.time()
         
         # ==============================================
-        # CRITICAL FIX: Clean up ghost trains at blocks 65 and 66
-        # Ensure only one train occupies each block
+        # SMART GHOST TRAIN CLEANUP: Clean up truly orphaned trains at blocks 65 and 66
+        # Only clear if train is genuinely not supposed to be there
         # ==============================================
+        import time
         for critical_block in [65, 66]:
             if critical_block <= len(self.data_manager.blocks):
                 block = self.data_manager.blocks[critical_block - 1]
@@ -2365,19 +2366,37 @@ class TrackModelUI(tk.Tk):
                     train_num = block.occupancy
                     train_id = str(train_num)
                     
-                    if train_id in self.data_manager.active_trains:
+                    should_clear = False
+                    clear_reason = ""
+                    
+                    # Check 1: Train doesn't exist in active trains
+                    if train_id not in self.data_manager.active_trains:
+                        should_clear = True
+                        clear_reason = "train no longer active"
+                    
+                    # Check 2: Train's actual location is different AND train is stopped
+                    elif train_id in self.data_manager.active_trains:
                         train_idx = self.data_manager.active_trains.index(train_id)
                         if train_idx < len(self.data_manager.train_locations):
                             actual_location = self.data_manager.train_locations[train_idx]
                             
-                            # If train's actual location doesn't match this block, clear ghost
+                            # Location mismatch - but only clear if train is stationary
                             if actual_location != critical_block:
-                                block.occupancy = 0
-                                print(f"[BLOCK {critical_block} GHOST FIX] Cleared ghost train {train_num}, actual location is block {actual_location}")
-                    else:
-                        # Train doesn't exist anymore, clear the ghost
+                                # Check if train is moving
+                                actual_speed = self.train_actual_speeds.get(train_id, 0)
+                                
+                                if actual_speed == 0:
+                                    # Train is stopped - check how long
+                                    time_since_update = time.time() - self.last_movement_update.get(train_id, 0)
+                                    if time_since_update > 2.0:  # Stopped for 2+ seconds
+                                        should_clear = True
+                                        clear_reason = f"location mismatch (actual={actual_location}), stopped for {time_since_update:.1f}s"
+                                # else: Train is moving, don't clear (could be mid-transition)
+                    
+                    # Only clear if we have a good reason
+                    if should_clear:
                         block.occupancy = 0
-                        print(f"[BLOCK {critical_block} GHOST FIX] Cleared ghost train {train_num}, train no longer active")
+                        print(f"[BLOCK {critical_block} GHOST FIX] Cleared ghost train {train_num}: {clear_reason}")
         
         # Process each active train
         for train_idx, train_id in enumerate(self.data_manager.active_trains):
@@ -2460,32 +2479,19 @@ class TrackModelUI(tk.Tk):
                 
                 if next_block and next_block <= len(self.data_manager.blocks):
                     # ==============================================
-                    # CRITICAL FIX: Extra cleanup for blocks 65 and 66
-                    # Ensure clean transition from these problem blocks
-                    # ==============================================
+                    # Blocks 65 and 66: Log transition but don't do aggressive cleanup
+                    # The clear_train_from_all_other_blocks() call handles cleanup properly
                     if current_block_num in [65, 66]:
                         print(f"[BLOCK {current_block_num} TRANSITION] Train {train_id} leaving block {current_block_num} → {next_block}")
-                        
-                        # Force clear ALL occupancy at current block
-                        if current_block_num <= len(self.data_manager.blocks):
-                            critical_block = self.data_manager.blocks[current_block_num - 1]
-                            critical_block.occupancy = 0
-                            
-                            # Double-check no other trains claim this block
-                            for other_train_id in self.data_manager.active_trains:
-                                if other_train_id != train_id:
-                                    other_idx = self.data_manager.active_trains.index(other_train_id)
-                                    if other_idx < len(self.data_manager.train_locations):
-                                        if self.data_manager.train_locations[other_idx] == current_block_num:
-                                            print(f"[BLOCK {current_block_num} CONFLICT] WARNING: Train {other_train_id} also claims block {current_block_num}!")
-                                            # Force the other train to move too
-                                            self.data_manager.train_locations[other_idx] = 0
                     
                     # Clear current block occupancy
                     if current_block_num <= len(self.data_manager.blocks):
                         current_block = self.data_manager.blocks[current_block_num - 1]
                         current_block.occupancy = 0
                         # print(f"[MOVEMENT] {train_id} leaving block {current_block_num}")
+                    
+                    # Clear train from all other blocks FIRST (prevents double occupancy)
+                    self.clear_train_from_all_other_blocks(train_id, next_block)
                     
                     # Set new block occupancy
                     new_block = self.data_manager.blocks[next_block - 1]
@@ -2510,6 +2516,79 @@ class TrackModelUI(tk.Tk):
                     # Send occupancy updates to other modules
                     self.send_block_occupancy_update(current_block_num, 0)
                     self.send_block_occupancy_update(next_block, train_num)
+                    
+                    # ============================================================
+                    # AUTO-SPAWN NEW TRAIN: When train arrives at block 63 (yard entry)
+                    # with switch in reverse position (yard→63), spawn new train
+                    # ============================================================
+                    if next_block == 63:
+                        # Check if switch at block 62 is in reverse position (yard→63)
+                        switch_in_yard_position = False
+                        
+                        if 62 <= len(self.data_manager.blocks):
+                            block_62 = self.data_manager.blocks[61]  # Block 62 (index 61)
+                            
+                            # Check switch direction
+                            if hasattr(block_62, 'switch_direction'):
+                                if block_62.switch_direction == "reverse":
+                                    switch_in_yard_position = True
+                            elif hasattr(self.data_manager, 'switch_states') and 62 in self.data_manager.switch_states:
+                                if self.data_manager.switch_states[62] == "reverse":
+                                    switch_in_yard_position = True
+                        
+                        if switch_in_yard_position:
+                            print(f"\n{'='*60}")
+                            print(f"[AUTO-SPAWN] Train {train_id} arrived at block 63 (yard entry)")
+                            print(f"[AUTO-SPAWN] Switch at block 62 is in REVERSE (yard→63)")
+                            print(f"[AUTO-SPAWN] Spawning new train...")
+                            print(f"{'='*60}")
+                            
+                            # Calculate new train ID (last train ID + 1)
+                            last_train_id = max([int(tid) for tid in self.data_manager.active_trains])
+                            new_train_id = str(last_train_id + 1)
+                            
+                            # Add new train to active trains
+                            self.data_manager.active_trains.append(new_train_id)
+                            
+                            # Initialize train data
+                            self.data_manager.train_locations.append(63)  # Start at block 63
+                            self.data_manager.commanded_speed.append(0)  # Start at 0, wait for commands
+                            self.data_manager.commanded_authority.append(0)  # Start at 0, wait for commands
+                            self.data_manager.train_occupancy.append(0)  # Start with 0 passengers
+                            
+                            # Initialize movement tracking
+                            self.train_actual_speeds[new_train_id] = 0
+                            self.train_positions_in_block[new_train_id] = 0
+                            import time
+                            self.last_movement_update[new_train_id] = time.time()
+                            
+                            # Initialize train direction (default: forward)
+                            if hasattr(self, 'train_directions'):
+                                self.train_directions[new_train_id] = 1  # 1 = forward
+                            
+                            print(f"[AUTO-SPAWN] ✅ New train {new_train_id} spawned at block 63")
+                            print(f"[AUTO-SPAWN]    Active trains: {self.data_manager.active_trains}")
+                            print(f"[AUTO-SPAWN]    Waiting for Speed and Authority command from CTC/Wayside")
+                            print(f"{'='*60}\n")
+                            
+                            # Log to terminal
+                            try:
+                                for terminal in self.terminals:
+                                    terminal.config(state="normal")
+                                    terminal.insert("end", f"🚂 AUTO-SPAWN: Train {new_train_id} → Block 63 (Yard Entry)\n")
+                                    terminal.insert("end", f"   Trigger: Train {train_id} arrived, switch in yard→63 position\n")
+                                    terminal.see("end")
+                                    terminal.config(state="disabled")
+                            except Exception as e:
+                                pass
+                            
+                            # Update displays
+                            self.update_occupied_blocks_display()
+                            if hasattr(self, 'update_block_marker'):
+                                self.update_block_marker(63)
+                        else:
+                            print(f"[BLOCK 63] Train {train_id} arrived at block 63, but switch NOT in yard→63 position - no auto-spawn")
+                    # ============================================================
                     
                     # DEBUG: Log occupancy for blocks after 66 to diagnose display issues
                     if next_block > 66 or current_block_num > 66:
@@ -2537,6 +2616,30 @@ class TrackModelUI(tk.Tk):
             return float(block.block_length)
         else:
             return 50.0  # Default 50 meters if no length data
+    
+    def clear_train_from_all_other_blocks(self, train_id, current_block):
+        """
+        Clear this train's occupancy from ALL blocks except its current location.
+        Prevents double occupancy which causes ghost train detection to fail.
+        
+        Args:
+            train_id: ID of the train to clear
+            current_block: The block where train should currently be (don't clear this one)
+        """
+        train_num = int(train_id)
+        
+        for block_idx, block in enumerate(self.data_manager.blocks):
+            block_num = block_idx + 1
+            
+            # Skip the current block (where train should be)
+            if block_num == current_block:
+                continue
+            
+            # Clear occupancy if this block has this train
+            if hasattr(block, 'occupancy') and block.occupancy == train_num:
+                block.occupancy = 0
+                print(f"[OCCUPANCY CLEANUP] Cleared train {train_id} from block {block_num} (current location: {current_block})")
+    
     
     def get_next_block(self, current_block, train_idx):
         """
@@ -7068,11 +7171,11 @@ if __name__ == "__main__":
     manager = UI_Variables.TrackDataManager()
     app = TrackModelUI(manager)
     # TEMPORARILY COMMENTED OUT - Test UI disabled
-    # tester = TrackModelTestUI(app, manager)
+    tester = TrackModelTestUI(app, manager)
     
     # Store reference to test UI for refreshing
     # TEMPORARILY COMMENTED OUT - Test UI disabled
-    # app.tester_reference = tester
+    app.tester_reference = tester
 
     # Enable passenger boarding debug mode (logs messages only, no immediate tests)
     _enable_debug_mode(app)
@@ -7098,5 +7201,5 @@ if __name__ == "__main__":
     # app.send_all_outputs()
     
     # TEMPORARILY COMMENTED OUT - Test UI disabled
-    # tester.lift()
+    tester.lift()
     app.mainloop()
