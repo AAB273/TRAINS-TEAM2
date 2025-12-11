@@ -325,7 +325,7 @@ class GreenLine:
         """
         for distances in self.preloadedDistances['segments']:
             if distances['fromBlock'] == blockNumber:
-                return distances
+                return distances['distance']
         return None
     
     def getValue(self, blockNumber, key):

@@ -32,7 +32,7 @@ from TC_HW_SystemLogUI import SystemLogViewer
 from TrainSocketServer import TrainSocketServer
 
 # CONFIGURATION - SET YOUR PI'S IP ADDRESS HERE
-PI_HOST = '172.20.10.4'  # ← CHANGE THIS to your Pi's IP address
+PI_HOST = '10.6.14.128'  # ← CHANGE THIS to your Pi's IP address
 PI_GPIO_PORT = 12348
 
 def load_socket_config():
@@ -68,6 +68,7 @@ passengerEmergencySignal = False
 brakeFailure = False
 engineFailure = False
 signalFailure = False
+mult_value = 1.0  # MULT value from CTC (default 1.0x speed until CTC connects)
 
 running = True
 acPanel = None
@@ -444,7 +445,7 @@ lastUndergroundState = False  # Track if we were underground last update
 # Automatic mode control parameters
 DECELERATION_DISTANCE = 200.0  # Start decelerating 200m before station (meters)
 STATION_STOP_THRESHOLD = 5.0  # Consider "at station" when within 5m
-STATION_DWELL_TIME = 30.0  # Time to wait at station (seconds)
+STATION_DWELL_TIME = 30.0  # Time to wait at station (seconds) - will be adjusted by mult_value
 stationDwellStartTime = None  # Track when we arrived at station
 isAtStation = False  # Flag to track if we're stopped at a station
 
@@ -1045,9 +1046,9 @@ def updatePositionTracking():
     dt = currentTime - lastPositionUpdateTime
     lastPositionUpdateTime = currentTime
     
-    # TIME ACCELERATION: 10x speed for faster simulation
-    TIME_SCALE = 1.0
-    dt = dt * TIME_SCALE
+    # TIME ACCELERATION: Use time scale from CTC (mult_value)
+    global mult_value
+    dt = dt * mult_value
     
     # If we're at a station, don't update position
     if isAtStation:
@@ -1696,15 +1697,17 @@ class TrainSpeedDisplayUI:
         module_config = load_socket_config()
         train_controller_hw_config = module_config.get("Train HW", {"port": 12347})
         
-        # Start our server that listens for Train Model
+        # Start our server that listens for incoming connections (Train Model, Train SW, CTC)
         self.server = TrainSocketServer(port=train_controller_hw_config["port"], ui_id="Train HW")
-        self.server.set_allowed_connections(["Train Model", "Train SW"])
+        self.server.set_allowed_connections(["Train Model", "Train SW", "CTC"])
         self.server.start_server(self._process_message)
         print(f"✓ Train Controller HW server started on port {train_controller_hw_config['port']}")
+        print(f"✓ Waiting for connections from: Train Model, Train SW, CTC")
         
         # Connect to Train Model (it should already be running on port 12345)
         self.train_model_connected = False
         self.software_tc_connected = False
+        self.ctc_connected = False
         train_model_config = module_config.get("Train Model", {"port": 12345})
         
         def connect_train_model():
@@ -1734,6 +1737,9 @@ class TrainSpeedDisplayUI:
         
         # Also try to connect to Software TC (Train SW) if it's running
         self._connectToSoftwareTC()
+        
+        # CTC should connect TO us on our server port (12347)
+        # We don't connect to CTC - we wait for CTC to connect to us
 
         self._createWidgets()
         self._updateDisplay()
@@ -1857,9 +1863,13 @@ class TrainSpeedDisplayUI:
         global brakeFailure, engineFailure, signalFailure, acPanel
         global preloadedTrackInformation, distanceToNextStation
         global beacon1, beacon2, emergencyBrakeEngaged, returningToYard
+        global mult_value
         
         try:
             command = message.get('command')
+            
+            # DEBUG: Print all messages to see what's being received
+            print(f"[DEBUG] Received message from {source_ui_id}: command={command}, message={message}")
             
             # DEBUG: Print all beacon-related messages
             if command in ['Beacon1', 'Beacon2']:
@@ -1867,12 +1877,9 @@ class TrainSpeedDisplayUI:
             
             # Silently process routine messages
             
-            if source_ui_id != "Train Model":
-                if command in ['Beacon1', 'Beacon2']:
-                    print(f"[DEBUG] REJECTED - source is '{source_ui_id}', expected 'Train Model'")
-                return
-            
-            self.train_model_connected = True
+            # Track if Train Model is connected (for any message from Train Model)
+            if source_ui_id == "Train Model":
+                self.train_model_connected = True
             
             value = message.get('value')
             
@@ -2149,6 +2156,20 @@ class TrainSpeedDisplayUI:
                 print(f"[BEACON2] Current state: selectedLine={selectedLine}, currentBlock={currentBlock}, beacon2={beacon2}")
                 if selectedLine == 'RED' and currentBlock == 38:
                     print(f"[BEACON2] ✓ Conditions met for alternative route display!")
+            
+            elif command == 'MULT':
+                # MULT command from CTC - updates time scale
+                global mult_value, STATION_DWELL_TIME
+                mult_value = float(value)
+                
+                # Recalculate STATION_DWELL_TIME to maintain 30 real-world seconds
+                # At 1.0x: 30 seconds simulation time = 30 seconds real time
+                # At 10.0x: 3 seconds simulation time = 30 seconds real time
+                STATION_DWELL_TIME = 30.0 / mult_value
+                
+                print(f"[CTC] Received MULT command from {source_ui_id}: value={mult_value}")
+                print(f"[CTC] Updated STATION_DWELL_TIME to {STATION_DWELL_TIME:.1f} seconds (30s real-world time)")
+
         
         except Exception as e:
             print(f"Error processing message: {e}")
@@ -2262,13 +2283,13 @@ class TrainSpeedDisplayUI:
         )
         self.commandedAuthorityValue.pack(padx=10, pady=(0, 10))
         
-        # Middle row: Mode and Manual Setpoint
+        # Middle row: Mode, Manual Setpoint, and Time Scale
         modeFrame = tk.Frame(mainFrame, bg='#1e3c72')
         modeFrame.pack(fill='x', pady=10)
         
         # Drivetrain Mode
         modeBox = tk.Frame(modeFrame, bg='#27ae60', relief='raised', bd=4)
-        modeBox.pack(side='left', fill='both', expand=True, padx=(0, 5))
+        modeBox.pack(side='left', fill='both', expand=True, padx=(0, 3))
         
         tk.Label(
             modeBox,
@@ -2293,7 +2314,7 @@ class TrainSpeedDisplayUI:
         
         # Manual Setpoint
         manualBox = tk.Frame(modeFrame, bg='#e67e22', relief='raised', bd=4)
-        manualBox.pack(side='right', fill='both', expand=True, padx=(5, 0))
+        manualBox.pack(side='left', fill='both', expand=True, padx=(3, 3))
         
         tk.Label(
             manualBox,
@@ -2315,6 +2336,31 @@ class TrainSpeedDisplayUI:
             bd=3
         )
         self.manualSetpointValue.pack(padx=10, pady=(0, 10))
+        
+        # Time Scale (from CTC)
+        timeScaleBox = tk.Frame(modeFrame, bg='#8e44ad', relief='raised', bd=4)
+        timeScaleBox.pack(side='right', fill='both', expand=True, padx=(3, 0))
+        
+        tk.Label(
+            timeScaleBox,
+            text="TIME SCALE",
+            font=('Arial', 14, 'bold'),
+            bg='#8e44ad',
+            fg='white',
+            pady=5
+        ).pack()
+        
+        self.timeScaleValue = tk.Label(
+            timeScaleBox,
+            text="1.0x",
+            font=('Arial', 24, 'bold'),
+            bg='#1a1a2e',
+            fg='#00ffff',
+            pady=12,
+            relief='sunken',
+            bd=3
+        )
+        self.timeScaleValue.pack(padx=10, pady=(0, 10))
         
         # Auto Mode Info Row
         autoFrame = tk.Frame(mainFrame, bg='#1e3c72')
@@ -2491,7 +2537,8 @@ class TrainSpeedDisplayUI:
                 'isAtStation': None,
                 'beacon1': None,
                 'beacon2': None,
-                'currentBlock': None
+                'currentBlock': None,
+                'timeScale': None
             }
         
         cache = self._display_cache
@@ -2515,6 +2562,12 @@ class TrainSpeedDisplayUI:
         if cache['authority'] != authority:
             self.commandedAuthorityValue.config(text=f"{int(authority)} blocks")
             cache['authority'] = authority
+        
+        # Update time scale display
+        global mult_value
+        if cache['timeScale'] != mult_value:
+            self.timeScaleValue.config(text=f"{mult_value:.1f}x")
+            cache['timeScale'] = mult_value
         
         # Update mode display only if changed
         if cache['isManual'] != isManual or cache['mode'] != mode:
