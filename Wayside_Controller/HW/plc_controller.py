@@ -16,7 +16,8 @@ Sections Covered:
 - Section Z: Block 150
 - Block 63 included for yard connection
 """
-
+import time
+from datetime import datetime
 class PLCController:
     def __init__(self, log_callback=None):
         """
@@ -31,6 +32,7 @@ class PLCController:
         self.test_data = None
         self.block_occupancy = {} # {block_number: True/False}
         self.block_authority = {}# {block_num: authority_value}
+        self.active_failures = set() # set of block numbers with failures
         self.ctc_authority_received = {}  # Store original CTC authority
         
         # Track line
@@ -147,6 +149,11 @@ class PLCController:
         Returns:
             Boolean - True if fault
         """
+        # check active failures sent from Track Model
+        if block in self.active_failures:
+            return True
+        
+        #fall back to check (test_data)
         if not self.test_data:
             return False
         
