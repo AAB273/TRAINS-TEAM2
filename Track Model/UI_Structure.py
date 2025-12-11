@@ -5468,14 +5468,14 @@ class TrackModelUI(tk.Tk):
         # Update UI elements if they exist
         if hasattr(self, 'train_combo'):
             self.train_combo["values"] = self.data_manager.active_trains
-            self.train_combo.set(train_name)
+            self.train_combo.set(train_id)
         
         # Send creation notification to other modules
         try:
             # Send new train notification (without speed/authority)
             self.server.send_to_ui("Train Model", {
                 "command": "new_train",
-                "train_id": train_name,
+                "train_id": train_id,
                 "block_number": 63
             })
             
@@ -5483,19 +5483,19 @@ class TrackModelUI(tk.Tk):
             self.server.send_to_ui("Train Model", {
                 "command": "Commanded Speed",
                 "value": speed,
-                "train_id": train_name
+                "train_id": train_id
             })
             
             # Send commanded authority separately
             self.server.send_to_ui("Train Model", {
                 "command": "Commanded Authority",
                 "value": authority,
-                "train_id": train_name
+                "train_id": train_id
             })
             
             self.server.send_to_ui("CTC", {
                 "command": "train_dispatched",
-                "train_id": train_name,
+                "train_id": train_id,
                 "from": "Yard/Block63",
                 "entry_block": 63
             })
@@ -5514,7 +5514,7 @@ class TrackModelUI(tk.Tk):
         except Exception as e:
             print(f" Error during send_outputs: {e}")
         
-        return train_name
+        return train_id
 
 
     def prompt_and_activate_broken_rail(self):
