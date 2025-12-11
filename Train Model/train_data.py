@@ -68,6 +68,10 @@ class Train:
 		self.commandedAuthority = 0
 		self.distanceLeft = None
 
+		self.prevGrade = 0
+		self.prevElevation = 0
+		self.prevSpeedLimit = 40
+
 		# For physics calculations
 		self.lastPowerCommand = 0.0
 		self.lastServiceBrake = True
@@ -144,6 +148,9 @@ class Train:
 		self.setCrewCount(2)
 		self.setPowerCommand(0.0)
 		self.setCabinTemp(72.0)
+		self.setGrade(0)
+		self.setElevation(0)
+		self.setSpeedLimit(40)
 		self.setGrade(0)
 		self.setElevation(0)
 		self.setSpeedLimit(40)
@@ -231,17 +238,20 @@ class Train:
 	# Metric setters with validation
 	def setSpeedLimit(self, value: float):
 		# Sets the speed limit for the train in m/s.
+		self.prevSpeedLimit = self.speedLimit
 		self.speedLimit = float(value)
 		self.speedLimitMps = self.speedLimit / 3.6
 		self._notifyObservers()
 	
 	def setElevation(self, value: float):
 		# Sets the elevation of the train in feet.
+		self.prevElevation = self.elevation
 		self.elevation = float(value)
 		self._notifyObservers()
 
 	def setGrade(self, value: float):
 		# Sets the grade percentage of the track.
+		self.prevGrade = self.grade
 		self.grade = float(value)
 		self._notifyObservers()
 		

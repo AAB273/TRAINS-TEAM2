@@ -42,17 +42,8 @@ def launch_all():
         ("CTC", "CTC_Office/CTC_UI.py"),
         #("Track SW", "Wayside_Controller/SW/main.py"),
         #("Track HW", "Wayside_Controller/HW/WC_HW_MainUI.py"),
-<<<<<<< HEAD
         #("Track Model", "Track Model/UI_Structure.py"),
         ("Train Model", "Train Model/Passenger_UI.py"),
-=======
-        # ("Track Model", "Track Model/UI_Structure.py"),
-        # ("Train Model", "Train Model/Passenger_UI.py"),
-        ("Track HW", "Wayside_Controller/HW/WC_HW_MainUI.py"),
-        #("Track Model", "Track Model/UI_Structure.py"),
-        ("Track Model", "Track Model/UI_Structure.py"),
-        # ("Train Model", "Train Model/Passenger_UI.py"),
->>>>>>> 7a25041586c0a5960b4809b79a6f662c990ae3a0
         #("Train SW", "train_controller_sw/Driver_UI.py"),
         # ("Train HW","HW_Train_Controller/TC_HW_MainUI.py"),
         

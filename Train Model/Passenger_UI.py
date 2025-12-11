@@ -466,6 +466,9 @@ class TrainModelPassengerGUI:
 	def deactivateSignalFailure(self):
 		# Deactivates signal pickup failure mode.
 		print(f"Signal Pickup Failure Deactivated")
+		self.currentTrain.setSpeedLimit(self.currentTrain.prevSpeedLimit)
+		self.currentTrain.setGrade(self.currentTrain.prevSpeedLimit)
+		self.currentTrain.setElevation(self.currentTrain.prevSpeedLimit)
 		self.server.send_to_ui("Train SW", {'command': "Signal Pickup Failure", 'value': False})
 		self.server.send_to_ui("Train HW", {'command': "Signal Pickup Failure", 'value': False})
 
