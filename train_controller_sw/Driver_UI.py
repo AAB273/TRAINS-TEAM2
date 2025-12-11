@@ -334,6 +334,18 @@ class PositionTracker:
                         next_station = self.get_next_station_name()
                         ui_callback.add_to_status_log(f"Departing for {next_station}")
                         print(f"[POSITION] Next destination: {next_station}")
+                        
+                        # Send announcement to Train Model for passengers
+                        if hasattr(ui_callback, 'server') and ui_callback.server:
+                            try:
+                                ui_callback.server.send_to_ui("Train Model", {
+                                    'command': 'Announcement',
+                                    'value': f"Departing for {next_station}",
+                                    'train_id': 2
+                                })
+                                print(f"[ANNOUNCEMENT] Sent to Train Model: Departing for {next_station}")
+                            except Exception as e:
+                                print(f"[ANNOUNCEMENT] Error sending to Train Model: {e}")
             
             return  # CRITICAL: Early return while at station
         
@@ -356,6 +368,18 @@ class PositionTracker:
             
             if ui_callback and hasattr(ui_callback, 'add_to_status_log'):
                 ui_callback.add_to_status_log(f"*** ARRIVED AT {current_station} ***")
+                
+                # Send announcement to Train Model for passengers
+                if hasattr(ui_callback, 'server') and ui_callback.server:
+                    try:
+                        ui_callback.server.send_to_ui("Train Model", {
+                            'command': 'Announcement',
+                            'value': f"Arrived at {current_station}",
+                            'train_id': 2
+                        })
+                        print(f"[ANNOUNCEMENT] Sent to Train Model: Arrived at {current_station}")
+                    except Exception as e:
+                        print(f"[ANNOUNCEMENT] Error sending to Train Model: {e}")
             
             # Open appropriate doors at station
             self._open_station_doors(ui_callback)
@@ -521,11 +545,12 @@ class Main_Window:
         train_model_config = module_config.get("Train SW", {"port": 12346})
         self.server = TrainSocketServer(port=train_model_config["port"], ui_id="Train SW")
         
-        self.server.set_allowed_connections(["Train Model", "Track Model", "Train HW"])
+        self.server.set_allowed_connections(["Train Model", "Track Model", "Train HW", "CTC"])
         self.server.start_server(self._process_message)
         self.server.connect_to_ui('localhost', 12345, "Train Model")
         self.server.connect_to_ui('localhost', 12344, "Track Model")
         self.server.connect_to_ui('localhost', 12347, "Train HW")
+        self.server.connect_to_ui('localhost', 12341, "CTC")
         
         main_container = tk.Frame(self.root, bg="white", relief=tk.RAISED, bd=5)
         main_container.place(relx=0.02, rely=0.08, relwidth=0.96, relheight=0.9)

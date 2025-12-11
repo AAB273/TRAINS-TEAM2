@@ -78,7 +78,79 @@ class RedLine:
             {"blockNumber": 75, "section": "S", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
             {"blockNumber": 76, "section": "T", "blockLengthM": 50, "blockGradePercent": 0.0, "speedLimitKmh": 55, "infrastructure": "UNDERGROUND", "stationSide": "", "elevationM": 0.00, "cumulativeElevationM": -1.241},
         ]
+        self.preloadedDistances = {
+            'segments': [
+                {
+                    'fromStation': 'SHADYSIDE',
+                    'toStation': 'HERRON AVE',
+                    'distance': 600.0 + 25.0,  # meters + half of block 16 (50m block)
+                    'fromBlock': 7,
+                    'toBlock': 16,
+                    'stationBlockHalfLength': 25.0
+                },
+                {
+                    'fromStation': 'HERRON AVE',
+                    'toStation': 'SWISSVILLE',
+                    'distance': 1200.0 + 50.0,  # meters + half of block 21 (100m block)
+                    'fromBlock': 16,
+                    'toBlock': 21,
+                    'stationBlockHalfLength': 50.0
+                },
+                {
+                    'fromStation': 'SWISSVILLE',
+                    'toStation': 'PENN STATION',
+                    'distance': 350.0 + 25.0,  # meters + half of block 25 (50m block)
+                    'fromBlock': 21,
+                    'toBlock': 25,
+                    'stationBlockHalfLength': 25.0
+                },
+                {
+                    'fromStation': 'PENN STATION',
+                    'toStation': 'STEEL PLAZA',
+                    'distance': 500.0 + 25.0,  # meters + half of block 35 (50m block)
+                    'fromBlock': 25,
+                    'toBlock': 35,
+                    'stationBlockHalfLength': 25.0
+                },
+                {
+                    'fromStation': 'STEEL PLAZA',
+                    'toStation': 'FIRST AVE',
+                    'distance': 450.0 + 25.0,  # meters + half of block 45 (50m block)
+                    'fromBlock': 35,
+                    'toBlock': 45,
+                    'stationBlockHalfLength': 25.0
+                },
+                {
+                    'fromStation': 'FIRST AVE',
+                    'toStation': 'STATION SQUARE',
+                    'distance': 150.0 + 37.5,  # meters + half of block 48 (75m block)
+                    'fromBlock': 45,
+                    'toBlock': 48,
+                    'stationBlockHalfLength': 37.5
+                },
+                {
+                    'fromStation': 'STATION SQUARE',
+                    'toStation': 'SOUTH HILLS JUNCTION',
+                    'distance': 600.0 + 37.5,  # meters + half of block 60 (75m block)
+                    'fromBlock': 48,
+                    'toBlock': 60,
+                    'stationBlockHalfLength': 37.5
+                }
+            ]
+        }
 
+    def getDistance(self, blockNumber):
+        """
+        Get a distance to next station from a specific block
+        
+        :param blockNumber: The block Number (1-146)
+        """
+        for distances in self.preloadedDistances['segments']:
+            if distances['fromBlock'] == blockNumber:
+                return distances['distance']
+        return None
+    
+    
     def getValue(self, blockNumber, key):
         """
         Get a value from a specific block.
