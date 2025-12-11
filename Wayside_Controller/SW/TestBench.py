@@ -156,7 +156,8 @@ class PLC_Complete_TestBench:
             #("Test 8: Maintenance Mode Switch Override", self.test_maintenance_mode_switch),
             #("Test 9: CTC Speed Override", self.test_ctc_speed_override),
             #("Test 10: Commanded Speed Override", self.test_commanded_speed_override),
-            ("Test 11: User Authority Override", self.test_user_authority_override),       
+            #("Test 11: User Authority Override", self.test_user_authority_override),
+            ("Test 12: CTC Maintenance Request", self.test_ctc_maintenance_request),       
         ]
         
         for test_name, test_func in tests:
@@ -1959,7 +1960,19 @@ class PLC_Complete_TestBench:
         
         return self.log_test("User Authority Override", test_passed,
                             "User authority takes absolute precedence" if test_passed else "User authority test failed")
-    
+    def test_ctc_maintenance_request(self):
+        """Test CTC Maintenance Request Handling"""
+        print("  Testing CTC Maintenance Request Handling...")
+        test_passed = True
+
+        # 2. Call the method
+        print("    Calling handle_ctc_maintenance()...")
+        self.app.handle_ctc_maintenance()
+
+        print("    Calling handle_ctc_switch()...")
+        self.app.handle_ctc_switch()
+
+ 
 def run_complete_plc_testbench():
     """Main function to run the complete PLC testbench"""
     print("="*60)
