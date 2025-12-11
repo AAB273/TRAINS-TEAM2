@@ -2313,7 +2313,7 @@ class PLCManager:
             self.plc_instance.test_data = test_data
             self.plc_instance.run_cycle_quiet()
         except Exception as e:
-            self.message_logger.log(f"PLC cycle error: {e}")
+            print(f"PLC cycle error: {e}")
         
         if self.running and self.root:
             self.root.after(self.cycle_interval, self._plc_cycle)
