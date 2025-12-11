@@ -359,7 +359,187 @@ class PLCController:
         # Send to Track Model and CTC
         if hasattr(self.test_data, 'send_railway_state'):
             self.test_data.send_railway_state(self.track, str(block), bar)
+            
+    def receive_ctc_authority(self, block, authority_value, destination_hint=0):
+        """ Process CTC authority message destination_hint: 0=normal, 1=station, 2=yard, 3=back to yard"""
+        self.log(f"CTC Authority received: Block {block}, Authority {authority_value}, Destination hint: {destination_hint}")
+    
+    # Store CTC's original authority
+        self.ctc_authority_received[block] = {
+            'original': authority_value,
+            'destination': destination_hint
+        }
+    
+    # If destination hint is 3 (back to yard), handle specially
+        if destination_hint == 3:
+            self.log(f"TRAIN DESTINATION: Block {block} going back to YARD")
+            self.handle_yard_return(block, authority_value)
+        else:
+        # Normal progression - set initial authority
+            self.block_authority[block] = authority_value
+        
+        # Propagate authority forward
+            self.propagate_authority_forward(block, authority_value)
+    
+    # Update track model authority array
+        self.update_track_model_authority_array()
 
+    def handle_yard_return(self, start_block, authority_value):
+        """Special handling for trains returning to yard"""
+    # Find blocks on the path to yard (assuming block 57 is yard connection)
+        yard_path = self.find_path_to_yard(start_block)
+    
+        if not yard_path:
+            self.log(f"ERROR: Could not find path to yard from block {start_block}")
+            return
+    
+        self.log(f"Yard return path: {yard_path}")
+    
+    # Set decreasing authority along the path
+        current_auth = authority_value
+        for i, block in enumerate(yard_path):
+        # Blocks 9 and 58 get authority 1 if present in path
+            if block in [9, 58]:
+                self.block_authority[block] = 1
+            else:
+                self.block_authority[block] = current_auth
+                current_auth = max(0, current_auth - 1)
+    
+    # Block 55 (before switch to yard) gets authority 1
+        if 55 in self.block_authority:
+            self.block_authority[55] = 1
+
+    def find_path_to_yard(self, start_block):
+        """Find path from start_block to yard (block 57)
+        Simple implementation - adjust based on your actual track layout
+        """
+    # This is a simplified path finder - you'll need to customize based on your track layout
+        try:
+            start_block = int(start_block)
+            if start_block < 57:
+            # Blocks before yard
+                return list(range(start_block, 58))
+            else:
+            # Blocks after yard
+                return list(range(start_block, 56, -1)) + [57]
+        except:
+            return []
+
+    def propagate_authority_forward(self, start_block, authority_value):
+        """ Propagate decreasing authority forward from start block """
+        try:
+            start = int(start_block)
+            current_auth = authority_value
+        
+        # Propagate forward 3 blocks (or until authority reaches 0)
+            for i in range(3):
+                next_block = start + i + 1
+            
+            # Check if block exists in our system
+                if next_block in self.all_blocks:
+                    self.block_authority[next_block] = current_auth - 1
+                    current_auth -= 1
+            
+                if current_auth <= 0:
+                    break
+        except Exception as e:
+            self.log(f"Error propagating authority: {e}")
+
+    def update_authority_for_occupancy(self):
+        """
+        Update authority values based on block occupancy
+        Reset speed to 25 mph for unoccupied blocks
+        """
+        if not self.test_data:
+            return
+    
+    # Reset authority array
+        self.track_model_authority_array = []
+    
+    # Process all blocks in order
+        for block in sorted(self.all_blocks):
+        # Check if block is occupied
+            occupied = self.get_block_occupancy(block)
+        
+            if occupied:
+            # Occupied block - get current authority or use default
+                current_auth = self.block_authority.get(block, 0)
+            # Decrease authority for next cycle
+                if current_auth > 0:
+                    self.block_authority[block] = current_auth - 1
+            
+                self.track_model_authority_array.append({
+                'block': block,
+                'authority': current_auth,
+                'speed': 0,  # Stop or slow speed for occupied blocks
+                'occupied': True
+                })
+            
+            # Log the progression
+                if current_auth == 0:
+                    self.log(f"Block {block}: Train arrived, authority = 0")
+                else:
+                    self.log(f"Block {block}: Authority decreasing to {current_auth - 1}")
+        
+            else:
+            # Unoccupied block - reset speed to 25 mph
+            # Check if this block has pending authority from CTC
+                if block in self.block_authority:
+                # Use the decreasing authority value
+                    auth_value = self.block_authority[block]
+                    self.track_model_authority_array.append({
+                    'block': block,
+                    'authority': auth_value,
+                    'speed': 25,  # Default speed for unoccupied blocks
+                    'occupied': False
+                    })
+                else:
+                # No authority assigned, default to 0
+                    self.track_model_authority_array.append({
+                    'block': block,
+                    'authority': 0,
+                    'speed': 25,  # Reset to 25 mph for unoccupied blocks
+                    'occupied': False
+                    })
+    def send_authority_to_track_model(self):
+        """
+        Send authority array for all blocks to Track Model
+        """
+        if not self.test_data or not hasattr(self.test_data, 'send_to_track_model'):
+            return
+    
+    # Ensure we have updated authority data
+        self.update_authority_for_occupancy()
+    
+    # Create the authority array message
+        authority_array = []
+        for item in self.track_model_authority_array:
+            authority_array.append({
+            'block': item['block'],
+            'authority': item['authority'],
+            'suggested_speed': item['speed']
+            })
+    
+    # Send to Track Model
+        track_model_message = {
+        "command": "authority_array",
+        "value": authority_array,
+        "timestamp": time.time(),
+        "line": self.track
+        }
+    
+        try:
+            self.test_data.send_to_track_model(track_model_message)
+            self.log(f"Sent authority array for {len(authority_array)} blocks to Track Model")
+        except Exception as e:
+            self.log(f"Error sending authority array to Track Model: {e}")
+
+    def update_track_model_authority_array(self):
+        """
+        Update and send the authority array immediately
+        """
+        self.update_authority_for_occupancy()
+        self.send_authority_to_track_model()
     # =========================================================================
     # PLC SAFETY LOGIC
     # =========================================================================
@@ -397,6 +577,32 @@ class PLCController:
     # =========================================================================
     # PLC CONTROL LOGIC - Automatic calculations
     # =========================================================================
+    def run_cycle_quiet(self):
+        """Run PLC cycle - only logs state changes"""
+    # Existing light logic
+        for block in self.light_info.keys():
+            current_state = self.get_light_state(block)
+            calculated_state = self.calculate_light_state(block)
+            if current_state != calculated_state:
+                self.set_light_state(block, calculated_state)
+    
+    # Existing crossing logic
+        for block in self.crossing_info.keys():
+            current_state = self.get_crossing_state(block)
+            calculated_state = self.calculate_crossing_state(block)
+            if current_state != calculated_state:
+                self.set_crossing_state(block, calculated_state)
+    
+    # NEW: Update authority based on occupancy
+        self.update_authority_for_occupancy()
+    
+    # NEW: Send authority array to Track Model
+        self.send_authority_to_track_model()
+    
+    # Existing switch safety check
+        for block in self.switch_info.keys():
+            if self.get_block_fault(block):
+                self.log(f"ALERT: Switch {block} has FAULT")
     
     def calculate_light_state(self, block):
         """
