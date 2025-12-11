@@ -1,0 +1,25 @@
+=== Train Model ===
+Start time: 2025-12-09 17:07:35
+Python: /bin/python3
+Script: /mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2/Train Model/Passenger_UI.py
+Directory: /mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2
+==================================================
+
+pygame 2.6.1 (SDL 2.28.4, Python 3.10.12)
+Hello from the pygame community. https://www.pygame.org/contribute.html
+UI Train Model can communicate with: {'Test_UI', 'Train HW', 'Track Model', 'Train SW'}
+Train GUI Server Train Model listening on port 12345
+Failed to connect to Train SW: [Errno 111] Connection refused
+Failed to connect to Train HW: [Errno 111] Connection refused
+Failed to connect to Track Model: [Errno 111] Connection refused
+Failed to connect to Test_UI: [Errno 111] Connection refused
+Traceback (most recent call last):
+  File "/mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2/Train Model/Passenger_UI.py", line 973, in <module>
+    app = TrainModelPassengerGUI()
+  File "/mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2/Train Model/Passenger_UI.py", line 79, in __init__
+    self.setupGUI()
+  File "/mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2/Train Model/Passenger_UI.py", line 654, in setupGUI
+    self.root.iconbitmap("blt logo ico.ico") 
+  File "/usr/lib/python3.10/tkinter/__init__.py", line 2109, in wm_iconbitmap
+    return self.tk.call('wm', 'iconbitmap', self._w, bitmap)
+_tkinter.TclError: bitmap "blt logo ico.ico" not defined

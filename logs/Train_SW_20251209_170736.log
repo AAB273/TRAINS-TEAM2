@@ -1,0 +1,17 @@
+=== Train SW ===
+Start time: 2025-12-09 17:07:36
+Python: /bin/python3
+Script: /mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2/train_controller_sw/Driver_UI.py
+Directory: /mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2
+==================================================
+
+pygame 2.6.1 (SDL 2.28.4, Python 3.10.12)
+Hello from the pygame community. https://www.pygame.org/contribute.html
+UI Train SW can communicate with: {'Train HW', 'Train Model', 'Track Model'}
+Train GUI Server Train SW listening on port 12346
+Failed to connect to Train Model: [Errno 111] Connection refused
+Failed to connect to Track Model: [Errno 111] Connection refused
+Failed to connect to Train HW: [Errno 111] Connection refused
+Mode changed to: auto
+[SENT] Service Brake: ACTIVE (value=True)
+Closing application...
