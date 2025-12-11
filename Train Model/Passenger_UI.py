@@ -20,6 +20,7 @@ sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
 #from clock import clock
 import pygame
+import ctypes
 import random
 
 class TrainModelPassengerGUI:
@@ -314,18 +315,38 @@ class TrainModelPassengerGUI:
 				})
 			elif command == 'Block Occupancy':
 				train.setBlock(value)
+				if train.line == 'green':
+					if (train.previousBlock == 57 and train.block != 58):
+						wasActive = train.active if train else False
+						train.active = False
+						if wasActive and not train.active:
+							if train.trainId in self.previousActiveTrains:
+								train.resetTrain()
+								self.previousActiveTrains.remove(train.trainId)
+						
+						self.refreshTrainSelector()
+				else:
+					if (train.previousBlock == 9 and train.block != 10):
+						wasActive = train.active if train else False
+						train.active = False
+						if wasActive and not train.active:
+							if train.trainId in self.previousActiveTrains:
+								train.resetTrain()
+								self.previousActiveTrains.remove(train.trainId)
+						
+						self.refreshTrainSelector()
+
+
 			elif command == 'Passengers Boarding':
-				self.updateDisembarking(train)
-				self.updateBoarding(value, train)
-			# elif command == 'Beacon1' or command == 'Beacon2':
-			# 	self.server.send_to_ui("Train SW", {
-			# 		'command': command,
-			# 		'value': value
-			# 	})
-			# 	self.server.send_to_ui("Train HW", {
-			# 		'command': command,
-			# 		'value': value
-			# 	})
+				if train.commandedAuthority == 1:
+					if train.block == 57 and train.line == 'green':
+						self.disembarkAll(train)
+					elif train.block == 9 and train.line == 'red':
+						self.disembarkAll(train)
+				else:
+					self.updateDisembarking(train)
+					self.updateBoarding(value, train)
+					
 			elif command == 'TIME':
 				self.uiLabels['time'].config(text=value)
 			elif command == 'MULT':
@@ -426,8 +447,8 @@ class TrainModelPassengerGUI:
 		elif self.failureTrainEngineVar.get() == 0:
 			self.currentTrain.setEngineFailure(False)
 			print(f"Train Engine Failure Deactivated")
-			self.server.send_to_ui("Train SW", {"Train Engine Failure", 0})
-			self.server.send_to_ui("Train HW", {"Train Engine Failure", 0})
+			self.server.send_to_ui("Train SW", {'command': "Train Engine Failure", 'value': 0})
+			self.server.send_to_ui("Train HW", {'command': "Train Engine Failure", 'value': 0})
 
 	def updateFailureSignal(self):
 		# Updates signal pickup failure state when checkbox changes.
@@ -466,9 +487,8 @@ class TrainModelPassengerGUI:
 			
 	def updateDisembarking(self, train):
 		# Updates passenger disembarking when train is stopped with doors open.
-		if train and train.active and train.passengerCount != 0:
-			if (train.atStation and redundantCheck):
-				redundantCheck = True
+		if train and train.active:
+			if train.passengerCount != 0:
 				passengerCount = train.passengerCount
 				disembarking = random.randint(0, passengerCount)
 				
@@ -485,7 +505,33 @@ class TrainModelPassengerGUI:
 					'value': train.passengerCount,
 					'train_id': train.trainId
 				})
+			else:
+				self.server.send_to_ui("Track Model", {
+					"command": 'Passenger Disembarking', 
+					'value': 0,
+					'train_id': train.trainId
+				})
+				self.server.send_to_ui('Track Model', {
+					'command': 'Train Occupancy', 
+					'value': train.passengerCount,
+					'train_id': train.trainId
+				})
 
+	def disembarkAll(self, train):
+		train.setDisembarking(train.passengerCount)
+		train.setPassengerCount(0)
+
+		self.server.send_to_ui("Track Model", {
+					"command": 'Passenger Disembarking', 
+					'value': train.passengerCount,
+					'train_id': train.trainId
+				})
+		self.server.send_to_ui('Track Model', {
+					'command': 'Train Occupancy', 
+					'value': train.passengerCount,
+					'train_id': train.trainId
+				})
+		
 	def updateBoarding(self, boarding: int, train=None):
 		# Updates passenger boarding count and sends occupancy update to track model.
 		if train is None:
@@ -501,7 +547,7 @@ class TrainModelPassengerGUI:
 		self.server.send_to_ui("Track Model", {
 			'command': 'Train Occupancy',
 			'value': train.passengerCount,
-			'train_id': train.train_id
+			'train_id': train.trainId
 		})  
 
 
@@ -554,7 +600,10 @@ class TrainModelPassengerGUI:
 		if self.currentTrain.emergencyBrakeActive:
 			self.uiLabels['announcement'].config(text=f"EMERGENCY")
 		else:
-			self.uiLabels['announcement'].config(text=f"{train.announcement} in {train.timeToStation}mins")
+			if "Arrived" in train.announcement:
+				self.uiLabels['announcement'].config(text={train.announcement})
+			else:
+				self.uiLabels['announcement'].config(text=f"{train.announcement} in {train.timeToStation} mins")
 
 		# Update power command and commanded values
 		self.uiLabels['power_command'].config(text=f"{train.powerCommand:.0f} Watts")
@@ -651,7 +700,9 @@ class TrainModelPassengerGUI:
 		self.root.title("Passenger Train Model GUI")
 		self.root.configure(bg=self.mainColor)
 		self.root.geometry("900x800") 
-		self.root.iconbitmap("blt logo ico.ico") 
+		myappid = 'BLT.TrainModel.PassengerUI.1.0'
+		ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)	#changes taskbar image to blt logo
+		self.root.iconbitmap("blt logo ico.ico")  #changes corner window image to blt logo
 
 		# Train Selector Dropdown Frame 
 		trainSelectorContainer = tk.Frame(self.root, bg=self.mainColor, height=30)
@@ -941,12 +992,6 @@ class TrainModelPassengerGUI:
 		
 		# Schedule next ad change (6000ms = 6 seconds)
 		self.root.after(6000, self.cycleThroughAds)  
-
-	# def updateTime(self):
-	# 	# Continuously updates the time display every second.
-	# 	localTime = clock.getTime()
-	# 	self.uiLabels['time'].config(text=localTime)
-	# 	self.root.after(100, self.updateTime)
 
 	def onClosing(self):
 		# Handles application closing and cleanup.
