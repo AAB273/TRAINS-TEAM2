@@ -42,7 +42,7 @@ def launch_all():
         ("CTC", "CTC_Office/CTC_UI.py"),
         ("Track SW", "Wayside_Controller/SW/main.py"),
         #("Track HW", "Wayside_Controller/HW/WC_HW_MainUI.py"),
-        #("Track Model", "Track Model/UI_Structure.py"),
+        # ("Track Model", "Track Model/UI_Structure.py"),
         # ("Train Model", "Train Model/Passenger_UI.py"),
         ("Track HW", "Wayside_Controller/HW/WC_HW_MainUI.py"),
         #("Track Model", "Track Model/UI_Structure.py"),
