@@ -225,7 +225,6 @@ class Train:
 		# Line check
 		if value == 9 and not ("STATION" in stationCheck):
 			self.setLine('red')
-			print("TRAIN IS ON LINE", self.line)
 
 			
 		

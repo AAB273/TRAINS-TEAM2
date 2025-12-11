@@ -81,80 +81,7 @@ def update_callback(message):
     print(f"Socket message recieved: {message}")
     add_to_message_log(f"Socket: {message}")
 
-# send_to_ui function
-# target ui is test ui
 
-# def _process_message(self, data, connection=None, server_instance=None):
-#     """Process incoming messages from Test UI"""
-#     try:
-#         print(f"\n{'='*60}")
-#         print(f"MAIN UI: Received message from CTC")
-#         print(f"Data type: {type(data)}")
-#         print(f"Data: {data}")
-#         print(f"{'='*60}\n")
-#         print(f"=== MAIN UI DEBUG ===")
-#         print(f"Received data: {data}")
-#         print(f"=== END DEBUG ===")
-        
-#         # 1. Handle connection test
-#         if isinstance(data, str) and data.strip() == "CTC":
-#             print("CTC connection test received")
-#             add_to_message_log("CTC connection test received")
-#             if connection:
-#                 try:
-#                     connection.sendall(b"CTC_ACK")
-#                 except:
-#                     pass
-#             return
-        
-#         # 2. Parse message
-#         message_data = None
-#         if isinstance(data, str):
-#             try:
-#                 message_data = json.loads(data)
-#             except json.JSONDecodeError:
-#                 # Simple string commands
-#                 if data == "update_speed_auth":
-#                     message_data = {'command': 'update_speed_auth', 'value': ''}
-#                     print(f"Recieved update_speed_auth command: {message_data} ")
-#                     # If not JSON, just log it
-#                     add_to_message_log(f"String message: {data}")
-#                     return
-#                 else:
-#                     message_data = {'message': data}
-#         elif isinstance(data, dict):
-#             message_data = data
-#         else:
-#             print(f"Unknown data type: {type(data)}")
-#             return
-        
-#         # 3. Process command
-#         command = message_data.get('command', '')
-#         value = message_data.get('value', '')
-        
-#         if command == 'update_speed_auth':
-#             # Pass directly to existing handler
-#             if hasattr(test_data, 'handle_ctc_message'):
-#                 test_data.handle_ctc_message(message_data)
-#             else:
-#                 add_to_message_log(f"Received update_speed_auth: {value}")
-                
-#         elif command == 'ctc_suggestion':
-#             # Handle speed suggestion
-#             handle_ctc_suggested_speed(value)
-
-#         elif command == 'set_block_occupancy':
-#             pass  # Add handling if needed
-#         elif command == 'set_switch_position':
-#             # Just log it for now
-#             add_to_message_log(f"Switch position update: {value}")
-#             pass  # Add handling if needed
-#         else:
-#             print(f"Unknown command: {command} with value: {value}")
-            
-#     except Exception as e:
-#         print(f"Error processing message: {e}")
-        
 # Example of Process Function:
 def _process_message(self, data, connection=None, server_instance=None):
     """Process incoming messages from Test UI"""
@@ -295,7 +222,9 @@ def _process_message(self, data, connection=None, server_instance=None):
                         pass
                     
                     add_to_message_log(f"CTC Update: Speed={speed_str}, Authority={authority_str}")
-                
+        # =====================================================================
+        # HANDLE CTC MESSAGES
+        # =====================================================================        
         elif command == 'ctc_suggestion':
             # Handle speed suggestion
             print(f"\n[{timestamp}] CTC Suggestion Received")
@@ -320,7 +249,65 @@ def _process_message(self, data, connection=None, server_instance=None):
         elif command == "SW":
             # Handle switch command from CTC - FOR TRACK HW
             print(f"CTC SWITCH COMMAND received: {value}")
+        # =====================================================================
+        # HANDLE TRACK MODEL INCOMING MESSAGES
+        # =====================================================================
+        
+        elif command == 'update_occupancy' or command == 'occupancy':
+            block = value.get('block', '')
+            track = value.get('track', test_data.current_line)
+            occupied = value.get('occupied', False)
             
+            print(f"Track Model Occupancy Update: Block {block} on {track} -> {occupied}")
+            add_to_message_log(f"Track Model: Block {block} Occupancy = {occupied}")
+            
+            # Update block data
+            occupied_str = "Yes" if occupied else "No"
+            for idx, row in enumerate(test_data.block_data):
+                if str(row[2]) == str(block) and row[1] == track:
+                    test_data.block_data[idx][0] = occupied_str
+                    break
+            
+            # Send occupancy to CTC
+            if hasattr(test_data, 'send_occupancy'):
+                test_data.send_occupancy(track, block, occupied_str)
+        
+        elif command == 'update_light' or command == 'light_state':
+            block = value.get('block', '')
+            track = value.get('track', test_data.current_line)
+            color = value.get('color', 'Green')
+            
+            print(f"Track Model Light Update: Block {block} on {track} -> {color}")
+            add_to_message_log(f"Track Model: Light {block} = {color}")
+            
+            # Update track_data
+            light_name = f"Light {block}"
+            if light_name in test_data.track_data.get("lights", {}):
+                test_data.track_data["lights"][light_name]["signal"] = color
+            
+            # Send light state to CTC
+            if hasattr(test_data, 'send_light_state'):
+                test_data.send_light_state(track, block, color)
+        
+        elif command == 'update_crossing' or command == 'crossing_state':
+            block = value.get('block', '')
+            track = value.get('track', test_data.current_line)
+            bar = value.get('bar', 'Open')
+            lights = value.get('lights', 'Off')
+            
+            print(f"Track Model Crossing Update: Block {block} on {track} -> Bar:{bar}")
+            add_to_message_log(f"Track Model: Crossing {block} Bar={bar}")
+            
+            # Update track_data
+            crossing_name = f"Railway Crossing: {block}"
+            if crossing_name in test_data.track_data.get("crossings", {}):
+                test_data.track_data["crossings"][crossing_name]["bar"] = bar
+                test_data.track_data["crossings"][crossing_name]["lights"] = lights
+            
+            # Send railway state to CTC
+            if hasattr(test_data, 'send_railway_state'):
+                test_data.send_railway_state(track, block, bar)
+
             if isinstance(value, list) and len(value) >= 2:
                 location = str(value[0])
                 line = value[1]
@@ -495,58 +482,7 @@ def handle_ctc_suggested_speed(speed_data):
         add_to_message_log(f"ERROR: Processing CTC speed message - {e}")
 
     return None
-    # def handle_ctc_suggested_speed(speed_data):
-    #     """
-    #     Handle CTC suggested speed messages and convert to float with 3 decimal places
-    #     Expected formats:
-    #     - String: "track HW", {"Suggested_speed", "float: new_speed"}
-    #     - Dictionary: {'Suggested_speed': 'float: 45.5'}
-    #     - Direct string: "float: 45.5"
-    #     """
-    #     try:
-    #         suggested_speed = None
-        
-    #         # Handle different input formats
-    #         if isinstance(speed_data, str):
-    #             # Extract float value from string format
-    #             if "float:" in speed_data:
-    #                 # Find the float value in the string
-    #                 import re
-    #                 float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_data)
-    #                 if float_match:
-    #                     speed_str = float_match.group(1)
-    #                     suggested_speed = float(speed_str)
-    #             else:
-    #                 # Try direct conversion if it's just a number string
-    #                 suggested_speed = float(speed_data)
-                
-    #         elif isinstance(speed_data, dict):
-    #             # Handle dictionary format
-    #             if 'Suggested_speed' in speed_data:
-    #                 speed_value = speed_data['Suggested_speed']
-    #                 if isinstance(speed_value, str) and "float:" in speed_value:
-    #                     speed_str = speed_value.split("float:")[1].strip()
-    #                     suggested_speed = float(speed_str)
-    #                 else:
-    #                     suggested_speed = float(speed_value)
-    #             elif 'value' in speed_data:
-    #                 # Alternative dictionary format
-    #                 suggested_speed = float(speed_data['value'])
-        
-    #         # Format to 3 decimal places if conversion was successful
-    #         if suggested_speed is not None:
-    #             formatted_speed = round(suggested_speed, 3)
-    #             add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.2f} mph")
-    #             return formatted_speed
-    #         else:
-    #             add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
-            
-    #     except ValueError as e:
-    #         add_to_message_log(f"ERROR: Invalid speed format - {e}", "ERROR")
-    #     except Exception as e:
-    #         add_to_message_log(f"ERROR: Processing CTC speed message - {e}", "ERROR")
     
-    # return None
 
 ##############################################################################################################################
 ###############################################################################################################################
@@ -1080,8 +1016,6 @@ class UITestData:
             add_to_message_log(f"ERROR processing CTC update: {e}")
 
 
-
-
     def handle_ctc_switch(self, switch_data):
         """Handle switch command from CTC"""
         try:
@@ -1109,6 +1043,190 @@ class UITestData:
             print(f"Error handling CTC switch command: {e}")
             add_to_message_log(f"ERROR: Failed to process CTC switch command: {e}")
     
+    # =====================================================================
+    # SEND FUNCTIONS FOR TRACK MODEL AND CTC INTEGRATION
+    # =====================================================================
+    
+    def send_to_track_model(self, message):
+        """Send message to Track Model"""
+        if hasattr(self, 'server1') and self.server1:
+            return self.server1.send_to_ui("Track Model", message)
+        else:
+            print("ERROR: No server connection to Track Model")
+            return False
+    
+    def send_to_CTC(self, message):
+        """Send message to CTC"""
+        if hasattr(self, 'server1') and self.server1:
+            return self.server1.send_to_ui("CTC", message)
+        else:
+            print("ERROR: No server connection to CTC")
+            return False
+
+    def send_commanded_to_track_model(self, track, block, speed, authority):
+        """Send commanded speed and authority to Track Model"""
+        track_model_message = {
+            "command": "Speed and Authority",
+            "block_number": block,
+            "commanded_speed": speed,
+            "commanded_authority": authority,
+        }
+        print(f"Sending commanded to Track Model: {track_model_message}")
+        add_to_message_log(f"Sending Speed/Authority to Track Model: Block {block}")
+        return self.send_to_track_model(track_model_message)
+
+    def send_light_state(self, track, block, color):
+        """Send Light State to CTC and Track Model"""
+        # Convert color to CTC format
+        if color == 'Red':
+            color_ctc = "00"
+        elif color == 'Yellow':
+            color_ctc = "01"
+        elif color == 'Green':
+            color_ctc = "10"
+        else:  # Super Green
+            color_ctc = "11"
+
+        message = {
+            "command": "LS",
+            "value": [block, color_ctc, track]
+        }
+        
+        print(f"Sending light state to CTC: {message}")
+        add_to_message_log(f"Light State: Block {block} -> {color} sent to CTC")
+        self.send_to_CTC(message)
+
+        # Send ALL light states to Track Model
+        self.send_all_lights_to_track_model(track)
+
+    def send_all_lights_to_track_model(self, track):
+        """Send ALL light states for a track to Track Model"""
+        light_list = []
+        
+        # Get light locations based on track
+        if track == "Green":
+            light_blocks = [1, 13, 19, 28, 57]
+        else:  # Red
+            light_blocks = [9, 11, 15]
+        
+        # Build light state array
+        for block_num in sorted(light_blocks):
+            light_name = f"Light {block_num}"
+            if light_name in self.track_data.get("lights", {}):
+                signal = self.track_data["lights"][light_name].get("signal", "Green")
+            else:
+                signal = "Green"
+            
+            # Convert signal to ['0','1'] format
+            if signal == 'Red':
+                color_set = ['0', '0']
+            elif signal == 'Yellow':
+                color_set = ['0', '1']
+            elif signal == 'Green':
+                color_set = ['1', '0']
+            else:  # Super Green
+                color_set = ['1', '1']
+            light_list.append(color_set)
+        
+        track_model_message = {
+            "command": "light_states",
+            "value": light_list
+        }
+        
+        print(f"Sending all lights to Track Model: {track_model_message}")
+        add_to_message_log(f"Light states sent to Track Model")
+        self.send_to_track_model(track_model_message)
+
+    def send_switch_to_track_model(self, track, block, position):
+        """Send switch states to Track Model"""
+        switch_list = []
+        
+        # Add track identifier (0 for Green, 1 for Red)
+        track_id = 0 if track == "Green" else 1
+        switch_list.append(track_id)
+        
+        # Get all switches for the current track
+        switches = []
+        for switch_name, switch_data in self.track_data.get("switches", {}).items():
+            if switch_data.get("line", track) == track:
+                import re
+                numbers = re.findall(r'\d+', switch_name)
+                if numbers:
+                    switch_block_num = int(numbers[0])
+                    pos = switch_data.get("numeric_position", 0)
+                    switches.append((switch_block_num, pos))
+        
+        switches.sort(key=lambda x: x[0])
+        
+        for block_num, pos in switches:
+            switch_list.append(pos)
+        
+        switch_message = {
+            "command": "switch_states",
+            "value": switch_list
+        }
+        
+        print(f"Sending switches to Track Model: {switch_message}")
+        add_to_message_log(f"Switch states sent to Track Model")
+        return self.send_to_track_model(switch_message)
+
+    def send_occupancy(self, track, block, occupied):
+        """Send Occupancy to CTC"""
+        if occupied == 'Yes':
+            message = {
+                "command": "TL",
+                "value": [block, track]
+            }
+            print(f"Sending occupancy to CTC: {message}")
+            add_to_message_log(f"Occupancy: Block {block} occupied - sent to CTC")
+            self.send_to_CTC(message)
+
+    def send_railway_state(self, track, block, bar):
+        """Send Railway Crossing State to CTC and Track Model"""
+        if bar == 'Closed':
+            booly = "1"
+        else:
+            booly = "0"
+            
+        message = {
+            "command": "RC",
+            "value": [block, booly, track]
+        }
+        
+        print(f"Sending railway crossing state to CTC: {message}")
+        add_to_message_log(f"Railway Crossing: Block {block} Bar {bar} sent to CTC")
+        self.send_to_CTC(message)
+        self.send_rc_to_track_model(track)
+    
+    def send_rc_to_track_model(self, track):
+        """Send all railway crossing states to Track Model"""
+        rc_list = []
+        
+        if track == "Green":
+            crossing_blocks = [19]
+        else:
+            crossing_blocks = [19]
+        
+        for block_num in sorted(crossing_blocks):
+            crossing_name = f"Railway Crossing: {block_num}"
+            if crossing_name in self.track_data.get("crossings", {}):
+                bar_state = self.track_data["crossings"][crossing_name].get("bar", "Open")
+            else:
+                bar_state = "Open"
+            
+            state = 1 if bar_state == "Closed" else 0
+            rc_list.append(state)
+        
+        rc_message = {
+            "command": "rc_states",
+            "value": rc_list
+        }
+        
+        print(f"Sending railway crossings to Track Model: {rc_message}")
+        add_to_message_log(f"Railway crossing states sent to Track Model")
+        return self.send_to_track_model(rc_message)
+
+
     def handle_ctc_maintenance(self, maint_data=None):
         """Handle maintenance mode request from CTC"""
         try:
@@ -1967,7 +2085,7 @@ class LeftPanel(tk.Frame):
         tk.Label(crossing_frame, text="Bar:", bg='#cccccc').pack()
         self.crossing_bar = ttk.Combobox(crossing_frame, width=18, values=["Closed", "Open"], state='readonly')
         self.crossing_bar.pack()
-
+        self.crossing_bar.bind('<<ComboboxSelected>>', self.update_crossing_bar)
         # sendCrossing = tk.Button(crossing_frame, text="Send", width=5, command=self.update_crossing_lights)
         # sendCrossing.pack(side=tk.BOTTOM)
 
@@ -2419,6 +2537,12 @@ class LeftPanel(tk.Frame):
         
         # Also log the detailed change
         message_logger.log(f"Switch {selected}: Direction changed from {old_value} to {new_value}")
+        # # Send switch state to Track Model
+        # if ctc_block and hasattr(self.data, 'send_switch_to_track_model'):
+        #     numeric_pos = 0 if "Yard" in new_value or "-1" in new_value else 1
+        #     self.data.track_data["switches"][selected]["numeric_position"] = numeric_pos
+        #     self.data.send_switch_to_track_model(self.data.current_line, ctc_block, new_value)
+        #     add_to_message_log(f"Switch {ctc_block}: Direction {new_value} sent to Track Model")
         
    
     def update_light_display(self, event=None):
@@ -2439,6 +2563,16 @@ class LeftPanel(tk.Frame):
             new_value = self.light_signal.get()
             self.data.track_data["lights"][selected]["signal"] = new_value
             message_logger.log(f"Light {selected}: Signal changed from {old_value} to {new_value}")
+            
+            # Extract block number from light name (e.g., "Light 13" -> "13")
+            import re
+            block_match = re.search(r'\d+', selected)
+            if block_match:
+                block = block_match.group()
+                # Send light state to CTC and Track Model
+                if hasattr(self.data, 'send_light_state'):
+                    self.data.send_light_state(self.data.current_line, block, new_value)
+                    add_to_message_log(f"Light {block}: {new_value} sent to CTC and Track Model")
 
 
     def handle_maintenance_request(self):
@@ -2533,13 +2667,54 @@ class LeftPanel(tk.Frame):
             new_value = self.switch_direction.get()
             self.data.track_data["switches"][selected]["direction"] = new_value
             add_to_message_log(f"Switch {selected}: Direction changed from {old_value} to {new_value}")
+            
+            # Send switch state to Track Model
+            if hasattr(self.data, 'send_switch_to_track_model'):
+                # Extract block number from switch name (e.g., "Switch 12-13" -> "12")
+                import re
+                numbers = re.findall(r'\d+', selected)
+                block = numbers[0] if numbers else ""
+                
+                # Determine numeric position based on direction
+                numeric_pos = 0 if "Yard" in new_value or "-1" in new_value else 1
+                self.data.track_data["switches"][selected]["numeric_position"] = numeric_pos
+                self.data.send_switch_to_track_model(self.data.current_line, block, new_value)
+                add_to_message_log(f"Switch {block}: Direction {new_value} sent to Track Model")
    
     def update_crossing_lights(self, event=None):
-        """Prevent crossing light changes"""
-        if self.data.maintenance_mode:
-            add_to_message_log("WARNING: Crossing light changes not permitted in maintenance mode")
-            # Revert to original value
-            self.update_crossing_display()
+        selected = self.crossing_selector.get()
+        if selected in self.data.track_data["crossings"]:
+            old_value = self.data.track_data["crossings"][selected]["lights"]
+            new_value = self.crossing_lights.get()
+            self.data.track_data["crossings"][selected]["lights"] = self.crossing_lights.get()
+            message_logger.log(f"Crossing {selected}: Lights changed from {old_value} to {new_value}")
+            
+            # Extract block number and send to CTC/Track Model
+            import re
+            block_match = re.search(r'\d+', selected)
+            if block_match:
+                block = block_match.group()
+                bar_state = self.data.track_data["crossings"][selected].get("bar", "Open")
+                if hasattr(self.data, 'send_railway_state'):
+                    self.data.send_railway_state(self.data.current_line, block, bar_state)
+                    add_to_message_log(f"Railway Crossing {block}: sent to CTC and Track Model")
+
+    def update_crossing_bar(self, event=None):
+        """Handle crossing bar state changes"""
+        selected = self.crossing_selector.get()
+        if selected in self.data.track_data["crossings"]:
+            old_value = self.data.track_data["crossings"][selected].get("bar", "Open")
+            new_value = self.crossing_bar.get()
+            self.data.track_data["crossings"][selected]["bar"] = new_value
+            message_logger.log(f"Crossing {selected}: Bar changed from {old_value} to {new_value}")
+            
+            import re
+            block_match = re.search(r'\d+', selected)
+            if block_match:
+                block = block_match.group()
+                if hasattr(self.data, 'send_railway_state'):
+                    self.data.send_railway_state(self.data.current_line, block, new_value)
+                    add_to_message_log(f"Railway Crossing {block}: Bar {new_value} sent")
    
     def update_light_signal(self, event=None):
         """Prevent light signal changes"""

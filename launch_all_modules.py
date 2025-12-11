@@ -39,15 +39,22 @@ def launch_all():
     print("="*60 + "\n")
     
     modules = [
-        #("CTC", "CTC_Office/CTC_UI.py"),
+        # ("CTC", "CTC_Office/CTC_UI.py"),
         #("Track SW", "Wayside_Controller/SW/main.py"),
+<<<<<<< HEAD
         #("Track HW", "Wayside_Controller/HW/WC_HW_MainUI.py"),
         #("Track Model", "Track Model/UI_Structure.py"),
         ("Train Model", "Train Model/Passenger_UI.py"),
+=======
+        ("Track HW", "Wayside_Controller/HW/WC_HW_MainUI.py"),
+        #("Track Model", "Track Model/UI_Structure.py"),
+        ("Track Model", "Track Model/UI_Structure.py"),
+        # ("Train Model", "Train Model/Passenger_UI.py"),
+>>>>>>> eed717b35cafc8e35fcfb47fd3e7dbb6df7aef59
         #("Train SW", "train_controller_sw/Driver_UI.py"),
-        ("Train HW","HW_Train_Controller/TC_HW_MainUI.py"),
+        # ("Train HW","HW_Train_Controller/TC_HW_MainUI.py"),
         
-        ("Test UI","Train Model/Test_UI.py")
+        # ("Test UI","Train Model/Test_UI.py")
     ]
     
     # Set PYTHONPATH to include exe_dir so imports work

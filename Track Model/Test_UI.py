@@ -14,7 +14,7 @@ class TrackModelTestUI(tk.Toplevel):
 
         # Socket server (kept for potential future use, but train deployment uses direct data access)
         self.server = TrainSocketServer(port=12346, ui_id="Test_UI")
-        self.server.set_allowed_connections(["UI_Structure", "Track Model", "Train Model"])
+        self.server.set_allowed_connections(["UI_Structure", "Track Model", "Train Model", "Track HW"])
 
         def empty_handler(message, source_ui_id):
             print(f"Test UI received: {message} from {source_ui_id}")

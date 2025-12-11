@@ -601,7 +601,7 @@ class TrainModelPassengerGUI:
 			self.uiLabels['announcement'].config(text=f"EMERGENCY")
 		else:
 			if "Arrived" in train.announcement:
-				self.uiLabels['announcement'].config(text=train.announcement)
+				self.uiLabels['announcement'].config(text={train.announcement})
 			else:
 				self.uiLabels['announcement'].config(text=f"{train.announcement} in {train.timeToStation} mins")
 
