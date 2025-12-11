@@ -2737,6 +2737,7 @@ class PLCManager:
         self.running = False  # Track if PLC loop is running
         self.root = root  # Reference to tkinter root for after() scheduling
         self.cycle_interval = 500  # Run PLC every 500ms (0.5 seconds)
+        self.controller = PLCController()
        
     def load_plc_file(self, file_path):
         """Load PLC from external file"""
@@ -4443,10 +4444,7 @@ main_frame.tkraise()
 
 
 # ============================================================================
-# TEST SUITE - Terminal Output Tests (STANDALONE VERSION)
-# ============================================================================
-# Copy everything below this line and paste it BEFORE the "root.mainloop()" line
-# This version works completely standalone without relying on class methods
+# TEST - Terminal Output Tests 
 # ============================================================================
 
 def run_terminal_tests():
@@ -4582,7 +4580,7 @@ def run_terminal_tests():
     print("\n" + "="*80)
     print("TEST 4: CTC SUGGESTED AUTHORITY")
     print("="*80)
-    print("📤 Simulating CTC sending suggested authority to Track HW...")
+    print(" Simulating CTC sending suggested authority to Track HW...")
     
     test_ctc_authority = {
         'track': 'Green',
@@ -4617,7 +4615,7 @@ def run_terminal_tests():
     print("\n" + "="*80)
     print("TEST 5: FAILURE FROM TRACK MODEL")
     print("="*80)
-    print("📤 Simulating Track Model sending failure notifications...")
+    print(" Simulating Track Model sending failure notifications...")
     
     test_failures = {
         'track_circuit_failures': [10, 20, 30],
@@ -4671,7 +4669,7 @@ def run_terminal_tests():
     print("\n" + "="*80)
     print("TEST 6: FAILURE FORWARDING TO CTC")
     print("="*80)
-    print("📤 Track HW forwarding failure information to CTC...")
+    print(" Track HW forwarding failure information to CTC...")
     
     ctc_failure_message = {
         'command': 'track_failures',
@@ -4682,13 +4680,13 @@ def run_terminal_tests():
         }
     }
     
-    print("\n📨 Message format sent to CTC:")
+    print("\n Message format sent to CTC:")
     print(f"  • Command: {ctc_failure_message['command']}")
     print(f"  • Track Circuit Failures: {ctc_failure_message['value']['track_circuit_failures']}")
     print(f"  • Broken Rail Failures: {ctc_failure_message['value']['broken_rail_failures']}")
     print(f"  • Power Failures: {ctc_failure_message['value']['power_failures']}")
     
-    print(f"\n✅ RESULT: Failure data ready for CTC")
+    print(f"\n RESULT: Failure data ready for CTC")
     print(f"  • CTC can reroute trains around failed blocks")
     print(f"  • Dispatcher alerted to maintenance needs")
     
@@ -4700,11 +4698,11 @@ def run_terminal_tests():
     print("\n" + "="*80)
     print("TEST 7: SWITCH POSITION MAINTENANCE REQUEST FROM CTC")
     print("="*80)
-    print("📤 Simulating CTC requesting switch position for maintenance...")
+    print("Simulating CTC requesting switch position for maintenance...")
     
     # Enter maintenance mode
     test_data.maintenance_mode = True
-    print("\n🔧 MAINTENANCE MODE ENABLED")
+    print("\nMAINTENANCE MODE ENABLED")
     
     test_switch_request = {
         'switch_id': '12',
@@ -4727,16 +4725,16 @@ def run_terminal_tests():
             test_data.manual_switches = set()
         test_data.manual_switches.add(test_switch_request['switch_id'])
         
-        print(f"\n✅ RESULT: Switch position set for maintenance")
+        print(f"\n RESULT: Switch position set for maintenance")
         print(f"  • Old position: {old_position}")
         print(f"  • New position: {test_switch_request['position']}")
         print(f"  • PLC will NOT override this manual setting")
     else:
-        print(f"\n⚠️  Switch 12 not found - test skipped")
+        print(f"\n  Switch 12 not found - test skipped")
     
     # Exit maintenance mode
     test_data.maintenance_mode = False
-    print(f"\n🔧 MAINTENANCE MODE DISABLED")
+    print(f"\n MAINTENANCE MODE DISABLED")
     
     time.sleep(2)
     
@@ -4746,7 +4744,7 @@ def run_terminal_tests():
     print("\n" + "="*80)
     print("TEST 8: PLC AUTOMATIC UPDATES (1 Hz)")
     print("="*80)
-    print("⏱️  Demonstrating PLC automatic cycle every second...")
+    print("  Demonstrating PLC automatic cycle every second...")
     
     print("\nPLC runs automatically every 1 second to:")
     print("  • Calculate authority based on occupancy")
@@ -4755,17 +4753,17 @@ def run_terminal_tests():
     print("  • Set switch positions")
     print("  • Apply CTC overrides")
     
-    print("\n🔄 Running 3 PLC cycles with 1-second interval...")
+    print("\n Running 3 PLC cycles with 1-second interval...")
     
     for cycle in range(1, 4):
         print(f"\n  Cycle {cycle}:")
-        print(f"    ⚙️  Running PLC logic...")
-        plc_manager.run_plc_quiet()
+        print(f"      Running PLC logic...")
+        plc_manager.run_plc_once()
         print(f"    ✓ Authority, lights, crossings, switches updated")
         if cycle < 3:
             time.sleep(1)
     
-    print(f"\n✅ RESULT: PLC operates continuously at 1 Hz")
+    print(f"\n RESULT: PLC operates continuously at 1 Hz")
     print(f"  • Real-time response to track conditions")
     print(f"  • Constant safety monitoring")
     
@@ -4777,31 +4775,31 @@ def run_terminal_tests():
     print("\n" + "="*80)
     print("TEST 9: SWITCH POSITION DIRECTION CHANGED")
     print("="*80)
-    print("🔄 Demonstrating automatic switch direction control by PLC...")
+    print(" Demonstrating automatic switch direction control by PLC...")
     
     print("\nSwitch 85 Logic Test:")
     print("  • When train in Section N: Switch 85 → '85-86' (N to O)")
     print("  • When no train in Section N: Switch 85 → '100-85' (Q to N)")
     
     # Scenario 1: Clear Section N
-    print("\n📍 Scenario 1: Section N CLEAR")
+    print("\n Scenario 1: Section N CLEAR")
     
     # Clear all occupancy
     for row in test_data.block_data:
         if row[1] == 'Green':
             row[0] = 'No'
     
-    plc_manager.run_plc_quiet()
+    plc_manager.run_plc_once()
     
     if hasattr(test_data, 'switch_positions') and 'Switch 85' in test_data.switch_positions:
         direction = test_data.switch_positions['Switch 85'].get('direction', 'Unknown')
         print(f"  ✓ Switch 85 position: {direction}")
         print(f"    (Expected: '100-85' when Section N clear)")
     else:
-        print(f"  ⚠️  Switch 85 not found - test skipped")
+        print(f"    Switch 85 not found - test skipped")
     
     # Scenario 2: Occupy a block in Section N (blocks 77-101 are typically Section N)
-    print("\n📍 Scenario 2: Section N OCCUPIED")
+    print("\n Scenario 2: Section N OCCUPIED")
     
     # Manually occupy block 80 (which is in Section N)
     for row in test_data.block_data:
@@ -4810,14 +4808,14 @@ def run_terminal_tests():
             print(f"  • Occupied block 80 in Section N")
             break
     
-    plc_manager.run_plc_quiet()
+    plc_manager.run_plc_once()
     
     if hasattr(test_data, 'switch_positions') and 'Switch 85' in test_data.switch_positions:
         direction = test_data.switch_positions['Switch 85'].get('direction', 'Unknown')
         print(f"  ✓ Switch 85 position: {direction}")
         print(f"    (Expected: '85-86' when Section N occupied)")
     
-    print(f"\n✅ RESULT: PLC automatically controls switch direction")
+    print(f"\n RESULT: PLC automatically controls switch direction")
     print(f"  • Switch position based on train location")
     print(f"  • Real-time response to occupancy changes")
     
@@ -4834,12 +4832,12 @@ def run_terminal_tests():
     print("\n" + "="*80)
     print("TEST 10: PLC SAFETY - ALLOWING/BLOCKING SWITCH CHANGES")
     print("="*80)
-    print("🔒 Demonstrating PLC switch safety logic...")
+    print(" Demonstrating PLC switch safety logic...")
     
     test_switch_block = 12
     
     # Scenario 1: Block clear, no fault
-    print(f"\n📍 Scenario 1: Block {test_switch_block} CLEAR, NO FAULT")
+    print(f"\n Scenario 1: Block {test_switch_block} CLEAR, NO FAULT")
     
     for row in test_data.block_data:
         if str(row[2]) == str(test_switch_block) and row[1] == 'Green':
@@ -4852,14 +4850,14 @@ def run_terminal_tests():
     safe = plc_manager.controller.check_switch_safety(test_switch_block)
     
     if safe:
-        print(f"  ✅ SAFE: PLC allows switch change")
+        print(f"   SAFE: PLC allows switch change")
         print(f"    • Block is clear")
         print(f"    • No fault detected")
     else:
-        print(f"  ❌ BLOCKED: PLC blocks switch change")
+        print(f"   BLOCKED: PLC blocks switch change")
     
     # Scenario 2: Block occupied
-    print(f"\n📍 Scenario 2: Block {test_switch_block} OCCUPIED")
+    print(f"\n Scenario 2: Block {test_switch_block} OCCUPIED")
     
     for row in test_data.block_data:
         if str(row[2]) == str(test_switch_block) and row[1] == 'Green':
@@ -4870,10 +4868,10 @@ def run_terminal_tests():
     safe = plc_manager.controller.check_switch_safety(test_switch_block)
     
     if not safe:
-        print(f"  ✅ BLOCKED: PLC correctly blocks switch change")
+        print(f"   BLOCKED: PLC correctly blocks switch change")
         print(f"    • Block occupied - would derail train")
     else:
-        print(f"  ❌ ERROR: PLC allows change (should be blocked!)")
+        print(f"   ERROR: PLC allows change (should be blocked!)")
     
     # Clear occupancy
     for row in test_data.block_data:
@@ -4882,7 +4880,7 @@ def run_terminal_tests():
             break
     
     # Scenario 3: Block has fault
-    print(f"\n📍 Scenario 3: Block {test_switch_block} HAS FAULT")
+    print(f"\n Scenario 3: Block {test_switch_block} HAS FAULT")
     
     if not hasattr(test_data, 'active_failures'):
         test_data.active_failures = set()
@@ -4894,10 +4892,10 @@ def run_terminal_tests():
     safe = plc_manager.controller.check_switch_safety(test_switch_block)
     
     if not safe:
-        print(f"  ✅ BLOCKED: PLC correctly blocks switch change")
+        print(f"   BLOCKED: PLC correctly blocks switch change")
         print(f"    • Block has fault - switch may be damaged")
     else:
-        print(f"  ❌ ERROR: PLC allows change (should be blocked!)")
+        print(f"   ERROR: PLC allows change (should be blocked!)")
     
     # Clear fault
     if hasattr(test_data, 'active_failures'):
@@ -4905,7 +4903,7 @@ def run_terminal_tests():
     if hasattr(plc_manager.controller, 'active_failures'):
         plc_manager.controller.active_failures = set()
     
-    print(f"\n✅ RESULT: PLC safety system working correctly")
+    print(f"\n RESULT: PLC safety system working correctly")
     print(f"  • Prevents derailments from occupied blocks")
     print(f"  • Prevents damage from faulty infrastructure")
     
@@ -4913,20 +4911,20 @@ def run_terminal_tests():
     # TEST SUITE COMPLETE
     # ========================================================================
     print("\n" + "="*80)
-    print("🎉 TRACK HW TEST SUITE COMPLETE")
+    print(" TRACK HW TEST SUITE COMPLETE")
     print("="*80)
     print("All 10 tests executed successfully!")
     print("\nTested functionality:")
-    print("  ✓ 1. CTC Suggested Speed")
-    print("  ✓ 2. Block Occupancy Reception")
-    print("  ✓ 3. Commanded Speed/Authority Sending")
-    print("  ✓ 4. CTC Suggested Authority")
-    print("  ✓ 5. Track Failures from Track Model")
-    print("  ✓ 6. Failure Forwarding to CTC")
-    print("  ✓ 7. Switch Maintenance Requests")
-    print("  ✓ 8. PLC Automatic Updates (1 Hz)")
-    print("  ✓ 9. Switch Direction Control")
-    print("  ✓ 10. PLC Switch Safety Checks")
+    print("   1. CTC Suggested Speed")
+    print("   2. Block Occupancy Reception")
+    print("   3. Commanded Speed/Authority Sending")
+    print("   4. CTC Suggested Authority")
+    print("   5. Track Failures from Track Model")
+    print("   6. Failure Forwarding to CTC")
+    print("   7. Switch Maintenance Requests")
+    print("   8. PLC Automatic Updates (1 Hz)")
+    print("   9. Switch Direction Control")
+    print("   10. PLC Switch Safety Checks")
     print("="*80 + "\n")
 
 
@@ -4940,10 +4938,9 @@ def delayed_tests():
 # ============================================================================
 # TO ENABLE TESTS: Uncomment the 3 lines below
 # ============================================================================
-import threading
-test_thread = threading.Thread(target=delayed_tests, daemon=True)
-test_thread.start()
-
+# import threading
+# test_thread = threading.Thread(target=delayed_tests, daemon=True)
+# test_thread.start()
 # ============================================================================
 # ============================================================================
 
