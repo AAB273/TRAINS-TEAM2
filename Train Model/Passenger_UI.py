@@ -361,9 +361,9 @@ class TrainModelPassengerGUI:
 				if  value == 1:
 					self.clockSpeed = 1
 				elif value == 10:
-					self.clockSpeed = .1
+					self.clockSpeed = 10
 				elif value == 50:
-					self.clockSpeed = .05
+					self.clockSpeed = 50
 			
 			# Update UI if this is the currently selected train
 			if train == self.currentTrain:
