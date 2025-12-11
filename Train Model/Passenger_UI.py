@@ -20,6 +20,7 @@ sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
 from TrainSocketServer import TrainSocketServer
 #from clock import clock
 import pygame
+import ctypes
 import random
 
 class TrainModelPassengerGUI:
@@ -486,9 +487,8 @@ class TrainModelPassengerGUI:
 			
 	def updateDisembarking(self, train):
 		# Updates passenger disembarking when train is stopped with doors open.
-		if train and train.active and train.passengerCount != 0:
-			if (train.atStation and redundantCheck):
-				redundantCheck = True
+		if train and train.active:
+			if train.passengerCount != 0:
 				passengerCount = train.passengerCount
 				disembarking = random.randint(0, passengerCount)
 				
@@ -498,6 +498,17 @@ class TrainModelPassengerGUI:
 				self.server.send_to_ui("Track Model", {
 					"command": 'Passenger Disembarking', 
 					'value': disembarking,
+					'train_id': train.trainId
+				})
+				self.server.send_to_ui('Track Model', {
+					'command': 'Train Occupancy', 
+					'value': train.passengerCount,
+					'train_id': train.trainId
+				})
+			else:
+				self.server.send_to_ui("Track Model", {
+					"command": 'Passenger Disembarking', 
+					'value': 0,
 					'train_id': train.trainId
 				})
 				self.server.send_to_ui('Track Model', {
@@ -689,7 +700,9 @@ class TrainModelPassengerGUI:
 		self.root.title("Passenger Train Model GUI")
 		self.root.configure(bg=self.mainColor)
 		self.root.geometry("900x800") 
-		self.root.iconbitmap("blt logo ico.ico") 
+		myappid = 'BLT.TrainModel.PassengerUI.1.0'
+		ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)	#changes taskbar image to blt logo
+		self.root.iconbitmap("blt logo ico.ico")  #changes corner window image to blt logo
 
 		# Train Selector Dropdown Frame 
 		trainSelectorContainer = tk.Frame(self.root, bg=self.mainColor, height=30)
