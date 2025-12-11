@@ -510,11 +510,12 @@ def handle_ctc_suggested_speed(speed_data):
     
         # Format to 3 decimal places if conversion was successful
         if suggested_speed is not None:
+            formatted_speed = round(suggested_speed, 3)
             speed_mps = suggested_speed
             speed = speed_mps * 2.23694
             # Log with conversion info
             add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.2f} mph ({speed_mps:.2f} m/s)")
-            formatted_speed = round(suggested_speed, 3)
+            # formatted_speed = round(suggested_speed, 3)
             add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.2f} mph")
             # Message log
             message_logger.log(add_to_message_log, "INFO")
@@ -522,6 +523,12 @@ def handle_ctc_suggested_speed(speed_data):
             # Update display
             update_suggested_speed_display(formatted_speed)
             update_suggested_speed_display(formatted_speed)
+
+            # CRITICAL FIX: Trigger UI refresh
+            if 'right_panel' in globals() and hasattr(right_panel, 'update_suggested_display'):
+                right_panel.update_suggested_display()
+                print("DEBUG: UI refreshed after CTC speed update")
+
             return formatted_speed
         else:
             add_to_message_log("ERROR: Could not extract speed from CTC message")
@@ -1039,33 +1046,46 @@ class UITestData:
                 if hasattr(right_panel, 'update_suggested_authority'):
                     right_panel.update_suggested_authority(authority)
             
-            # Log update (below currently)
-                # add_to_message_log(f"CTC Update: Speed={speed:.2f} mph, Authority={authority} blocks")
-
-            ####################################################################################################################
-            # 12/8 -- UPDATING WITH CTC SUGGESTED SPEED AND AUTHORITY 
-                #  After parsing the message and getting the values:
-            if track.lower() == test_data.current_line.lower():
-                # Convert values
-                speed = round(float(speed_str), 3)
-                authority = int(authority_str)
+                print(f"Updating display for block {block}: Speed={speed}, Auth={authority}")
                 
-            print(f"Updating display for block {block}: Speed={speed}, Auth={authority}")
-            
-            # DIRECT UPDATE - This is the key fix:
-            if hasattr(right_panel, 'suggested_speed_label'):
-                right_panel.suggested_speed_label.config(text=f"{speed:.2f} mph")
-                print(f"Updated speed label to: {speed:.2f} mph")
-            
-            if hasattr(right_panel, 'suggested_auth_label'):
-                right_panel.suggested_auth_label.config(text=f"{authority} blocks")
-                print(f"Updated authority label to: {authority} blocks")
-            
-            # Also update the block selector to show block 63
-            if hasattr(right_panel, 'block_combo') and block:
-                right_panel.block_combo.set(block)
+                # DIRECT UPDATE - This is the key fix:
+                if 'right_panel' in globals() and hasattr(right_panel, 'suggested_speed_label'):
+                    right_panel.suggested_speed_label.config(text=f"{speed:.3f} mph")
+                    print(f"Updated speed label to: {speed:.3f} mph")
+                
+                if 'right_panel' in globals() and hasattr(right_panel, 'suggested_auth_label'):
+                    right_panel.suggested_auth_label.config(text=f"{authority} blocks")
+                    print(f"Updated authority label to: {authority} blocks")
+                
+                # Also update the block selector
+                if 'right_panel' in globals() and hasattr(right_panel, 'block_combo') and block:
+                    right_panel.block_combo.set(block)
 
-            add_to_message_log(f"CTC: Block {block} - Speed: {speed:.2f} mph, Authority: {authority} blocks")
+                # CRITICAL: Also call the update methods
+                if 'right_panel' in globals():
+                    if hasattr(right_panel, 'update_suggested_speed'):
+                        right_panel.update_suggested_speed(speed)
+                    if hasattr(right_panel, 'update_suggested_authority'):
+                        right_panel.update_suggested_authority(authority)
+                    
+                    # CRITICAL FIX: Trigger UI refresh
+                    if hasattr(right_panel, 'update_suggested_display'):
+                        right_panel.update_suggested_display()
+                        print("DEBUG: UI refreshed via update_suggested_display()")
+                    
+                    # Also refresh current block info
+                    if hasattr(right_panel, 'update_current_block_info'):
+                        right_panel.update_current_block_info()
+
+                add_to_message_log(f"CTC: Block {block} - Speed: {speed:.3f} mph, Authority: {authority} blocks")
+                
+                # Store in data structures for persistence
+                if track in self.suggested_speed:
+                    self.suggested_speed[track][block] = speed
+                if track in self.suggested_authority:
+                    self.suggested_authority[track][block] = authority
+
+            # add_to_message_log(f"CTC: Block {block} - Speed: {speed:.2f} mph, Authority: {authority} blocks")
             # Add to message log in the format you want
             message_logger.log(f"CTC SUGGESTION: Block {block} on {track} - Authority: {authority} blocks, Speed: {speed:.2f} mph", "INFO")
         except Exception as e:
@@ -3301,10 +3321,10 @@ class RightPanel(tk.Frame):
         ## Remove duplicates and sort
         blocks = sorted(list(set(blocks)), key=lambda x: int(x) if x.isdigit() else x)
         
-        print(f"DEBUG: Found {len(blocks)} blocks: {blocks}")
+        # print(f"DEBUG: Found {len(blocks)} blocks: {blocks}")
         if blocks:
             print(f"DEBUG: First 5 blocks: {blocks[:5]}")
-            print(f"DEBUG: Last 5 blocks: {blocks[-5:]}")
+            # print(f"DEBUG: Last 5 blocks: {blocks[-5:]}")
         
         if self.block_combo:
             self.block_combo['values'] = blocks

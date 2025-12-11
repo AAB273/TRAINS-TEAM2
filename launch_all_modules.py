@@ -46,7 +46,7 @@ def launch_all():
         # ("Train Model", "Train Model/Passenger_UI.py"),
         ("Track HW", "Wayside_Controller/HW/WC_HW_MainUI.py"),
         #("Track Model", "Track Model/UI_Structure.py"),
-        ("Track Model", "Track Model/UI_Structure.py"),
+        # ("Track Model", "Track Model/UI_Structure.py"),
         # ("Train Model", "Train Model/Passenger_UI.py"),
         #("Train SW", "train_controller_sw/Driver_UI.py"),
         # ("Train HW","HW_Train_Controller/TC_HW_MainUI.py"),
