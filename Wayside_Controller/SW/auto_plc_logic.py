@@ -1125,15 +1125,15 @@ def control_lights_automatically(data, log_callback):
         if section_N_occupied:
             # RED: Section N is occupied
             light_state = "Red"
-            condition_text = "Section N occupied"
+            condition_text = "Red"
         elif blocks_86_to_100_occupied:
             # YELLOW: Blocks 86-100 are occupied (but N is not)
             light_state = "Yellow"
-            condition_text = "Blocks 86-100 occupied"
+            condition_text = "Yellow"
         else:
             # GREEN: Nothing occupied in 86-100 and N is not occupied
             light_state = "Green"
-            condition_text = "Clear path to Section N"
+            condition_text = "Green"
         
         #print(f"[DEBUG] Light 75: Setting to {light_state} - {condition_text}")
         
