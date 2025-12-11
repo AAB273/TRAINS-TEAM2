@@ -383,7 +383,7 @@ class Train:
 		# Sets whether the train should receive physics updates.
 		self.active = active
 
-	def calculateForceSpeedAccelerationDistance(self, dt: float = 1.0):
+	def calculateForceSpeedAccelerationDistance(self, dt):
 		# Calculates train physics based on current state and commands.
 		"""
 		Physics calculation point:
