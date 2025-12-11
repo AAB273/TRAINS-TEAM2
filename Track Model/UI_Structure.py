@@ -9,7 +9,8 @@ import os
 import sys
 import random
 sys.path.insert(1, "/".join(os.path.realpath(__file__).split("/")[0:-2]))
-from Test_UI import TrackModelTestUI
+# TEMPORARILY COMMENTED OUT - Test UI disabled
+# from Test_UI import TrackModelTestUI
 from FileUploadManager import FileUploadManager
 from TrackDiagramDrawer import TrackDiagramDrawer
 from HeaterSystemManager import HeaterSystemManager
@@ -25,6 +26,148 @@ def load_socket_config():
             config = json.load(f)
     return config.get("modules", {})
 
+
+
+# ============================================================================
+# PASSENGER BOARDING DEBUG CODE - For Testing Train Model Communication
+# ============================================================================
+
+from datetime import datetime
+
+_ORIGINAL_SEND_TO_UI = None
+_DEBUG_LOG_FILE = "train_model_messages_debug.log"
+_MESSAGE_COUNT = 0
+
+def _debug_log(message):
+    """Log debug message to console and file"""
+    timestamp = datetime.now().strftime('%H:%M:%S.%f')[:-3]
+    log_msg = f"[{timestamp}] {message}\n"
+    print(log_msg, end='')
+    try:
+        with open(_DEBUG_LOG_FILE, 'a') as f:
+            f.write(log_msg)
+    except:
+        pass
+
+def _wrapped_send_to_ui(self, ui_name, message):
+    """Wrapped version of send_to_ui that logs all messages to Train Model"""
+    global _MESSAGE_COUNT
+    
+    # Log messages sent to Train Model
+    if ui_name == "Train Model":
+        _MESSAGE_COUNT += 1
+        
+        print("\n" + "="*70)
+        print(f"📤 MESSAGE #{_MESSAGE_COUNT} TO TRAIN MODEL")
+        print("="*70)
+        print(f"Command: {message.get('command', 'N/A')}")
+        print(f"Value: {message.get('value', 'N/A')}")
+        
+        if 'train_id' in message:
+            print(f"Train ID: {message['train_id']}")
+        
+        print(f"\nFull Message:")
+        print(json.dumps(message, indent=2))
+        print("="*70 + "\n")
+        
+        # Also log to file
+        try:
+            with open(_DEBUG_LOG_FILE, 'a') as f:
+                f.write(f"\n{'='*70}\n")
+                f.write(f"MESSAGE #{_MESSAGE_COUNT} TO TRAIN MODEL\n")
+                f.write(f"{'='*70}\n")
+                f.write(json.dumps(message, indent=2))
+                f.write(f"\n{'='*70}\n\n")
+        except:
+            pass
+    
+    # Call original method - DON'T pass self again (it's already bound)
+    return _ORIGINAL_SEND_TO_UI(ui_name, message)
+
+def _enable_debug_mode(app):
+    """Enable debug mode - wraps send_to_ui method"""
+    global _ORIGINAL_SEND_TO_UI
+    
+    # Clear log file
+    try:
+        with open(_DEBUG_LOG_FILE, 'w') as f:
+            f.write(f"=== Train Model Message Debug Log ===\n")
+            f.write(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+    except:
+        pass
+    
+    print("\n" + "🔧"*35)
+    print("PASSENGER BOARDING DEBUG MODE ENABLED")
+    print(f"All messages to Train Model will be logged to: {_DEBUG_LOG_FILE}")
+    print("🔧"*35 + "\n")
+    
+    # Wrap the send method
+    if hasattr(app, 'server'):
+        _ORIGINAL_SEND_TO_UI = app.server.send_to_ui
+        app.server.send_to_ui = lambda ui_name, msg: _wrapped_send_to_ui(app.server, ui_name, msg)
+        print("✓ Wrapped server.send_to_ui() method\n")
+    
+    # Immediate test
+    _immediate_boarding_test(app)
+
+def _immediate_boarding_test(app):
+    """Immediately send a test boarding message"""
+    print("\n" + "🧪"*35)
+    print("IMMEDIATE PASSENGER BOARDING TEST")
+    print("🧪"*35 + "\n")
+    
+    # Find a station with passengers or create test data
+    if hasattr(app, 'data_manager') and app.data_manager.station_location:
+        station_found = False
+        
+        # Try to find a station with passengers
+        for block_num, station_name in app.data_manager.station_location:
+            idx = block_num - 1
+            if (0 <= idx < len(app.data_manager.passengers_boarding) and 
+                app.data_manager.passengers_boarding[idx] > 0):
+                
+                passengers = int(app.data_manager.passengers_boarding[idx])
+                station_found = True
+                break
+        
+        # If no passengers, create test data
+        if not station_found and app.data_manager.station_location:
+            block_num, station_name = app.data_manager.station_location[0]
+            idx = block_num - 1
+            
+            if idx < len(app.data_manager.passengers_boarding):
+                passengers = 30  # Test with 30 passengers
+                app.data_manager.passengers_boarding[idx] = passengers
+                app.data_manager.tickets_waiting[idx] = passengers
+                
+                print(f"Created test scenario:")
+                print(f"  Station: {station_name} (Block {block_num})")
+                print(f"  Passengers: {passengers}\n")
+                station_found = True
+        
+        if station_found:
+            print(f"Sending boarding data for:")
+            print(f"  Station: {station_name} (Block {block_num})")
+            print(f"  Passengers boarding: {passengers}")
+            print(f"  Test train ID: 1\n")
+            
+            # Send the boarding message with test train ID as string (will be converted to int)
+            result = app.send_passengers_boarding_to_train_model(block_num, "1")
+            
+            if result:
+                print("✓ TEST SCHEDULED - Boarding data will be sent in 15 seconds!\n")
+            else:
+                print("✗ TEST FAILED - Could not schedule boarding data\n")
+        else:
+            print("⚠️  No stations found for testing\n")
+    else:
+        print("⚠️  Data manager or stations not initialized\n")
+    
+    print("🧪"*35 + "\n")
+
+# ============================================================================
+# END DEBUG CODE
+# ============================================================================
 
 class TrackModelUI(tk.Tk):
     # The main user interface for the Track Model system.
@@ -107,11 +250,13 @@ class TrackModelUI(tk.Tk):
         # --- POPULATE INFRASTRUCTURE SETS AFTER LOADING ---
         self.data_manager.populate_infrastructure_sets()
 
-        self.diagram_drawer.draw_green_line_stations()
-        self.diagram_drawer.draw_red_line_stations()
-        self.diagram_drawer.draw_green_line_crossings()
-        self.diagram_drawer.draw_red_line_crossings()
-
+        # TEMPORARILY COMMENTED OUT - Dynamic Icons (Stations, Crossings, Traffic Lights)
+        # self.diagram_drawer.draw_green_line_stations()
+        # self.diagram_drawer.draw_red_line_stations()
+        # self.diagram_drawer.draw_green_line_crossings()
+        # self.diagram_drawer.draw_red_line_crossings()
+        # self.diagram_drawer.draw_green_line_traffic_lights()
+        # self.diagram_drawer.draw_red_line_traffic_lights()
         # Initialize traffic light states and occupancy for all blocks
         for b in self.data_manager.blocks:
             if not hasattr(b, "traffic_light_state"):
@@ -1574,98 +1719,6 @@ class TrackModelUI(tk.Tk):
             terminal.see("end")
             terminal.config(state="disabled")
     
-    def _update_single_switch(self, block_num, direction, source_ui_id):
-        """
-        Helper method to update a single switch state.
-        Handles all switch update logic in one place.
-        
-        Args:
-            block_num: Block number containing the switch
-            direction: Switch direction (0/1 for switch 76 and 85, or string direction)
-            source_ui_id: Source of the update ("Track SW" or "Track HW")
-        """
-        # Only process switches that belong to this controller
-        if source_ui_id == "Track SW" and not self.is_track_sw_block(block_num):
-            print(f"[SWITCH] Ignoring block {block_num} - belongs to Track HW")
-            return
-        elif source_ui_id == "Track HW" and self.is_track_sw_block(block_num):
-            print(f"[SWITCH] Ignoring block {block_num} - belongs to Track SW")
-            return
-        
-        if 1 <= block_num <= len(self.data_manager.blocks):
-            block = self.data_manager.blocks[block_num - 1]
-            
-            print(f"[SWITCH] Block {block_num}: Raw direction = {repr(direction)}")
-            
-            # Special handling for switches 76 and 85 with specific direction strings
-            if block_num == 76:
-                # Switch 76: 0 = "76-77" (M->N), 1 = "77-101" (N->R)
-                if direction in [0, "0", False, "normal"]:
-                    normalized_direction = "76-77"
-                elif direction in [1, "1", True, "reverse"]:
-                    normalized_direction = "77-101"
-                elif isinstance(direction, str) and '-' in direction:
-                    normalized_direction = direction
-                else:
-                    normalized_direction = "76-77"  # Default
-            
-            elif block_num == 85:
-                # Switch 85: 0 = "85-86" (N->O), 1 = "100-85" (Q->N)
-                if direction in [0, "0", False, "normal"]:
-                    normalized_direction = "85-86"
-                elif direction in [1, "1", True, "reverse"]:
-                    normalized_direction = "100-85"
-                elif isinstance(direction, str) and '-' in direction:
-                    normalized_direction = direction
-                else:
-                    normalized_direction = "85-86"  # Default
-            
-            else:
-                # For other switches, use standard normalization
-                if isinstance(direction, str):
-                    # If it's already in "XX-YY" format, keep it
-                    if '-' in direction:
-                        normalized_direction = direction
-                    elif direction in ["normal", "0"]:
-                        normalized_direction = "normal"
-                    elif direction in ["reverse", "1"]:
-                        normalized_direction = "reverse"
-                    else:
-                        normalized_direction = "normal"
-                elif direction in [False, 0, "0"]:
-                    normalized_direction = "normal"
-                elif direction in [True, 1, "1"]:
-                    normalized_direction = "reverse"
-                else:
-                    normalized_direction = "normal"
-            
-            print(f"[SWITCH] Block {block_num}: Normalized direction = {normalized_direction}")
-            
-            # Store switch direction in block
-            block.switch_direction = normalized_direction
-            
-            # Update switch states dictionary
-            if not hasattr(self.data_manager, 'switch_states'):
-                self.data_manager.switch_states = {}
-            self.data_manager.switch_states[block_num] = normalized_direction
-            
-            # Show routing path if configured
-            switch_routing = self.data_manager.get_current_switch_routing(self.selected_line.get())
-            if switch_routing and block_num in switch_routing:
-                if normalized_direction in switch_routing[block_num]:
-                    next_block = switch_routing[block_num][normalized_direction]
-                    print(f"[SWITCH] Block {block_num}: {normalized_direction} → routes to block {next_block}")
-            
-            # Send beacon if this is a beacon block (27 or 38) and occupied
-            if block_num in [27, 38]:
-                print(f"[BEACON] Switch {block_num} updated, checking for beacon transmission")
-                self.send_beacon_for_switch_change(block_num)
-            
-            # Mark block as having a switch
-            self.data_manager.switch_blocks.add(block_num)
-            
-            print(f"[SWITCH] Block {block_num}: Update complete ✓")
-
     def update_switch_display(self):
         """Update the display of switch states in the UI."""
         # print(f"[DEBUG] update_switch_display called")
@@ -3583,17 +3636,11 @@ class TrackModelUI(tk.Tk):
         try:
             update = {block_num: occupancy}
             
-            # Send to Train Model with train ID included
-            occupancy_message = {
+            # Send to Train Model (keep existing format for Train Model)
+            self.server.send_to_ui("Train Model", {
                 "command": "block_occupancy",
                 "value": update
-            }
-            
-            # Include train_id if block is occupied
-            if occupancy != 0:
-                occupancy_message["train_id"] = str(occupancy)
-            
-            self.server.send_to_ui("Train Model", occupancy_message)
+            })
             
             # Send to Track SW (Wayside Controller) in the exact format required
             # Flat structure with track, block, occupied fields
@@ -4046,11 +4093,13 @@ class TrackModelUI(tk.Tk):
             
             
             # Redraw Green Line stations if applicable
-            if hasattr(self, 'diagram_drawer'):
-                self.diagram_drawer.draw_green_line_stations()
-                self.diagram_drawer.draw_red_line_stations()
-                self.diagram_drawer.draw_green_line_crossings()
-                self.diagram_drawer.draw_red_line_crossings()
+                # TEMPORARILY COMMENTED OUT - Dynamic Icons
+                # self.diagram_drawer.draw_green_line_stations()
+                # self.diagram_drawer.draw_red_line_stations()
+                # self.diagram_drawer.draw_green_line_crossings()
+                # self.diagram_drawer.draw_red_line_crossings()
+                # self.diagram_drawer.draw_green_line_traffic_lights()
+                # self.diagram_drawer.draw_red_line_traffic_lights()
             # print(f"[UI]  Background image resized to {new_width}x{new_height}")
             # print(f"    Original: {original_width}x{original_height} (aspect: {original_aspect:.4f})")
             # print(f"    New aspect: {new_width/new_height:.4f} (difference: {abs(original_aspect - new_width/new_height):.6f})")
@@ -4149,7 +4198,7 @@ class TrackModelUI(tk.Tk):
         
         # Clear existing markers
         for block_num in list(self.block_markers.keys()):
-            if block_num in self.block_markers and self.block_markers[block_num]:
+            if self.block_markers[block_num]:
                 self.track_canvas.delete(self.block_markers[block_num])
         
         self.block_markers = {}
@@ -5032,16 +5081,17 @@ class TrackModelUI(tk.Tk):
             self.track_sys_tree.insert("", "end", values=row)
 
 
-    def handle_train_arrival_at_station(self, block_num):
+    def handle_train_arrival_at_station(self, block_num, train_id=None):
         """
         Handle when a train arrives at a station.
         - Generates random passengers boarding (0 to ticket_sales)
-        - Sends boarding count to Train Model
+        - Sends boarding count to Train Model (after 15 second delay)
         - Resets ticket sales to new random value (0-70)
         - Sends updated station data to CTC
         
         Args:
             block_num (int): Block number where train arrived
+            train_id (str): ID of the train that arrived (optional)
         """
         # Check if this block is a station
         station_info = next((s for s in self.data_manager.station_location if s[0] == block_num), None)
@@ -5074,8 +5124,8 @@ class TrackModelUI(tk.Tk):
         # print(f"      Passengers waiting: {tickets_waiting}")
         # print(f"      Passengers boarding: {passengers_boarding}")
         
-        # Send passengers boarding to Train Model
-        self.send_passengers_boarding_to_train_model(block_num)
+        # Send passengers boarding to Train Model (with train_id)
+        self.send_passengers_boarding_to_train_model(block_num, train_id)
         
         # Generate new random ticket sales for next train (0-70)
         new_tickets = self.random.randint(0, 70)
@@ -5091,13 +5141,15 @@ class TrackModelUI(tk.Tk):
         self.send_station_data_to_ctc(block_num)
 
 
-    def send_passengers_boarding_to_train_model(self, block_num):
+    def send_passengers_boarding_to_train_model(self, block_num, train_id=None):
         """
         Send passengers boarding for a specific station block to Train Model.
         Called when a train stops at a station (authority reaches 0).
+        Waits 15 seconds before sending to allow doors to open.
         
         Args:
             block_num (int): Block number of the station
+            train_id (str): ID of the train that's boarding passengers
         
         Returns:
             bool: True if boarding data was sent successfully, False otherwise
@@ -5112,18 +5164,34 @@ class TrackModelUI(tk.Tk):
             # Get passenger count
             passenger_count = int(self.data_manager.passengers_boarding[idx])
             
+            # If train_id not provided, try to find it from the block location
+            if train_id is None:
+                # Find which train is at this block
+                for i, location in enumerate(self.data_manager.train_locations):
+                    if location == block_num and i < len(self.data_manager.active_trains):
+                        train_id = self.data_manager.active_trains[i]
+                        break
+            
             # Prepare message for Train Model
+            # Convert train_id to int (train IDs are stored as strings like "1", "2", "3")
+            train_id_int = int(train_id) if train_id else None
+            
             boarding_message = {
                 'command': 'Passengers Boarding',
                 'value': passenger_count,
-                'block_number': block_num
+                'train_id': train_id_int
             }
             
-            # Send to Train Model
-            self.server.send_to_ui("Train Model", boarding_message)
+            # Schedule sending after 15 second delay (15000 milliseconds)
+            def send_after_delay():
+                self.server.send_to_ui("Train Model", boarding_message)
+                print(f"Sent passengers boarding to Train Model:")
+                print(f"   Train {train_id_int}: {passenger_count} passengers")
             
-            print(f"Sent passengers boarding to Train Model:")
-            # print(f"   Block {block_num}: {passenger_count} passengers")
+            # Use tkinter's after() to delay by 15 seconds
+            self.after(15000, send_after_delay)
+            
+            print(f"Scheduled boarding message for Train {train_id_int} (sending in 15 seconds)...")
             
             return True
             
@@ -5256,8 +5324,8 @@ class TrackModelUI(tk.Tk):
                                 # Record that this train is stopped at this station
                                 self._trains_stopped_at_station[train_id] = block_num
                                 
-                                # Handle passenger boarding
-                                self.handle_train_arrival_at_station(block_num)
+                                # Handle passenger boarding (pass train_id)
+                                self.handle_train_arrival_at_station(block_num, train_id)
                     
                     # DEPARTURE: Check if authority increased from 0 (train departing)
                     elif previous_authority == 0 and current_authority > 0:
@@ -5893,31 +5961,6 @@ class TrackModelUI(tk.Tk):
                 })
                 # print(f"Sent Beacon2 to Train Model: {beacon2_value}")
 
-    def send_passengers_boarding_to_train_model(self):
-        """
-        [DEPRECATED - DO NOT USE]
-        This method sends ALL passengers boarding data for ALL stations.
-        
-        Use send_passengers_boarding_to_train_model(block_num) instead, which is called
-        automatically when a train's authority reaches 0 at a station.
-        
-        Keeping this method for backwards compatibility but it should NOT be called
-        from send_all_outputs or any periodic refresh function.
-        """
-        boarding_data = {}
-        for block_num, station_name in self.data_manager.station_location:
-            idx = block_num - 1
-            boarding_data[block_num] = {
-                'station_name': station_name,
-                'passengers_boarding': int(self.data_manager.passengers_boarding[idx])
-            }
-        
-        self.server.send_to_ui("Train Model", {
-            'command': 'Passengers Boarding',
-            'data': boarding_data
-        })
-        print(f" Sent passengers boarding to Train Model")
-
     def send_light_states_to_train_controller(self):
         """Send traffic light states to Train Controller as two-bit boolean arrays."""
         # Get the appropriate light set based on selected line
@@ -6240,12 +6283,8 @@ class TrackModelUI(tk.Tk):
             # Example: [0, 1, 0, 1, 1, 1, 1] for Green Line switches
             # ============================================================
             elif command == 'switch_states':
-                # Check if this is the NEW simple format (2-element array for switches 76 and 85)
-                if isinstance(value, list) and len(value) == 2:
-                    # Skip this - let the new handler below process it
-                    pass
-                elif isinstance(value, list) and len(value) >= 1:
-                    # OLD FORMAT: First element is line indicator
+                if isinstance(value, list) and len(value) >= 1:
+                    # First element is line indicator
                     line_indicator = value[0]
                     line_name = "Green Line" if line_indicator == 0 else "Red Line" if line_indicator == 1 else "Unknown"
                     
@@ -6284,8 +6323,7 @@ class TrackModelUI(tk.Tk):
                     
                     # Refresh UI to show switch updates
                     self.refresh_bidirectional_controls()
-                    self.refresh_track_data_table()
-                    self.refresh_track_system_table()
+                    self.refresh_ui()
                     # print(f"[DEBUG] update_switch_display called")
                 else:
                     pass
@@ -6386,6 +6424,11 @@ class TrackModelUI(tk.Tk):
                                         block = self.data_manager.blocks[block_num - 1]
                                         state = (1 if bit0 else 0) + (2 if bit1 else 0)
                                         block.traffic_light_state = state
+                                        
+                                        # Update visual traffic light on diagram
+                                        if hasattr(self, 'diagram_drawer'):
+                                            self.diagram_drawer.update_traffic_light(block_num, state)
+                                        
                                         # print(f"   Updated signal at block {block_num}: State {state} from bits [{bit0}, {bit1}] (from {source_ui_id})")
                                 except (ValueError, TypeError) as e:
                                     print(f"   Could not parse bit array for block {block_num}: {bit_array}")
@@ -6565,33 +6608,100 @@ class TrackModelUI(tk.Tk):
                 switches = message.get('switches', value)
                 
                 if switches:
-                    print(f"\n[SWITCH STATES] Received from {source_ui_id}")
-                    print(f"[SWITCH STATES] Raw data: {switches}")
+                    # print(f" Received switch states from {source_ui_id}")
                     
-                    # SIMPLE FORMAT: 2-element boolean array for switches 76 and 85
-                    # Format: [switch_76_state, switch_85_state]
-                    # 0 = normal position, 1 = reverse position
-                    # Example: [0, 1] means switch 76 in normal, switch 85 in reverse
-                    
-                    if isinstance(switches, list) and len(switches) == 2:
-                        print(f"[SWITCH STATES] Format: 2-element array (switches 76 and 85)")
+                    # Handle array of switch states
+                    if isinstance(switches, list):
+                        # Determine which line we're on
+                        current_line = getattr(self, 'selected_line', None)
+                        is_red_line = current_line and current_line.get() == "Red Line"
                         
-                        # Index 0 = Switch 76
-                        switch_76_state = switches[0]
-                        self._update_single_switch(76, switch_76_state, source_ui_id)
+                        # Define switch block mapping based on current line
+                        if is_red_line:
+                            # Red Line switch mapping
+                            switch_block_mapping = {
+                                0: 9,    # Yard switch
+                                1: 15,   # Loop switch (1-15-16)
+                                2: 27,   # Branch switch
+                                3: 32,   # Branch switch
+                                4: 38,   # Branch switch
+                                5: 43,   # Branch switch
+                                6: 52,   # Loop switch (52-53-66)
+                            }
+                        else:
+                            # Green Line switch mapping
+                            switch_block_mapping = {
+                                0: 13,   # Switch at block 13 (actually housed at 12)
+                                1: 29,   # Switch at block 29 (actually housed at 28)
+                                2: 57,   # Switch at block 57 (actually housed at 58)
+                                3: 63,   # Switch at block 63 (actually housed at 62)
+                                4: 77,   # Switch at block 77 (actually housed at 76)
+                                5: 85,   # Switch at block 85
+                            }
                         
-                        # Index 1 = Switch 85
-                        switch_85_state = switches[1]
-                        self._update_single_switch(85, switch_85_state, source_ui_id)
-                    
-                    else:
-                        print(f"[SWITCH STATES] Warning: Expected 2-element array, got {len(switches) if isinstance(switches, list) else 'non-list'}")
+                        for idx, direction in enumerate(switches):
+                            if idx in switch_block_mapping:
+                                block_num = switch_block_mapping[idx]
+                                
+                                # Only process switches that belong to this controller
+                                if source_ui_id == "Track SW" and not self.is_track_sw_block(block_num):
+                                    continue  # Skip - this switch belongs to Track HW
+                                elif source_ui_id == "Track HW" and self.is_track_sw_block(block_num):
+                                    continue  # Skip - this switch belongs to Track SW
+                                
+                                if 1 <= block_num <= len(self.data_manager.blocks):
+                                    block = self.data_manager.blocks[block_num - 1]
+                                    
+                                    # DEBUG: Log what we received for Red Line switches
+                                    if block_num in [27, 32, 38, 43]:
+                                        self.log_to_terminal(f"[SWITCH UPDATE] Received update for block {block_num}")
+                                        self.log_to_terminal(f"[SWITCH UPDATE]   Raw direction: {repr(direction)}")
+                                    
+                                    # Normalize direction for consistency
+                                    if direction in ["normal", False, 0, "0"]:
+                                        direction = "normal"
+                                    elif direction in ["reverse", True, 1, "1"]:
+                                        direction = "reverse"
+                                    else:
+                                        direction = "normal"
+                                    
+                                    # DEBUG: Log normalized direction
+                                    if block_num in [27, 32, 38, 43]:
+                                        self.log_to_terminal(f"[SWITCH UPDATE]   Normalized direction: {direction}")
+                                    
+                                    # Show routing path if configured
+                                    switch_routing = self.data_manager.get_current_switch_routing(self.selected_line.get())
+                                    if switch_routing and block_num in switch_routing:
+                                        next_block = switch_routing[block_num][direction]
+                                        # print(f"   Switch {block_num}: {direction} → routes to block {next_block} (from {source_ui_id})")
+                                    # Store switch direction in block
+                                    block.switch_direction = direction
+                                    
+                                    # Update switch states dictionary
+                                    if not hasattr(self.data_manager, 'switch_states'):
+                                        self.data_manager.switch_states = {}
+                                    self.data_manager.switch_states[block_num] = direction
+                                    
+                                    # DEBUG: Confirm storage
+                                    if block_num in [27, 32, 38, 43]:
+                                        self.log_to_terminal(f"[SWITCH UPDATE]   Stored in switch_states[{block_num}] = '{direction}'")
+                                    
+                                    # Send beacon if this is a beacon block (27 or 38) and occupied
+                                    if block_num in [27, 38]:
+                                        print(f"\n[BEACON DEBUG] Switch update received for beacon block {block_num}")
+                                        print(f"[BEACON DEBUG] New direction: {direction}")
+                                        print(f"[BEACON DEBUG] Calling send_beacon_for_switch_change({block_num})...")
+                                        self.send_beacon_for_switch_change(block_num)
+                                    
+                                    # print(f"   Updated switch at block {block_num}: {direction} (from {source_ui_id})")
+                                    
+                                    # Mark block as having a switch
+                                    self.data_manager.switch_blocks.add(block_num)
                     
                     # Refresh relevant UI components
                     self.refresh_track_data_table()
                     self.refresh_track_system_table()
                     self.update_switch_display()
-                    print(f"[SWITCH STATES] Processing complete\n")
             
             elif command == 'update_switch':
                 # Handle individual switch updates
@@ -6741,10 +6851,15 @@ class TrackModelUI(tk.Tk):
 if __name__ == "__main__":
     manager = UI_Variables.TrackDataManager()
     app = TrackModelUI(manager)
-    tester = TrackModelTestUI(app, manager)
+    # TEMPORARILY COMMENTED OUT - Test UI disabled
+    # tester = TrackModelTestUI(app, manager)
     
     # Store reference to test UI for refreshing
-    app.tester_reference = tester
+    # TEMPORARILY COMMENTED OUT - Test UI disabled
+    # app.tester_reference = tester
+
+    # Enable passenger boarding debug mode
+    _enable_debug_mode(app)
 
     # Start periodic output updates after a delay
     app.after(3000, app.start_output_updates)
@@ -6766,5 +6881,6 @@ if __name__ == "__main__":
     # # print(" Testing data transmission...")
     # app.send_all_outputs()
     
-    tester.lift()
+    # TEMPORARILY COMMENTED OUT - Test UI disabled
+    # tester.lift()
     app.mainloop()

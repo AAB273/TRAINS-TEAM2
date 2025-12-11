@@ -81,80 +81,7 @@ def update_callback(message):
     print(f"Socket message recieved: {message}")
     add_to_message_log(f"Socket: {message}")
 
-# send_to_ui function
-# target ui is test ui
 
-# def _process_message(self, data, connection=None, server_instance=None):
-#     """Process incoming messages from Test UI"""
-#     try:
-#         print(f"\n{'='*60}")
-#         print(f"MAIN UI: Received message from CTC")
-#         print(f"Data type: {type(data)}")
-#         print(f"Data: {data}")
-#         print(f"{'='*60}\n")
-#         print(f"=== MAIN UI DEBUG ===")
-#         print(f"Received data: {data}")
-#         print(f"=== END DEBUG ===")
-        
-#         # 1. Handle connection test
-#         if isinstance(data, str) and data.strip() == "CTC":
-#             print("CTC connection test received")
-#             add_to_message_log("CTC connection test received")
-#             if connection:
-#                 try:
-#                     connection.sendall(b"CTC_ACK")
-#                 except:
-#                     pass
-#             return
-        
-#         # 2. Parse message
-#         message_data = None
-#         if isinstance(data, str):
-#             try:
-#                 message_data = json.loads(data)
-#             except json.JSONDecodeError:
-#                 # Simple string commands
-#                 if data == "update_speed_auth":
-#                     message_data = {'command': 'update_speed_auth', 'value': ''}
-#                     print(f"Recieved update_speed_auth command: {message_data} ")
-#                     # If not JSON, just log it
-#                     add_to_message_log(f"String message: {data}")
-#                     return
-#                 else:
-#                     message_data = {'message': data}
-#         elif isinstance(data, dict):
-#             message_data = data
-#         else:
-#             print(f"Unknown data type: {type(data)}")
-#             return
-        
-#         # 3. Process command
-#         command = message_data.get('command', '')
-#         value = message_data.get('value', '')
-        
-#         if command == 'update_speed_auth':
-#             # Pass directly to existing handler
-#             if hasattr(test_data, 'handle_ctc_message'):
-#                 test_data.handle_ctc_message(message_data)
-#             else:
-#                 add_to_message_log(f"Received update_speed_auth: {value}")
-                
-#         elif command == 'ctc_suggestion':
-#             # Handle speed suggestion
-#             handle_ctc_suggested_speed(value)
-
-#         elif command == 'set_block_occupancy':
-#             pass  # Add handling if needed
-#         elif command == 'set_switch_position':
-#             # Just log it for now
-#             add_to_message_log(f"Switch position update: {value}")
-#             pass  # Add handling if needed
-#         else:
-#             print(f"Unknown command: {command} with value: {value}")
-            
-#     except Exception as e:
-#         print(f"Error processing message: {e}")
-        
 # Example of Process Function:
 def _process_message(self, data, connection=None, server_instance=None):
     """Process incoming messages from Test UI"""
@@ -295,7 +222,9 @@ def _process_message(self, data, connection=None, server_instance=None):
                         pass
                     
                     add_to_message_log(f"CTC Update: Speed={speed_str}, Authority={authority_str}")
-                
+        # =====================================================================
+        # HANDLE CTC MESSAGES
+        # =====================================================================        
         elif command == 'ctc_suggestion':
             # Handle speed suggestion
             print(f"\n[{timestamp}] CTC Suggestion Received")
@@ -320,7 +249,65 @@ def _process_message(self, data, connection=None, server_instance=None):
         elif command == "SW":
             # Handle switch command from CTC - FOR TRACK HW
             print(f"CTC SWITCH COMMAND received: {value}")
+        # =====================================================================
+        # HANDLE TRACK MODEL INCOMING MESSAGES
+        # =====================================================================
+        
+        elif command == 'update_occupancy' or command == 'occupancy':
+            block = value.get('block', '')
+            track = value.get('track', test_data.current_line)
+            occupied = value.get('occupied', False)
             
+            print(f"Track Model Occupancy Update: Block {block} on {track} -> {occupied}")
+            add_to_message_log(f"Track Model: Block {block} Occupancy = {occupied}")
+            
+            # Update block data
+            occupied_str = "Yes" if occupied else "No"
+            for idx, row in enumerate(test_data.block_data):
+                if str(row[2]) == str(block) and row[1] == track:
+                    test_data.block_data[idx][0] = occupied_str
+                    break
+            
+            # Send occupancy to CTC
+            if hasattr(test_data, 'send_occupancy'):
+                test_data.send_occupancy(track, block, occupied_str)
+        
+        elif command == 'update_light' or command == 'light_state':
+            block = value.get('block', '')
+            track = value.get('track', test_data.current_line)
+            color = value.get('color', 'Green')
+            
+            print(f"Track Model Light Update: Block {block} on {track} -> {color}")
+            add_to_message_log(f"Track Model: Light {block} = {color}")
+            
+            # Update track_data
+            light_name = f"Light {block}"
+            if light_name in test_data.track_data.get("lights", {}):
+                test_data.track_data["lights"][light_name]["signal"] = color
+            
+            # Send light state to CTC
+            if hasattr(test_data, 'send_light_state'):
+                test_data.send_light_state(track, block, color)
+        
+        elif command == 'update_crossing' or command == 'crossing_state':
+            block = value.get('block', '')
+            track = value.get('track', test_data.current_line)
+            bar = value.get('bar', 'Open')
+            lights = value.get('lights', 'Off')
+            
+            print(f"Track Model Crossing Update: Block {block} on {track} -> Bar:{bar}")
+            add_to_message_log(f"Track Model: Crossing {block} Bar={bar}")
+            
+            # Update track_data
+            crossing_name = f"Railway Crossing: {block}"
+            if crossing_name in test_data.track_data.get("crossings", {}):
+                test_data.track_data["crossings"][crossing_name]["bar"] = bar
+                test_data.track_data["crossings"][crossing_name]["lights"] = lights
+            
+            # Send railway state to CTC
+            if hasattr(test_data, 'send_railway_state'):
+                test_data.send_railway_state(track, block, bar)
+
             if isinstance(value, list) and len(value) >= 2:
                 location = str(value[0])
                 line = value[1]
@@ -495,58 +482,7 @@ def handle_ctc_suggested_speed(speed_data):
         add_to_message_log(f"ERROR: Processing CTC speed message - {e}")
 
     return None
-    # def handle_ctc_suggested_speed(speed_data):
-    #     """
-    #     Handle CTC suggested speed messages and convert to float with 3 decimal places
-    #     Expected formats:
-    #     - String: "track HW", {"Suggested_speed", "float: new_speed"}
-    #     - Dictionary: {'Suggested_speed': 'float: 45.5'}
-    #     - Direct string: "float: 45.5"
-    #     """
-    #     try:
-    #         suggested_speed = None
-        
-    #         # Handle different input formats
-    #         if isinstance(speed_data, str):
-    #             # Extract float value from string format
-    #             if "float:" in speed_data:
-    #                 # Find the float value in the string
-    #                 import re
-    #                 float_match = re.search(r'float:\s*([0-9]*\.?[0-9]+)', speed_data)
-    #                 if float_match:
-    #                     speed_str = float_match.group(1)
-    #                     suggested_speed = float(speed_str)
-    #             else:
-    #                 # Try direct conversion if it's just a number string
-    #                 suggested_speed = float(speed_data)
-                
-    #         elif isinstance(speed_data, dict):
-    #             # Handle dictionary format
-    #             if 'Suggested_speed' in speed_data:
-    #                 speed_value = speed_data['Suggested_speed']
-    #                 if isinstance(speed_value, str) and "float:" in speed_value:
-    #                     speed_str = speed_value.split("float:")[1].strip()
-    #                     suggested_speed = float(speed_str)
-    #                 else:
-    #                     suggested_speed = float(speed_value)
-    #             elif 'value' in speed_data:
-    #                 # Alternative dictionary format
-    #                 suggested_speed = float(speed_data['value'])
-        
-    #         # Format to 3 decimal places if conversion was successful
-    #         if suggested_speed is not None:
-    #             formatted_speed = round(suggested_speed, 3)
-    #             add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.2f} mph")
-    #             return formatted_speed
-    #         else:
-    #             add_to_message_log("ERROR: Could not extract speed from CTC message", "ERROR")
-            
-    #     except ValueError as e:
-    #         add_to_message_log(f"ERROR: Invalid speed format - {e}", "ERROR")
-    #     except Exception as e:
-    #         add_to_message_log(f"ERROR: Processing CTC speed message - {e}", "ERROR")
     
-    # return None
 
 ##############################################################################################################################
 ###############################################################################################################################
@@ -1080,8 +1016,6 @@ class UITestData:
             add_to_message_log(f"ERROR processing CTC update: {e}")
 
 
-
-
     def handle_ctc_switch(self, switch_data):
         """Handle switch command from CTC"""
         try:
@@ -1109,6 +1043,190 @@ class UITestData:
             print(f"Error handling CTC switch command: {e}")
             add_to_message_log(f"ERROR: Failed to process CTC switch command: {e}")
     
+    # =====================================================================
+    # SEND FUNCTIONS FOR TRACK MODEL AND CTC INTEGRATION
+    # =====================================================================
+    
+    def send_to_track_model(self, message):
+        """Send message to Track Model"""
+        if hasattr(self, 'server1') and self.server1:
+            return self.server1.send_to_ui("Track Model", message)
+        else:
+            print("ERROR: No server connection to Track Model")
+            return False
+    
+    def send_to_CTC(self, message):
+        """Send message to CTC"""
+        if hasattr(self, 'server1') and self.server1:
+            return self.server1.send_to_ui("CTC", message)
+        else:
+            print("ERROR: No server connection to CTC")
+            return False
+
+    def send_commanded_to_track_model(self, track, block, speed, authority):
+        """Send commanded speed and authority to Track Model"""
+        track_model_message = {
+            "command": "Speed and Authority",
+            "block_number": block,
+            "commanded_speed": speed,
+            "commanded_authority": authority,
+        }
+        print(f"Sending commanded to Track Model: {track_model_message}")
+        add_to_message_log(f"Sending Speed/Authority to Track Model: Block {block}")
+        return self.send_to_track_model(track_model_message)
+
+    def send_light_state(self, track, block, color):
+        """Send Light State to CTC and Track Model"""
+        # Convert color to CTC format
+        if color == 'Red':
+            color_ctc = "00"
+        elif color == 'Yellow':
+            color_ctc = "01"
+        elif color == 'Green':
+            color_ctc = "10"
+        else:  # Super Green
+            color_ctc = "11"
+
+        message = {
+            "command": "LS",
+            "value": [block, color_ctc, track]
+        }
+        
+        print(f"Sending light state to CTC: {message}")
+        add_to_message_log(f"Light State: Block {block} -> {color} sent to CTC")
+        self.send_to_CTC(message)
+
+        # Send ALL light states to Track Model
+        self.send_all_lights_to_track_model(track)
+
+    def send_all_lights_to_track_model(self, track):
+        """Send ALL light states for a track to Track Model"""
+        light_list = []
+        
+        # Get light locations based on track
+        if track == "Green":
+            light_blocks = [1, 13, 19, 28, 57]
+        else:  # Red
+            light_blocks = [9, 11, 15]
+        
+        # Build light state array
+        for block_num in sorted(light_blocks):
+            light_name = f"Light {block_num}"
+            if light_name in self.track_data.get("lights", {}):
+                signal = self.track_data["lights"][light_name].get("signal", "Green")
+            else:
+                signal = "Green"
+            
+            # Convert signal to ['0','1'] format
+            if signal == 'Red':
+                color_set = ['0', '0']
+            elif signal == 'Yellow':
+                color_set = ['0', '1']
+            elif signal == 'Green':
+                color_set = ['1', '0']
+            else:  # Super Green
+                color_set = ['1', '1']
+            light_list.append(color_set)
+        
+        track_model_message = {
+            "command": "light_states",
+            "value": light_list
+        }
+        
+        print(f"Sending all lights to Track Model: {track_model_message}")
+        add_to_message_log(f"Light states sent to Track Model")
+        self.send_to_track_model(track_model_message)
+
+    def send_switch_to_track_model(self, track, block, position):
+        """Send switch states to Track Model"""
+        switch_list = []
+        
+        # Add track identifier (0 for Green, 1 for Red)
+        track_id = 0 if track == "Green" else 1
+        switch_list.append(track_id)
+        
+        # Get all switches for the current track
+        switches = []
+        for switch_name, switch_data in self.track_data.get("switches", {}).items():
+            if switch_data.get("line", track) == track:
+                import re
+                numbers = re.findall(r'\d+', switch_name)
+                if numbers:
+                    switch_block_num = int(numbers[0])
+                    pos = switch_data.get("numeric_position", 0)
+                    switches.append((switch_block_num, pos))
+        
+        switches.sort(key=lambda x: x[0])
+        
+        for block_num, pos in switches:
+            switch_list.append(pos)
+        
+        switch_message = {
+            "command": "switch_states",
+            "value": switch_list
+        }
+        
+        print(f"Sending switches to Track Model: {switch_message}")
+        add_to_message_log(f"Switch states sent to Track Model")
+        return self.send_to_track_model(switch_message)
+
+    def send_occupancy(self, track, block, occupied):
+        """Send Occupancy to CTC"""
+        if occupied == 'Yes':
+            message = {
+                "command": "TL",
+                "value": [block, track]
+            }
+            print(f"Sending occupancy to CTC: {message}")
+            add_to_message_log(f"Occupancy: Block {block} occupied - sent to CTC")
+            self.send_to_CTC(message)
+
+    def send_railway_state(self, track, block, bar):
+        """Send Railway Crossing State to CTC and Track Model"""
+        if bar == 'Closed':
+            booly = "1"
+        else:
+            booly = "0"
+            
+        message = {
+            "command": "RC",
+            "value": [block, booly, track]
+        }
+        
+        print(f"Sending railway crossing state to CTC: {message}")
+        add_to_message_log(f"Railway Crossing: Block {block} Bar {bar} sent to CTC")
+        self.send_to_CTC(message)
+        self.send_rc_to_track_model(track)
+    
+    def send_rc_to_track_model(self, track):
+        """Send all railway crossing states to Track Model"""
+        rc_list = []
+        
+        if track == "Green":
+            crossing_blocks = [19]
+        else:
+            crossing_blocks = [19]
+        
+        for block_num in sorted(crossing_blocks):
+            crossing_name = f"Railway Crossing: {block_num}"
+            if crossing_name in self.track_data.get("crossings", {}):
+                bar_state = self.track_data["crossings"][crossing_name].get("bar", "Open")
+            else:
+                bar_state = "Open"
+            
+            state = 1 if bar_state == "Closed" else 0
+            rc_list.append(state)
+        
+        rc_message = {
+            "command": "rc_states",
+            "value": rc_list
+        }
+        
+        print(f"Sending railway crossings to Track Model: {rc_message}")
+        add_to_message_log(f"Railway crossing states sent to Track Model")
+        return self.send_to_track_model(rc_message)
+
+
     def handle_ctc_maintenance(self, maint_data=None):
         """Handle maintenance mode request from CTC"""
         try:
@@ -1559,7 +1677,6 @@ map_toggle_btn = tk.Button(
 map_toggle_btn.pack(side="left", padx=10)
 ###################################################################################################
 
-
 # creating a center frame for additonal buttons
 center_frame = tk.Frame(header_frame, bg="#0b1443")
 center_frame.pack(side="left", expand=True)
@@ -1617,10 +1734,6 @@ def update_clock_display():
 # update every 100 ms
     # Update every second (1000ms)
     root.after(1000, update_clock_display)
-
-    # time = clock.clock.getTime()
-    # self.clockText.configure(text = time)
-    # self.clockTimer = self.root.after(100, self.updateTime)
 # Start the clock update loop
 update_clock_display()
 
@@ -1653,22 +1766,6 @@ canvas = tk.Canvas(map_frame, bg="white")
 canvas.pack(fill="both", expand=True)
 ###########################################################################################################
 ##########################################################################################################
-# Load and display the Red Green Blue Line track image
-# try:
-#     track_image = Image.open("./home/siram/TRAINS-TEAM2/Red and Green Line.png")
-#     # Resize image to fit the canvas while maintaining aspect ratio
-#     track_image = track_image.resize((700, 400), Image.Resampling.LANCZOS)
-#     track_photo = ImageTk.PhotoImage(track_image)
-   
-#     # Display image on canvas
-#     canvas.create_image(360, 215, image=track_photo)
-#     canvas.image = track_photo  # Keep a reference to prevent garbage collection
-   
-# except Exception as e:
-#     # Fallback if image loading fails
-#     print(f"Error loading track image: {e}")
-#     canvas.create_text(400, 250, text="TRACK MAP DISPLAY\n(Red and Green Line.png not found)",
-#                       fill="black", font=("Arial", 14, "bold"), justify="center")
 
 # Load and display the Green Line track image
 try:
@@ -1958,18 +2055,14 @@ class LeftPanel(tk.Frame):
         self.crossing_condition = tk.Entry(crossing_frame, width=20, state='readonly')
         self.crossing_condition.pack()
        
-        tk.Label(crossing_frame, text="Lights:", bg='#cccccc').pack()
-        self.crossing_lights = ttk.Combobox(crossing_frame, width=18,
-                                           values=["On", "Off"], state='readonly')
-        self.crossing_lights.pack()
-        self.crossing_lights.bind('<<ComboboxSelected>>', self.update_crossing_lights)
-       
-        tk.Label(crossing_frame, text="Bar:", bg='#cccccc').pack()
-        self.crossing_bar = ttk.Combobox(crossing_frame, width=18, values=["Closed", "Open"], state='readonly')
-        self.crossing_bar.pack()
+        tk.Label(crossing_frame, text="State:", bg='#cccccc').pack()
+        self.crossing_state = ttk.Combobox(crossing_frame, width=18,
+                                   values=["Active", "Inactive"], state='readonly')  # CHANGED FROM "Active", "Off"
+        self.crossing_state.pack()  # CHANGED FROM self.setcrossingState
 
-        # sendCrossing = tk.Button(crossing_frame, text="Send", width=5, command=self.update_crossing_lights)
-        # sendCrossing.pack(side=tk.BOTTOM)
+        set_crossing_btn = tk.Button(crossing_frame, text="Set Crossing", width=10,
+                               command=self.set_crossing_state)
+        set_crossing_btn.pack(pady=5)
 
     def update_crossing_options(self):
         """Update crossing dropdown based on current line"""
@@ -2006,14 +2099,15 @@ class LeftPanel(tk.Frame):
         self.switch_condition.pack()
        
         tk.Label(switch_frame, text="Direction:", bg='#cccccc').pack()
+        # Direction values will be updated based on selected switch
         self.switch_direction = ttk.Combobox(switch_frame, width=18,
-                                            values=["Blocks 5-11", "Blocks 5-15"])
-                                            # state='readonly') # this makes the dropdown BLANK - FIX THIS
+                                            values=["Section D → A", "Section D → C"])
         self.switch_direction.pack()
         self.switch_direction.bind('<<ComboboxSelected>>', self.update_switch_direction)
 
-        # sendSwitch = tk.Button(switch_frame, text="Send", width=5, command=self.update_switch_direction)
-        # sendSwitch.pack(side=tk.BOTTOM)
+        set_switch_btn = tk.Button(switch_frame, text="Set Switch", width=10,
+                             command=self.update_switch_direction)
+        set_switch_btn.pack(pady=5)
 
         # Initialize with current line data
         self.update_switch_options()
@@ -2043,10 +2137,13 @@ class LeftPanel(tk.Frame):
         else:  # Red line
         # Red Line switches
             switches = [
-            "Switch 12-13",
-            "Switch 1-13",
-            "Switch 28-29",
-            "Switch 150-28"
+                "Switch 9-10",
+                "Switch 15-16",
+                "Switch 27-28",
+                "Switch 32-33",
+                "Switch 38-39",
+                "Switch 43-44",
+                "Switch 52-53"
             ]
         self.switch_selector['values'] = switches
         if switches:
@@ -2074,6 +2171,9 @@ class LeftPanel(tk.Frame):
         self.light_signal.pack()
         self.light_signal.bind('<<ComboboxSelected>>', self.update_light_signal)
 
+        set_light_btn = tk.Button(light_frame, text="Set Light", width=10,
+                            command=self.update_light_signal)
+        set_light_btn.pack(pady=5)
         # sendLights = tk.Button(light_frame, text="Send", width=5, command=self.update_light_signal)
         # sendLights.pack(side=tk.BOTTOM)
         # Initialize with current line data
@@ -2346,33 +2446,63 @@ class LeftPanel(tk.Frame):
     def update_crossing_display(self, event=None):
         selected = self.crossing_selector.get()
         crossings = self.data.filtered_track_data.get("crossings", {})
+    
+    # Set default values first
+        self.crossing_condition.config(state='normal')
+        self.crossing_condition.delete(0, tk.END)
+        self.crossing_condition.insert(0, "Normal")  # Default condition
+        self.crossing_condition.config(state='readonly')
+        self.crossing_state.set("Inactive")  # Default state
+    
+    # If selected crossing exists in data, update with real values
         if selected in crossings:
             data = crossings[selected]
             self.crossing_condition.config(state='normal')
             self.crossing_condition.delete(0, tk.END)
-            self.crossing_condition.insert(0, data["condition"])
+            self.crossing_condition.insert(0, data.get("condition", "Normal"))
             self.crossing_condition.config(state='readonly')
-            self.crossing_lights.set(data["lights"])
-            self.crossing_bar.set(data["bar"])
-   
-    def update_crossing_lights(self, event=None):
-        selected = self.crossing_selector.get()
-        if selected in self.data.track_data["crossings"]:
-            old_value = self.data.track_data["crossings"][selected]["lights"]
-            new_value = self.crossing_lights.get()
-            self.data.track_data["crossings"][selected]["lights"] = self.crossing_lights.get()
-            message_logger.log(f"Crossing {selected}: Lights changed from {old_value} to {new_value}")
+        
+        # Determine state based on lights and bar
+            lights = data.get("lights", "Off")
+            bar = data.get("bar", "Open")
+        
+            if lights == "On" or bar == "Closed":
+                self.crossing_state.set("Active")
+            else:
+                self.crossing_state.set("Inactive")
 
     def update_switch_display(self, event=None):
         selected = self.switch_selector.get()
         switches = self.data.filtered_track_data.get("switches", {})
+
+        # Define direction options using section letters for each switch ( ONLY FOR TOP SECTIONS)
+        switch_directions = {
+            "Switch 12-13": ["Section D → A", "Section D → C"],
+            "Switch 28-29": ["Section F → G", "Section Z → F"],
+            "Switch 57-Yard": ["Section I → Yard", "Section Yard → I"],
+            "Switch 62-Yard": ["Section Yard → K", "Section K → Yard"]
+        }
+
+        #  Update direction dropdown values based on selected switch
+        if selected in switch_directions:
+            self.switch_direction['values'] = switch_directions[selected]
+        else:
+            # Default fallback
+            self.switch_direction['values'] = ["Position 1", "Position 2"]
+        
         if selected in switches:
             data = switches[selected]
             self.switch_condition.config(state='normal')
             self.switch_condition.delete(0, tk.END)
-            self.switch_condition.insert(0, data["condition"])
+            self.switch_condition.insert(0, data.get("condition", ""))
             self.switch_condition.config(state='readonly')
-            self.switch_direction.set(data["direction"])
+            
+            # Set current direction if available
+            current_direction = data.get("direction", "")
+            if current_direction and current_direction in self.switch_direction['values']:
+                self.switch_direction.set(current_direction)
+            elif self.switch_direction['values']:
+                self.switch_direction.set(self.switch_direction['values'][0])
    
     def update_switch_direction(self, event=None):
         """Update switch direction and log the change"""
@@ -2419,6 +2549,12 @@ class LeftPanel(tk.Frame):
         
         # Also log the detailed change
         message_logger.log(f"Switch {selected}: Direction changed from {old_value} to {new_value}")
+        # # Send switch state to Track Model
+        # if ctc_block and hasattr(self.data, 'send_switch_to_track_model'):
+        #     numeric_pos = 0 if "Yard" in new_value or "-1" in new_value else 1
+        #     self.data.track_data["switches"][selected]["numeric_position"] = numeric_pos
+        #     self.data.send_switch_to_track_model(self.data.current_line, ctc_block, new_value)
+        #     add_to_message_log(f"Switch {ctc_block}: Direction {new_value} sent to Track Model")
         
    
     def update_light_display(self, event=None):
@@ -2439,6 +2575,16 @@ class LeftPanel(tk.Frame):
             new_value = self.light_signal.get()
             self.data.track_data["lights"][selected]["signal"] = new_value
             message_logger.log(f"Light {selected}: Signal changed from {old_value} to {new_value}")
+            
+            # Extract block number from light name (e.g., "Light 13" -> "13")
+            import re
+            block_match = re.search(r'\d+', selected)
+            if block_match:
+                block = block_match.group()
+                # Send light state to CTC and Track Model
+                if hasattr(self.data, 'send_light_state'):
+                    self.data.send_light_state(self.data.current_line, block, new_value)
+                    add_to_message_log(f"Light {block}: {new_value} sent to CTC and Track Model")
 
 
     def handle_maintenance_request(self):
@@ -2533,13 +2679,49 @@ class LeftPanel(tk.Frame):
             new_value = self.switch_direction.get()
             self.data.track_data["switches"][selected]["direction"] = new_value
             add_to_message_log(f"Switch {selected}: Direction changed from {old_value} to {new_value}")
+            
+            # Send switch state to Track Model
+            if hasattr(self.data, 'send_switch_to_track_model'):
+                # Extract block number from switch name (e.g., "Switch 12-13" -> "12")
+                import re
+                numbers = re.findall(r'\d+', selected)
+                block = numbers[0] if numbers else ""
+                
+                # Determine numeric position based on direction
+                numeric_pos = 0 if "Yard" in new_value or "-1" in new_value else 1
+                self.data.track_data["switches"][selected]["numeric_position"] = numeric_pos
+                self.data.send_switch_to_track_model(self.data.current_line, block, new_value)
+                add_to_message_log(f"Switch {block}: Direction {new_value} sent to Track Model")
    
-    def update_crossing_lights(self, event=None):
-        """Prevent crossing light changes"""
-        if self.data.maintenance_mode:
-            add_to_message_log("WARNING: Crossing light changes not permitted in maintenance mode")
-            # Revert to original value
-            self.update_crossing_display()
+    def set_crossing_state(self):  # CHANGED FROM setCrossingState
+        """Set the selected crossing to Active/Inactive"""
+        selected = self.crossing_selector.get()
+        if selected:
+            state = self.crossing_state.get()  # "Active" or "Inactive"
+    
+    # Update both lights and bar based on state
+            if state == "Active":
+                lights = "On"
+                bar = "Closed"
+            else:  # "Inactive"
+                lights = "Off"
+                bar = "Open"
+    
+    # Update the data
+            if selected in self.data.track_data["crossings"]:
+                self.data.track_data["crossings"][selected]["lights"] = lights
+                self.data.track_data["crossings"][selected]["bar"] = bar
+    
+    # Log the action
+            add_to_message_log(f"Set {selected} to {state} (Lights={lights}, Bar={bar})")
+    
+    # Extract block number and send to CTC/Track Model
+            import re
+            block_match = re.search(r'\d+', selected)
+            if block_match:
+                block = block_match.group()
+                if hasattr(self.data, 'send_railway_state'):
+                    self.data.send_railway_state(self.data.current_line, block, bar)
    
     def update_light_signal(self, event=None):
         """Prevent light signal changes"""
@@ -3310,334 +3492,6 @@ class RightPanel(tk.Frame):
         # Update display if on Green line
         if self.data.current_line == "Green":
             self.update_commanded_display()
-
-
-
-
-
-# # ---------- RIGHT PANEL ---------- #
-# class RightPanel(tk.Frame):
-#     def __init__(self, parent, data):
-#         super().__init__(parent, bg='#1a1a4d', width=250)
-#         self.pack_propagate(False)
-#         self.data = data
-        
-#         #attributes for suggested speed/authority
-#         self.suggested_speed_label = None
-#         self.suggested_authority_label = None
-#         # self.create_suggested_section()
-
-#         # Connect line change callback
-#         self.data.on_line_change.append(self.on_line_changed)
-#         self.data.on_block_change.append(self.on_block_data_changed)
-
-#          # Clear any search filters and show all data
-#         if hasattr(self.data, 'filtered_block_data'):
-#             self.data.filtered_block_data = self.data.block_data.copy()
-#         self.create_widgets()
-#     def on_block_data_changed(self, row_index, col_index, new_value):
-#         # Update only the affected row in the table if maintenance mode
-#         if self.data.maintenance_mode:
-#             self.create_block_table()  # Simple approach: rebuild table
-#         add_to_message_log(f"[Main UI] Block {self.data.block_data[row_index][2]} updated to {new_value}")
-   
-#     def create_widgets(self):
-#         # Block selector
-#         block_frame = tk.Frame(self, bg='#cccccc')
-#         block_frame.pack(fill=tk.X, pady=5)
-#         tk.Label(block_frame, text="Block", bg='#cccccc').pack(side=tk.LEFT, padx=5)
-       
-#         # Update block combo based on current line
-#         self.block_combo = ttk.Combobox(block_frame, width=15, state='readonly')
-#         self.block_combo.pack(side=tk.LEFT, padx=5)
-#         self.update_block_options()
-
-#         # Suggested section
-#         self.create_suggested_section()
-       
-#         # Commanded section
-#         self.create_commanded_section()
-       
-#         # Search and block table
-#         self.create_block_table_section()
-
-#     def update_block_options(self):
-#         """Update block selector based on current line"""
-#         blocks = [row[2] for row in self.data.block_data]
-#         self.block_combo['values'] = blocks
-#         if blocks:
-#             self.block_combo.set(blocks[0])
-   
-#     def on_line_changed(self):
-#         """Refresh right panel when line changes"""
-#         print(f"Right panel: Line changed to {self.data.current_line}")
-#         self.update_block_options()
-#         self.create_block_table()
-   
-#     def create_suggested_section(self):
-#         suggested_frame = tk.LabelFrame(self, text="Suggested:",
-#                                        bg='#cccccc', font=('Arial', 10, 'bold'))
-#         suggested_frame.pack(fill=tk.X, pady=5)
-#        # Authority:
-#         tk.Label(suggested_frame, text="Authority:", bg='#cccccc').pack(anchor='w', padx=5)
-#         tk.Label(suggested_frame, text="0 blocks", bg='white',
-#                 relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
-#         #Speed:
-#         tk.Label(suggested_frame, text="Speed:", bg='#cccccc').pack(anchor='w', padx=5)
-#         tk.Label(suggested_frame, text="0.000 mph", bg='white',
-#                 relief=tk.SUNKEN).pack(fill=tk.X, padx=5, pady=2)
-   
-#     def create_commanded_section(self):
-#         commanded_frame = tk.LabelFrame(self, text="Commanded:",
-#                                    bg='#cccccc', font=('Arial', 10, 'bold'))
-#         commanded_frame.pack(fill=tk.X, pady=5)
-   
-#     # Authority section
-#         auth_frame = tk.Frame(commanded_frame, bg='#cccccc')
-#         auth_frame.pack(fill=tk.X, padx=5, pady=2)
-#         tk.Label(auth_frame, text="Authority:", bg='#cccccc').pack(side=tk.LEFT)
-   
-#         self.auth_entry = tk.Entry(auth_frame, width=10)
-#         self.auth_entry.insert(0, "2 blocks")  # Default value
-#         self.auth_entry.pack(side=tk.LEFT, padx=2)
-   
-#         auth_button = tk.Button(auth_frame, text="Send", width=5, command=self.update_authority)
-#         auth_button.pack(side=tk.LEFT)
-   
-#     # Speed section
-#         speed_frame = tk.Frame(commanded_frame, bg='#cccccc')
-#         speed_frame.pack(fill=tk.X, padx=5, pady=2)
-#         tk.Label(speed_frame, text="Speed:", bg='#cccccc').pack(side=tk.LEFT)
-   
-#         self.speed_entry = tk.Entry(speed_frame, width=10)
-#         self.speed_entry.insert(0, "38 mph")  # Default value
-#         self.speed_entry.pack(side=tk.LEFT, padx=2)
-   
-#         speed_button = tk.Button(speed_frame, text="Send", width=5, command=self.update_speed)
-#         speed_button.pack(side=tk.LEFT)
-
-#     def update_authority(self):
-#         """Update commanded authority and log the change"""
-#         new_authority = self.auth_entry.get()
-#         add_to_message_log(f"Commanded Authority updated to: {new_authority}")
-#         # Here you would also update the backend data structure
-#         # commanded_authority.append(new_authority)
-
-#     def update_speed(self):
-#         """Update commanded speed and log the change"""
-#         new_speed = self.speed_entry.get()
-#         add_to_message_log(f"Commanded Speed updated to: {new_speed}")
-#     # Here you would also update the backend data structure
-#     # commanded_speed.append(new_speed)
-#     #######################################################################################################################
-#     ######################################################################################################################
-#     def update_suggested_speed(self, speed_value):
-#     # """Update the suggested speed display with formatted value"""
-#         try:
-#             if speed_value is not None:
-#                 formatted_speed = f"{speed_value:.3f} mph"
-#                 self.suggested_speed_label.config(text=formatted_speed)
-#                 add_to_message_log(f"Suggested Speed updated to: {formatted_speed}")
-#             else:
-#                 add_to_message_log(f"ERROR: Invalid speed value received", "ERROR")
-#         except Exception as e:
-#             add_to_message_log(f"ERROR updating speed display: {e}", "ERROR")
-
-#     def update_suggested_authority(self, authority_value):
-#         """Update the suggested authority display"""
-#         try:
-#             if authority_value is not None:
-#                 formatted_authority = f"{authority_value} blocks"
-#                 self.suggested_authority_label.config(text=formatted_authority)
-#                 add_to_message_log(f"Suggested Authority updated to: {formatted_authority}")
-#             # else:
-#             #     add_to_message_log("ERROR: Invalid authority value received", "ERROR")
-#         except Exception as e:
-#             add_to_message_log(f"ERROR updating authority display: {e}", "ERROR")
-#    ############################################################################################################################
-#    ##############################################################################################################################
-#     def create_block_table_section(self):
-#     # Search
-#         search_frame = tk.Frame(self, bg='#1a1a4d')
-#         search_frame.pack(fill=tk.X, pady=5)
-#         self.block_search_var = tk.StringVar()
-#         self.block_search_var.trace('w', self.filter_block_table)
-#         block_search = tk.Entry(search_frame, textvariable=self.block_search_var, width=20)
-#         block_search.pack(side=tk.LEFT, padx=5)
-#         tk.Label(search_frame, text="Search", bg='#1a1a4d', fg='white', font=('Arial', 9)).pack(side=tk.LEFT)
-   
-#     # Create scrollable table with fixed height
-#         table_container = tk.Frame(self, bg='white', relief=tk.SUNKEN, borderwidth=2, height=300)
-#         table_container.pack(fill=tk.BOTH, expand=True, pady=5)
-#         table_container.pack_propagate(False)  # Prevent container from shrinking
-   
-#     # Canvas and scrollbar
-#         canvas = tk.Canvas(table_container, bg='white', highlightthickness=0, width=350)
-#         scrollbar = tk.Scrollbar(table_container, orient="vertical", command=canvas.yview)
-#         self.block_table_frame = tk.Frame(canvas, bg='white')
-    
-#     # # Create a frame for canvas and scrollbar
-#         # scroll_frame = tk.Frame(table_container, bg='white')
-#         # scroll_frame.pack(fill=tk.BOTH, expand=True)
-   
-   
-#     # Configure scrolling
-#         self.block_table_frame.bind(
-#             "<Configure>",
-#             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-#         )
-   
-#         canvas.create_window((0, 0), window=self.block_table_frame, anchor="nw")
-#         canvas.configure(yscrollcommand=scrollbar.set)
-   
-#     # Pack canvas and scrollbar
-#     # def configure_canvas(event):
-#     #     canvas.itemconfig(canvas_window, width=event.width)
-#     #     canvas.bind("<Configure>", configure_canvas)
-#         canvas.pack(side="left", fill="both", expand=True)
-#         scrollbar.pack(side="right", fill="y")
-   
-#     # Add mousewheel scrolling
-#     def _on_mousewheel(self, event):
-#         canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-
-#         # Force the table to be created immediately with ALL data
-#         self.block_search_var.set("")  # Clear any search text
-#         self.data.filter_block_data("")  # Show all data
-#         return "break" # Prevent default scrolling
-    
-#         canvas.bind("<MouseWheel>", _on_mousewheel)
-#         self.block_table_frame.bind("<MouseWheel>", _on_mousewheel)
-#         table_container.bind("<MouseWheel>", _on_mousewheel)
-#         # self.block_search_var.set("")  # Clear any search text
-#         self.data.filter_block_data("")  # Show all data
-#         self.create_block_table()
-
-#     def create_block_table(self):
-#         print(f"DEBUG: Creating block table in frame: {self.block_table_frame}")
-#         # print(f"DEBUG: Frame width: {self.block_table_frame.winfo_width()}, height: {self.block_table_frame.winfo_height()}")
-
-#     # Clear existing widgets
-#         for widget in self.block_table_frame.winfo_children():
-#             widget.destroy()
-#      # Get the filtered data
-#         block_data = self.data.get_block_table_data()
-
-#         # print(f"DEBUG: Block data received: {len(block_data)} rows")
-#         # if block_data:
-#             # print(f"DEBUG: First row: {block_data[0]}")
-#             # print(f"DEBUG: Row structure: {[len(row) for row in block_data]}")
-
-#     # Headers - 4 columns
-#         headers_frame = tk.Frame(self.block_table_frame, bg='#cccccc')
-#         headers_frame.pack(fill=tk.X)
-   
-#     # define consistent widths for all columns
-#         col_widths = {
-#             'occupied': 8,
-#             'line': 4,
-#             'block': 5,
-#             'section': 6,
-#             'infrastructure': 14
-#         }
-
-#         tk.Label(headers_frame, text="Occupied", bg='#cccccc',
-#             font=('Arial', 8, 'bold'), width=col_widths['occupied']).pack(side=tk.LEFT, padx=1)
-#         tk.Label(headers_frame, text="Line", bg='#cccccc',
-#             font=('Arial', 8, 'bold'), width=col_widths['line']).pack(side=tk.LEFT, padx=1)
-#         tk.Label(headers_frame, text="Block", bg='#cccccc',
-#             font=('Arial', 8, 'bold'), width=col_widths['block']).pack(side=tk.LEFT, padx=1)
-#         tk.Label(headers_frame, text="Section", bg='#cccccc',
-#             font=('Arial', 8, 'bold'), width=col_widths['section']).pack(side=tk.LEFT, padx=1)
-#         tk.Label(headers_frame, text="Infrastructure", bg='#cccccc',
-#             font=('Arial', 8, 'bold'), width=col_widths['infrastructure']).pack(side=tk.LEFT, padx=1)
-#     # Data rows
-#         self.block_combos = []  # Store references to comboboxes
-
-#         # Use filtered data for display
-#         display_data = self.data.filtered_block_data if hasattr(self.data, 'filtered_block_data') else self.data.block_data
-
-#         for row_index, row in enumerate(display_data):
-#             # print(f"DEBUG: Processing row {row_index}: {row}")
-#             row_frame = tk.Frame(self.block_table_frame, bg='white')
-#             row_frame.pack(fill='x', pady=1)
-#             try:
-#                 while len(row) < 5:
-#                     row.append("")  # Add empty strings for missing columns
-
-#                 if self.data.maintenance_mode:
-#             # Editable in maintenance mode - OCCUPIED COMBO
-#                     occ_combo = ttk.Combobox(row_frame, values=["Yes", "No"], width=col_widths['occupied']-2)
-#                     occ_combo.set(row[0])
-#                     occ_combo.pack(side=tk.LEFT, padx=1)
-
-#             # Bind the change event to update data model
-#                     occ_combo.bind('<<ComboboxSelected>>',
-#                         lambda event, idx=row_index, combo=occ_combo:
-#                         self.on_block_data_change(idx, 0, combo.get()))
-           
-#             # LINE - READ ONLY (track color should not change)
-#                     bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
-#                     tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
-#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-           
-#             # Block number (read-only)
-#                     tk.Label(row_frame, text=row[2], bg='white', width=col_widths['block'],
-#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-            
-#             # Section letter (read-only)
-#                     tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
-#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-             
-#             #  Infrastructure (read-only) 
-#                     tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
-#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-#             # Store combos for potential access
-#                     self.block_combos.append(occ_combo)
-           
-#                 else:
-#             # print(f"DEBUG: Creating normal mode labels for block {row[2]}")
-#                     tk.Label(row_frame, text=row[0], bg='white', width=col_widths['occupied'],
-#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-            
-#                     bg_color = '#66cc66' if row[1] == "Green" else '#ff6666' if row[1] == "Red" else '#6666ff'
-#                     tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
-#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-            
-#                     tk.Label(row_frame, text=row[2], bg='white', width=col_widths['block'],
-#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-            
-#                     tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
-#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-
-#                     tk.Label(row_frame, text=str(row[4]), bg='white', width=col_widths['infrastructure'],
-#                     borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=1)
-#             except Exception as e:
-#                 print(f"Error creating row {row_index}: {e} - Row data: {row}")
-    
-#         # if i < 3:  # Debug first 3 rows
-#         #     print(f"DEBUG: Created row {i}: {row}")
-    
-#         # print(f"DEBUG: Finished creating {len(block_data)} rows")
-#     # Force update
-#         self.block_table_frame.update()            
-#     # print("DEBUG: Finished creating block table")
-
-#     def on_block_data_change(self, row_index, col_index, new_value):
-#         """Callback when any block data is changed in maintenance mode"""
-#         print(f"Block data changed: row {row_index}, col {col_index}, value '{new_value}'")
-#         self.data.update_block_data(row_index, col_index, new_value)
-       
-#     def filter_block_table(self, *args):
-#         search_term = self.block_search_var.get().lower()
-#         self.data.filter_block_data(search_term)
-#         self.create_block_table()
-   
-#     def update_mode_ui(self):
-#         """Refresh block table when mode changes"""
-#         self.create_block_table()
-#############################################################################################################
-################################################################################################################
     
 #############################################################################################################
 ################################################################################################################
