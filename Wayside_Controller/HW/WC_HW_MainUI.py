@@ -1859,22 +1859,335 @@ add_to_message_log("INFO: UI initialized.")
 add_to_message_log("INFO: Map display loaded.")
 add_to_message_log("INFO: Control panels ready.")
 ###########################################################################################
+
+class EmbeddedPLCController:
+    """
+    PLC Controller for Track Hardware - Green Line Sections A-J and Z
+    Embedded directly in Track_HW - no external file needed
+    """
+    def __init__(self, log_callback=None):
+        self.log = log_callback if log_callback else print
+        self.test_data = None
+        self.track = "Green"
+        
+        # Block definitions - Sections A through K and Z
+        self.sections = {
+            'A': [1, 2, 3],
+            'B': [4, 5, 6],
+            'C': [7, 8, 9, 10, 11, 12],
+            'D': [13, 14, 15, 16],
+            'E': [17, 18, 19, 20],
+            'F': [21, 22, 23, 24, 25, 26, 27, 28],
+            'G': [29, 30, 31, 32],
+            'H': [33, 34, 35],
+            'I': [36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57],
+            'J': [58, 59, 60, 61, 62],
+            'K': [63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73],
+            'Z': [150]
+        }
+
+        # All blocks in scope
+        self.all_blocks = []
+        for section_blocks in self.sections.values():
+            self.all_blocks.extend(section_blocks)
+        
+        # Switch info
+        self.switch_info = {
+            12: {'name': 'Switch 12-13', 'positions': ['Section D → A', 'Section D → C'], 'connects': [13, 1]},
+            28: {'name': 'Switch 28-29', 'positions': ['Section F → G', 'Section Z → F'], 'connects': [29, 150]},
+            57: {'name': 'Switch 57-Yard', 'positions': ['Section I → Yard', 'Section Yard → I'], 'connects': [58, 'Yard']},
+            62: {'name': 'Switch 62-Yard', 'positions': ['Section Yard → K', 'Section K → Yard'], 'connects': [63, 'Yard']}
+        }
+        
+        # Light info
+        self.light_info = {
+            1: {'name': 'Light 1', 'section': 'A'},
+            13: {'name': 'Light 13', 'section': 'D'},
+            19: {'name': 'Light 19', 'section': 'E'},
+            28: {'name': 'Light 28', 'section': 'F'},
+            57: {'name': 'Light 57', 'section': 'I'}
+        }
+        
+        # Crossing info
+        self.crossing_info = {
+            19: {'name': 'Railway Crossing: 19', 'section': 'E'}
+        }
+        
+        self.log("PLC Controller initialized (embedded)")
+
+ # -------------------------------------------------------------------------
+    # INPUT READERS
+    # -------------------------------------------------------------------------
+    def get_block_occupancy(self, block):
+        if not self.test_data:
+            return False
+        for row in self.test_data.block_data:
+            if str(row[2]) == str(block) and row[1] == self.track:
+                return row[0] == "Yes"
+        return False
+    
+    def get_block_fault(self, block):
+        if not self.test_data:
+            return False
+        track_data = self.test_data.track_data
+        
+        if block in self.switch_info:
+            switch_name = self.switch_info[block]['name']
+            if switch_name in track_data.get("switches", {}):
+                return track_data["switches"][switch_name].get("fault", False)
+        
+        if block in self.light_info:
+            light_name = self.light_info[block]['name']
+            if light_name in track_data.get("lights", {}):
+                return track_data["lights"][light_name].get("fault", False)
+        
+        if block in self.crossing_info:
+            crossing_name = self.crossing_info[block]['name']
+            if crossing_name in track_data.get("crossings", {}):
+                return track_data["crossings"][crossing_name].get("fault", False)
+        return False
+    
+    def get_switch_position(self, block):
+        if not self.test_data or block not in self.switch_info:
+            return 0
+        switch_name = self.switch_info[block]['name']
+        track_data = self.test_data.track_data
+        if switch_name in track_data.get("switches", {}):
+            return track_data["switches"][switch_name].get("numeric_position", 0)
+        return 0
+    
+    def get_light_state(self, block):
+        if not self.test_data or block not in self.light_info:
+            return 'Green'
+        light_name = self.light_info[block]['name']
+        track_data = self.test_data.track_data
+        if light_name in track_data.get("lights", {}):
+            return track_data["lights"][light_name].get("signal", "Green")
+        return 'Green'
+    
+    def get_crossing_state(self, block):
+        if not self.test_data or block not in self.crossing_info:
+            return 'Inactive'
+        crossing_name = self.crossing_info[block]['name']
+        track_data = self.test_data.track_data
+        if crossing_name in track_data.get("crossings", {}):
+            bar = track_data["crossings"][crossing_name].get("bar", "Open")
+            return 'Active' if bar == 'Closed' else 'Inactive'
+        return 'Inactive'
+
+    # -------------------------------------------------------------------------
+    # OUTPUT WRITERS
+    # -------------------------------------------------------------------------
+    def set_light_state(self, block, state):
+        if not self.test_data or block not in self.light_info:
+            return
+        light_name = self.light_info[block]['name']
+        track_data = self.test_data.track_data
+        
+        if "lights" not in track_data:
+            track_data["lights"] = {}
+        if light_name not in track_data["lights"]:
+            track_data["lights"][light_name] = {"condition": "Normal", "signal": "Green", "fault": False}
+        
+        old_state = track_data["lights"][light_name].get("signal", "Green")
+        track_data["lights"][light_name]["signal"] = state
+        
+        if old_state != state:
+            self.log(f"Light {block}: {old_state} -> {state}")
+        
+        if hasattr(self.test_data, 'send_light_state'):
+            self.test_data.send_light_state(self.track, str(block), state)
+    
+    def set_switch_position(self, block, position):
+        if not self.test_data or block not in self.switch_info:
+            return False
+        if not self.check_switch_safety(block):
+            return False
+        
+        switch_name = self.switch_info[block]['name']
+        positions = self.switch_info[block]['positions']
+        direction = positions[position] if position < len(positions) else positions[0]
+        track_data = self.test_data.track_data
+        
+        if "switches" not in track_data:
+            track_data["switches"] = {}
+        if switch_name not in track_data["switches"]:
+            track_data["switches"][switch_name] = {"condition": "Normal", "direction": positions[0], "numeric_position": 0, "fault": False}
+        
+        old_position = track_data["switches"][switch_name].get("numeric_position", 0)
+        old_direction = positions[old_position] if old_position < len(positions) else positions[0]
+        
+        track_data["switches"][switch_name]["direction"] = direction
+        track_data["switches"][switch_name]["numeric_position"] = position
+        
+        if old_position != position:
+            self.log(f"Switch {block}: {old_direction} -> {direction}")
+        
+        if hasattr(self.test_data, 'send_switch_to_track_model'):
+            self.test_data.send_switch_to_track_model(self.track, str(block), direction)
+        return True
+    
+    def set_crossing_state(self, block, state):
+        if not self.test_data or block not in self.crossing_info:
+            return
+        crossing_name = self.crossing_info[block]['name']
+        bar = 'Closed' if state == 'Active' else 'Open'
+        lights = 'On' if state == 'Active' else 'Off'
+        track_data = self.test_data.track_data
+        
+        if "crossings" not in track_data:
+            track_data["crossings"] = {}
+        if crossing_name not in track_data["crossings"]:
+            track_data["crossings"][crossing_name] = {"condition": "Normal", "bar": "Open", "lights": "Off", "fault": False}
+        
+        old_bar = track_data["crossings"][crossing_name].get("bar", "Open")
+        track_data["crossings"][crossing_name]["bar"] = bar
+        track_data["crossings"][crossing_name]["lights"] = lights
+        
+        if old_bar != bar:
+            self.log(f"Railway Crossing {block}: Bar {bar.upper()}")
+        
+        if hasattr(self.test_data, 'send_railway_state'):
+            self.test_data.send_railway_state(self.track, str(block), bar)
+
+    # -------------------------------------------------------------------------
+    # SAFETY LOGIC
+    # -------------------------------------------------------------------------
+    def check_switch_safety(self, block):
+        if self.get_block_occupancy(block):
+            self.log(f"SAFETY: Cannot change switch {block} - block OCCUPIED")
+            return False
+        if self.get_block_fault(block):
+            self.log(f"SAFETY: Cannot change switch {block} - FAULT detected")
+            return False
+        if block in self.switch_info:
+            connects = self.switch_info[block].get('connects', [])
+            for connected in connects:
+                if isinstance(connected, int) and self.get_block_occupancy(connected):
+                    self.log(f"SAFETY: Cannot change switch {block} - train approaching from block {connected}")
+                    return False
+        return True
+
+    # -------------------------------------------------------------------------
+    # CONTROL LOGIC
+    # -------------------------------------------------------------------------
+    def calculate_light_state(self, block):
+        if self.get_block_fault(block):
+            return 'Red'
+        if self.get_block_occupancy(block):
+            return 'Red'
+        
+        blocks_ahead_map = {
+            1: [2, 3, 4],
+            13: [14, 15, 16, 17],
+            19: [20, 21, 22],
+            28: [29, 30, 31],
+            57: [58, 59, 60]
+        }
+        check_blocks = blocks_ahead_map.get(block, [])
+        
+        blocks_ahead_clear = 0
+        for check_block in check_blocks:
+            if not self.get_block_occupancy(check_block) and not self.get_block_fault(check_block):
+                blocks_ahead_clear += 1
+            else:
+                break
+        
+        if blocks_ahead_clear == 0:
+            return 'Red'
+        elif blocks_ahead_clear == 1:
+            return 'Yellow'
+        elif blocks_ahead_clear == 2:
+            return 'Green'
+        else:
+            return 'Super Green'
+    
+    def calculate_crossing_state(self, block):
+        if self.get_block_fault(block):
+            return 'Active'
+        if self.get_block_occupancy(block):
+            return 'Active'
+        approaching_blocks = [17, 18, 20, 21]
+        for approach_block in approaching_blocks:
+            if self.get_block_occupancy(approach_block):
+                return 'Active'
+        return 'Inactive'
+
+    # -------------------------------------------------------------------------
+    # PLC CYCLES
+    # -------------------------------------------------------------------------
+    def run_cycle_quiet(self):
+        """Run PLC cycle - only logs state changes"""
+        for block in self.light_info.keys():
+            current_state = self.get_light_state(block)
+            calculated_state = self.calculate_light_state(block)
+            if current_state != calculated_state:
+                self.set_light_state(block, calculated_state)
+        
+        for block in self.crossing_info.keys():
+            current_state = self.get_crossing_state(block)
+            calculated_state = self.calculate_crossing_state(block)
+            if current_state != calculated_state:
+                self.set_crossing_state(block, calculated_state)
+        
+        for block in self.switch_info.keys():
+            if self.get_block_fault(block):
+                self.log(f"ALERT: Switch {block} has FAULT")
+    
+    def main(self):
+        """Full PLC cycle with verbose logging"""
+        self.log("=" * 50)
+        self.log("PLC CYCLE - Green Line Sections A-K, Z")
+        self.log("=" * 50)
+        
+        # Read state
+        occupied_blocks = [b for b in self.all_blocks if self.get_block_occupancy(b)]
+        if occupied_blocks:
+            self.log(f"Occupied blocks: {occupied_blocks}")
+        else:
+            self.log("No blocks occupied")
+        
+        # Run logic
+        self.run_cycle_quiet()
+        
+        # Report
+        self.log("--- Final State ---")
+        for block, info in self.light_info.items():
+            state = self.get_light_state(block)
+            self.log(f"  Light {block} ({info['section']}): {state}")
+        for block, info in self.switch_info.items():
+            pos = self.get_switch_position(block)
+            direction = info['positions'][pos]
+            safe = "[SAFE]" if self.check_switch_safety(block) else "[LOCKED]"
+            self.log(f"  Switch {block}: {direction} {safe}")
+        for block in self.crossing_info.keys():
+            state = self.get_crossing_state(block)
+            bar = "CLOSED" if state == 'Active' else "OPEN"
+            self.log(f"  Crossing {block}: Bar {bar}")
+        
+        self.log("=" * 50)
+
+
 ############################      PLC MANAGER  ############################################
 
 # Add PLCManager class definition after MessageLogger
 class PLCManager:
-    def __init__(self, message_logger):
+    def __init__(self, message_logger, root=None):
         self.message_logger = message_logger
         self.plc_instance = None
         self.current_file = None
+        self.running = False  # Track if PLC loop is running
+        self.root = root  # Reference to tkinter root for after() scheduling
+        self.cycle_interval = 500  # Run PLC every 500ms (0.5 seconds)
        
     def load_plc_file(self, file_path):
+        """Load PLC from external file"""
         try:
             import importlib.util
             spec = importlib.util.spec_from_file_location("plc_module", file_path)
             plc_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(plc_module)
-           
+            
             self.plc_instance = plc_module.PLCController(self.message_logger.log)
             self.current_file = file_path
             self.message_logger.log(f"PLC file loaded: {file_path}")
@@ -1882,27 +2195,80 @@ class PLCManager:
         except Exception as e:
             self.message_logger.log(f"PLC load error: {e}")
             return False
-   
-    def run_plc(self):
-        if not self.plc_instance:
-            self.message_logger.log("No PLC file loaded")
-            messagebox.showwarning("No PLC File", "Please upload a PLC file first!")
-            return False
-       
+    
+    def load_embedded_plc(self):
+        """Load the embedded PLC controller - NO FILE NEEDED"""
         try:
-            self.plc_instance.main()
-            self.message_logger.log(f"PLC file executed: {self.current_file.split('/')[-1]}")
+            self.plc_instance = EmbeddedPLCController(self.message_logger.log)
+            self.current_file = "EMBEDDED"
+            self.message_logger.log("Embedded PLC controller loaded")
             return True
         except Exception as e:
-            self.message_logger.log(f"PLC runtime error: {e}")
+            self.message_logger.log(f"Embedded PLC load error: {e}")
             return False
-   
+    
+    def start_plc_loop(self):
+        """Start the continuous PLC loop"""
+        if not self.plc_instance:
+            self.message_logger.log("No PLC loaded")
+            return False
+        
+        if self.running:
+            self.message_logger.log("PLC already running")
+            return True
+        
+        self.running = True
+        self.message_logger.log("PLC continuous loop STARTED")
+        self._plc_cycle()
+        return True
+    
+    def stop_plc_loop(self):
+        """Stop the continuous PLC loop"""
+        self.running = False
+        self.message_logger.log("PLC continuous loop STOPPED")
+    
+    def _plc_cycle(self):
+        """Internal - runs one cycle and schedules next"""
+        if not self.running:
+            return
+        
+        try:
+            self.plc_instance.test_data = test_data
+            self.plc_instance.run_cycle_quiet()
+        except Exception as e:
+            self.message_logger.log(f"PLC cycle error: {e}")
+        
+        if self.running and self.root:
+            self.root.after(self.cycle_interval, self._plc_cycle)
+    
+    def run_plc(self):
+        """Toggle PLC running state"""
+        if self.running:
+            self.stop_plc_loop()
+            return False
+        else:
+            return self.start_plc_loop()
+    
+    def run_plc_once(self):
+        """Run PLC once with verbose output"""
+        if not self.plc_instance:
+            return False
+        try:
+            self.plc_instance.test_data = test_data
+            self.plc_instance.main()
+            return True
+        except Exception as e:
+            self.message_logger.log(f"PLC error: {e}")
+            return False
+    
     def get_status(self):
         return {
             "loaded": self.plc_instance is not None,
-            "file": self.current_file
+            "file": self.current_file,
+            "running": self.running
         }
-   
+
+
 #creating mock data instance
 test_data = UITestData()  
 
@@ -1910,29 +2276,37 @@ test_data = UITestData()
 message_logger = MessageLogger(log_text)
 
 # Create PLCManager instance (after message_logger is created)
-plc_manager = PLCManager(message_logger)
+plc_manager = PLCManager(message_logger, root)
+plc_LED.config(bg="white", text="PLC READY")
 
-# Update the button functions:
+# Button functions:
 def select_plc_file():
-    """Open a file dialog to select a PLC file"""
+    """Open a file dialog to select a PLC file (optional - can use embedded)"""
     file_path = filedialog.askopenfilename(
-        title ="Select PLC File",
+        title="Select PLC File",
         filetypes=[("Python Files", "*.py")]
     )
     if file_path:
         if plc_manager.load_plc_file(file_path):
-            # Update LED or other UI elements if needed
             plc_LED.config(bg="white", text="PLC LOADED")
 
 def run_plc_file():
-    """Run the PLC logic using the selected file."""
-    if plc_manager.run_plc():
-        plc_LED.config(bg="green", text="PLC RUNNING")
+    """Toggle the PLC running state."""
+    if plc_manager.running:
+        # Stop the PLC
+        plc_manager.stop_plc_loop()
+        plc_LED.config(bg="yellow", text="PLC STOPPED")
+        run_plc_btn.config(text="Run PLC")
     else:
-        plc_LED.config(bg="red", text="FAULT")
+        # Start the PLC
+        if plc_manager.start_plc_loop():
+            plc_LED.config(bg="green", text="PLC RUNNING")
+            # run_plc_btn.config(text="Stop PLC")
+        else:
+            plc_LED.config(bg="red", text="FAULT")
 
 # Keep global plc_instance for backward compatibility
-plc_instance = None  # This will be set by PLCManager internally
+plc_instance = None
 
 # Update buttons
 plc_upload_btn.config(command=select_plc_file)
@@ -3230,7 +3604,11 @@ class RightPanel(tk.Frame):
         block_search = tk.Entry(search_frame, textvariable=self.block_search_var, width=20)
         block_search.pack(side=tk.LEFT, padx=5)
         tk.Label(search_frame, text="Search", bg='#1a1a4d', fg='white', font=('Arial', 9)).pack(side=tk.LEFT)
-   
+        
+        allowed_sections = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'Z'}
+        display_data = [row for row in self.data.block_data 
+          if row[1] == self.data.current_line and row[3] in allowed_sections]
+        
         # Table container - FIXED HEIGHT to match other sections
         table_container = tk.Frame(self, bg='#1a1a4d', height=300)
         table_container.pack(fill=tk.BOTH, expand=True, pady=5)
@@ -3299,10 +3677,13 @@ class RightPanel(tk.Frame):
         update_scrollregion()
 
     def create_block_table(self):
-        """Create block status table with compact layout"""
+        """Create block status table - filtered to sections A-K and Z only"""
         # Clear existing widgets
         for widget in self.block_table_frame.winfo_children():
             widget.destroy()
+
+        # Only show these sections
+        allowed_sections = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'Z'}
         
         print(f"\n=== DEBUG: Creating block table ===")
         print(f"Current line: {self.data.current_line}")
@@ -3311,30 +3692,31 @@ class RightPanel(tk.Frame):
 
         # Get data for current line
         display_data = []
+        # Get and filter data
         if hasattr(self.data, 'filtered_block_data') and len(self.data.filtered_block_data) > 0:
-            print(f"Using filtered_block_data: {len(self.data.filtered_block_data)} rows")
             display_data = [row for row in self.data.filtered_block_data 
-                      if row[1] == self.data.current_line]
+                  if row[1] == self.data.current_line and row[3] in allowed_sections]
         else:
-            print(f"Using block_data: {len(self.data.block_data) if hasattr(self.data, 'block_data') else 0} rows")
             display_data = [row for row in self.data.block_data 
-                      if row[1] == self.data.current_line]
-        
+                  if row[1] == self.data.current_line and row[3] in allowed_sections]
+    
+    # Sort by block number
+        try:
+            display_data.sort(key=lambda x: int(x[2]))
+        except:
+            pass
+    
         if not display_data:
-        # Show message if no data
             tk.Label(self.block_table_frame, text="No block data available", 
                 bg='white', fg='red').pack(pady=20)
             return
-        print(f"DEBUG: First 5 rows to display: {display_data[:5]}")
 
-        # Headers - 5 columns with COMPACT widths to fit
+    # Headers
         headers_frame = tk.Frame(self.block_table_frame, bg='#cccccc')
         headers_frame.pack(fill=tk.X)
-        
-        # Define column widths for 4 columns (slightly wider since we removed one column)
+    
         col_widths = {'occupied': 8, 'line': 6, 'block': 6, 'section': 10}
-        
-        # Occupied header
+    
         tk.Label(headers_frame, text="Occupied", bg='#cccccc',
             font=('Arial', 9, 'bold'), width=col_widths['occupied']).pack(side=tk.LEFT, padx=2)
         tk.Label(headers_frame, text="Line", bg='#cccccc',
@@ -3343,62 +3725,47 @@ class RightPanel(tk.Frame):
             font=('Arial', 9, 'bold'), width=col_widths['block']).pack(side=tk.LEFT, padx=2)
         tk.Label(headers_frame, text="Section", bg='#cccccc',
             font=('Arial', 9, 'bold'), width=col_widths['section']).pack(side=tk.LEFT, padx=2)
-        
-        # Data rows
-        # self.block_combos = []
-        # Data rows
+    
+    # Data rows - ALL INSIDE THE LOOP
         for row_index, row in enumerate(display_data):
             row_frame = tk.Frame(self.block_table_frame, bg='white')
             row_frame.pack(fill='x', pady=1)
 
-        # Ensure row has exactly 4 elements
-        while len(row) < 4:
-            row.append("")
-        if len(row) > 4:
-            row = row[:4]  # Truncate to 4 columns
+            while len(row) < 4:
+                row.append("")
+            if len(row) > 4:
+                row = row[:4]
         
-        if self.data.maintenance_mode:
-            # MAINTENANCE MODE - Editable occupancy
-            occ_combo = ttk.Combobox(row_frame, values=["Yes", "No"], 
+            if self.data.maintenance_mode:
+                # MAINTENANCE MODE - Editable
+                occ_combo = ttk.Combobox(row_frame, values=["Yes", "No"], 
                                   width=col_widths['occupied']-2)
-            occ_combo.set(row[0] if row[0] in ["Yes", "No"] else "No")
-            occ_combo.pack(side=tk.LEFT, padx=2)
+                occ_combo.set(row[0] if row[0] in ["Yes", "No"] else "No")
+                occ_combo.pack(side=tk.LEFT, padx=2)
             
-            # Bind change event
-            occ_combo.bind('<<ComboboxSelected>>',
-                lambda event, idx=row_index, combo=occ_combo, r=row:
-                self.on_block_data_change(r[2], combo.get()))
+                occ_combo.bind('<<ComboboxSelected>>',
+                    lambda event, idx=row_index, combo=occ_combo, r=row:
+                    self.on_block_data_change(r[2], combo.get()))
             
-            # Line (read-only with color)
-            bg_color = '#66cc66' if row[1] == "Green" else '#ff6666'
-            tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
+                bg_color = '#66cc66' if row[1] == "Green" else '#ff6666'
+                tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
+                   borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
+                tk.Label(row_frame, text=str(row[2]), bg='white', width=col_widths['block'],
+                   borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
+                tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
+                   borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
+            else:
+            # NORMAL MODE - Read only
+                occupied_color = '#ffcccc' if row[0] == "Yes" else '#ccffcc'
+                tk.Label(row_frame, text=row[0], bg=occupied_color, width=col_widths['occupied'],
                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
             
-            # Block # (read-only)
-            tk.Label(row_frame, text=str(row[2]), bg='white', width=col_widths['block'],
+                bg_color = '#66cc66' if row[1] == "Green" else '#ff6666'
+                tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
-            
-            # Section Letter (read-only)
-            tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
+                tk.Label(row_frame, text=str(row[2]), bg='white', width=col_widths['block'],
                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
-        else:
-            # NORMAL MODE - all read-only
-            # Occupied with color coding
-            occupied_color = '#ffcccc' if row[0] == "Yes" else '#ccffcc'
-            tk.Label(row_frame, text=row[0], bg=occupied_color, width=col_widths['occupied'],
-                   borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
-            
-            # Line with color
-            bg_color = '#66cc66' if row[1] == "Green" else '#ff6666'
-            tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
-                   borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
-            
-            # Block #
-            tk.Label(row_frame, text=str(row[2]), bg='white', width=col_widths['block'],
-                   borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
-            
-            # Section Letter
-            tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
+                tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
 
     def on_block_data_change(self, block_num, new_value):
