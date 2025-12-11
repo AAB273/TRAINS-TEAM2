@@ -87,10 +87,13 @@ class RailwayControlSystem:
                 self.handle_speed_auth_update(data)
             elif command == 'update_occupancy':
                 self.handle_occupancy_update(data)
+            elif command == 'failure_modes':
+                handle_track_failures(value)
             
                 
         except Exception as e:
             print(f"Error processing message: {e}")
+    
     
     def handle_ctc_maintenance(self):
         """Handle maintenance mode request from CTC"""
@@ -410,8 +413,6 @@ class RailwayControlSystem:
                     self.data.suggested_speed[track][block] = speed
                 if authority is not None:
                     self.data.suggested_authority[track][block] = authority
-<<<<<<< HEAD
-=======
                 if block == "63":  # ONLY for block 63!
                     print(f"CTC sent suggested values for block 63 - forwarding to Track Model as commanded")
                     
@@ -422,7 +423,6 @@ class RailwayControlSystem:
                     # Send to Track Model as commanded values
                     self.send_commanded_to_track_model(track, block, set_speed, set_authority)
                 
->>>>>>> 65de30f8a3fe9626c6983f0caa63d76dee914acd
             
             # ALWAYS UPDATE RIGHT PANEL
             if hasattr(self, 'right_panel'):
