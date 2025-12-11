@@ -97,8 +97,9 @@ def _enable_debug_mode(app):
         pass
     
     print("\n" + "🔧"*35)
-    print("PASSENGER BOARDING DEBUG MODE ENABLED")
+    print("PASSENGER BOARDING DEBUG MODE ENABLED (Logging Only)")
     print(f"All messages to Train Model will be logged to: {_DEBUG_LOG_FILE}")
+    print("Immediate tests disabled - trains will stop at stations naturally")
     print("🔧"*35 + "\n")
     
     # Wrap the send method
@@ -107,8 +108,8 @@ def _enable_debug_mode(app):
         app.server.send_to_ui = lambda ui_name, msg: _wrapped_send_to_ui(app.server, ui_name, msg)
         print("✓ Wrapped server.send_to_ui() method\n")
     
-    # Immediate test
-    _immediate_boarding_test(app)
+    # Immediate test - DISABLED (trains should only stop at stations naturally)
+    # _immediate_boarding_test(app)
 
 def _immediate_boarding_test(app):
     """Immediately send a test boarding message"""
@@ -155,9 +156,9 @@ def _immediate_boarding_test(app):
             result = app.send_passengers_boarding_to_train_model(block_num, "1")
             
             if result:
-                print("✓ TEST SCHEDULED - Boarding data will be sent in 15 seconds!\n")
+                print("✓ TEST PASSED - Boarding data sent successfully!\n")
             else:
-                print("✗ TEST FAILED - Could not schedule boarding data\n")
+                print("✗ TEST FAILED - Could not send boarding data\n")
         else:
             print("⚠️  No stations found for testing\n")
     else:
@@ -5083,15 +5084,18 @@ class TrackModelUI(tk.Tk):
 
     def handle_train_arrival_at_station(self, block_num, train_id=None):
         """
-        Handle when a train arrives at a station.
+        Handle when a train stops at a station (authority reaches 0).
         - Generates random passengers boarding (0 to ticket_sales)
-        - Sends boarding count to Train Model (after 15 second delay)
+        - Sends boarding count to Train Model immediately
         - Resets ticket sales to new random value (0-70)
         - Sends updated station data to CTC
         
+        This is ONLY called when a train's authority reaches 0 at a station,
+        not when a train simply enters the station block.
+        
         Args:
-            block_num (int): Block number where train arrived
-            train_id (str): ID of the train that arrived (optional)
+            block_num (int): Block number where train stopped
+            train_id (str): ID of the train that stopped (optional)
         """
         # Check if this block is a station
         station_info = next((s for s in self.data_manager.station_location if s[0] == block_num), None)
@@ -5141,11 +5145,26 @@ class TrackModelUI(tk.Tk):
         self.send_station_data_to_ctc(block_num)
 
 
+    def get_station_name_from_block(self, block_num):
+        """
+        Get the station name for a given block number.
+        
+        Args:
+            block_num (int): Block number
+            
+        Returns:
+            str: Station name if found, or "Unknown Station" if not found
+        """
+        if hasattr(self.data_manager, 'station_location'):
+            for blk_num, station_name in self.data_manager.station_location:
+                if blk_num == block_num:
+                    return station_name
+        return "Unknown Station"
+
     def send_passengers_boarding_to_train_model(self, block_num, train_id=None):
         """
         Send passengers boarding for a specific station block to Train Model.
         Called when a train stops at a station (authority reaches 0).
-        Waits 15 seconds before sending to allow doors to open.
         
         Args:
             block_num (int): Block number of the station
@@ -5173,7 +5192,7 @@ class TrackModelUI(tk.Tk):
                         break
             
             # Prepare message for Train Model
-            # Convert train_id to int (train IDs are stored as strings like "1", "2", "3")
+            # Convert train_id to int (train IDs are now stored as integers)
             train_id_int = int(train_id) if train_id else None
             
             boarding_message = {
@@ -5182,16 +5201,14 @@ class TrackModelUI(tk.Tk):
                 'train_id': train_id_int
             }
             
-            # Schedule sending after 15 second delay (15000 milliseconds)
-            def send_after_delay():
-                self.server.send_to_ui("Train Model", boarding_message)
-                print(f"Sent passengers boarding to Train Model:")
-                print(f"   Train {train_id_int}: {passenger_count} passengers")
+            # Send immediately (no delay)
+            self.server.send_to_ui("Train Model", boarding_message)
+            print(f"Sent passengers boarding to Train Model:")
+            print(f"   Train {train_id_int}: {passenger_count} passengers")
             
-            # Use tkinter's after() to delay by 15 seconds
-            self.after(15000, send_after_delay)
-            
-            print(f"Scheduled boarding message for Train {train_id_int} (sending in 15 seconds)...")
+            # Log to Event Log
+            station_name = self.get_station_name_from_block(block_num)
+            self.log_to_terminal(f"🚉 Train {train_id_int} stopped at {station_name} (Block {block_num}) - {passenger_count} passengers boarding")
             
             return True
             
@@ -5246,8 +5263,9 @@ class TrackModelUI(tk.Tk):
 
     def monitor_station_occupancy(self):
         """
-        Monitor block occupancy at stations.
-        When a train arrives (occupancy changes from 0 to non-zero), handle boarding.
+        Monitor block occupancy at stations for tracking purposes.
+        Note: Passenger boarding is handled separately in monitor_train_authority_for_boarding()
+        when a train's authority reaches 0 at a station.
         """
         # Initialize previous occupancy tracking if not exists
         if not hasattr(self, '_previous_station_occupancy'):
@@ -5275,9 +5293,12 @@ class TrackModelUI(tk.Tk):
                 
                 # Detect train arrival (occupancy changed from 0 to non-zero)
                 if previous_occupancy == 0 and current_occupancy != 0:
+                    # Train entered the station block
+                    # Note: Passenger boarding is handled separately when authority reaches 0
+                    # in monitor_train_authority_for_boarding()
+                    pass
                     # print(f"\n === TRAIN ARRIVAL DETECTED ===")
                     # print(f"   Train {current_occupancy} arrived at {station_name} (Block {block_num})")
-                    self.handle_train_arrival_at_station(block_num)
                     # print(f"   === TRAIN ARRIVAL HANDLED ===\n")
                 
                 # Update previous occupancy
@@ -5384,28 +5405,27 @@ class TrackModelUI(tk.Tk):
         if not hasattr(self.data_manager, "next_train_id"):
             self.data_manager.next_train_id = 1
 
-        # Assign new train ID (simple number)
+        # Assign new train ID (as integer)
         train_id = self.data_manager.next_train_id
         self.data_manager.next_train_id += 1
 
-        # Use just the number as the train identifier
-        train_name = str(train_id)
-        self.data_manager.active_trains.append(train_name)
+        # Store train ID as integer
+        self.data_manager.active_trains.append(train_id)
         self.data_manager.commanded_speed.append(speed)
         self.data_manager.commanded_authority.append(authority)
         self.data_manager.train_occupancy.append(0)
         
         # Initialize train actual speed to 0 (will be updated by Train Model)
-        self.train_actual_speeds[train_name] = 0
-        self.train_positions_in_block[train_name] = 0
+        self.train_actual_speeds[train_id] = 0
+        self.train_positions_in_block[train_id] = 0
         import time
-        self.last_movement_update[train_name] = time.time()
+        self.last_movement_update[train_id] = time.time()
 
         # print(f"[TRAIN CREATED] ID={train_id}, Speed={speed} m/s, Authority={authority} blocks")
 
         # Refresh dropdowns and terminals
         self.train_combo["values"] = self.data_manager.active_trains
-        self.train_combo.set(train_name)
+        self.train_combo.set(train_id)
         self.send_outputs()
     
     def _create_train_from_yard(self, speed, authority):
@@ -5414,15 +5434,12 @@ class TrackModelUI(tk.Tk):
         if not hasattr(self.data_manager, "next_train_id"):
             self.data_manager.next_train_id = 1
 
-        # Assign new train ID (simple number)
+        # Assign new train ID (as integer)
         train_id = self.data_manager.next_train_id
         self.data_manager.next_train_id += 1
-        
-        # Use just the number as the train identifier
-        train_name = str(train_id)
 
-        # Register new train in data manager
-        self.data_manager.active_trains.append(train_name)
+        # Register new train in data manager (as integer)
+        self.data_manager.active_trains.append(train_id)
         
         # Ensure train_locations list exists and is properly sized
         if not hasattr(self.data_manager, 'train_locations'):
@@ -5451,14 +5468,14 @@ class TrackModelUI(tk.Tk):
         # Update UI elements if they exist
         if hasattr(self, 'train_combo'):
             self.train_combo["values"] = self.data_manager.active_trains
-            self.train_combo.set(train_name)
+            self.train_combo.set(train_id)
         
         # Send creation notification to other modules
         try:
             # Send new train notification (without speed/authority)
             self.server.send_to_ui("Train Model", {
                 "command": "new_train",
-                "train_id": train_name,
+                "train_id": train_id,
                 "block_number": 63
             })
             
@@ -5466,19 +5483,19 @@ class TrackModelUI(tk.Tk):
             self.server.send_to_ui("Train Model", {
                 "command": "Commanded Speed",
                 "value": speed,
-                "train_id": train_name
+                "train_id": train_id
             })
             
             # Send commanded authority separately
             self.server.send_to_ui("Train Model", {
                 "command": "Commanded Authority",
                 "value": authority,
-                "train_id": train_name
+                "train_id": train_id
             })
             
             self.server.send_to_ui("CTC", {
                 "command": "train_dispatched",
-                "train_id": train_name,
+                "train_id": train_id,
                 "from": "Yard/Block63",
                 "entry_block": 63
             })
@@ -5497,7 +5514,7 @@ class TrackModelUI(tk.Tk):
         except Exception as e:
             print(f" Error during send_outputs: {e}")
         
-        return train_name
+        return train_id
 
 
     def prompt_and_activate_broken_rail(self):
@@ -5737,17 +5754,21 @@ class TrackModelUI(tk.Tk):
         # print(f" Sent bulk occupancy data to Track SW: {len(occupancy_data)} blocks")
 
     def send_block_occupancy_to_train_model(self):
-        """Send block occupancy to Train Model - only occupied blocks."""
-        occupied_blocks = []
-        for block in self.data_manager.blocks:
-            if block.occupancy != 0:  # Only include occupied blocks
-                occupied_blocks.append(block.block_number)
-        
-        self.server.send_to_ui("Train Model", {
-            'command': 'block_occupancy',
-            'value': occupied_blocks
-        })
-        # print(f" Sent occupied blocks to Train Model: {occupied_blocks}")
+        """Send block occupancy to Train Model - one message per train with block location and train ID."""
+        # Send occupancy for each active train separately
+        for train_idx, train_id in enumerate(self.data_manager.active_trains):
+            # Get the block location for this train
+            if train_idx < len(self.data_manager.train_locations):
+                block_location = self.data_manager.train_locations[train_idx]
+                
+                # Only send if train is on the track (block_location != 0)
+                if block_location != 0:
+                    self.server.send_to_ui("Train Model", {
+                        'command': 'block_occupancy',
+                        'value': int(block_location),
+                        'train_id': int(train_id)
+                    })
+                    # print(f" Sent block occupancy to Train Model: Train {train_id} at block {block_location}")
 
     def send_commanded_speed_to_train_model(self):
         """Send commanded speed to Train Model - individual message per train."""
@@ -6453,9 +6474,14 @@ class TrackModelUI(tk.Tk):
 
                 # ---------------------------
                 
-                # Convert train_id to string if it's an integer (Passenger_UI sends as int)
-                if train_id is not None and isinstance(train_id, int):
-                    train_id = str(train_id)
+                # Convert train_id to integer if it's a string
+                if train_id is not None and isinstance(train_id, str):
+                    try:
+                        train_id = int(train_id)
+                    except ValueError:
+                        print(f"ERROR: Invalid train_id received: {train_id}")
+                        return
+                
                 # 1. Require a train_id
                 # ---------------------------
                 if not train_id:
@@ -6467,20 +6493,35 @@ class TrackModelUI(tk.Tk):
                 # ---------------------------
                 if train_id not in self.data_manager.active_trains:
                     print(f"WARNING: Current Speed received for unregistered train {train_id}. Auto-creating train.")
-                    self.data_manager.active_trains.append(train_id)
-                    self.train_positions_in_block[train_id] = 0
-                    self.last_movement_update[train_id] = time.time()
+                    
+                    # Initialize next_train_id if not set
+                    if not hasattr(self.data_manager, "next_train_id"):
+                        self.data_manager.next_train_id = 1
+                    
+                    # Use the next available train ID from the counter
+                    new_train_id = self.data_manager.next_train_id
+                    self.data_manager.next_train_id += 1
+                    
+                    # Add the new train with the proper ID
+                    self.data_manager.active_trains.append(new_train_id)
+                    self.train_positions_in_block[new_train_id] = 0
+                    self.last_movement_update[new_train_id] = time.time()
+                    
+                    # Update train_id to the newly assigned ID
+                    train_id = new_train_id
 
                     # Mark block 63 as occupied (spawn block)
                     if 63 in self.data_manager.blocks:
                         self.data_manager.blocks[63].occupancy = train_id
                         self.update_occupied_blocks_display()
+                    
+                    print(f"INFO: Auto-created train with ID {new_train_id}")
 
                 # ---------------------------
-                # 3. Convert mph → m/s
+                # 3. Convert m/s → m/s
                 # ---------------------------
                 try:
-                    speed_ms = float(speed) * 0.44704
+                    speed_ms = float(speed) 
                 except:
                     print(f"ERROR: Invalid speed value received: {speed}")
                     return
@@ -6535,6 +6576,10 @@ class TrackModelUI(tk.Tk):
                         # print(f"   Train: {train_id if train_id else 'Unknown'}")
                         # print(f"   Block: {block_number}")
                         # print(f"   Passengers: {disembarking}")
+                        
+                        # Log to Event Log
+                        station_name = self.get_station_name_from_block(block_number)
+                        self.log_to_terminal(f"🚉 Train {train_id if train_id else 'Unknown'} at {station_name} (Block {block_number}) - {disembarking} passengers disembarking")
                         
                         # Forward to CTC immediately (sends both ticket sales and disembarking)
                         self.send_station_data_to_ctc(block_number)
@@ -6858,7 +6903,7 @@ if __name__ == "__main__":
     # TEMPORARILY COMMENTED OUT - Test UI disabled
     # app.tester_reference = tester
 
-    # Enable passenger boarding debug mode
+    # Enable passenger boarding debug mode (logs messages only, no immediate tests)
     _enable_debug_mode(app)
 
     # Start periodic output updates after a delay

@@ -410,6 +410,19 @@ class RailwayControlSystem:
                     self.data.suggested_speed[track][block] = speed
                 if authority is not None:
                     self.data.suggested_authority[track][block] = authority
+<<<<<<< HEAD
+=======
+                if block == "63":  # ONLY for block 63!
+                    print(f"CTC sent suggested values for block 63 - forwarding to Track Model as commanded")
+                    
+                    # Use suggested values or defaults
+                    set_speed = "25"
+                    set_authority = "3"
+                    
+                    # Send to Track Model as commanded values
+                    self.send_commanded_to_track_model(track, block, set_speed, set_authority)
+                
+>>>>>>> 65de30f8a3fe9626c6983f0caa63d76dee914acd
             
             # ALWAYS UPDATE RIGHT PANEL
             if hasattr(self, 'right_panel'):

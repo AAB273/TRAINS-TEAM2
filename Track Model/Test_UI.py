@@ -23,6 +23,7 @@ class TrackModelTestUI(tk.Toplevel):
         
         # Connect to Train Model for beacon signals
         self.server.connect_to_ui('localhost', 12345, "Train Model")
+        self.server.connect_to_ui('localhost', 12343, "Train Model")
 
 
         self.manager = manager

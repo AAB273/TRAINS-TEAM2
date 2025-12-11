@@ -83,330 +83,731 @@ def update_callback(message):
 
 
 # Example of Process Function:
-def _process_message(self, data, connection=None, server_instance=None):
-    """Process incoming messages from Test UI"""
+# def _process_message(self, data, connection=None, server_instance=None):
+#     """Process incoming messages from Test UI"""
+#     try:
+#         print(f"\n{'='*60}")
+#         print(f"TRACK HW MAIN UI: Received message from CTC")
+#         print(f"Data type: {type(data)}")
+#         print(f"Data: {data}")
+
+#         # Try to parse
+#         try:
+
+#             print(f"\n{'='*60}")
+#             print(f"TRACK HW MAIN UI: Received message from CTC")
+#             print(f"Data type: {type(data)}")
+#             print(f"Data: {data}")
+
+#         # 1. Handle connection test FIRST
+#             if isinstance(data, str) and data.strip() == "CTC":
+#                 # print("CTC connection test received - sending ACK")
+#                 print("CTC connection test received")
+#                 if connection:
+#                     try:
+#                         connection.sendall(b"CTC_ACK")
+#                         print("Sent CTC_ACK response")
+#                     except Exception as e:
+#                         print(f"Error sending ACK: {e}")
+#                 return  # IMPORTANT: Stop processing here for connection tests
+
+#             import json
+#             message_data = json.loads(data)
+#             print(f"Parsed: {message_data}")
+        
+#         # Call your handler
+#             if hasattr(test_data, 'handle_ctc_message'):
+#                 test_data.handle_ctc_message(message_data)
+#         except:
+#             print(f"Could not parse: {data}")
+    
+#         print(f"{'='*60}")
+#         print(f"{'='*60}\n")
+        
+        
+#         # 2. Parse message
+#         message_data = None
+#         if isinstance(data, str):
+#             try:
+#                 # Parse as JSON (your data IS valid JSON from CTC)
+#                 message_data = json.loads(data)
+#                 print(f"Parsed JSON data: {message_data}")
+#                 print(f"Raw data: {data}")
+#                 print(f"Parsed message_data: {message_data}")
+#                 print(f"Type of message_data: {type(message_data)}")
+#             except json.JSONDecodeError:
+#                 # If not JSON, check if it's a Python dict string
+#                 try:
+#                     import ast
+#                     if data.startswith('{') and data.endswith('}'):
+#                         message_data = ast.literal_eval(data)
+#                         print(f"Parsed as Python dict: {message_data}")
+#                     else:
+#                         # Simple string commands
+#                         message_data = {'message': data}
+#                 except:
+#                     message_data = {'message': data}
+#         elif isinstance(data, dict):
+#             message_data = data
+#             print(f"Data is already a dictionary: {data}")
+#         else:
+#             print(f"Unknown data type: {type(data)}")
+#             return
+      
+#         # 3. Process command
+#         command = message_data.get('command', '')
+#         value = message_data.get('value', '')
+        
+#         print(f"Processing command: {command}, value: {value}")
+
+#         #########################################################################################
+#                 # After parsing speed and authority values:
+#         print(f"Processing suggested update: {track} Block {block} -> Speed:{speed}, Auth:{authority}")
+
+#         # CALL YOUR EXISTING FUNCTIONS
+#         if hasattr(right_panel, 'update_suggested_speed'):
+#             right_panel.update_suggested_speed(speed)
+#             print(f"Called update_suggested_speed({speed})")
+
+#         if hasattr(right_panel, 'update_suggested_authority'):
+#             right_panel.update_suggested_authority(authority)
+#             print(f"Called update_suggested_authority({authority})")
+
+#         # Also select the block
+#         if hasattr(right_panel, 'block_combo') and block:
+#             right_panel.block_combo.set(str(block))
+#             print(f"Selected block {block} in dropdown")
+
+#         add_to_message_log(f"CTC Suggested: Block {block} - Speed: {speed:.3f} mph, Authority: {authority} blocks")
+        
+#         ############################################################################
+        
+#         if command == 'update_speed_auth' or command == 'ctc_suggestion':
+#             # CALL THE EXISTING HANDLER IN UITestData
+#             # Extract block from the value dictionar
+#             if isinstance(value, dict)
+#                 block = value.get('block', '')
+#                 track = value.get('track', '')
+#                 speed_str = value.get('speed', '0')
+#                 authority_str = value.get('authority', '0')
+#                 value_type = value.get('value_type', 'suggested')
+#                 print(f"DEBUG: Calling test_data._handle_speed_auth_update with: {value}")
+            
+#              # Only process if for current line
+#                 if track and track.lower() != test_data.current_line.lower():
+#                     print(f"Ignoring update for different line: {track} (we're on {test_data.current_line})")
+#                     return
+
+#             # Check if test_data has the method
+#             if hasattr(test_data, '_handle_speed_auth_update'):
+#                 test_data._handle_speed_auth_update(value)
+#             elif hasattr(test_data, 'handle_ctc_message'):
+#                 test_data.handle_ctc_message(message_data)
+#             else:
+#                 # Fallback: Update right panel directly
+#                 print(f"No handler found, updating right panel directly")
+#                 if isinstance(value, dict):
+#                     track = value.get('track', '')
+#                     speed_str = value.get('speed', '0')
+#                     authority_str = value.get('authority', '0')
+                    
+#                     try:
+#                         speed = round(float(speed_str),2)
+#                         if hasattr(right_panel, 'update_suggested_speed'):
+#                             right_panel.update_suggested_speed(speed)
+#                     except:
+#                         speed = 0.0
+#                         pass
+                    
+#                     try:
+#                         authority = int(authority_str)
+#                         if hasattr(right_panel, 'update_suggested_authority'):
+#                             right_panel.update_suggested_authority(authority)
+#                     except:
+#                         authority = 0
+#                         pass
+                    
+#                     add_to_message_log(f"CTC Update: Speed={speed_str}, Authority={authority_str}")
+#         # =====================================================================
+#         # HANDLE CTC MESSAGES
+#         # =====================================================================        
+#         elif command == 'update_speed_auth' or command == 'ctc_suggestion':
+#             # Extract values from the message
+#             if isinstance(value, dict):
+#                 track = value.get('track', '').strip()
+#                 block = value.get('block', '').strip()
+#                 speed_str = value.get('speed', '0').strip()
+#                 authority_str = value.get('authority', '0').strip()
+#                 value_type = value.get('value_type', 'suggested').strip()
+#             print(f"DEBUG: Processing CTC update - Track: {track}, Block: {block}, Speed: {speed_str}, Authority: {authority_str}, Type: {value_type}")
+                
+#                 # Only process if for current line
+#             if track.lower() != test_data.current_line.lower():
+#                 print(f"Ignoring update for different line: {track} (we're on {test_data.current_line})")
+#                 return
+                
+#                 # Convert values
+#             try:
+#                 speed = round(float(speed_str), 3)
+#             except:
+#                 speed = 0.0
+                
+#             try:
+#                 authority = int(authority_str)
+#             except:
+#                 authority = 0
+                
+#             print(f"DEBUG: Converted values - Speed: {speed}, Authority: {authority}")
+                
+#                 # UPDATE THE UI - THIS IS WHAT'S MISSING
+#             if hasattr(right_panel, 'update_suggested_speed'):
+#                 right_panel.update_suggested_speed(speed)
+#                 print(f"Called update_suggested_speed({speed})")
+                
+#             if hasattr(right_panel, 'update_suggested_authority'):
+#                 right_panel.update_suggested_authority(authority)
+#                 print(f"Called update_suggested_authority({authority})")
+                
+#                 # Set the block dropdown to the correct block
+#             if hasattr(right_panel, 'block_combo') and block:
+#                 right_panel.block_combo.set(str(block))
+#                 print(f"Selected block {block} in dropdown")
+                
+#                 # Force update of current block info
+#             if hasattr(right_panel, 'update_current_block_info'):
+#                 right_panel.update_current_block_info()
+                
+#                 # Add to message log
+#             add_to_message_log(f"CTC: Block {block} - Speed: {speed:.3f} mph, Authority: {authority} blocks")
+                
+#                 # If you have a message logger, also log there
+#             if 'message_logger' in globals():
+#                 message_logger.log(f"CTC SUGGESTION: Block {block} - Speed: {speed:.1f} mph, Authority: {authority} blocks", "INFO")
+
+#         elif command == 'set_block_occupancy':
+#             pass  # Add handling if needed
+#         elif command == 'MAINT':
+#                 # Handle maintenance request from CTC
+#                 print("CTC Maintenance Request Received")
+#                 add_to_message_log("CTC: Maintenance Request Received")
+                
+#                 # Update maintenance LED
+#                 maint_led.config(bg="orange", text="MAINT REQ")
+#                 add_to_message_log("Maintenance Request LED activated")
+            
+#         elif command == 'set_switch_position':
+#             # Legacy switch command - redirect to SW command
+#             print(f"Legacy set_switch_position command: {value}")
+#             add_to_message_log(f"Switch position update: {value}")
+#         elif command == "SW":
+#             # Handle switch command from CTC - FOR TRACK HW
+#             print(f"CTC SWITCH COMMAND received: {value}")
+
+#         # =====================================================================
+#         # HANDLE TRACK MODEL INCOMING MESSAGES
+#         # =====================================================================
+        
+#         elif command == 'update_occupancy' or command == 'occupancy':
+#             block = value.get('block', '')
+#             track = value.get('track', test_data.current_line)
+#             occupied = value.get('occupied', False)
+            
+#             print(f"Track Model Occupancy Update: Block {block} on {track} -> {occupied}")
+#             add_to_message_log(f"Track Model: Block {block} Occupancy = {occupied}")
+            
+#             # Update block data
+#             occupied_str = "Yes" if occupied else "No"
+#             for idx, row in enumerate(test_data.block_data):
+#                 if str(row[2]) == str(block) and row[1] == track:
+#                     test_data.block_data[idx][0] = occupied_str
+#                     break
+            
+#             # Send occupancy to CTC
+#             if hasattr(test_data, 'send_occupancy'):
+#                 test_data.send_occupancy(track, block, occupied_str)
+        
+#         elif command == 'update_light' or command == 'light_state':
+#             block = value.get('block', '')
+#             track = value.get('track', test_data.current_line)
+#             color = value.get('color', 'Green')
+            
+#             print(f"Track Model Light Update: Block {block} on {track} -> {color}")
+#             add_to_message_log(f"Track Model: Light {block} = {color}")
+            
+#             # Update track_data
+#             light_name = f"Light {block}"
+#             if light_name in test_data.track_data.get("lights", {}):
+#                 test_data.track_data["lights"][light_name]["signal"] = color
+            
+#             # Send light state to CTC
+#             if hasattr(test_data, 'send_light_state'):
+#                 test_data.send_light_state(track, block, color)
+        
+#         elif command == 'update_crossing' or command == 'crossing_state':
+#             block = value.get('block', '')
+#             track = value.get('track', test_data.current_line)
+#             bar = value.get('bar', 'Open')
+#             lights = value.get('lights', 'Off')
+            
+#             print(f"Track Model Crossing Update: Block {block} on {track} -> Bar:{bar}")
+#             add_to_message_log(f"Track Model: Crossing {block} Bar={bar}")
+            
+#             # Update track_data
+#             crossing_name = f"Railway Crossing: {block}"
+#             if crossing_name in test_data.track_data.get("crossings", {}):
+#                 test_data.track_data["crossings"][crossing_name]["bar"] = bar
+#                 test_data.track_data["crossings"][crossing_name]["lights"] = lights
+            
+#             # Send railway state to CTC
+#             if hasattr(test_data, 'send_railway_state'):
+#                 test_data.send_railway_state(track, block, bar)
+
+#             if isinstance(value, list) and len(value) >= 2:
+#                 location = str(value[0])
+#                 line = value[1]
+                
+#                 # Log the switch command
+#                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+#                 log_message = f"{timestamp} CTC REQUEST: Toggle Switch {location} on {line} track"
+#                 message_logger.log(log_message, "WARNING")
+#                 # Also use the old function for compatibility
+#                 add_to_message_log(f"CTC Switch Command: Block {location} on {line} Line")
+                
+#                 # Update the left panel switch display if it matches current line
+#                 if line.lower() == test_data.current_line.lower():
+#                     print(f"Updating switch for current line: {line}")
+                    
+#                     # Find and update the appropriate switch in left panel
+#                     if hasattr(left_panel, 'switch_selector'):
+#                         # Try to find a switch that includes this block
+#                         found_switch = None
+#                         for switch_name in test_data.track_data.get("switches", {}):
+#                             # Check if location is part of the switch name
+#                             if location in switch_name:
+#                                 found_switch = switch_name
+#                                 break
+#                             # Check if location matches numbers in switch name
+#                             import re
+#                             numbers = re.findall(r'\d+', switch_name)
+#                             if location in numbers:
+#                                 found_switch = switch_name
+#                                 break
+                        
+#                         if found_switch:
+#                             print(f"Found matching switch: {found_switch}")
+                            
+#                             # Update the switch selector
+#                             left_panel.switch_selector.set(found_switch)
+#                             left_panel.update_switch_display()
+                            
+#                             # Toggle the switch direction
+#                             current_direction = test_data.track_data["switches"][found_switch]["direction"]
+                            
+#                             # Determine new direction (toggle between two positions)
+#                             # This depends on your switch logic - here's an example:
+#                             if "Blocks" in current_direction:
+#                                 # Extract block numbers
+#                                 import re
+#                                 blocks = re.findall(r'\d+', current_direction)
+#                                 if len(blocks) >= 2:
+#                                     # Toggle the direction (swap blocks or change pattern)
+#                                     # Example: If current is "Blocks 12-13", change to "Blocks 12-1"
+#                                     # You'll need to customize this based on your actual switch logic
+#                                     if "12-13" in current_direction:
+#                                         new_direction = "Blocks 12-1"
+#                                     elif "28-29" in current_direction:
+#                                         new_direction = "Blocks 28-150"  # Example toggle
+#                                     else:
+#                                         # Default toggle - swap the two numbers
+#                                         new_direction = f"Blocks {blocks[1]}-{blocks[0]}"
+                                    
+#                                     # Update the direction
+#                                     test_data.track_data["switches"][found_switch]["direction"] = new_direction
+#                                     left_panel.switch_direction.set(new_direction)
+                                    
+#                                     # Log the change
+#                                     message_logger.log(f"Switch {found_switch}: Direction changed to {new_direction} by CTC")
+                            
+#                             add_to_message_log(f"CTC Switch Command: Updated {found_switch} for Block {location}")
+#                         else:
+#                             print(f"No matching switch found for block {location}")
+#                             add_to_message_log(f"CTC Switch Command: No switch found for Block {location}")
+#                     else:
+#                         print("Left panel switch_selector not found")
+#                 else:
+#                     print(f"Ignoring switch command for different line: {line} (we're on {test_data.current_line})")
+                
+#                 # Send acknowledgment back to CTC
+#                 if hasattr(test_data, 'server1'):
+#                     ack_message = {
+#                         "command": 'SW_ACK',
+#                         "value": {
+#                             "location" : location,
+#                             "line": line,
+#                             "status": 'processed',
+#                             "timestamp": timestamp
+#                         }
+#                     }
+#                     test_data.server1.send_to_ui('CTC', ack_message)
+#                     print(f"Sent SW_ACK to CTC for switch {location}")  
+            
+#         else:
+#             print(f"Unknown command: {command} with value: {value}")
+            
+#     except Exception as e:
+#         print(f"Error processing message: {e}")
+#         import traceback
+#         traceback.print_exc()
+
+def _process_message(data, connection=None, server_instance=None):
+    """Process incoming messages - SIMPLIFIED VERSION"""
     try:
+        # ============================================================
+        # STEP 1: PARSE THE MESSAGE
+        # ============================================================
         print(f"\n{'='*60}")
-        print(f"TRACK HW MAIN UI: Received message from CTC")
+        print(f"TRACK HW: Received message")
         print(f"Data type: {type(data)}")
         print(f"Data: {data}")
-
-        # Try to parse
-        try:
-
-            print(f"\n{'='*60}")
-            print(f"TRACK HW MAIN UI: Received message from CTC")
-            print(f"Data type: {type(data)}")
-            print(f"Data: {data}")
-
-        # 1. Handle connection test FIRST
-            if isinstance(data, str) and data.strip() == "CTC":
-                print("CTC connection test received - sending ACK")
-                add_to_message_log("CTC connection test received")
-                if connection:
-                    try:
-                        connection.sendall(b"CTC_ACK")
-                        print("Sent CTC_ACK response")
-                    except Exception as e:
-                        print(f"Error sending ACK: {e}")
-                return  # IMPORTANT: Stop processing here for connection tests
-
-            import json
-            message_data = json.loads(data)
-            print(f"Parsed: {message_data}")
-        
-        # Call your handler
-            if hasattr(test_data, 'handle_ctc_message'):
-                test_data.handle_ctc_message(message_data)
-        except:
-            print(f"Could not parse: {data}")
-    
         print(f"{'='*60}")
-        print(f"{'='*60}\n")
         
+        # Handle connection test
+        if isinstance(data, str) and data.strip() == "CTC":
+            print("CTC connection test - sending ACK")
+            if connection:
+                connection.sendall(b"CTC_ACK")
+            return
         
-        # 2. Parse message
-        message_data = None
+        # Parse JSON
         if isinstance(data, str):
-            try:
-                # Parse as JSON (your data IS valid JSON from CTC)
-                message_data = json.loads(data)
-                print(f"Parsed JSON data: {message_data}")
-                print(f"Raw data: {data}")
-                print(f"Parsed message_data: {message_data}")
-                print(f"Type of message_data: {type(message_data)}")
-            except json.JSONDecodeError:
-                # If not JSON, check if it's a Python dict string
-                try:
-                    import ast
-                    if data.startswith('{') and data.endswith('}'):
-                        message_data = ast.literal_eval(data)
-                        print(f"Parsed as Python dict: {message_data}")
-                    else:
-                        # Simple string commands
-                        message_data = {'message': data}
-                except:
-                    message_data = {'message': data}
+            message_data = json.loads(data)
         elif isinstance(data, dict):
             message_data = data
-            print(f"Data is already a dictionary: {data}")
         else:
             print(f"Unknown data type: {type(data)}")
             return
-      
-        # 3. Process command
+        
+        # Extract command and value
         command = message_data.get('command', '')
         value = message_data.get('value', '')
         
-        print(f"Processing command: {command}, value: {value}")
-
-        #########################################################################################
-                # After parsing speed and authority values:
-        print(f"Processing suggested update: {track} Block {block} -> Speed:{speed}, Auth:{authority}")
-
-        # CALL YOUR EXISTING FUNCTIONS
-        if hasattr(right_panel, 'update_suggested_speed'):
-            right_panel.update_suggested_speed(speed)
-            print(f"Called update_suggested_speed({speed})")
-
-        if hasattr(right_panel, 'update_suggested_authority'):
-            right_panel.update_suggested_authority(authority)
-            print(f"Called update_suggested_authority({authority})")
-
-        # Also select the block
-        if hasattr(right_panel, 'block_combo') and block:
-            right_panel.block_combo.set(str(block))
-            print(f"Selected block {block} in dropdown")
-
-        add_to_message_log(f"CTC Suggested: Block {block} - Speed: {speed:.3f} mph, Authority: {authority} blocks")
+        print(f"Command: {command}")
+        print(f"Value: {value}")
         
-        ############################################################################
+        # ============================================================
+        # STEP 2: ROUTE TO APPROPRIATE HANDLER
+        # ============================================================
         
-        if command == 'update_speed_auth':
-            # CALL THE EXISTING HANDLER IN UITestData
-            # Extract block from the value dictionary
-            block = value.get('block', '')
-            track = value.get('track', '')
-            speed_str = value.get('speed', '0')
-            authority_str = value.get('authority', '0')
-            value_type = value.get('value_type', 'suggested')
-            print(f"DEBUG: Calling test_data._handle_speed_auth_update with: {value}")
-            
-            # Check if test_data has the method
-            if hasattr(test_data, '_handle_speed_auth_update'):
-                test_data._handle_speed_auth_update(value)
-            elif hasattr(test_data, 'handle_ctc_message'):
-                test_data.handle_ctc_message(message_data)
-            else:
-                # Fallback: Update right panel directly
-                print(f"No handler found, updating right panel directly")
-                if isinstance(value, dict):
-                    track = value.get('track', '')
-                    speed_str = value.get('speed', '0')
-                    authority_str = value.get('authority', '0')
-                    
-                    try:
-                        speed = round(float(speed_str),2)
-                        if hasattr(right_panel, 'update_suggested_speed'):
-                            right_panel.update_suggested_speed(speed)
-                    except:
-                        speed = 0.0
-                        pass
-                    
-                    try:
-                        authority = int(authority_str)
-                        if hasattr(right_panel, 'update_suggested_authority'):
-                            right_panel.update_suggested_authority(authority)
-                    except:
-                        authority = 0
-                        pass
-                    
-                    add_to_message_log(f"CTC Update: Speed={speed_str}, Authority={authority_str}")
-        # =====================================================================
-        # HANDLE CTC MESSAGES
-        # =====================================================================        
-        elif command == 'ctc_suggestion':
-            # Handle speed suggestion
-            print(f"\n[{timestamp}] CTC Suggestion Received")
-            add_to_message_log(f"CTC Update: Speed={speed_str}, Authority={authority_str}")
-            handle_ctc_suggested_speed(value)
-
-        elif command == 'set_block_occupancy':
-            pass  # Add handling if needed
-        elif command == 'MAINT':
-                # Handle maintenance request from CTC
-                print("CTC Maintenance Request Received")
-                add_to_message_log("CTC: Maintenance Request Received")
-                
-                # Update maintenance LED
-                maint_led.config(bg="orange", text="MAINT REQ")
-                add_to_message_log("Maintenance Request LED activated")
-            
-        elif command == 'set_switch_position':
-            # Legacy switch command - redirect to SW command
-            print(f"Legacy set_switch_position command: {value}")
-            add_to_message_log(f"Switch position update: {value}")
-        elif command == "SW":
-            # Handle switch command from CTC - FOR TRACK HW
-            print(f"CTC SWITCH COMMAND received: {value}")
-        # =====================================================================
-        # HANDLE TRACK MODEL INCOMING MESSAGES
-        # =====================================================================
+        # CTC COMMANDS
+        if command == 'update_speed_auth' or command == 'ctc_suggestion':
+            handle_ctc_speed_authority(value)
         
+        elif command == 'MAINT' or command == 'SW':
+             handle_ctc_request(command, value)
+        
+        elif command == 'SW':
+            handle_ctc_request(value)
+        
+        # TRACK MODEL COMMANDS
         elif command == 'update_occupancy' or command == 'occupancy':
-            block = value.get('block', '')
-            track = value.get('track', test_data.current_line)
-            occupied = value.get('occupied', False)
-            
-            print(f"Track Model Occupancy Update: Block {block} on {track} -> {occupied}")
-            add_to_message_log(f"Track Model: Block {block} Occupancy = {occupied}")
-            
-            # Update block data
-            occupied_str = "Yes" if occupied else "No"
-            for idx, row in enumerate(test_data.block_data):
-                if str(row[2]) == str(block) and row[1] == track:
-                    test_data.block_data[idx][0] = occupied_str
-                    break
-            
-            # Send occupancy to CTC
-            if hasattr(test_data, 'send_occupancy'):
-                test_data.send_occupancy(track, block, occupied_str)
+            handle_track_model_occupancy(value)
         
         elif command == 'update_light' or command == 'light_state':
-            block = value.get('block', '')
-            track = value.get('track', test_data.current_line)
-            color = value.get('color', 'Green')
-            
-            print(f"Track Model Light Update: Block {block} on {track} -> {color}")
-            add_to_message_log(f"Track Model: Light {block} = {color}")
-            
-            # Update track_data
-            light_name = f"Light {block}"
-            if light_name in test_data.track_data.get("lights", {}):
-                test_data.track_data["lights"][light_name]["signal"] = color
-            
-            # Send light state to CTC
-            if hasattr(test_data, 'send_light_state'):
-                test_data.send_light_state(track, block, color)
+            handle_track_model_light(value)
         
         elif command == 'update_crossing' or command == 'crossing_state':
-            block = value.get('block', '')
-            track = value.get('track', test_data.current_line)
-            bar = value.get('bar', 'Open')
-            lights = value.get('lights', 'Off')
-            
-            print(f"Track Model Crossing Update: Block {block} on {track} -> Bar:{bar}")
-            add_to_message_log(f"Track Model: Crossing {block} Bar={bar}")
-            
-            # Update track_data
-            crossing_name = f"Railway Crossing: {block}"
-            if crossing_name in test_data.track_data.get("crossings", {}):
-                test_data.track_data["crossings"][crossing_name]["bar"] = bar
-                test_data.track_data["crossings"][crossing_name]["lights"] = lights
-            
-            # Send railway state to CTC
-            if hasattr(test_data, 'send_railway_state'):
-                test_data.send_railway_state(track, block, bar)
+            handle_track_model_crossing(value)
 
+        elif command == 'failure_modes':
+            handle_track_failures(value)
+
+        elif command == 'block_occupancy' or command == 'Block Occpancy':
+            handle_block_occupancy(value)
+        
+        else:
+            print(f"Unknown command: {command}")
+            add_to_message_log(f"Unknown command: {command}")
+        
+    except Exception as e:
+        print(f"ERROR processing message: {e}")
+        import traceback
+        traceback.print_exc()
+        add_to_message_log(f"ERROR: {e}")
+
+# ============================================================
+# HANDLER FUNCTIONS - ONE FOR EACH MESSAGE TYPE
+# ============================================================
+def handle_block_occupancy(value):
+    """
+    Handle block occupancy updates from Track Model.
+    Updates the occupancy display and forwards to CTC.
+    
+    Format from Track Model: {block_num: occupancy_value}
+    - occupancy_value = 0 means unoccupied
+    - occupancy_value = train_id means occupied by that train
+    """
+    try:
+        if not isinstance(value, dict):
+            print(f"Invalid occupancy format: {value}")
+            return
+        
+        print(f"\n{'='*60}")
+        print(f"BLOCK OCCUPANCY UPDATE")
+        print(f"{'='*60}")
+        
+        for block_num, occupancy in value.items():
+            # Convert to int if string
+            if isinstance(block_num, str):
+                block_num = int(block_num)
+            if isinstance(occupancy, str):
+                occupancy = int(occupancy)
+            
+            #  Update PLC controller's occupancy cache
+            if hasattr(plc_manager, 'controller'):
+                plc_manager.controller.update_occupancy_from_track_model(value)
+            
+            # Update local data
+            if hasattr(test_data, 'block_occupancy'):
+                if not isinstance(test_data.block_occupancy, dict):
+                    test_data.block_occupancy = {}
+                test_data.block_occupancy[block_num] = occupancy
+            
+            # Log the update
+            if occupancy == 0:
+                status = "UNOCCUPIED"
+                print(f"  Block {block_num}: {status}")
+            else:
+                status = f"OCCUPIED (Train {occupancy})"
+                print(f"  Block {block_num}: {status}")
+        
+        print(f"{'='*60}\n")
+        
+        # Update occupancy display if it exists
+        if hasattr(right_panel, 'update_occupancy_display'):
+            right_panel.update_occupancy_display()
+        
+        # Forward to CTC
+        if hasattr(test_data, 'server1'):
+            for block_num, occupancy in value.items():
+                test_data.server1.send_to_ui('CTC', {
+                    'command': 'block_occupancy',
+                    'value': {
+                        'block': str(block_num),
+                        'occupied': occupancy != 0,
+                        'train_id': occupancy if occupancy != 0 else None
+                    }
+                })
+        
+        # Log to message log
+        occupied_blocks = [b for b, occ in value.items() if occ != 0]
+        if occupied_blocks:
+            add_to_message_log(f"Occupancy Update: {len(occupied_blocks)} blocks occupied")
+        
+    except Exception as e:
+        print(f"Error handling block occupancy: {e}")
+        import traceback
+        traceback.print_exc()
+
+def handle_ctc_speed_authority(value):
+    """Handle speed and authority from CTC"""
+    try:
+        if not isinstance(value, dict):
+            print(f"Invalid value format: {value}")
+            return
+        
+        # Extract values
+        track = value.get('track', '').strip()
+        block = value.get('block', '').strip()
+        speed_str = value.get('speed', '0').strip()
+        authority_str = value.get('authority', '0').strip()
+        
+        # Validate line
+        if track.lower() != test_data.current_line.lower():
+            print(f"⊘ Ignoring {track} Line (currently on {test_data.current_line})")
+            return
+        
+        # Convert to numbers
+        try:
+            speed = float(speed_str)
+            authority = int(authority_str)
+        except ValueError as e:
+            print(f"Conversion error: {e}")
+            return
+        
+        # Log to terminal
+        print(f"\n{'='*60}")
+        print(f"CTC SPEED & AUTHORITY RECEIVED")
+        print(f"{'='*60}")
+        print(f"  Track: {track}")
+        print(f"  Block: {block}")
+        print(f"  Speed: {speed:.2f} mph")
+        print(f"  Authority: {authority} blocks")
+        print(f"{'='*60}\n")
+        
+        # Log to message log
+        add_to_message_log(f"CTC: Block {block} → Speed: {speed:.2f} mph, Authority: {authority} blocks")
+# ============================================================
+# UPDATE UI - UPDATE DISPLAY
+# ============================================================
+        # Update UI
+        if 'right_panel' in globals() and right_panel:
+            current_line = test_data.current_line
+            # Store values
+            # Ensure the line key exists in dictionaries
+        if current_line not in right_panel.suggested_speed:
+            right_panel.suggested_speed[current_line] = {}
+        if current_line not in right_panel.suggested_authority:
+            right_panel.suggested_authority[current_line] = {}
+
+        right_panel.suggested_speed[current_line][block] = speed     
+        right_panel.suggested_authority[current_line][block] = authority
+
+        print(f"Stored values for {current_line} Line, Block {block}")
+    
+    # Select the block in dropdown
+        if hasattr(right_panel, 'block_combo') and block:
+            right_panel.block_combo.set(str(block))
+            print(f"Selected block {block}")
+    
+    # Update display labels
+        if hasattr(right_panel, 'suggested_speed_label'):
+            right_panel.suggested_speed_label.config(text=f"{speed:.2f} mph")
+            print(f"Speed label updated: {speed:.2f} mph")
+    
+        if hasattr(right_panel, 'suggested_auth_label'):
+            right_panel.suggested_auth_label.config(text=f"{authority} blocks")
+            print(f"Authority label updated: {authority} blocks")
+    
+    # Refresh displays
+        if hasattr(right_panel, 'update_current_block_info'):
+            right_panel.update_current_block_info()
+            print(f"Block info refreshed")
+    
+        if hasattr(right_panel, 'update_suggested_display'):
+            right_panel.update_suggested_display()
+            print(f"Suggested display refreshed")
+    
+        print(f"UI update complete\n")
+        
+    except Exception as e:
+        print(f"Error in handle_ctc_speed_authority: {e}")
+        import traceback
+        traceback.print_exc()
+        add_to_message_log(f"ERROR handling CTC speed/authority: {e}")
+
+
+def handle_ctc_request(command, value):
+    """Handle any CTC request - just log it"""
+    try:
+        # Log to terminal
+        print(f"\n{'='*60}")
+        print(f"CTC {command.upper()} REQUEST RECEIVED")
+        print(f"{'='*60}")
+        print(f"  Value: {value}")
+        print(f"{'='*60}\n")
+        
+        # Create appropriate message based on command type
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        if command == 'MAINT':
+            log_msg = f"{timestamp} CTC REQUEST: Maintenance Mode"
+            ui_msg = "CTC: Maintenance Request Received"
+            # Optional: Update maintenance LED
+            if 'maint_led' in globals():
+                maint_led.config(bg="orange", text="MAINT REQ")
+        
+        elif command == 'SW':
             if isinstance(value, list) and len(value) >= 2:
                 location = str(value[0])
                 line = value[1]
-                
-                # Log the switch command
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                log_message = f"{timestamp} CTC REQUEST: Toggle Switch {location} on {line} track"
-                message_logger.log(log_message, "WARNING")
-                # Also use the old function for compatibility
-                add_to_message_log(f"CTC Switch Command: Block {location} on {line} Line")
-                
-                # Update the left panel switch display if it matches current line
-                if line.lower() == test_data.current_line.lower():
-                    print(f"Updating switch for current line: {line}")
-                    
-                    # Find and update the appropriate switch in left panel
-                    if hasattr(left_panel, 'switch_selector'):
-                        # Try to find a switch that includes this block
-                        found_switch = None
-                        for switch_name in test_data.track_data.get("switches", {}):
-                            # Check if location is part of the switch name
-                            if location in switch_name:
-                                found_switch = switch_name
-                                break
-                            # Check if location matches numbers in switch name
-                            import re
-                            numbers = re.findall(r'\d+', switch_name)
-                            if location in numbers:
-                                found_switch = switch_name
-                                break
-                        
-                        if found_switch:
-                            print(f"Found matching switch: {found_switch}")
-                            
-                            # Update the switch selector
-                            left_panel.switch_selector.set(found_switch)
-                            left_panel.update_switch_display()
-                            
-                            # Toggle the switch direction
-                            current_direction = test_data.track_data["switches"][found_switch]["direction"]
-                            
-                            # Determine new direction (toggle between two positions)
-                            # This depends on your switch logic - here's an example:
-                            if "Blocks" in current_direction:
-                                # Extract block numbers
-                                import re
-                                blocks = re.findall(r'\d+', current_direction)
-                                if len(blocks) >= 2:
-                                    # Toggle the direction (swap blocks or change pattern)
-                                    # Example: If current is "Blocks 12-13", change to "Blocks 12-1"
-                                    # You'll need to customize this based on your actual switch logic
-                                    if "12-13" in current_direction:
-                                        new_direction = "Blocks 12-1"
-                                    elif "28-29" in current_direction:
-                                        new_direction = "Blocks 28-150"  # Example toggle
-                                    else:
-                                        # Default toggle - swap the two numbers
-                                        new_direction = f"Blocks {blocks[1]}-{blocks[0]}"
-                                    
-                                    # Update the direction
-                                    test_data.track_data["switches"][found_switch]["direction"] = new_direction
-                                    left_panel.switch_direction.set(new_direction)
-                                    
-                                    # Log the change
-                                    message_logger.log(f"Switch {found_switch}: Direction changed to {new_direction} by CTC")
-                            
-                            add_to_message_log(f"CTC Switch Command: Updated {found_switch} for Block {location}")
-                        else:
-                            print(f"No matching switch found for block {location}")
-                            add_to_message_log(f"CTC Switch Command: No switch found for Block {location}")
-                    else:
-                        print("Left panel switch_selector not found")
-                else:
-                    print(f"Ignoring switch command for different line: {line} (we're on {test_data.current_line})")
-                
-                # Send acknowledgment back to CTC
-                if hasattr(test_data, 'server1'):
-                    ack_message = {
-                        "command": 'SW_ACK',
-                        "value": {
-                            "location" : location,
-                            "line": line,
-                            "status": 'processed',
-                            "timestamp": timestamp
-                        }
-                    }
-                    test_data.server1.send_to_ui('CTC', ack_message)
-                    print(f"Sent SW_ACK to CTC for switch {location}")  
-            
+                log_msg = f"{timestamp} CTC REQUEST: Toggle Switch {location} on {line} track"
+                ui_msg = f"CTC Switch Request: Block {location} on {line} Line"
+            else:
+                log_msg = f"{timestamp} CTC REQUEST: Switch command"
+                ui_msg = f"CTC: Switch Request"
+        
         else:
-            print(f"Unknown command: {command} with value: {value}")
-            
+            log_msg = f"{timestamp} CTC REQUEST: {command}"
+            ui_msg = f"CTC: {command} Request"
+        
+        # Log to message logger and message log
+        message_logger.log(log_msg, "WARNING")
+        add_to_message_log(ui_msg)
+        
+        print(f"Request logged\n")
+        
     except Exception as e:
-        print(f"Error processing message: {e}")
-        import traceback
-        traceback.print_exc()
-    # Store as simple attributes
-    right_panel.update_suggested_speed = speed
-    right_panel.update_suggested_authority = authority
+        print(f"Error logging CTC request: {e}")
+        add_to_message_log(f"ERROR: {e}")
+
+
+def handle_track_model_occupancy(value):
+    """Handle occupancy update from Track Model"""
+    try:
+        block = value.get('block', '')
+        track = value.get('track', test_data.current_line)
+        occupied = value.get('occupied', False)
+        
+        print(f"\n TRACK MODEL OCCUPANCY")
+        print(f"  Block {block} on {track}: {occupied}")
+        
+        add_to_message_log(f"Track Model: Block {block} Occupancy = {occupied}")
+        
+        # Update block data
+        occupied_str = "Yes" if occupied else "No"
+        for idx, row in enumerate(test_data.block_data):
+            if str(row[2]) == str(block) and row[1] == track:
+                test_data.block_data[idx][0] = occupied_str
+                break
+        
+    except Exception as e:
+        print(f"Error in handle_track_model_occupancy: {e}")
+
+
+def handle_track_model_light(value):
+    """Handle light state update from Track Model"""
+    try:
+        block = value.get('block', '')
+        track = value.get('track', test_data.current_line)
+        color = value.get('color', 'Green')
+        
+        print(f"\n TRACK MODEL LIGHT")
+        print(f"  Block {block} on {track}: {color}")
+        
+        add_to_message_log(f"Track Model: Light {block} = {color}")
+        
+        # Update track_data
+        light_name = f"Light {block}"
+        if light_name in test_data.track_data.get("lights", {}):
+            test_data.track_data["lights"][light_name]["signal"] = color
+        
+    except Exception as e:
+        print(f"Error in handle_track_model_light: {e}")
+
+
+def handle_track_model_crossing(value):
+    """Handle crossing state update from Track Model"""
+    try:
+        block = value.get('block', '')
+        track = value.get('track', test_data.current_line)
+        bar = value.get('bar', 'Open')
+        
+        print(f"\n TRACK MODEL CROSSING")
+        print(f"  Block {block} on {track}: Bar {bar}")
+        
+        add_to_message_log(f"Track Model: Crossing {block} Bar={bar}")
+        
+        # Update track_data
+        crossing_name = f"Railway Crossing: {block}"
+        if crossing_name in test_data.track_data.get("crossings", {}):
+            test_data.track_data["crossings"][crossing_name]["bar"] = bar
+        
+    except Exception as e:
+        print(f"Error in handle_track_model_crossing: {e}")
+    
+    # # Store as simple attributes
+    # right_panel.update_suggested_speed = speed
+    # right_panel.update_suggested_authority = authority
 
     # Update display
     right_panel.update_suggested_display()
@@ -462,11 +863,12 @@ def handle_ctc_suggested_speed(speed_data):
     
         # Format to 3 decimal places if conversion was successful
         if suggested_speed is not None:
+            formatted_speed = round(suggested_speed, 3)
             speed_mps = suggested_speed
             speed = speed_mps * 2.23694
             # Log with conversion info
             add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.2f} mph ({speed_mps:.2f} m/s)")
-            formatted_speed = round(suggested_speed, 3)
+            # formatted_speed = round(suggested_speed, 3)
             add_to_message_log(f"CTC Suggested Speed Received: {formatted_speed:.2f} mph")
             # Message log
             message_logger.log(add_to_message_log, "INFO")
@@ -474,6 +876,12 @@ def handle_ctc_suggested_speed(speed_data):
             # Update display
             update_suggested_speed_display(formatted_speed)
             update_suggested_speed_display(formatted_speed)
+
+            # CRITICAL FIX: Trigger UI refresh
+            if 'right_panel' in globals() and hasattr(right_panel, 'update_suggested_display'):
+                right_panel.update_suggested_display()
+                print("DEBUG: UI refreshed after CTC speed update")
+
             return formatted_speed
         else:
             add_to_message_log("ERROR: Could not extract speed from CTC message")
@@ -495,6 +903,7 @@ class UITestData:
         self.on_line_change = []
         self.on_block_change = []
         self.block_sections = {}
+        self.block_occupancy = {}
         # Current line
         self.current_line = "Green"
 
@@ -645,7 +1054,14 @@ class UITestData:
             red_sections = self.red_sections # use class attribute
 
             # Combine sections for lookup
-            all_sections = {**green_sections, **red_sections}
+            # all_sections = {**green_sections, **red_sections}
+            # Determine which sections to use based on filename
+            if "green" in filename.lower():
+                section_map = self.green_sections
+                current_line = "Green"
+            else:  # Red line
+                section_map = self.red_sections
+                current_line = "Red"
 
             # print(f"SUCCESS: Read {len(lines)} lines from {filename}")
             start_line = 0
@@ -754,9 +1170,18 @@ class UITestData:
                 emergency_data.append([occupied, "Green", block_num, section])
     
         else:  # Red line
-            # Red Line: Sections J-N and Yard to F
+            # Red Line: Full sections from Yard to N
             sections = {
-            # J-N sections
+            # Yard to F sections (1-23)
+            "1": "Yard", "2": "Yard", "3": "Yard",
+            "4": "A", "5": "A", "6": "A",
+            "7": "B", "8": "B", "9": "B",
+            "10": "C", "11": "C", "12": "C",
+            "13": "D", "14": "D", "15": "D",
+            "16": "E", "17": "E", "18": "E", "19": "E", "20": "E",
+            "21": "F", "22": "F", "23": "F",
+            
+            # J-N sections (74-149)
             "74": "M", "75": "M", "76": "M",
             "77": "N", "78": "N", "79": "N", "80": "N", "81": "N", "82": "N", "83": "N", "84": "N", "85": "N",
             "86": "O", "87": "O", "88": "O",
@@ -771,20 +1196,13 @@ class UITestData:
             "129": "W", "130": "W", "131": "W", "132": "W", "133": "W", "134": "W", "135": "W",
             "136": "W", "137": "W", "138": "W", "139": "W", "140": "W", "141": "W", "142": "W", "143": "W",
             "144": "X", "145": "X", "146": "X",
-            "147": "Y", "148": "Y", "149": "Y",
-            # Yard to F sections
-            "1": "Yard", "2": "Yard", "3": "Yard",
-            "4": "A", "5": "A", "6": "A",
-            "7": "B", "8": "B", "9": "B",
-            "10": "C", "11": "C", "12": "C",
-            "13": "D", "14": "D", "15": "D",
-            "16": "E", "17": "E", "18": "E", "19": "E", "20": "E",
-            "21": "F", "22": "F", "23": "F"
-            }
+            "147": "Y", "148": "Y", "149": "Y"
+        }
         
-            for block_num, section in sections.items():
-                occupied = "Yes" if int(block_num) % 4 == 0 else "No"
-                emergency_data.append([occupied, "Red", block_num, section])
+        for block_num, section in sections.items():
+            occupied = "Yes" if int(block_num) % 4 == 0 else "No"
+            emergency_data.append([occupied, "Red", block_num, section])
+    
         print(f"Created {len(emergency_data)} emergency rows")
         return emergency_data
 
@@ -941,9 +1359,10 @@ class UITestData:
             elif command == 'set_block_occupancy':
                 # Handle block occupancy
                 self._handle_block_occupancy(value)
+            elif command == 'failure_modes':
+                self.handle_track_failures(value)
                 
             # Add other commands as needed
-                
         except Exception as e:
             add_to_message_log(f"ERROR handling CTC message: {e}")
     
@@ -982,35 +1401,48 @@ class UITestData:
                 if hasattr(right_panel, 'update_suggested_authority'):
                     right_panel.update_suggested_authority(authority)
             
-            # Log update (below currently)
-                # add_to_message_log(f"CTC Update: Speed={speed:.2f} mph, Authority={authority} blocks")
-
-            ####################################################################################################################
-            # 12/8 -- UPDATING WITH CTC SUGGESTED SPEED AND AUTHORITY 
-                #  After parsing the message and getting the values:
-            if track.lower() == test_data.current_line.lower():
-                # Convert values
-                speed = round(float(speed_str), 3)
-                authority = int(authority_str)
+                print(f"Updating display for block {block}: Speed={speed}, Auth={authority}")
                 
-            print(f"Updating display for block {block}: Speed={speed}, Auth={authority}")
-            
-            # DIRECT UPDATE - This is the key fix:
-            if hasattr(right_panel, 'suggested_speed_label'):
-                right_panel.suggested_speed_label.config(text=f"{speed:.3f} mph")
-                print(f"Updated speed label to: {speed:.3f} mph")
-            
-            if hasattr(right_panel, 'suggested_auth_label'):
-                right_panel.suggested_auth_label.config(text=f"{authority} blocks")
-                print(f"Updated authority label to: {authority} blocks")
-            
-            # Also update the block selector to show block 63
-            if hasattr(right_panel, 'block_combo') and block:
-                right_panel.block_combo.set(block)
+                # DIRECT UPDATE - This is the key fix:
+                if 'right_panel' in globals() and hasattr(right_panel, 'suggested_speed_label'):
+                    right_panel.suggested_speed_label.config(text=f"{speed:.3f} mph")
+                    print(f"Updated speed label to: {speed:.3f} mph")
+                
+                if 'right_panel' in globals() and hasattr(right_panel, 'suggested_auth_label'):
+                    right_panel.suggested_auth_label.config(text=f"{authority} blocks")
+                    print(f"Updated authority label to: {authority} blocks")
+                
+                # Also update the block selector
+                if 'right_panel' in globals() and hasattr(right_panel, 'block_combo') and block:
+                    right_panel.block_combo.set(block)
 
-            add_to_message_log(f"CTC: Block {block} - Speed: {speed:.3f} mph, Authority: {authority} blocks")
+                # CRITICAL: Also call the update methods
+                if 'right_panel' in globals():
+                    if hasattr(right_panel, 'update_suggested_speed'):
+                        right_panel.update_suggested_speed(speed)
+                    if hasattr(right_panel, 'update_suggested_authority'):
+                        right_panel.update_suggested_authority(authority)
+                    
+                    # CRITICAL FIX: Trigger UI refresh
+                    if hasattr(right_panel, 'update_suggested_display'):
+                        right_panel.update_suggested_display()
+                        print("DEBUG: UI refreshed via update_suggested_display()")
+                    
+                    # Also refresh current block info
+                    if hasattr(right_panel, 'update_current_block_info'):
+                        right_panel.update_current_block_info()
+
+                add_to_message_log(f"CTC: Block {block} - Speed: {speed:.3f} mph, Authority: {authority} blocks")
+                
+                # Store in data structures for persistence
+                if track in self.suggested_speed:
+                    self.suggested_speed[track][block] = speed
+                if track in self.suggested_authority:
+                    self.suggested_authority[track][block] = authority
+
+            # add_to_message_log(f"CTC: Block {block} - Speed: {speed:.2f} mph, Authority: {authority} blocks")
             # Add to message log in the format you want
-            message_logger.log(f"CTC SUGGESTION: Block {block} on {track} - Authority: {authority} blocks, Speed: {speed:.1f} mph", "INFO")
+            message_logger.log(f"CTC SUGGESTION: Block {block} on {track} - Authority: {authority} blocks, Speed: {speed:.2f} mph", "INFO")
         except Exception as e:
             print(f"Error handling speed/auth update: {e}")
             add_to_message_log(f"ERROR processing CTC update: {e}")
@@ -1281,13 +1713,118 @@ class UITestData:
                     }
                 }
                 self.server1.send_to_ui('CTC', ack_message)
-          ####################################################################################################################
+
         except Exception as e:
             error_msg = f"Error processing CTC maintenance command: {e}"
-            print(f"✗ {error_msg}")
+            print(f"{error_msg}")
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             add_to_message_log(f"{current_time} ERROR: Failed to process CTC maintenance request")
 
+    def handle_track_failures(value):
+        """ Handle track failure notifications from Track Model.
+        Forwards failures to CTC in the expected format.
+    
+        Expected format from Track Model:
+        {
+            'track_circuit_failures': [block_nums],
+            'broken_rail_failures': [block_nums],
+            'power_failures': [block_nums]
+        }
+        """
+        try:
+        # Extract failure arrays
+            track_circuit_failures = value.get('track_circuit_failures', [])
+            broken_rail_failures = value.get('broken_rail_failures', [])
+            power_failures = value.get('power_failures', [])
+            #  Combine all failures into one list
+            all_failed_blocks = set(track_circuit_failures + broken_rail_failures + power_failures)
+        # Log to terminal
+            print(f"\n{'='*60}")
+            print(f" TRACK FAILURES RECEIVED FROM TRACK MODEL")
+            print(f"{'='*60}")
+        
+            if track_circuit_failures:
+                print(f" Track Circuit Failures: {track_circuit_failures}")
+            if broken_rail_failures:
+                print(f" Broken Rail Failures: {broken_rail_failures}")
+            if power_failures:
+                print(f" Power Failures: {power_failures}")
+        
+            if not (track_circuit_failures or broken_rail_failures or power_failures):
+                print(f" All failures cleared")
+        
+            print(f"{'='*60}\n")
+        
+        # ============================================================
+        # UPDATE OCCUPANCY DISPLAY - Mark failed blocks as "No"
+        # ============================================================
+            for block_num in all_failed_blocks:
+            # Update test_data.block_data to show "No" (unavailable)
+                for i, row in enumerate(test_data.block_data):
+                    if str(row[2]) == str(block_num) and row[1] == 'Green':
+                        old_value = row[0]
+                        test_data.block_data[i][0] = "No"  # Mark as unavailable
+                    
+                        if old_value != "No":
+                            print(f"  ⚠️  Block {block_num}: Marked UNAVAILABLE (failure)")
+                            add_to_message_log(f"Block {block_num}: FAILURE - Unavailable")
+                        break
+        
+        # Clear failures - restore blocks that are no longer failed
+            if not all_failed_blocks:
+
+            # When all failures cleared, you might want to restore occupancy
+            # This depends on whether trains are actually on those blocks
+                print(f" Note: Occupancy will be restored by next Track Model update")
+        # ============================================================
+        # STORE FAILURES FOR PLC SAFETY CHECKS
+        # ============================================================
+            if not hasattr(test_data, 'active_failures'):
+                test_data.active_failures = set()
+        
+        # Update active failures set
+            test_data.active_failures = all_failed_blocks
+        
+        # Update PLC controller if it exists
+            if hasattr(plc_manager, 'controller'):
+                plc_manager.controller.active_failures = all_failed_blocks
+         ################# 
+         #  FORWARD to CTC       
+        # CTC expects: {'command': 'track_failures', 'value': {failure_dict}}
+            ctc_message = {
+                'command': 'track_failures',
+                'value': {
+                    'track_circuit_failures': track_circuit_failures,
+                    'broken_rail_failures': broken_rail_failures,
+                    'power_failures': power_failures
+                }
+            }
+        
+        # Send to CTC
+            if hasattr(test_data, 'server1'):
+                test_data.server1.send_to_ui('CTC', ctc_message)
+                print(f"Forwarded track failures to CTC")
+        ###############################
+        ###############################
+        #----------------------------
+        # Log to message log
+        #-------------------------
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            total_failures = len(track_circuit_failures) + len(broken_rail_failures) + len(power_failures)
+        
+            if total_failures > 0:
+                message_logger.log(f"{timestamp} TRACK FAILURES: {total_failures} blocks affected", "ERROR")
+                add_to_message_log(f"Track Failures: {total_failures} blocks affected")
+            else:
+                message_logger.log(f"{timestamp} TRACK FAILURES: All cleared", "INFO")
+                add_to_message_log("Track Failures: All cleared")
+        
+        except Exception as e:
+            print(f"Error handling track failures: {e}")
+            import traceback
+            traceback.print_exc()
+          ####################################################################################################################
+        
 
         #             value_type = data.get('value_type', 'suggested').strip()
                 
@@ -1629,10 +2166,13 @@ def load_line_data(self, filename):
                     "Railway Crossing: 19": {"condition": "Normal", "lights": "Red", "bar": "Closed"}
                 },
                 "switches": {
-                    "Switch 12-13": {"condition": "Normal", "direction": "Blocks 12-13 (C-D)"},
-                    "Switch 1-13": {"condition": "Normal", "direction": "Blocks 1-13 (D-A)"},
-                    "Switch 28-29": {"condition": "Normal", "direction": "Blocks 28-29(F-G)"},
-                    "Switch 150-28": {"condition": "Normal", "direction": "Blocks 150-28(F-Z)"}
+                    "Switch 9-10": {"condition": "Normal", "direction": "Blocks 9-10"},
+                    "Switch 15-16": {"condition": "Normal", "direction": "Blocks 15-16"},
+                    "Switch 27-28": {"condition": "Normal", "direction": "Blocks 27-28"},
+                    "Switch 32-33": {"condition": "Normal", "direction": "Blocks 32-33"},
+                    "Switch 38-39": {"condition": "Normal", "direction": "Blocks 38-39"},
+                    "Switch 43-44": {"condition": "Normal", "direction": "Blocks 43-44"},
+                    "Switch 52-53": {"condition": "Normal", "direction": "Blocks 52-53"}
                 },
                 "lights": {
                     "Light 9": {"condition": "Normal", "signal": "Green"},
@@ -1859,22 +2399,353 @@ add_to_message_log("INFO: UI initialized.")
 add_to_message_log("INFO: Map display loaded.")
 add_to_message_log("INFO: Control panels ready.")
 ###########################################################################################
+
+class EmbeddedPLCController:
+    """
+    PLC Controller for Track Hardware - Green Line Sections A-J and Z
+    Embedded directly in Track_HW - no external file needed
+    """
+    def __init__(self, log_callback=None):
+        self.log = log_callback if log_callback else print
+        self.test_data = None
+        self.track = "Green"
+        
+        # Block definitions - Sections A through K and Z
+        self.sections = {
+            'A': [1, 2, 3],
+            'B': [4, 5, 6],
+            'C': [7, 8, 9, 10, 11, 12],
+            'D': [13, 14, 15, 16],
+            'E': [17, 18, 19, 20],
+            'F': [21, 22, 23, 24, 25, 26, 27, 28],
+            'G': [29, 30, 31, 32],
+            'H': [33, 34, 35],
+            'I': [36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57],
+            'J': [58, 59, 60, 61, 62],
+            'K': [63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73],
+            'Z': [150]
+        }
+
+        # All blocks in scope
+        self.all_blocks = []
+        for section_blocks in self.sections.values():
+            self.all_blocks.extend(section_blocks)
+        
+        # Switch info
+        self.switch_info = {
+            12: {'name': 'Switch 12-13', 'positions': ['Section D → A', 'Section D → C'], 'connects': [13, 1]},
+            28: {'name': 'Switch 28-29', 'positions': ['Section F → G', 'Section Z → F'], 'connects': [29, 150]},
+            57: {'name': 'Switch 57-Yard', 'positions': ['Section I → Yard', 'Section Yard → I'], 'connects': [58, 'Yard']},
+            62: {'name': 'Switch 62-Yard', 'positions': ['Section Yard → K', 'Section K → Yard'], 'connects': [63, 'Yard']}
+        }
+        
+        # Light info
+        self.light_info = {
+            1: {'name': 'Light 1', 'section': 'A'},
+            13: {'name': 'Light 13', 'section': 'D'},
+            19: {'name': 'Light 19', 'section': 'E'},
+            28: {'name': 'Light 28', 'section': 'F'},
+            57: {'name': 'Light 57', 'section': 'I'}
+        }
+        
+        # Crossing info
+        self.crossing_info = {
+            19: {'name': 'Railway Crossing: 19', 'section': 'E'}
+        }
+        
+        # Terminal output for init
+        print("[PLC] Controller initialized for Green Line Sections A-K, Z")
+        print(f"[PLC] Monitoring {len(self.all_blocks)} blocks")
+
+ # -------------------------------------------------------------------------
+    # INPUT READERS
+    # -------------------------------------------------------------------------
+    def get_block_occupancy(self, block):
+        if not self.test_data:
+            print(f"[PLC DEBUG] get_block_occupancy: test_data is None")
+            return False
+        for row in self.test_data.block_data:
+            if str(row[2]) == str(block) and row[1] == self.track:
+                return row[0] == "Yes"
+        return False
+    
+    def get_block_fault(self, block):
+        if not self.test_data:
+            print(f"[PLC DEBUG] get_block_fault: test_data is None")
+            return False
+        track_data = self.test_data.track_data
+        
+        if block in self.switch_info:
+            switch_name = self.switch_info[block]['name']
+            if switch_name in track_data.get("switches", {}):
+                return track_data["switches"][switch_name].get("fault", False)
+        
+        if block in self.light_info:
+            light_name = self.light_info[block]['name']
+            if light_name in track_data.get("lights", {}):
+                return track_data["lights"][light_name].get("fault", False)
+        
+        if block in self.crossing_info:
+            crossing_name = self.crossing_info[block]['name']
+            if crossing_name in track_data.get("crossings", {}):
+                return track_data["crossings"][crossing_name].get("fault", False)
+        return False
+    
+    def get_switch_position(self, block):
+        if not self.test_data or block not in self.switch_info:
+            return 0
+        switch_name = self.switch_info[block]['name']
+        track_data = self.test_data.track_data
+        if switch_name in track_data.get("switches", {}):
+            return track_data["switches"][switch_name].get("numeric_position", 0)
+        return 0
+    
+    def get_light_state(self, block):
+        if not self.test_data or block not in self.light_info:
+            return 'Green'
+        light_name = self.light_info[block]['name']
+        track_data = self.test_data.track_data
+        if light_name in track_data.get("lights", {}):
+            return track_data["lights"][light_name].get("signal", "Green")
+        return 'Green'
+    
+    def get_crossing_state(self, block):
+        if not self.test_data or block not in self.crossing_info:
+            return 'Inactive'
+        crossing_name = self.crossing_info[block]['name']
+        track_data = self.test_data.track_data
+        if crossing_name in track_data.get("crossings", {}):
+            bar = track_data["crossings"][crossing_name].get("bar", "Open")
+            return 'Active' if bar == 'Closed' else 'Inactive'
+        return 'Inactive'
+
+    # -------------------------------------------------------------------------
+    # OUTPUT WRITERS
+    # -------------------------------------------------------------------------
+    def set_light_state(self, block, state):
+        if not self.test_data or block not in self.light_info:
+            print(f"[PLC DEBUG] set_light_state: invalid block {block} or no test_data")
+            return
+        light_name = self.light_info[block]['name']
+        track_data = self.test_data.track_data
+        
+        if "lights" not in track_data:
+            track_data["lights"] = {}
+        if light_name not in track_data["lights"]:
+            track_data["lights"][light_name] = {"condition": "Normal", "signal": "Green", "fault": False}
+        
+        old_state = track_data["lights"][light_name].get("signal", "Green")
+        track_data["lights"][light_name]["signal"] = state
+        
+        if old_state != state:
+            self.log(f"Light {block}: {old_state} -> {state}")
+        
+        if hasattr(self.test_data, 'send_light_state'):
+            print(f"[PLC] Sending light state: Block {block} = {state}")
+            self.test_data.send_light_state(self.track, str(block), state)
+        else:
+            print(f"[PLC DEBUG] test_data missing send_light_state method")
+    
+    def set_switch_position(self, block, position):
+        print(f"[PLC DEBUG] set_switch_position: invalid block {block} or no test_data")
+        if not self.test_data or block not in self.switch_info:
+            return False
+        if not self.check_switch_safety(block):
+            return False
+        
+        switch_name = self.switch_info[block]['name']
+        positions = self.switch_info[block]['positions']
+        direction = positions[position] if position < len(positions) else positions[0]
+        track_data = self.test_data.track_data
+        
+        if "switches" not in track_data:
+            track_data["switches"] = {}
+        if switch_name not in track_data["switches"]:
+            track_data["switches"][switch_name] = {"condition": "Normal", "direction": positions[0], "numeric_position": 0, "fault": False}
+        
+        old_position = track_data["switches"][switch_name].get("numeric_position", 0)
+        old_direction = positions[old_position] if old_position < len(positions) else positions[0]
+        
+        track_data["switches"][switch_name]["direction"] = direction
+        track_data["switches"][switch_name]["numeric_position"] = position
+        
+        if old_position != position:
+            self.log(f"Switch {block}: {old_direction} -> {direction}")
+        
+        # Check hasattr and send - debug to terminal
+        if hasattr(self.test_data, 'send_switch_to_track_model'):
+            print(f"[PLC] Sending switch state: Block {block} = {direction}")
+            self.test_data.send_switch_to_track_model(self.track, str(block), direction)
+        else:
+            print(f"[PLC DEBUG] test_data missing send_switch_to_track_model method")
+        return True
+    
+    def set_crossing_state(self, block, state):
+        if not self.test_data or block not in self.crossing_info:
+            print(f"[PLC DEBUG] set_crossing_state: invalid block {block} or no test_data")
+            return
+        crossing_name = self.crossing_info[block]['name']
+        bar = 'Closed' if state == 'Active' else 'Open'
+        lights = 'On' if state == 'Active' else 'Off'
+        track_data = self.test_data.track_data
+        
+        if "crossings" not in track_data:
+            track_data["crossings"] = {}
+        if crossing_name not in track_data["crossings"]:
+            track_data["crossings"][crossing_name] = {"condition": "Normal", "bar": "Open", "lights": "Off", "fault": False}
+        
+        old_bar = track_data["crossings"][crossing_name].get("bar", "Open")
+        track_data["crossings"][crossing_name]["bar"] = bar
+        track_data["crossings"][crossing_name]["lights"] = lights
+        
+        if old_bar != bar:
+            self.log(f"Railway Crossing {block}: Bar {bar.upper()}")
+        
+        # Check hasattr and send - debug to terminal
+        if hasattr(self.test_data, 'send_railway_state'):
+            print(f"[PLC] Sending crossing state: Block {block} = Bar {bar}")
+            self.test_data.send_railway_state(self.track, str(block), bar)
+        else:
+            print(f"[PLC DEBUG] test_data missing send_railway_state method")
+
+    # -------------------------------------------------------------------------
+    # SAFETY LOGIC
+    # -------------------------------------------------------------------------
+    def check_switch_safety(self, block):
+        if self.get_block_occupancy(block):
+            self.log(f"SAFETY: Cannot change switch {block} - block OCCUPIED")
+            return False
+        if self.get_block_fault(block):
+            self.log(f"SAFETY: Cannot change switch {block} - FAULT detected")
+            return False
+        if block in self.switch_info:
+            connects = self.switch_info[block].get('connects', [])
+            for connected in connects:
+                if isinstance(connected, int) and self.get_block_occupancy(connected):
+                    self.log(f"SAFETY: Cannot change switch {block} - train approaching from block {connected}")
+                    return False
+        return True
+
+    # -------------------------------------------------------------------------
+    # CONTROL LOGIC
+    # -------------------------------------------------------------------------
+    def calculate_light_state(self, block):
+        if self.get_block_fault(block):
+            return 'Red'
+        if self.get_block_occupancy(block):
+            return 'Red'
+        
+        blocks_ahead_map = {
+            1: [2, 3, 4],
+            13: [14, 15, 16, 17],
+            19: [20, 21, 22],
+            28: [29, 30, 31],
+            57: [58, 59, 60]
+        }
+        check_blocks = blocks_ahead_map.get(block, [])
+        
+        blocks_ahead_clear = 0
+        for check_block in check_blocks:
+            if not self.get_block_occupancy(check_block) and not self.get_block_fault(check_block):
+                blocks_ahead_clear += 1
+            else:
+                break
+        
+        if blocks_ahead_clear == 0:
+            return 'Red'
+        elif blocks_ahead_clear == 1:
+            return 'Yellow'
+        elif blocks_ahead_clear == 2:
+            return 'Green'
+        else:
+            return 'Super Green'
+    
+    def calculate_crossing_state(self, block):
+        if self.get_block_fault(block):
+            return 'Active'
+        if self.get_block_occupancy(block):
+            return 'Active'
+        approaching_blocks = [17, 18, 20, 21]
+        for approach_block in approaching_blocks:
+            if self.get_block_occupancy(approach_block):
+                return 'Active'
+        return 'Inactive'
+
+    # -------------------------------------------------------------------------
+    # PLC CYCLES
+    # -------------------------------------------------------------------------
+    def run_cycle_quiet(self):
+        """Run PLC cycle - only logs state changes"""
+        for block in self.light_info.keys():
+            current_state = self.get_light_state(block)
+            calculated_state = self.calculate_light_state(block)
+            if current_state != calculated_state:
+                self.set_light_state(block, calculated_state)
+        
+        for block in self.crossing_info.keys():
+            current_state = self.get_crossing_state(block)
+            calculated_state = self.calculate_crossing_state(block)
+            if current_state != calculated_state:
+                self.set_crossing_state(block, calculated_state)
+        
+        for block in self.switch_info.keys():
+            if self.get_block_fault(block):
+                self.log(f"ALERT: Switch {block} has FAULT")
+    
+    def main(self):
+        """Full PLC cycle with verbose logging"""
+        self.log("=" * 50)
+        self.log("PLC CYCLE - Green Line Sections A-K, Z")
+        self.log("=" * 50)
+        
+        # Read state
+        occupied_blocks = [b for b in self.all_blocks if self.get_block_occupancy(b)]
+        if occupied_blocks:
+            self.log(f"Occupied blocks: {occupied_blocks}")
+        else:
+            self.log("No blocks occupied")
+        
+        # Run logic
+        self.run_cycle_quiet()
+        
+        # Report
+        self.log("--- Final State ---")
+        for block, info in self.light_info.items():
+            state = self.get_light_state(block)
+            self.log(f"  Light {block} ({info['section']}): {state}")
+        for block, info in self.switch_info.items():
+            pos = self.get_switch_position(block)
+            direction = info['positions'][pos]
+            safe = "[SAFE]" if self.check_switch_safety(block) else "[LOCKED]"
+            self.log(f"  Switch {block}: {direction} {safe}")
+        for block in self.crossing_info.keys():
+            state = self.get_crossing_state(block)
+            bar = "CLOSED" if state == 'Active' else "OPEN"
+            self.log(f"  Crossing {block}: Bar {bar}")
+        
+        self.log("=" * 50)
+
+
 ############################      PLC MANAGER  ############################################
 
 # Add PLCManager class definition after MessageLogger
 class PLCManager:
-    def __init__(self, message_logger):
+    def __init__(self, message_logger, root=None):
         self.message_logger = message_logger
         self.plc_instance = None
         self.current_file = None
+        self.running = False  # Track if PLC loop is running
+        self.root = root  # Reference to tkinter root for after() scheduling
+        self.cycle_interval = 500  # Run PLC every 500ms (0.5 seconds)
        
     def load_plc_file(self, file_path):
+        """Load PLC from external file"""
         try:
             import importlib.util
             spec = importlib.util.spec_from_file_location("plc_module", file_path)
             plc_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(plc_module)
-           
+            
             self.plc_instance = plc_module.PLCController(self.message_logger.log)
             self.current_file = file_path
             self.message_logger.log(f"PLC file loaded: {file_path}")
@@ -1882,27 +2753,80 @@ class PLCManager:
         except Exception as e:
             self.message_logger.log(f"PLC load error: {e}")
             return False
-   
-    def run_plc(self):
-        if not self.plc_instance:
-            self.message_logger.log("No PLC file loaded")
-            messagebox.showwarning("No PLC File", "Please upload a PLC file first!")
-            return False
-       
+    
+    def load_embedded_plc(self):
+        """Load the embedded PLC controller - NO FILE NEEDED"""
         try:
-            self.plc_instance.main()
-            self.message_logger.log(f"PLC file executed: {self.current_file.split('/')[-1]}")
+            self.plc_instance = EmbeddedPLCController(self.message_logger.log)
+            self.current_file = "EMBEDDED"
+            self.message_logger.log("Embedded PLC controller loaded")
             return True
         except Exception as e:
-            self.message_logger.log(f"PLC runtime error: {e}")
+            self.message_logger.log(f"Embedded PLC load error: {e}")
             return False
-   
+    
+    def start_plc_loop(self):
+        """Start the continuous PLC loop"""
+        if not self.plc_instance:
+            self.message_logger.log("No PLC loaded")
+            return False
+        
+        if self.running:
+            self.message_logger.log("PLC already running")
+            return True
+        
+        self.running = True
+        self.message_logger.log("PLC continuous loop STARTED")
+        self._plc_cycle()
+        return True
+    
+    def stop_plc_loop(self):
+        """Stop the continuous PLC loop"""
+        self.running = False
+        self.message_logger.log("PLC continuous loop STOPPED")
+    
+    def _plc_cycle(self):
+        """Internal - runs one cycle and schedules next"""
+        if not self.running:
+            return
+        
+        try:
+            self.plc_instance.test_data = test_data
+            self.plc_instance.run_cycle_quiet()
+        except Exception as e:
+            print(f"PLC cycle error: {e}")
+        
+        if self.running and self.root:
+            self.root.after(self.cycle_interval, self._plc_cycle)
+    
+    def run_plc(self):
+        """Toggle PLC running state"""
+        if self.running:
+            self.stop_plc_loop()
+            return False
+        else:
+            return self.start_plc_loop()
+    
+    def run_plc_once(self):
+        """Run PLC once with verbose output"""
+        if not self.plc_instance:
+            return False
+        try:
+            self.plc_instance.test_data = test_data
+            self.plc_instance.main()
+            return True
+        except Exception as e:
+            self.message_logger.log(f"PLC error: {e}")
+            return False
+    
     def get_status(self):
         return {
             "loaded": self.plc_instance is not None,
-            "file": self.current_file
+            "file": self.current_file,
+            "running": self.running
         }
-   
+
+
 #creating mock data instance
 test_data = UITestData()  
 
@@ -1910,29 +2834,37 @@ test_data = UITestData()
 message_logger = MessageLogger(log_text)
 
 # Create PLCManager instance (after message_logger is created)
-plc_manager = PLCManager(message_logger)
+plc_manager = PLCManager(message_logger, root)
+plc_LED.config(bg="white", text="PLC READY")
 
-# Update the button functions:
+# Button functions:
 def select_plc_file():
-    """Open a file dialog to select a PLC file"""
+    """Open a file dialog to select a PLC file (optional - can use embedded)"""
     file_path = filedialog.askopenfilename(
-        title ="Select PLC File",
+        title="Select PLC File",
         filetypes=[("Python Files", "*.py")]
     )
     if file_path:
         if plc_manager.load_plc_file(file_path):
-            # Update LED or other UI elements if needed
             plc_LED.config(bg="white", text="PLC LOADED")
 
 def run_plc_file():
-    """Run the PLC logic using the selected file."""
-    if plc_manager.run_plc():
-        plc_LED.config(bg="green", text="PLC RUNNING")
+    """Toggle the PLC running state."""
+    if plc_manager.running:
+        # Stop the PLC
+        plc_manager.stop_plc_loop()
+        plc_LED.config(bg="yellow", text="PLC STOPPED")
+        run_plc_btn.config(text="Run PLC")
     else:
-        plc_LED.config(bg="red", text="FAULT")
+        # Start the PLC
+        if plc_manager.start_plc_loop():
+            plc_LED.config(bg="green", text="PLC RUNNING")
+            # run_plc_btn.config(text="Stop PLC")
+        else:
+            plc_LED.config(bg="red", text="FAULT")
 
 # Keep global plc_instance for backward compatibility
-plc_instance = None  # This will be set by PLCManager internally
+plc_instance = None
 
 # Update buttons
 plc_upload_btn.config(command=select_plc_file)
@@ -2849,10 +3781,10 @@ class RightPanel(tk.Frame):
         ## Remove duplicates and sort
         blocks = sorted(list(set(blocks)), key=lambda x: int(x) if x.isdigit() else x)
         
-        print(f"DEBUG: Found {len(blocks)} blocks: {blocks}")
+        # print(f"DEBUG: Found {len(blocks)} blocks: {blocks}")
         if blocks:
             print(f"DEBUG: First 5 blocks: {blocks[:5]}")
-            print(f"DEBUG: Last 5 blocks: {blocks[-5:]}")
+            # print(f"DEBUG: Last 5 blocks: {blocks[-5:]}")
         
         if self.block_combo:
             self.block_combo['values'] = blocks
@@ -2871,6 +3803,7 @@ class RightPanel(tk.Frame):
             #     self.block_combo.set(blocks[0])
             # self.update_current_block_info()
 
+
     def on_block_selected(self, event):
         """When a block is selected from dropdown"""
         self.update_current_block_info()
@@ -2884,11 +3817,11 @@ class RightPanel(tk.Frame):
         current_block_frame.pack(fill=tk.X, pady=5)
         
         # # Occupied status display
-        # tk.Label(current_block_frame, text="Occupancy:", bg='#cccccc',
-        #         width=8).grid(row=1, column=2, padx=2, pady=2, sticky='w')
-        # self.occupied_label = tk.Label(current_block_frame, text="", bg='white',
-        #                               width=8, relief=tk.SUNKEN)
-        # self.occupied_label.grid(row=1, column=1, padx=2, pady=2, sticky='w')
+        tk.Label(current_block_frame, text="Occupancy:", bg='#cccccc',
+                width=8).grid(row=1, column=2, padx=2, pady=2, sticky='w')
+        self.occupied_label = tk.Label(current_block_frame, text="", bg='white',
+                                      width=8, relief=tk.SUNKEN)
+        self.occupied_label.grid(row=1, column=1, padx=2, pady=2, sticky='w')
 
         # # Line
         # tk.Label(current_block_frame, text="Line:", bg='#cccccc', width=10).grid(row=0, column=2, padx=2, pady=2, sticky='w')
@@ -2922,18 +3855,17 @@ class RightPanel(tk.Frame):
                     
                     # Update labels (only 4 columns now)
                     self.block_num_label.config(text=row[2])
-                    
-                    # # Line with color
-                    # line_color = '#66cc66' if row[1] == "Green" else '#ff6666'
-                    # self.line_label.config(text=row[1], bg=line_color)
                 
                 # Section (now in column 3 instead of 4)
                     self.section_label.config(text=row[3] if len(row) > 3 else "")
 
-                    # Color coding for occupancy
-                    occupied_text = row[0] if len(row) > 0 else "No"
-                    occupied_color = '#ffcccc' if occupied_text == "Yes" else '#ccffcc'
-                    self.occupied_label.config(text=occupied_text, bg=occupied_color)
+                    # FIX: Check if occupied_label exists before using it
+                    if hasattr(self, 'occupied_label') and self.occupied_label is not None:
+                        occupied_text = row[0] if len(row) > 0 else "No"
+                        occupied_color = '#ffcccc' if occupied_text == "Yes" else '#ccffcc'
+                        self.occupied_label.config(text=occupied_text, bg=occupied_color)
+                    else:
+                        print("WARNING: occupied_label not initialized yet")
 
                     found = True
                     break #exits the loop once finding matching new row
@@ -3194,10 +4126,13 @@ class RightPanel(tk.Frame):
         print(f"DEBUG: update_suggested_speed called with {speed_value}")
     
     # Store the value for future use
+        selected_block = self.block_combo.get()
+        current_line = self.data.current_line
     # For now, just update the display directly
-        if speed_value is not None:
-            self.suggested_speed_label.config(text=f"{speed_value:.3f} mph")
-            add_to_message_log(f"Suggested Speed updated: {speed_value:.3f} mph")
+        if selected_block and current_line and speed_value is not None:
+            self.suggested_speed[current_line][selected_block] = speed_value
+            self.suggested_speed_label.config(text=f"{speed_value:.2f} mph")
+            add_to_message_log(f"Suggested Speed updated: {speed_value:.3f} mph for block {selected_block}")
         # if selected_block and current_line and speed_value is not None:
         #     self.suggested_speed[current_line][selected_block] = speed_value
         #     self.suggested_speed_label.config(text=f"{speed_value:.3f} mph")
@@ -3206,9 +4141,12 @@ class RightPanel(tk.Frame):
     def update_suggested_authority(self, authority_value):
         """Update suggested authority from external source"""
         print(f"DEBUG: update_suggested_authority called with {authority_value}")
-    
         # For now, just update the display directly
-        if authority_value is not None:
+        selected_block = self.block_combo.get()
+        current_line = self.data.current_line
+        if selected_block and current_line and authority_value is not None:
+            # Store in local storage
+            self.suggested_authority[current_line][selected_block] = authority_value
             self.suggested_auth_label.config(text=f"{authority_value} blocks")
             add_to_message_log(f"Suggested Authority updated: {authority_value} blocks")
         # """Update suggested authority from external source"""
@@ -3230,7 +4168,15 @@ class RightPanel(tk.Frame):
         block_search = tk.Entry(search_frame, textvariable=self.block_search_var, width=20)
         block_search.pack(side=tk.LEFT, padx=5)
         tk.Label(search_frame, text="Search", bg='#1a1a4d', fg='white', font=('Arial', 9)).pack(side=tk.LEFT)
-   
+        
+        # For Red Line: Yard, A-F, and M-Y
+        if self.data.current_line == "Green":
+            allowed_sections = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'Z'}
+        else:  # Red Line
+            allowed_sections = {'Yard', 'A', 'B', 'C', 'D', 'E', 'F', 'J', 'K', 'L', 'M', 'N'}
+        display_data = [row for row in self.data.block_data 
+          if row[1] == self.data.current_line and row[3] in allowed_sections]
+        
         # Table container - FIXED HEIGHT to match other sections
         table_container = tk.Frame(self, bg='#1a1a4d', height=300)
         table_container.pack(fill=tk.BOTH, expand=True, pady=5)
@@ -3299,10 +4245,13 @@ class RightPanel(tk.Frame):
         update_scrollregion()
 
     def create_block_table(self):
-        """Create block status table with compact layout"""
+        """Create block status table - filtered to sections A-K and Z only"""
         # Clear existing widgets
         for widget in self.block_table_frame.winfo_children():
             widget.destroy()
+
+        # Only show these sections
+        allowed_sections = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'Z'}
         
         print(f"\n=== DEBUG: Creating block table ===")
         print(f"Current line: {self.data.current_line}")
@@ -3311,30 +4260,31 @@ class RightPanel(tk.Frame):
 
         # Get data for current line
         display_data = []
+        # Get and filter data
         if hasattr(self.data, 'filtered_block_data') and len(self.data.filtered_block_data) > 0:
-            print(f"Using filtered_block_data: {len(self.data.filtered_block_data)} rows")
             display_data = [row for row in self.data.filtered_block_data 
-                      if row[1] == self.data.current_line]
+                  if row[1] == self.data.current_line and row[3] in allowed_sections]
         else:
-            print(f"Using block_data: {len(self.data.block_data) if hasattr(self.data, 'block_data') else 0} rows")
             display_data = [row for row in self.data.block_data 
-                      if row[1] == self.data.current_line]
-        
+                  if row[1] == self.data.current_line and row[3] in allowed_sections]
+    
+    # Sort by block number
+        try:
+            display_data.sort(key=lambda x: int(x[2]))
+        except:
+            pass
+    
         if not display_data:
-        # Show message if no data
             tk.Label(self.block_table_frame, text="No block data available", 
                 bg='white', fg='red').pack(pady=20)
             return
-        print(f"DEBUG: First 5 rows to display: {display_data[:5]}")
 
-        # Headers - 5 columns with COMPACT widths to fit
+    # Headers
         headers_frame = tk.Frame(self.block_table_frame, bg='#cccccc')
         headers_frame.pack(fill=tk.X)
-        
-        # Define column widths for 4 columns (slightly wider since we removed one column)
+    
         col_widths = {'occupied': 8, 'line': 6, 'block': 6, 'section': 10}
-        
-        # Occupied header
+    
         tk.Label(headers_frame, text="Occupied", bg='#cccccc',
             font=('Arial', 9, 'bold'), width=col_widths['occupied']).pack(side=tk.LEFT, padx=2)
         tk.Label(headers_frame, text="Line", bg='#cccccc',
@@ -3343,62 +4293,47 @@ class RightPanel(tk.Frame):
             font=('Arial', 9, 'bold'), width=col_widths['block']).pack(side=tk.LEFT, padx=2)
         tk.Label(headers_frame, text="Section", bg='#cccccc',
             font=('Arial', 9, 'bold'), width=col_widths['section']).pack(side=tk.LEFT, padx=2)
-        
-        # Data rows
-        # self.block_combos = []
-        # Data rows
+    
+    # Data rows - ALL INSIDE THE LOOP
         for row_index, row in enumerate(display_data):
             row_frame = tk.Frame(self.block_table_frame, bg='white')
             row_frame.pack(fill='x', pady=1)
 
-        # Ensure row has exactly 4 elements
-        while len(row) < 4:
-            row.append("")
-        if len(row) > 4:
-            row = row[:4]  # Truncate to 4 columns
+            while len(row) < 4:
+                row.append("")
+            if len(row) > 4:
+                row = row[:4]
         
-        if self.data.maintenance_mode:
-            # MAINTENANCE MODE - Editable occupancy
-            occ_combo = ttk.Combobox(row_frame, values=["Yes", "No"], 
+            if self.data.maintenance_mode:
+                # MAINTENANCE MODE - Editable
+                occ_combo = ttk.Combobox(row_frame, values=["Yes", "No"], 
                                   width=col_widths['occupied']-2)
-            occ_combo.set(row[0] if row[0] in ["Yes", "No"] else "No")
-            occ_combo.pack(side=tk.LEFT, padx=2)
+                occ_combo.set(row[0] if row[0] in ["Yes", "No"] else "No")
+                occ_combo.pack(side=tk.LEFT, padx=2)
             
-            # Bind change event
-            occ_combo.bind('<<ComboboxSelected>>',
-                lambda event, idx=row_index, combo=occ_combo, r=row:
-                self.on_block_data_change(r[2], combo.get()))
+                occ_combo.bind('<<ComboboxSelected>>',
+                    lambda event, idx=row_index, combo=occ_combo, r=row:
+                    self.on_block_data_change(r[2], combo.get()))
             
-            # Line (read-only with color)
-            bg_color = '#66cc66' if row[1] == "Green" else '#ff6666'
-            tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
+                bg_color = '#66cc66' if row[1] == "Green" else '#ff6666'
+                tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
+                   borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
+                tk.Label(row_frame, text=str(row[2]), bg='white', width=col_widths['block'],
+                   borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
+                tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
+                   borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
+            else:
+            # NORMAL MODE - Read only
+                occupied_color = '#ffcccc' if row[0] == "Yes" else '#ccffcc'
+                tk.Label(row_frame, text=row[0], bg=occupied_color, width=col_widths['occupied'],
                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
             
-            # Block # (read-only)
-            tk.Label(row_frame, text=str(row[2]), bg='white', width=col_widths['block'],
+                bg_color = '#66cc66' if row[1] == "Green" else '#ff6666'
+                tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
-            
-            # Section Letter (read-only)
-            tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
+                tk.Label(row_frame, text=str(row[2]), bg='white', width=col_widths['block'],
                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
-        else:
-            # NORMAL MODE - all read-only
-            # Occupied with color coding
-            occupied_color = '#ffcccc' if row[0] == "Yes" else '#ccffcc'
-            tk.Label(row_frame, text=row[0], bg=occupied_color, width=col_widths['occupied'],
-                   borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
-            
-            # Line with color
-            bg_color = '#66cc66' if row[1] == "Green" else '#ff6666'
-            tk.Label(row_frame, text=row[1], bg=bg_color, width=col_widths['line'],
-                   borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
-            
-            # Block #
-            tk.Label(row_frame, text=str(row[2]), bg='white', width=col_widths['block'],
-                   borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
-            
-            # Section Letter
-            tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
+                tk.Label(row_frame, text=row[3], bg='white', width=col_widths['section'],
                    borderwidth=1, relief=tk.GROOVE).pack(side=tk.LEFT, padx=2)
 
     def on_block_data_change(self, block_num, new_value):
@@ -3471,7 +4406,7 @@ class RightPanel(tk.Frame):
         
         for block_num in blocks_outbound:
             self.commanded_authority[current_line][str(block_num)] = f"{authority} blocks"
-            self.commanded_speed[current_line][str(block_num)] = "31 mph" if authority > 0 else "0 mph"
+            self.commanded_speed[current_line][str(block_num)] = "25 mph" if authority > 0 else "0 mph"
             authority -= 1
         
         # Return: Station (96) back to Yard (57)
@@ -3480,7 +4415,7 @@ class RightPanel(tk.Frame):
         
         for block_num in blocks_return:
             self.commanded_authority[current_line][str(block_num)] = f"{authority} blocks"
-            self.commanded_speed[current_line][str(block_num)] = "31 mph" if authority > 0 else "0 mph"
+            self.commanded_speed[current_line][str(block_num)] = "25 mph" if authority > 0 else "0 mph"
             authority -= 1
         
         # Final destinations

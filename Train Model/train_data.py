@@ -60,13 +60,17 @@ class Train:
 		self.crewCount = 2
 		self.powerCommand = 0.0
 		self.cabinTemp = 72.0
-		self.grade = 0
-		self.elevation = 0
-		self.speedLimit = 40
+		self.grade = 2
+		self.elevation = 1
+		self.speedLimit = 70
 		self.speedLimitMps = self.speedLimit / 3.6
 		self.commandedSpeed = 0
 		self.commandedAuthority = 0
 		self.distanceLeft = None
+
+		self.prevGrade = 0
+		self.prevElevation = 0
+		self.prevSpeedLimit = 40
 
 		# For physics calculations
 		self.lastPowerCommand = 0.0
@@ -107,7 +111,7 @@ class Train:
 		self.previousBlock = 63
 
 		# Station
-		self.announcement = ""
+		self.announcement = "Awaiting Deployment"
 		self.timeToStation = 0
 		self.emergencyAnnouncement = "EMERGENCY"
 		
@@ -144,6 +148,9 @@ class Train:
 		self.setCrewCount(2)
 		self.setPowerCommand(0.0)
 		self.setCabinTemp(72.0)
+		self.setGrade(0)
+		self.setElevation(0)
+		self.setSpeedLimit(40)
 		self.setGrade(0)
 		self.setElevation(0)
 		self.setSpeedLimit(40)
@@ -185,7 +192,7 @@ class Train:
 		self.atStation = False
 		
 		# Reset station info
-		self.setAnnouncement("")
+		self.setAnnouncement("Awaiting Deployment")
 		self.setTimeToStation(0)
 		
 		# Reset activation flags
@@ -231,17 +238,20 @@ class Train:
 	# Metric setters with validation
 	def setSpeedLimit(self, value: float):
 		# Sets the speed limit for the train in m/s.
+		self.prevSpeedLimit = self.speedLimit
 		self.speedLimit = float(value)
 		self.speedLimitMps = self.speedLimit / 3.6
 		self._notifyObservers()
 	
 	def setElevation(self, value: float):
 		# Sets the elevation of the train in feet.
+		self.prevElevation = self.elevation
 		self.elevation = float(value)
 		self._notifyObservers()
 
 	def setGrade(self, value: float):
 		# Sets the grade percentage of the track.
+		self.prevGrade = self.grade
 		self.grade = float(value)
 		self._notifyObservers()
 		
@@ -301,6 +311,7 @@ class Train:
 				self.active = True
 				#print(f"Train {self.trainId} received first authority - AUTO ACTIVATING")
 				self.serviceBrakeActive = False
+				self.announcement = "Traveling From Yard"
 			
 			# Notify observers
 			self._notifyObservers()
@@ -383,7 +394,7 @@ class Train:
 		# Sets whether the train should receive physics updates.
 		self.active = active
 
-	def calculateForceSpeedAccelerationDistance(self, dt: float = 1.0):
+	def calculateForceSpeedAccelerationDistance(self, dt):
 		# Calculates train physics based on current state and commands.
 		"""
 		Physics calculation point:

@@ -27,6 +27,9 @@ mainNotebook.add(scheduleFrame, text = "Schedule")
 #create the main tabs for the ui and add them to the Notebook
 
 
+### FOR TESTING PURPOSES ONLY ###
+
+
 mainScreen = CTC_Main_Screen.MainScreen(root, 0, systemFrame, mainNotebook)
 scheduleScreen = CTC_Schedule_Screen.ScheduleScreen(root, mainScreen, scheduleFrame, mainNotebook)
 mainScreen.schedule_screen = scheduleScreen
