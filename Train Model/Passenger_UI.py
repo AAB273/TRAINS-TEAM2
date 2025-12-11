@@ -321,7 +321,7 @@ class TrainModelPassengerGUI:
 					'value': value,
 					'train_id': trainId if trainId else train.trainId
 					})
-			elif command == 'Block Occupancy':
+			elif command == 'Block Occupancy' or command == 'block_occupancy':
 				train.setBlock(value)
 				if train.line == 'green':
 					if (train.previousBlock == 57 and train.block != 58):
