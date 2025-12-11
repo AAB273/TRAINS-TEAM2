@@ -2492,6 +2492,12 @@ class TrackModelUI(tk.Tk):
                     train_num = int(train_id)  # train_id is now just a number string like "1", "2", "3"
                     new_block.occupancy = train_num
                     
+                    # DEBUG: Log transitions to/from blocks 63-64 to diagnose spawning issues
+                    if next_block in [63, 64] or current_block_num in [63, 64]:
+                        print(f"[BLOCK 63-64 DEBUG] Train {train_id} moving: {current_block_num} → {next_block}")
+                        print(f"                    Active trains: {self.data_manager.active_trains}")
+                        print(f"                    Train locations: {self.data_manager.train_locations}")
+                    
                     # Update train location
                     self.data_manager.train_locations[train_idx] = next_block
                     
@@ -2504,6 +2510,10 @@ class TrackModelUI(tk.Tk):
                     # Send occupancy updates to other modules
                     self.send_block_occupancy_update(current_block_num, 0)
                     self.send_block_occupancy_update(next_block, train_num)
+                    
+                    # DEBUG: Log occupancy for blocks after 66 to diagnose display issues
+                    if next_block > 66 or current_block_num > 66:
+                        print(f"[OCCUPANCY DEBUG] Train {train_id}: Block {current_block_num} occupancy=0, Block {next_block} occupancy={train_num}")
                     
                     # Update the display
                     self.update_occupied_blocks_display()
@@ -5482,13 +5492,24 @@ class TrackModelUI(tk.Tk):
         self.data_manager.commanded_authority.append(authority)
         self.data_manager.train_occupancy.append(0)
         
+        # CRITICAL: Initialize train_locations to stay in sync with active_trains
+        # Start at block 63 (yard entry point)
+        if not hasattr(self.data_manager, 'train_locations'):
+            self.data_manager.train_locations = []
+        self.data_manager.train_locations.append(63)
+        
+        # Mark block 63 as occupied
+        if len(self.data_manager.blocks) >= 63:
+            self.data_manager.blocks[62].occupancy = train_id  # Block 63 is at index 62
+        
         # Initialize train actual speed to 0 (will be updated by Train Model)
         self.train_actual_speeds[train_id] = 0
         self.train_positions_in_block[train_id] = 0
         import time
         self.last_movement_update[train_id] = time.time()
 
-        # print(f"[TRAIN CREATED] ID={train_id}, Speed={speed} m/s, Authority={authority} blocks")
+        print(f"[TRAIN CREATED FROM WAYSIDE] ID={train_id}, Speed={speed} m/s, Authority={authority} blocks")
+        print(f"  Train will be placed on track when Train Model sends first speed update")
 
         # Refresh dropdowns and terminals
         self.train_combo["values"] = self.data_manager.active_trains
@@ -6621,30 +6642,17 @@ class TrackModelUI(tk.Tk):
                 # 2. Ensure the train exists
                 # ---------------------------
                 if train_id not in self.data_manager.active_trains:
-                    print(f"WARNING: Current Speed received for unregistered train {train_id}. Auto-creating train.")
+                    print(f"WARNING: Current Speed received for unregistered train {train_id}.")
+                    print(f"         This should not happen - trains should be created through proper spawn methods.")
+                    print(f"         Skipping this speed update to prevent duplicate trains.")
                     
-                    # Initialize next_train_id if not set
-                    if not hasattr(self.data_manager, "next_train_id"):
-                        self.data_manager.next_train_id = 1
+                    # DO NOT auto-create trains here to prevent duplicates
+                    # Trains should only be created through:
+                    # 1. _create_train_from_yard() 
+                    # 2. _create_train_from_wayside()
+                    # 3. Manual spawn through UI
                     
-                    # Use the next available train ID from the counter
-                    new_train_id = self.data_manager.next_train_id
-                    self.data_manager.next_train_id += 1
-                    
-                    # Add the new train with the proper ID
-                    self.data_manager.active_trains.append(new_train_id)
-                    self.train_positions_in_block[new_train_id] = 0
-                    self.last_movement_update[new_train_id] = time.time()
-                    
-                    # Update train_id to the newly assigned ID
-                    train_id = new_train_id
-
-                    # Mark block 63 as occupied (spawn block)
-                    if 63 in self.data_manager.blocks:
-                        self.data_manager.blocks[63].occupancy = train_id
-                        self.update_occupied_blocks_display()
-                    
-                    print(f"INFO: Auto-created train with ID {new_train_id}")
+                    return
 
                 # ---------------------------
                 # 3. Convert m/s → m/s
