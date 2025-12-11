@@ -101,8 +101,8 @@ def _process_message(self, data, connection=None, server_instance=None):
 
         # 1. Handle connection test FIRST
             if isinstance(data, str) and data.strip() == "CTC":
-                print("CTC connection test received - sending ACK")
-                add_to_message_log("CTC connection test received")
+                # print("CTC connection test received - sending ACK")
+                print("CTC connection test received")
                 if connection:
                     try:
                         connection.sendall(b"CTC_ACK")
@@ -232,7 +232,8 @@ def _process_message(self, data, connection=None, server_instance=None):
                 block = value.get('block', '').strip()
                 speed_str = value.get('speed', '0').strip()
                 authority_str = value.get('authority', '0').strip()
-            print(f"DEBUG: Processing CTC update - Track: {track}, Block: {block}, Speed: {speed_str}, Authority: {authority_str}")
+                value_type = value.get('value_type', 'suggested').strip()
+            print(f"DEBUG: Processing CTC update - Track: {track}, Block: {block}, Speed: {speed_str}, Authority: {authority_str}, Type: {value_type}")
                 
                 # Only process if for current line
             if track.lower() != test_data.current_line.lower():
@@ -1053,8 +1054,8 @@ class UITestData:
             
             # DIRECT UPDATE - This is the key fix:
             if hasattr(right_panel, 'suggested_speed_label'):
-                right_panel.suggested_speed_label.config(text=f"{speed:.3f} mph")
-                print(f"Updated speed label to: {speed:.3f} mph")
+                right_panel.suggested_speed_label.config(text=f"{speed:.2f} mph")
+                print(f"Updated speed label to: {speed:.2f} mph")
             
             if hasattr(right_panel, 'suggested_auth_label'):
                 right_panel.suggested_auth_label.config(text=f"{authority} blocks")
@@ -1064,9 +1065,9 @@ class UITestData:
             if hasattr(right_panel, 'block_combo') and block:
                 right_panel.block_combo.set(block)
 
-            add_to_message_log(f"CTC: Block {block} - Speed: {speed:.3f} mph, Authority: {authority} blocks")
+            add_to_message_log(f"CTC: Block {block} - Speed: {speed:.2f} mph, Authority: {authority} blocks")
             # Add to message log in the format you want
-            message_logger.log(f"CTC SUGGESTION: Block {block} on {track} - Authority: {authority} blocks, Speed: {speed:.1f} mph", "INFO")
+            message_logger.log(f"CTC SUGGESTION: Block {block} on {track} - Authority: {authority} blocks, Speed: {speed:.2f} mph", "INFO")
         except Exception as e:
             print(f"Error handling speed/auth update: {e}")
             add_to_message_log(f"ERROR processing CTC update: {e}")
