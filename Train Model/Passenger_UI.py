@@ -65,7 +65,7 @@ class TrainModelPassengerGUI:
 		self.server.connect_to_ui('localhost', trainSwConfig["port"], "Train SW")
 		self.server.connect_to_ui('localhost', trainHwConfig["port"], "Train HW")
 		self.server.connect_to_ui('localhost', trackModelConfig["port"], "Track Model")
-		self.server.connect_to_ui('localhost', CTCModelConfig["port"], "Track Model")
+		self.server.connect_to_ui('localhost', CTCModelConfig["port"], "CTC")
 		self.server.connect_to_ui('localhost', 12349, "Test_UI")
 		
 		self.uiLabels = {}
@@ -123,7 +123,10 @@ class TrainModelPassengerGUI:
 	def _processMessage(self, message: dict, sourceUiId: str):
 		# Processes incoming messages from socket server and updates train state accordingly.
 		try:
-			print(f"Received message from {sourceUiId}: {message}")
+			if message.get('command') == 'TIME':
+				pass
+			else:
+				print(f"Received message from {sourceUiId}: {message}")
 
 			command = message.get('command')
 			
@@ -131,7 +134,7 @@ class TrainModelPassengerGUI:
 			# 	self.Clock = message.get('value')
 			value = message.get('value')
 			trainId = message.get('train_id')
-			
+
 			if command == 'Beacon1' or command == 'Beacon2':
 				self.server.send_to_ui("Train SW", {
 					'command': command,
@@ -289,32 +292,36 @@ class TrainModelPassengerGUI:
 			elif command == 'Commanded Authority':
 				wasActive = train.active if train else False
 				train.setAuthority(value)
-				self.server.send_to_ui("Train SW", {
+				if train.trainId == 1:
+					self.server.send_to_ui("Train HW", {
+						'command': "Commanded Authority",
+						'value': value,
+						'train_id': trainId if trainId else train.trainId
+					})
+				else:
+					self.server.send_to_ui("Train SW", {
 					'command': "Commanded Authority",
 					'value': value,
 					'train_id': trainId if trainId else train.trainId
-				})
-				self.server.send_to_ui("Train HW", {
-					'command': "Commanded Authority",
-					'value': value,
-					'train_id': trainId if trainId else train.trainId
-				})
+					})
 				if not wasActive and train.active:
 					print(f"Train {train.trainId} activated - refreshing selector")
 					self.refreshTrainSelectorIfNeeded() 
 			elif command == 'Commanded Speed':
 				train.setCommandedSpeed(value)
-				self.server.send_to_ui("Train SW", {
+				if train.trainId == 1:
+					self.server.send_to_ui("Train HW", {
+						'command': "Commanded Speed",
+						'value': value,
+						'train_id': trainId if trainId else train.trainId
+					})
+				else:
+					self.server.send_to_ui("Train SW", {
 					'command': "Commanded Speed",
 					'value': value,
 					'train_id': trainId if trainId else train.trainId
-				})
-				self.server.send_to_ui("Train HW", {
-					'command': "Commanded Speed",
-					'value': value,
-					'train_id': trainId if trainId else train.trainId
-				})
-			elif command == 'Block Occupancy':
+					})
+			elif command == 'Block Occupancy' or command == 'block_occupancy':
 				train.setBlock(value)
 				if train.line == 'green':
 					if (train.previousBlock == 57 and train.block != 58):
@@ -351,7 +358,12 @@ class TrainModelPassengerGUI:
 			elif command == 'TIME':
 				self.uiLabels['time'].config(text=value)
 			elif command == 'MULT':
-				self.updateClockSpeed(value)
+				if  value == 1:
+					self.clockSpeed = 1
+				elif value == 10:
+					self.clockSpeed = .1
+				elif value == 50:
+					self.clockSpeed = .05
 			
 			# Update UI if this is the currently selected train
 			if train == self.currentTrain:
@@ -373,16 +385,18 @@ class TrainModelPassengerGUI:
 				
 				if oldSpeed != newSpeed:
 					# Send updates for this train
-					self.server.send_to_ui("Train HW", {
-						'command': "Current Speed",
-						'value': train.speed,
-						'train_id': train.trainId
-					})
-					self.server.send_to_ui("Train SW", {
-						'command': "Current Speed",
-						'value': train.speed,
-						'train_id': train.trainId
-					})
+					if train.trainId == 1:
+						self.server.send_to_ui("Train HW", {
+							'command': "Current Speed",
+							'value': train.speed,
+							'train_id': train.trainId
+						})
+					else:
+						self.server.send_to_ui("Train SW", {
+							'command': "Current Speed",
+							'value': train.speed,
+							'train_id': train.trainId
+						})
 					self.server.send_to_ui("Track Model", {
 						'command': 'Current Speed',
 						'value': train.speed,
@@ -396,8 +410,6 @@ class TrainModelPassengerGUI:
 		# Schedule next update
 		self.root.after(100, self.continuousPhysicsUpdate)
 
-	def updateClockSpeed(self, clockMultiplier):
-		self.clockSpeed = clockMultiplier/10
 
 	def emergencyBrakeActivated(self, train=None):
 		# Activates the emergency brake and notifies other modules.
@@ -425,13 +437,18 @@ class TrainModelPassengerGUI:
 		# Handles service brake failure mode activation/deactivation.
 		if self.failureBrakeVar.get():
 			self.currentTrain.setServiceBrake(0)
-			self.server.send_to_ui("Train SW", {'command': "Service Brake Failure", 'value': True})
-			self.server.send_to_ui("Train HW", {'command': "Service Brake Failure", 'value': True})
+			if self.currentTrain.trainId == 1:
+				self.server.send_to_ui("Train HW", {'command': "Service Brake Failure", 'value': True})
+			else:
+				self.server.send_to_ui("Train SW", {'command': "Service Brake Failure", 'value': True, 'train_id' : self.currentTrain.trainId})
+			
 			print(f"Service Brake Failure Activated")
 		elif self.failureBrakeVar.get() == 0:
 			print(f"Service Brake Deactivated")
-			self.server.send_to_ui("Train SW", {'command': "Service Brake Failure", 'value': False})
-			self.server.send_to_ui("Train HW", {'command': "Service Brake Failure", 'value': False})
+			if self.currentTrain.trainId == 1:
+				self.server.send_to_ui("Train HW", {'command': "Service Brake Failure", 'value': False})
+			else:
+				self.server.send_to_ui("Train SW", {'command': "Service Brake Failure", 'value': False, 'train_id' : self.currentTrain.trainId})
 
 	def failureTrainEngineVarChanged(self):
 		# Handles train engine failure mode activation/deactivation.
@@ -439,52 +456,50 @@ class TrainModelPassengerGUI:
 			self.currentTrain.setEngineFailure(True)
 			self.currentTrain.setPowerCommand(0)
 			self.currentTrain.setAcceleration(0)
-			self.server.send_to_ui("Train SW", {'command': "Train Engine Failure", 'value': True})
-			self.server.send_to_ui("Train HW", {'command': "Train Engine Failure", 'value': True})
+			if self.currentTrain.trainId == 1:
+				print("Train 1 Recieve it")
+				self.server.send_to_ui("Train HW", {'command': "Train Engine Failure", 'value': True})
+			else:
+				print("Train 2 Receives it")
+				self.server.send_to_ui("Train SW", {'command': "Train Engine Failure", 'value': True, 'train_id' : self.currentTrain.trainId})
+			
 			print(f"Train Engine Failure Activated")
 		elif self.failureTrainEngineVar.get() == 0:
 			self.currentTrain.setEngineFailure(False)
 			print(f"Train Engine Failure Deactivated")
-			self.server.send_to_ui("Train SW", {'command': "Train Engine Failure", 'value': 0})
-			self.server.send_to_ui("Train HW", {'command': "Train Engine Failure", 'value': 0})
+			if self.currentTrain.trainId == 1:
+				self.server.send_to_ui("Train HW", {'command': "Train Engine Failure", 'value': False})
+			else:
+				self.server.send_to_ui("Train SW", {'command': "Train Engine Failure", 'value': False, 'train_id' : self.currentTrain.trainId})
 
-	def updateFailureSignal(self):
-		# Updates signal pickup failure state when checkbox changes.
-		currentState = self.failureSignalPickupVar.get()
-		
-		# Only proceed if state actually changed
-		if currentState == self.previousFailureSignalPickupState:
-			return
-		
-		if currentState and not self.failureActivationInProgress:
-			self.activateSignalFailure()
-		else:
-			self.deactivateSignalFailure()
-		
-		self.previousFailureSignalPickupState = currentState
+	def SignalFailure(self):
+		if self.failureSignalPickupVar.get() == 0:
+			# Deactivates signal pickup failure mode.
+			print(f"Signal Pickup Failure Deactivated")
+			self.currentTrain.speedLimit = self.currentTrain.prevSpeedLimit
+			self.currentTrain.grade = self.currentTrain.prevGrade
+			self.currentTrain.elevation = self.currentTrain.prevElevation
+			if self.currentTrain.trainId == 1:
+				self.server.send_to_ui("Train HW", {'command': "Signal Pickup Failure", 'value': False})
+			else:
+				self.server.send_to_ui("Train SW", {'command': "Signal Pickup Failure", 'value': False, 'train_id' : self.currentTrain.trainId})
 
-	def deactivateSignalFailure(self):
-		# Deactivates signal pickup failure mode.
-		print(f"Signal Pickup Failure Deactivated")
-		self.currentTrain.setSpeedLimit(self.currentTrain.prevSpeedLimit)
-		self.currentTrain.setGrade(self.currentTrain.prevSpeedLimit)
-		self.currentTrain.setElevation(self.currentTrain.prevSpeedLimit)
-		self.server.send_to_ui("Train SW", {'command': "Signal Pickup Failure", 'value': False})
-		self.server.send_to_ui("Train HW", {'command': "Signal Pickup Failure", 'value': False})
-
-	def activateSignalFailure(self):
-		# Activates signal pickup failure mode and resets track parameters.
-		print(f"Signal Pickup Failure Activated")
-		self.failureActivationInProgress = True
-		
-		self.currentTrain.speedLimit = 0
-		self.currentTrain.grade = 0
-		self.currentTrain.elevation = 0
-		
-		self.server.send_to_ui("Train SW", {'command': "Signal Pickup Failure", 'value': True})
-		self.server.send_to_ui("Train HW", {'command': "Signal Pickup Failure", 'value': True})
-		
-		self.failureActivationInProgress = False
+	# def activateSignalFailure(self):
+		elif self.failureSignalPickupVar.get() == 1:
+			# Activates signal pickup failure mode and resets track parameters.
+			print(f"Signal Pickup Failure Activated")
+			self.failureActivationInProgress = True
+			
+			self.currentTrain.speedLimit = 0
+			self.currentTrain.grade = 0
+			self.currentTrain.elevation = 0
+			
+			if self.currentTrain.trainId == 1:
+				self.server.send_to_ui("Train HW", {'command': "Signal Pickup Failure", 'value': True})
+			else:
+				self.server.send_to_ui("Train SW", {'command': "Signal Pickup Failure", 'value': True, 'train_id' : self.currentTrain.trainId})
+			
+			self.failureActivationInProgress = False
 			
 	def updateDisembarking(self, train):
 		# Updates passenger disembarking when train is stopped with doors open.
@@ -539,10 +554,11 @@ class TrainModelPassengerGUI:
 			train = self.currentTrain
 			
 		MAX_CAPACITY = 222
-		if boarding > MAX_CAPACITY:
-			train.passengerCount = MAX_CAPACITY
-		else:
-			train.passengerCount = train.passengerCount + boarding
+		if train.atStation:
+			if boarding > MAX_CAPACITY:
+				train.passengerCount = MAX_CAPACITY
+			else:
+				train.passengerCount = train.passengerCount + boarding
 		
 		# Send update to track model
 		self.server.send_to_ui("Track Model", {
@@ -576,7 +592,7 @@ class TrainModelPassengerGUI:
 			self.uiLabels['Commanded Speed'].config(text=f"Commanded Speed: {train.commandedSpeed:.0f} MPH")
 	
 		# Check for failure state changes
-		self.updateFailureSignal()
+		# self.updateFailureSignal()
 
 		# Normal operation - show actual values
 		imperialSpeedLimit = train.speedLimit / 1.61
@@ -601,10 +617,10 @@ class TrainModelPassengerGUI:
 		if self.currentTrain.emergencyBrakeActive:
 			self.uiLabels['announcement'].config(text=f"EMERGENCY")
 		else:
-			if "Arrived" in train.announcement:
-				self.uiLabels['announcement'].config(text={train.announcement})
+			if "Arrived" in train.announcement or "Yard" in train.announcement:
+				self.uiLabels['announcement'].config(text=f"{train.announcement}")
 			else:
-				self.uiLabels['announcement'].config(text=f"{train.announcement} in {train.timeToStation} mins")
+				self.uiLabels['announcement'].config(text=(f"{train.announcement} in {train.timeToStation} mins"))
 
 		# Update power command and commanded values
 		self.uiLabels['power_command'].config(text=f"{train.powerCommand:.0f} Watts")
@@ -849,6 +865,7 @@ class TrainModelPassengerGUI:
 
 		self.failureSignalPickupVar = tk.BooleanVar(value=False)
 		signalPickupSwitch = ttk.Checkbutton(murphyFrame, text="Signal Pickup", variable=self.failureSignalPickupVar,
+											 command=lambda: self.SignalFailure(),
 											 style="Medium.TCheckbutton")
 		signalPickupSwitch.pack(pady=6, padx=3, fill='x', expand=True)
 

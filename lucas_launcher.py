@@ -17,7 +17,7 @@ def launch_all():
     print("="*60 + "\n")
     
     modules = [
-        ("Track Model", "Track Model/UI_Structure.py"),
+        ("CTC", "CTC_Office/CTC_UI.py"),
         ("Train Model", "Train Model/Passenger_UI.py"),
         ("Test UI", "Train Model/Test_UI.py"),
         ("Train HW","HW_Train_Controller/TC_HW_MainUI.py")

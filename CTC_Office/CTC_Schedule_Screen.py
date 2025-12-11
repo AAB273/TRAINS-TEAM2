@@ -26,6 +26,13 @@ class ScheduleScreen:
     self.clockText: a ttk.Label() that holds the current time
     self.clockTimer: contains the call to updateTime, allowing the program to cancel the timer when switching tabs
 
+    self.greenStationLocations: a dictionary containing every block that a green line station is on as a key, with the name of the station as the value
+                                Note that the yard entrance is named "start" and the exit to the yard is named "end".
+    self.greenStations: a list containing every station name
+    self.redStationLocations: a dictionary containing every block that a red line station is on as a key, with the name of the station as the value
+                              Note that the same yard naming convention for the green line follows here.
+    self.redStations: a list containing every red station name
+
     self.trainRoutes: dictionary containing each train's route (defined as the block it will travel to next, plus its scheduled stops)
     '''
 
@@ -423,7 +430,10 @@ class ScheduleScreen:
                 else:
                 #red line
                     '''statements to move the train'''
-                    if ((self.trainRoutes[key][0] + 1) == int(location) and self.trainRoutes[key][2] == "forward"):
+                    if (self.trainRoutes[key][0] == int(location) and self.trainRoutes[key][0] == 63):
+                        updated = True
+                        
+                    elif ((self.trainRoutes[key][0] + 1) == int(location) and self.trainRoutes[key][2] == "forward"):
                         self.updateTrainInManualEdit(key, location)
                         updated = True
 
