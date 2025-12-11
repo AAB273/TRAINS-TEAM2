@@ -1,0 +1,14 @@
+=== CTC ===
+Start time: 2025-12-09 17:07:31
+Python: /bin/python3
+Script: /mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2/CTC_Office/CTC_UI.py
+Directory: /mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2
+==================================================
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2/CTC_Office/CTC_UI.py", line 3, in <module>
+    import CTC_Main_Screen
+  File "/mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2/CTC_Office/CTC_Main_Screen.py", line 97
+    print(f"Sent {data["command"]} to {target_ui}")
+                        ^^^^^^^
+SyntaxError: f-string: unmatched '['

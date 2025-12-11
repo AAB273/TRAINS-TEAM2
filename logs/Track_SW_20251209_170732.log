@@ -1,0 +1,22 @@
+=== Track SW ===
+Start time: 2025-12-09 17:07:32
+Python: /bin/python3
+Script: /mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2/Wayside_Controller/SW/main.py
+Directory: /mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2
+==================================================
+
+Warning: Wayside_Controller/SW/data/red_line.txt doesn't have section column.
+Track data loaded from files
+Block data loaded from files
+Data filtered for Green line - 150 blocks
+Track data filtered for current line
+UI Track SW can communicate with: {'CTC', 'Track Model', 'test_ui'}
+Train GUI Server Track SW listening on port 12342
+Failed to connect to test_ui: [Errno 111] Connection refused
+Failed to connect to CTC: [Errno 111] Connection refused
+Failed to connect to Track Model: [Errno 111] Connection refused
+Updating tab appearance for: Green
+Auto-loaded PLC from: Wayside_Controller/SW/auto_plc_logic.py
+Could not load track image: couldn't open "/mnt/c/Users/Home/classes/Fall_2025/Trains/UI Images/GreenRedTrack.png": no such file or directory
+Closing Main UI...
+Socket server Track SW stopped
