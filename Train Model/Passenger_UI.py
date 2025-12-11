@@ -52,7 +52,7 @@ class TrainModelPassengerGUI:
 		moduleConfig = loadSocketConfig()
 		trainModelConfig = moduleConfig.get("Train Model", {"port": 12345})
 		self.server = TrainSocketServer(port=trainModelConfig["port"], ui_id="Train Model")
-		self.server.set_allowed_connections(["Train SW", "Train HW", "Track Model", "Test_UI"])
+		self.server.set_allowed_connections(["Train SW", "Train HW", "Track Model", "Test_UI", "CTC"])
 		self.server.start_server(self._processMessage)
 		
 		# Connect using ports from config
@@ -396,9 +396,9 @@ class TrainModelPassengerGUI:
 		self.root.after(100, self.continuousPhysicsUpdate)
 
 	def updateClockSpeed(self, clockMultiplier):
-		if clockMultiplier == '1':
+		if clockMultiplier == 1:
 			self.clockSpeed = 1000
-		elif clockMultiplier == '10':
+		elif clockMultiplier == 10:
 			self.clockSpeed = 100
 
 	def emergencyBrakeActivated(self, train=None):
