@@ -29,6 +29,9 @@ class PLCController:
         
         # Reference to test_data - will be set by PLCManager
         self.test_data = None
+        self.block_occupancy = {} # {block_number: True/False}
+        self.block_authority = {}# {block_num: authority_value}
+        self.ctc_authority_received = {}  # Store original CTC authority
         
         # Track line
         self.track = "Green"
@@ -111,21 +114,27 @@ class PLCController:
     def get_block_occupancy(self, block):
         """
         Read block occupancy from test_data.block_data
-        
+        Falls back to cached value if test_data not available
+    
         Args:
             block: Block number
-            
+        
         Returns:
             Boolean - True if occupied
         """
         if not self.test_data:
-            return False
-        
-        # block_data format: [Occupied, Line, Block, Section]
+        # Use cached occupancy if test_data not available
+            return self.block_occupancy.get(block, False)
+    
+    # block_data format: [Occupied, Line, Block, Section]
         for row in self.test_data.block_data:
             if str(row[2]) == str(block) and row[1] == self.track:
-                return row[0] == "Yes"
-        return False
+                is_occupied = (row[0] == "Yes")
+            # Cache the value
+                self.block_occupancy[block] = is_occupied
+                return is_occupied
+    
+        return self.block_occupancy.get(block, False)
     
     def get_block_fault(self, block):
         """
@@ -224,6 +233,30 @@ class PLCController:
             return 'Active' if bar == 'Closed' else 'Inactive'
         return 'Inactive'
 
+    def update_occupancy_from_track_model(self, occupancy_dict):
+        """
+        Receive occupancy updates from Track Model (via Track HW)
+        This allows PLC to react to occupancy changes for light/crossing control
+    
+        Args:
+            occupancy_dict: {block_num: occupancy_value} where 0=clear, train_id=occupied
+        """
+        for block_num, occupancy in occupancy_dict.items():
+            if isinstance(block_num, str):
+                block_num = int(block_num)
+        
+            is_occupied = (occupancy != 0)
+            old_state = self.block_occupancy.get(block_num, False)
+            self.block_occupancy[block_num] = is_occupied
+        
+        # Log significant changes
+            if old_state != is_occupied:
+                status = f"OCCUPIED (Train {occupancy})" if is_occupied else "CLEAR"
+                self.log(f"Block {block_num}: {status}")
+            
+            # If this block has a light or crossing, recalculate immediately
+                if block_num in self.light_info or block_num in self.crossing_info:
+                    self.run_cycle_quiet()
     # =========================================================================
     # OUTPUT WRITERS - Write actual data to test_data and send to Track Model/CTC
     # =========================================================================
