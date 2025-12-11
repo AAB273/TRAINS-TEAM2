@@ -1,0 +1,13 @@
+=== Track Model ===
+Start time: 2025-12-09 17:07:33
+Python: /bin/python3
+Script: /mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2/Track Model/UI_Structure.py
+Directory: /mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2
+==================================================
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2/Track Model/UI_Structure.py", line 14, in <module>
+    import UI_Variables
+  File "/mnt/c/Users/ryanm/OneDrive/Documents/University_Pittsburgh/Fall_2025/trains/TRAINS-TEAM2/Track Model/UI_Variables.py", line 1, in <module>
+    import pandas as pd
+ModuleNotFoundError: No module named 'pandas'
