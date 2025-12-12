@@ -849,7 +849,7 @@ class ScheduleScreen:
 ###############################################################################################################################################################
 
     def scheduleBacklog(self, data):
-        if (clock.getTime() == data[3]):
+        if (strptime(clock.getTime(), "%H:%M:%S") >= strptime(data[3], "%H:%M")):
             self.sendDeployData("63", data[0][0], data[1], data[2])
             self.updateManualEdit("63", data[0], data[1], data[2])
         else:
