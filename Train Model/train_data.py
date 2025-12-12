@@ -309,7 +309,7 @@ class Train:
 			if not self.authorityReceived:
 				self.authorityReceived = True
 				self.active = True
-				#print(f"Train {self.trainId} received first authority - AUTO ACTIVATING")
+				print(f"Train {self.trainId} received first authority - AUTO ACTIVATING")
 				self.serviceBrakeActive = False
 				self.announcement = "Traveling From Yard"
 			
